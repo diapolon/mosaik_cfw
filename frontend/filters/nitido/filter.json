@@ -1,0 +1,12 @@
+{
+  "name": {
+    "it": "Nitido",
+    "en": "Sharp",
+    "fr": "Net",
+    "es": "Nítido",
+    "de": "Scharf",
+    "pt": "Nítido"
+  },
+  "order": 10,
+  "smooth": false
+}

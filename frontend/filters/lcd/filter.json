@@ -1,0 +1,15 @@
+{
+  "name": {
+    "it": "Griglia LCD",
+    "en": "LCD grid",
+    "fr": "Grille LCD",
+    "es": "Rejilla LCD",
+    "de": "LCD-Raster",
+    "pt": "Grelha LCD"
+  },
+  "order": 40,
+  "smooth": false,
+  "mask": "mask.png",
+  "mask_scale": "pixel",
+  "mask_strength": 0.6
+}

@@ -1,0 +1,28 @@
+/* Hardware della console: TrimUI Smart Pro (TG5040) e Brick Pro (TG4040) sul firmware
+   originale. Percorsi e comandi come in MinUI (workspace/tg5040). Sul Mac le funzioni non
+   fanno nulla e la luminosità resta simulata scurendo l'immagine. */
+#pragma once
+#include <stdbool.h>
+#include "settings.h"
+
+bool plat_is_device(void);
+/* modello letto dallo script di avvio (TRIMUI_MODEL): "smartpro", "brickpro" o NULL */
+const char *plat_model(void);
+/* applica luminosità, volume e profilo CPU se sono cambiati (si chiama a ogni fotogramma) */
+void plat_apply(const settings_t *s);
+/* batteria in percentuale, -1 se non disponibile */
+int plat_battery(bool *charging);
+/* tasti della Brick Pro che SDL non vede come pulsanti: HOME (laterale), F1/F2 (le due
+   barrette) e l'interruttore FN. Letti dal gamepad "TRIMUI Player1" di trimui_inputd. */
+typedef struct {
+    bool home, f1, f2;     /* premuti in questo fotogramma */
+    int vol;               /* tasti volume: +1, -1 o 0 */
+    bool power;            /* tasto di accensione premuto (axp2202-pek) */
+    int fn;                /* posizione dell'interruttore FN: -1 ignota, 0 o 1 */
+    bool fn_changed;
+} plat_keys_t;
+void plat_poll(plat_keys_t *k);
+/* sistema autonomo su SD (non app del firmware TrimUI): niente "Esci" */
+bool plat_standalone(void);
+/* nome di un dispositivo /dev/input/eventN (EVIOCGNAME); false se non leggibile */
+bool plat_device_name(const char *path, char *out, int n);

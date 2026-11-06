@@ -1,0 +1,23 @@
+# CRT con bagliore: preset a tre passaggi nel formato .glslp di RetroArch.
+# 1) zone luminose sfocate in orizzontale, a metà risoluzione
+# 2) stessa sfocatura in verticale
+# 3) immagine CRT (dall'originale) più il bagliore calcolato nei passaggi 1 e 2
+shaders = 3
+
+shader0 = bagliore-h.glsl
+filter_linear0 = true
+scale_type0 = source
+scale0 = 0.5
+
+shader1 = bagliore-v.glsl
+filter_linear1 = true
+scale_type1 = source
+scale1 = 1.0
+
+shader2 = crt-finale.glsl
+filter_linear2 = true
+scale_type2 = viewport
+
+parameters = "SOGLIA;BAGLIORE"
+SOGLIA = 0.45
+BAGLIORE = 0.6

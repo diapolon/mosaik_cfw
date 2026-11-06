@@ -1,0 +1,14 @@
+Arcade - prova M1 (primo avvio da SD) per TrimUI Brick Pro (TG4040)
+
+Questa scheda avvia la console dalla SD con il bootloader e il kernel originali TrimUI e un
+piccolo sistema di prova. Non scrive nulla nella memoria interna: scrive solo in questa
+partizione, nella cartella LOG.
+
+Cosa succede accendendo la console con questa SD:
+1. schermata blu "ARCADE M1 - AVVIO RIUSCITO" con barre di colore (rosso, verde, blu, bianco, nero);
+2. "PREMI TUTTI I TASTI" per 25 secondi: premi ogni tasto una volta, compreso Menu, e muovi le levette;
+3. schermata verde "RAPPORTO SALVATO" (o rossa se la scrittura non riesce), poi si spegne.
+
+Poi rimetti la SD nel Mac e manda il file LOG/m1-1.txt.
+Se lo schermo resta nero per più di un minuto: tieni premuto il tasto di accensione 10-20
+secondi, togli la SD e riaccendi; la console torna al sistema originale.

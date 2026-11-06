@@ -1,0 +1,15 @@
+{
+  "name": {
+    "it": "Scanline",
+    "en": "Scanlines",
+    "fr": "Lignes",
+    "es": "Scanlines",
+    "de": "Scanlines",
+    "pt": "Scanlines"
+  },
+  "order": 30,
+  "smooth": false,
+  "mask": "mask.png",
+  "mask_scale": "pixel",
+  "mask_strength": 0.55
+}

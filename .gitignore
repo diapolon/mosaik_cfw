@@ -1,0 +1,16 @@
+# immagini, pacchetti e copie di sicurezza prodotti dagli script
+/dist/
+# sorgenti e binari esterni: core, firmware TrimUI, kit di sviluppo (si riscaricano)
+/deps/
+# programmi compilati
+/frontend/build/
+/frontend/build-*/
+*.dSYM/
+*.o
+# SD simulata del Mac: si ricrea con setup-mac.sh; contiene immagini scaricate e salvataggi
+/frontend/sdcard/
+# file di sistema
+.DS_Store
+._*
+# impostazioni locali di Claude Code
+/.claude/settings.local.json

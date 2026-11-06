@@ -1,0 +1,6 @@
+{
+  "name": { "it": "Pixel nitidi (shader)", "en": "Sharp pixels (shader)", "fr": "Pixels nets (shader)", "es": "Píxeles nítidos (shader)", "de": "Scharfe Pixel (Shader)", "pt": "Píxeis nítidos (shader)" },
+  "order": 15,
+  "smooth": true,
+  "shader": "nitidi.glsl"
+}

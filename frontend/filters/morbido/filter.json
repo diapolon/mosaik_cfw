@@ -1,0 +1,12 @@
+{
+  "name": {
+    "it": "Morbido",
+    "en": "Smooth",
+    "fr": "Doux",
+    "es": "Suave",
+    "de": "Weich",
+    "pt": "Suave"
+  },
+  "order": 20,
+  "smooth": true
+}

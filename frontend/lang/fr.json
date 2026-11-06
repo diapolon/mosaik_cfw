@@ -1,0 +1,319 @@
+{
+  "_name": "Français",
+  "common": {
+    "ok": "OK",
+    "back": "Retour",
+    "play": "Jouer",
+    "cancel": "Annuler",
+    "change": "Modifier",
+    "yes": "Oui",
+    "no": "Non",
+    "on": "Activé",
+    "off": "Désactivé",
+    "never": "Jamais",
+    "minutes": "%d min",
+    "favorite": "Favori",
+    "unfavorite": "Retirer des favoris",
+    "settings": "Réglages",
+    "power_off": "Éteindre",
+    "all_games": "Tous les jeux",
+    "launch_error": "Impossible de lancer le jeu",
+    "quit_menu": "Quitter"
+  },
+  "home": {
+    "no_games": "Aucun jeu trouvé : copiez les ROM dans Roms/FBNEO ou Roms/MAME2003P",
+    "fav_added": "Ajouté aux favoris",
+    "fav_removed": "Retiré des favoris",
+    "themes": "Thèmes",
+    "favorites": "Favoris"
+  },
+  "library": {
+    "title": "Bibliothèque",
+    "all": "Tous",
+    "favorites": "Favoris",
+    "empty": "Aucun jeu dans cette section",
+    "empty_fav": "Aucun favori : appuyez sur Y sur un jeu",
+    "genre": "Genre",
+    "genre_all": "Tous"
+  },
+  "info": {
+    "games": "%d jeux",
+    "players": "%d joueurs",
+    "vertical": "vertical",
+    "about": "%d jeux · prototype 0.1 · %s"
+  },
+  "settings": {
+    "title": "Réglages",
+    "brightness": "Luminosité",
+    "volume": "Volume",
+    "theme": "Thème",
+    "variant": "Variante du thème",
+    "language": "Langue",
+    "aspect": "Format des jeux",
+    "filter": "Filtre vidéo",
+    "cpu": "Profil de performances",
+    "wifi": "Wi-Fi",
+    "sleep": "Extinction automatique",
+    "resume": "Reprendre le dernier jeu à l'allumage",
+    "device": "Écran (prototype)",
+    "info": "À propos",
+    "power": "Éteindre la console",
+    "duplicates": "Jeux en double",
+    "scrape": "Télécharger les images",
+    "bezel": "Cadres des jeux",
+    "missing": "Jeux sans ROM",
+    "screensaver": "Économiseur d'écran",
+    "romcheck": "Vérifier les ROM",
+    "pads": "Manettes",
+    "music": "Musique"
+  },
+  "settings_desc": {
+    "brightness": "Luminosité de l'écran. Sur la console, elle réglera le rétroéclairage.",
+    "volume": "Volume du système, aussi utilisé dans les jeux.",
+    "theme": "Apparence du lanceur et du menu en jeu.",
+    "variant": "Couleurs du thème, s'il en propose plusieurs.",
+    "language": "Langue des menus. Également transmise aux émulateurs.",
+    "aspect": "Original : proportions de la borne. Pixels entiers : image nette. Plein écran : remplit tout.",
+    "filter": "Les filtres sont des dossiers dans Filters/ : masques, vignettage et, plus tard, shaders.",
+    "cpu": "Économie prolonge la batterie, Performances aide les jeux lourds (CPS3).",
+    "wifi": "Réseau sans fil. Dans le prototype, l'interrupteur est simulé.",
+    "sleep": "Éteint la console après un moment sans utiliser les touches, dans le lanceur.",
+    "resume": "Si la console est éteinte pendant une partie, elle reprend à cet endroit.",
+    "device": "Simule l'écran de la Smart Pro ou de la Brick Pro sur le Mac.",
+    "info": "Nombre de jeux trouvés et version du prototype.",
+    "power": "Enregistre et éteint.",
+    "duplicates": "Jeu présent dans FinalBurn Neo et MAME 2003+ : afficher les deux ou un seul.",
+    "scrape": "Télécharge captures, écrans titres et marquees depuis ArcadeDB et les vignettes libretro. Wi-Fi requis.",
+    "bezel": "Un cadre (bezel) autour du jeu : celui du jeu dans Bezels/ s'il existe, sinon celui par défaut.",
+    "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
+    "screensaver": "Après un moment sans action : captures de vos jeux ou écran éteint.",
+    "romcheck": "Vérifie que chaque zip contient les bons fichiers pour son émulateur (noms, tailles, CRC du DAT).",
+    "pads": "Les commandes de la console sont le joueur 1, une manette Bluetooth ou USB le 2. Avec « joueur 1 » on joue seul avec la manette externe.",
+    "music": "Musique de fond depuis le dossier Music de la carte SD (MP3, OGG, FLAC, MOD). A passe au morceau suivant."
+  },
+  "aspect": {
+    "original": "Original",
+    "integer": "Pixels entiers",
+    "full": "Plein écran"
+  },
+  "filter": {
+    "sharp": "Net",
+    "smooth": "Doux",
+    "scanlines": "Lignes"
+  },
+  "cpu": {
+    "save": "Économie",
+    "balanced": "Équilibré",
+    "perf": "Performances"
+  },
+  "variant": {
+    "light": "Clair",
+    "dark": "Sombre",
+    "neon": "Néon",
+    "ambra": "Ambre",
+    "oceano": "Océan",
+    "tramonto": "Coucher de soleil",
+    "foresta": "Forêt"
+  },
+  "dialog": {
+    "power_title": "Éteindre la console ?",
+    "power_body": "Réglages et favoris sont déjà enregistrés.",
+    "power_body_app": "Quitter pour revenir au menu TrimUI."
+  },
+  "game": {
+    "resume": "Reprendre",
+    "save_state": "Sauvegarder l'état",
+    "load_state": "Charger l'état",
+    "aspect": "Format",
+    "filter": "Filtre vidéo",
+    "reset": "Recommencer",
+    "exit": "Quitter vers le menu",
+    "power": "Éteindre",
+    "back_to_game": "Retour au jeu",
+    "state_saved": "État sauvegardé",
+    "save_failed": "Échec de la sauvegarde",
+    "state_loaded": "État chargé",
+    "no_state": "Aucun état sauvegardé",
+    "resumed": "Partie reprise",
+    "error_body": "Le core n'a pas chargé la ROM : fichiers manquants ou version du romset différente.",
+    "error_hint": "Détails dans Logs/Arcade.log. Appuyez sur A pour revenir au menu.",
+    "rotation": "Rotation de l'écran",
+    "options": "Options du jeu",
+    "controls": "Commandes",
+    "options_note": "DIP switches et options du core. Certaines s'appliquent après « Recommencer ».",
+    "no_options": "Ce core n'a pas d'options.",
+    "controls_note": "Choisissez la touche de la console pour chaque commande du jeu.",
+    "controls_reset": "Rétablir les commandes par défaut",
+    "controls_restored": "Commandes par défaut rétablies",
+    "per_game_note": "Ces réglages ne valent que pour ce jeu.",
+    "bezel": "Cadre",
+    "shader_params": "Paramètres du shader",
+    "no_params": "Ce shader n'a pas de paramètres.",
+    "no_shader": "Le filtre actuel n'utilise pas de shader.",
+    "shader_note": "Gauche/droite modifient la valeur, A rétablit la valeur par défaut. Ce jeu uniquement.",
+    "audio_stalled": "Audio indisponible : jeu sans son"
+  },
+  "genre": {
+    "fighter": "Combat",
+    "shooter": "Tir",
+    "platform": "Plates-formes",
+    "sports": "Sport",
+    "puzzle": "Réflexion",
+    "driving": "Course",
+    "maze": "Labyrinthe",
+    "climbing": "Escalade",
+    "ball_and_paddle": "Balle et raquette",
+    "quiz": "Quiz",
+    "casino": "Casino",
+    "tabletop": "Jeu de table",
+    "rhythm": "Rythme",
+    "music": "Musique",
+    "multiplay": "Multi-jeux",
+    "beatem_up": "Beat 'em up",
+    "action": "Action",
+    "slot_machine": "Machine à sous",
+    "board_game": "Jeu de plateau",
+    "card_games": "Jeux de cartes",
+    "mahjong": "Mahjong",
+    "miscellaneous": "Divers",
+    "not_classified": "Non classé",
+    "wrestling": "Catch",
+    "multigame": "Multi-jeux",
+    "breakout": "Casse-briques"
+  },
+  "rotate": {
+    "none": "Normale",
+    "left": "90° à gauche (TATE)",
+    "right": "90° à droite (TATE)"
+  },
+  "button": {
+    "none": "Aucune"
+  },
+  "dup": {
+    "all": "Afficher les deux",
+    "fbneo": "Préférer FinalBurn Neo",
+    "mame": "Préférer MAME 2003+",
+    "prefer": "Préférer %s"
+  },
+  "bar": {
+    "recent": "Récents",
+    "open_settings": "Appuyez sur A pour ouvrir les réglages"
+  },
+  "scrape": {
+    "title": "Téléchargement des images",
+    "info": "Recherche des informations des jeux…",
+    "images": "Téléchargement des images…",
+    "done": "Terminé.",
+    "stopped": "Interrompu : les images déjà téléchargées sont conservées.",
+    "failed": "Le service ne répond pas : vérifiez la connexion et réessayez.",
+    "progress": "%d sur %d jeux · %d images téléchargées · %d introuvables",
+    "stop": "Arrêter",
+    "no_wifi": "Activez d'abord le Wi-Fi"
+  },
+  "filters": {
+    "title": "Filtres et tri",
+    "hint": "Filtres",
+    "search": "Rechercher",
+    "search_empty": "(aucune)",
+    "sort": "Trier par",
+    "clear": "Effacer les filtres",
+    "roms": "État des ROM",
+    "roms_bad": "Seulement à corriger"
+  },
+  "sort": {
+    "name": "Nom",
+    "year": "Année",
+    "played": "Plus joués",
+    "recent": "Joués récemment"
+  },
+  "kb": {
+    "title": "Rechercher un jeu",
+    "type": "Écrire",
+    "delete": "Effacer",
+    "done": "OK",
+    "space": "Espace",
+    "results": "%d jeux trouvés"
+  },
+  "detail": {
+    "hint": "Fiche",
+    "title": "Fiche du jeu",
+    "scroll": "Défiler",
+    "stats": "%d parties · %s · dernière le %s",
+    "never": "Jamais joué",
+    "hours": "%d h %d min",
+    "minutes": "%d min",
+    "no_history": "Aucune description : utilisez « Télécharger les images »."
+  },
+  "hotkey": {
+    "ff_on": "Avance rapide activée",
+    "ff_off": "Avance rapide désactivée",
+    "screenshot": "Capture enregistrée",
+    "title": "Raccourcis (maintenir Menu)",
+    "ff": "Avance rapide",
+    "shot": "Capture d'écran",
+    "updown": "Haut / Bas",
+    "leftright": "Gauche / Droite"
+  },
+  "missing": {
+    "shown": "Affichés",
+    "hidden": "Masqués",
+    "badge": "Sans ROM",
+    "toast": "ROM manquante : copiez %s.zip dans %s"
+  },
+  "saver": {
+    "off": "Désactivé",
+    "shots2": "Captures après 2 min",
+    "shots5": "Captures après 5 min",
+    "black2": "Écran éteint après 2 min",
+    "black5": "Écran éteint après 5 min"
+  },
+  "battery": {
+    "low": "Batterie à %d %%",
+    "critical": "Batterie presque vide (%d %%) : branchez le chargeur",
+    "saved": "Batterie presque vide : partie sauvegardée"
+  },
+  "rom": {
+    "title": "Vérification des ROM",
+    "progress": "%d sur %d jeux vérifiés…",
+    "summary": "%d complètes · %d fichiers manquants · %d version différente · %d sans parent/BIOS",
+    "summary2": "%d absentes du DAT · %d non vérifiables (7z)",
+    "status1": "ROM complète",
+    "status2": "Fichiers manquants",
+    "badge2": "Incomplète",
+    "status3": "Version du romset différente",
+    "badge3": "Autre version",
+    "status4": "Parent ou BIOS requis",
+    "badge4": "Sans parent/BIOS",
+    "status5": "Nom absent du DAT de l'émulateur",
+    "status6": "ROM non vérifiable (7z)"
+  },
+  "pad": {
+    "connected": "Manette connectée : %s · joueur %d",
+    "removed": "Manette déconnectée : %s",
+    "ext_p2": "Externe = joueur 2 (%d connectées)",
+    "ext_p1": "Externe = joueur 1 (%d connectées)"
+  },
+  "coll": {
+    "filter": "Collection",
+    "hidden_view": "Masqués (%d)",
+    "menu_title": "Options du jeu",
+    "new": "Nouvelle collection…",
+    "hide": "Masquer ce jeu",
+    "unhide": "Afficher à nouveau ce jeu",
+    "added": "Ajouté à %s",
+    "removed": "Retiré de %s",
+    "hidden_toast": "Jeu masqué : retrouvez-le dans Filtres › Collection › Masqués",
+    "shown_toast": "Le jeu est à nouveau visible",
+    "name_prompt": "Nom de la collection",
+    "failed": "Impossible de créer la collection",
+    "hint": "Collections",
+    "hidden_tag": "Masqué"
+  },
+  "music": {
+    "none": "Aucun morceau dans Music"
+  },
+  "fn": {
+    "on": "FN : performances maximales",
+    "off": "FN : profil normal"
+  }
+}

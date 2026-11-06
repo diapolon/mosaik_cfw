@@ -1,0 +1,23 @@
+Arcade - sistema su SD per TrimUI Brick Pro (TG4040) e Smart Pro (TG5040) - prova M2
+
+Questa scheda avvia la console direttamente nel launcher Arcade, senza il sistema TrimUI.
+La memoria interna della console non viene toccata: togliendo la scheda riparte il
+sistema originale.
+
+Cartelle:
+  Arcade/Roms/FBNEO       ROM per FinalBurn Neo (anche in sottocartelle: neogeo/, cps2/...)
+  Arcade/Roms/MAME2003P   ROM per MAME 2003-Plus
+  Arcade/Bios             neogeo.zip e altri BIOS
+  Arcade/Music            musica di sottofondo (MP3, OGG)
+  Arcade/Media            immagini dei giochi (si possono copiare dal Mac)
+  Arcade/Logs             rapporti per la diagnosi: avvio.log, sistema.txt, Arcade.log
+  Arcade/System           impostazioni e il sistema (arcade-system.squashfs: non toccare)
+
+La cartella Arcade è uguale per i due modelli: ROM e salvataggi si possono spostare da una
+scheda all'altra. Cambia solo l'area di avvio, per questo ci sono due immagini.
+
+Tasti in più della Brick Pro: HOME (laterale) torna al launcher, le due barrette sotto lo
+schermo salvano e caricano la partita, l'interruttore FN attiva le prestazioni massime.
+
+Se lo schermo resta nero o rosso: tieni premuto il tasto di accensione 10-20 secondi,
+togli la scheda e manda i file della cartella Arcade/Logs.

@@ -1,0 +1,8 @@
+{
+  "name": "FinalBurn Neo",
+  "core": "fbneo_libretro",
+  "roms": "Roms/FBNEO",
+  "extensions": ["zip", "7z"],
+  "index": "Dats/fbneo.tsv",
+  "order": 10
+}

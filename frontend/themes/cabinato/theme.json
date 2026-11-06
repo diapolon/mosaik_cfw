@@ -1,0 +1,63 @@
+{
+  // Cabinato: elenco giochi con anteprima, colori neon e scanline, suoni da sala giochi.
+  "name": "Cabinato",
+  "author": "Prototipo",
+  "title": "Arcade",
+  "title_uppercase": true,
+  "layout": "list",
+  "sound_style": "retro",
+  "fonts": {
+    "regular": "../_shared/fonts/Nunito.ttf:3",
+    "title": "../_shared/fonts/PressStart2P.ttf"
+  },
+  "media": {
+    "cover": ["title", "snap"],
+    "preview": ["snap", "title"],
+    "marquee": true
+  },
+  "metrics": {
+    "topbar_h": 0.12,
+    "hintbar_h": 0.10,
+    "margin": 0.06,
+    "tile_size": 0.36,
+    "grid_tile": 0.25,
+    "tile_gap": 0.02,
+    "tile_radius": 0.004,
+    "select_border": 0.006,
+    "icon_size": 0.10,
+    "font_small": 0.030,
+    "font_normal": 0.040,
+    "font_title": 0.036,
+    "font_big": 0.060,
+    "list_row_h": 0.068,
+    "panel_radius": 0.006
+  },
+  "animation": { "speed": 22, "pulse": true },
+  "effects": { "scanlines": true },
+  "variants": {
+    "neon": {
+      "background": "#1A0F3D",
+      "background2": "#05030F",
+      "surface": "#241650",
+      "text": "#F3EDFF",
+      "text_dim": "#9C8CC9",
+      "accent": "#FF2E88",
+      "accent_text": "#FFFFFF",
+      "tile": "#241650",
+      "shadow": "#00000080",
+      "line": "#FF2E8855"
+    },
+    "ambra": {
+      "background": "#1C1206",
+      "background2": "#070401",
+      "surface": "#2A1C0B",
+      "text": "#FFD9A0",
+      "text_dim": "#B08550",
+      "accent": "#FFA31A",
+      "accent_text": "#1C1206",
+      "tile": "#2A1C0B",
+      "shadow": "#00000080",
+      "line": "#FFA31A55"
+    }
+  }
+}

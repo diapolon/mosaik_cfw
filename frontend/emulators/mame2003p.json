@@ -1,0 +1,8 @@
+{
+  "name": "MAME 2003+",
+  "core": "mame2003p_libretro",
+  "roms": "Roms/MAME2003P",
+  "extensions": ["zip"],
+  "index": "Dats/mame2003p.tsv",
+  "order": 20
+}

@@ -1,0 +1,6 @@
+{
+  "name": { "it": "CRT curvo (shader)", "en": "Curved CRT (shader)", "fr": "CRT incurvé (shader)", "es": "CRT curvo (shader)", "de": "Gewölbte Röhre (Shader)", "pt": "CRT curvo (shader)" },
+  "order": 60,
+  "smooth": false,
+  "shader": "crt.glsl"
+}

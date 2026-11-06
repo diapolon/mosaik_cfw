@@ -1,0 +1,74 @@
+#!/bin/busybox sh
+# Arcade M2 · primo stadio (initramfs nell'immagine boot): trova la SD, monta il sistema
+# (squashfs sulla FAT) e gli passa il controllo.
+# Ogni passo va a schermo e in Arcade/Logs/passi.txt con sync subito dopo: se la console
+# si riavvia, l'ultimo passo scritto dice dove si è fermata.
+/bin/busybox --install -s /bin
+export PATH=/bin:/sbin FB_TITLE=ARCADE
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev
+# il watchdog del kernel riavvia la console dopo ~20 s se nessuno lo alimenta;
+# questo processo resta vivo anche dopo il passaggio al sistema
+watchdog -t 2 -T 30 /dev/watchdog
+# niente riavvio automatico se il kernel va in panic: meglio uno schermo fermo leggibile
+echo 0 > /proc/sys/kernel/panic
+
+P=""
+STEPS=""
+step() {
+    echo "$(cut -d' ' -f1 /proc/uptime)s initramfs: $1" >> /tmp/passi.txt
+    fbmsg show blu 0 "$1" "$2" 2>/dev/null
+    if [ -n "$STEPS" ]; then cat /tmp/passi.txt >> "$STEPS"; : > /tmp/passi.txt; sync; fi
+}
+fail() {
+    step "ERRORE: $1" "$2"
+    [ -n "$STEPS" ] && dmesg > /sd/Arcade/Logs/dmesg-initramfs.txt && sync
+    fbmsg show rosso 60 "$1" "$2"
+    sync
+    poweroff -f
+}
+
+step "1 CERCO LA SD"
+for t in $(seq 60); do
+    P=$(findfs LABEL=ARCADE 2>/dev/null) && break
+    sleep 0.25
+done
+[ -n "$P" ] || fail "SD NON TROVATA" "MANCA LA PARTIZIONE ARCADE"
+mkdir -p /sd /root
+# controllo del FAT prima di montarlo: spegnimenti bruschi lo possono danneggiare, e un FAT
+# danneggiato impedisce di scrivere (per esempio il file che avvia i giochi)
+fbmsg show blu 0 "1b CONTROLLO LA SD" "" 2>/dev/null
+fsck.fat -a -w "$P" > /tmp/fsck.txt 2>&1
+FSCK=$?
+# flush: i dati vanno sulla scheda appena un file è chiuso, non restano in memoria
+mount -t vfat -o rw,noatime,flush "$P" /sd || fail "SD NON LEGGIBILE" "$P"
+mkdir -p /sd/Arcade/Logs
+STEPS=/sd/Arcade/Logs/passi.txt
+[ -f "$STEPS" ] && [ "$(wc -c < "$STEPS")" -gt 100000 ] && mv -f "$STEPS" "$STEPS.old"
+echo "=== avvio $(date) · $(cat /proc/version)" >> "$STEPS"
+step "2 SD MONTATA" "$P"
+case $FSCK in
+    0) step "2b FAT: nessun errore" ;;
+    1) step "2b FAT: errori corretti (dettagli in Logs/fsck.txt)"; cp /tmp/fsck.txt /sd/Arcade/Logs/fsck.txt; sync ;;
+    *) step "2b FAT: controllo non riuscito ($FSCK, dettagli in Logs/fsck.txt)"; cp /tmp/fsck.txt /sd/Arcade/Logs/fsck.txt; sync ;;
+esac
+SYS=/sd/Arcade/System/arcade-system.squashfs
+[ -f "$SYS" ] || fail "MANCA IL SISTEMA" "ARCADE/SYSTEM/ARCADE-SYSTEM.SQUASHFS"
+mount -t squashfs -o loop,ro "$SYS" /root || fail "SISTEMA NON MONTABILE" "ARCADE-SYSTEM.SQUASHFS"
+step "3 SISTEMA MONTATO"
+for d in tmp run var; do mount -t tmpfs -o mode=755 tmpfs /root/$d || fail "TMPFS" "$d"; done
+mount -t tmpfs -o size=4m tmpfs /root/mnt/UDISK || fail "TMPFS" "UDISK"
+[ -x /root/sbin/init ] || fail "MANCA SBIN/INIT"
+# strato del modello (driver GPU, librerie e programmi del firmware di questa console)
+MID=$(sed -n 1p /etc/arcade-model 2>/dev/null); MNAME=$(sed -n 2p /etc/arcade-model 2>/dev/null)
+[ -d /root/fw/$MID ] || fail "MODELLO NON SUPPORTATO" "$MID"
+ln -s /fw/$MID /root/run/fw
+echo "$MNAME" > /root/run/trimui-model
+step "4 PASSO AL SISTEMA" "$MNAME"
+umount /sd
+mount -t vfat -o rw,noatime,flush "$P" /root/mnt/SDCARD || fail "RIMONTAGGIO SD"
+mount --move /dev /root/dev
+mount --move /proc /root/proc
+mount --move /sys /root/sys
+exec switch_root /root /sbin/init

@@ -1,0 +1,8 @@
+{
+  "label": "Arcade",
+  "icon": "icon.png",
+  "iconsel": "icon.png",
+  "icontop": "icon.png",
+  "launch": "launch.sh",
+  "description": "FinalBurn Neo e MAME 2003-Plus con launcher a temi"
+}

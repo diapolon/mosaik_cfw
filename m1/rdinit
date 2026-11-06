@@ -1,0 +1,86 @@
+#!/bin/busybox sh
+# Prova M1 (primo avvio da SD): niente sistema, solo questo script dentro l'initramfs.
+# Versione 2: il kernel ha un watchdog attivo (nel sistema originale lo alimenta procd):
+# senza, la console si riavvia dopo una ventina di secondi. Avvia anche trimui_inputd del
+# firmware, che legge tasti (GPIO) e levette (I2C) e crea il gamepad "TRIMUI Player1".
+# Scrive un rapporto sull'hardware nella partizione FAT della SD che contiene il file
+# ARCADE-M1.txt (solo quella: la memoria interna non viene mai scritta), mostra l'esito sullo
+# schermo, registra i tasti premuti per 20 secondi e spegne la console.
+/bin/busybox mkdir -p /proc /sys /dev /tmp /mnt
+/bin/busybox --install -s /bin
+export PATH=/bin
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev 2>/dev/null
+# watchdog: va alimentato subito, altrimenti riavvio dopo ~20 s
+watchdog -t 2 -T 30 /dev/watchdog 2>/dev/null
+LOG=/tmp/m1.txt
+exec >"$LOG" 2>&1
+echo "=== Arcade M1 (versione 2) · prova di avvio da SD · Brick Pro (TG4040) ==="
+echo "watchdog: $(pidof watchdog >/dev/null && echo alimentato || echo NON avviato)"
+m1test show blu 2 "AVVIO RIUSCITO" "CERCO LA SD" &
+
+# partizione della SD: quella FAT con il file ARCADE-M1.txt
+SD=""
+for t in $(seq 40); do
+    for p in /dev/mmcblk*p*; do
+        [ -b "$p" ] || continue
+        mount -t vfat -o ro "$p" /mnt 2>/dev/null || continue
+        if [ -f /mnt/ARCADE-M1.txt ]; then SD="$p"; umount /mnt; break 2; fi
+        umount /mnt
+    done
+    sleep 0.5
+done
+wait
+echo "partizione della SD: ${SD:-NON TROVATA}"
+
+section() { echo; echo "----- $1"; }
+section "sistema";   uname -a; cat /proc/cmdline; uptime
+section "cpu";       grep -E "processor|Hardware|Revision|Serial|model name|CPU part" /proc/cpuinfo
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 2>/dev/null
+section "memoria";   head -5 /proc/meminfo
+section "dischi";    cat /proc/partitions; blkid
+for d in /sys/block/mmcblk*; do echo "$d: $(cat $d/device/type 2>/dev/null) $(cat $d/device/name 2>/dev/null)"; done
+section "schermo";   m1test info; cat /sys/class/graphics/fb0/modes /sys/class/graphics/fb0/virtual_size 2>/dev/null; ls /sys/class/disp* /sys/class/backlight 2>/dev/null
+section "ingressi";  cat /proc/bus/input/devices
+section "alimentazione"; for f in /sys/class/power_supply/*/uevent; do echo "$f"; cat "$f"; done
+section "audio";     cat /proc/asound/cards 2>/dev/null; ls /dev/snd 2>/dev/null
+section "kernel";    cat /proc/filesystems | tr '\n' ' '; echo; cat /proc/modules; ls /lib/modules 2>/dev/null
+section "dispositivi"; ls /dev /dev/input
+
+save() {
+    [ -n "$SD" ] || return 1
+    mount -t vfat -o rw "$SD" /mnt || return 1
+    mkdir -p /mnt/LOG
+    n=1; while [ -f /mnt/LOG/m1-$n.txt ] && [ "$n" != "$KEEP" ]; do n=$((n + 1)); done
+    KEEP=$n
+    cp "$LOG" /mnt/LOG/m1-$n.txt
+    sync
+    umount /mnt
+}
+save; echo "primo salvataggio: $?"
+section "messaggi del kernel (avvio)"
+dmesg
+save
+
+section "trimui_inputd"
+mkdir -p /tmp/trimui_inputd /mnt/UDISK
+LD_LIBRARY_PATH=/lib /usr/trimui/bin/trimui_inputd > /tmp/inputd.txt 2>&1 &
+sleep 3
+echo "processo: $(pidof trimui_inputd || echo NON in esecuzione)"
+cat /tmp/inputd.txt
+save
+
+section "tasti"
+m1test keys 25
+section "trimui_inputd (uscita)"
+cat /tmp/inputd.txt
+section "messaggi del kernel (fine)"
+dmesg | tail -40
+if save; then
+    m1test show verde 15 "RAPPORTO SALVATO SULLA SD" "LOG/M1-$KEEP.TXT - SI SPEGNE"
+else
+    m1test show rosso 20 "SD NON SCRIVIBILE" "SI SPEGNE"
+fi
+sync
+poweroff -f

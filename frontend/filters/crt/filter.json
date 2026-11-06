@@ -1,0 +1,16 @@
+{
+  "name": {
+    "it": "CRT",
+    "en": "CRT",
+    "fr": "CRT",
+    "es": "CRT",
+    "de": "CRT",
+    "pt": "CRT"
+  },
+  "order": 50,
+  "smooth": true,
+  "mask": "mask.png",
+  "mask_scale": "pixel",
+  "mask_strength": 0.75,
+  "vignette": 0.3
+}

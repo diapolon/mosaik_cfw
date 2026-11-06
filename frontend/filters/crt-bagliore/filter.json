@@ -1,0 +1,6 @@
+{
+  "name": { "it": "CRT con bagliore (3 passaggi)", "en": "CRT with glow (3 passes)", "fr": "CRT lumineux (3 passes)", "es": "CRT con brillo (3 pasadas)", "de": "Röhre mit Leuchten (3 Durchgänge)", "pt": "CRT com brilho (3 passagens)" },
+  "order": 70,
+  "smooth": false,
+  "shader": "crt-bagliore.glslp"
+}
