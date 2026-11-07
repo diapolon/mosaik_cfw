@@ -85,8 +85,12 @@ mksquashfs $R $W/arcade-system.squashfs -comp zstd -all-root -noappend -quiet >/
 echo "sistema: $(du -h $W/arcade-system.squashfs | cut -f1)"
 
 # ---------------------------------------------------------------- partizione FAT (comune)
-FAT=$W/fat.img; rm -f $FAT; truncate -s 1900M $FAT
-mkfs.vfat -F 32 -n ARCADE $FAT >/dev/null
+# Cluster da 32 KB e tabella dei cluster già grande per una scheda da 256 GB: all'avvio sdgrow
+# allarga il FAT fino alla fine della scheda cambiando solo il numero di settori (fatprep.py).
+# 2200 MB è il minimo per un FAT32 con cluster da 32 KB (65525 cluster).
+FAT=$W/fat.img; rm -f $FAT; truncate -s 256G $FAT
+mkfs.vfat -F 32 -s 64 -n ARCADE $FAT >/dev/null
+python3 -I $T/m2/fatprep.py $FAT 2200
 export MTOOLS_SKIP_CHECK=1
 mcopy -s -i $FAT $T/dist/SD/Arcade ::Arcade
 mcopy -o -i $FAT $W/arcade-system.squashfs ::Arcade/System/arcade-system.squashfs
@@ -105,7 +109,7 @@ models | while IFS="|" read -r id fw name file; do
     [ "$wm" = 0 ] || { echo "ATTENZIONE: boot_package di $fw con work mode $wm (non 0): fermo la costruzione"; exit 1; }
     I=$W/initramfs-$id; rm -rf $I; mkdir -p $I/bin $I/sbin $I/lib $I/etc $I/dev $I/proc $I/sys $I/tmp
     cp /bin/busybox.static $I/bin/busybox
-    cp $W/fbmsg $I/bin/fbmsg
+    cp $W/fbmsg $W/sdgrow $I/bin/
     # fsck.fat di Alpine (dosfstools, musl) con il suo caricatore, per riparare il FAT a ogni avvio
     cp /sbin/fsck.fat $I/sbin/fsck.fat
     cp /lib/ld-musl-aarch64.so.1 $I/lib/
@@ -117,7 +121,7 @@ models | while IFS="|" read -r id fw name file; do
     (cd $I && find . | cpio -o -H newc --owner 0:0 2>/dev/null | gzip -9) > $W/initramfs-$id.cpio.gz
     python3 -I $T/toolchain/bootimg.py pack $FW/boot.fex $W/boot-$id.img $W/initramfs-$id.cpio.gz
 
-    IMG=$W/m2-$file.img; rm -f $IMG; truncate -s 2000M $IMG
+    IMG=$W/m2-$file.img; rm -f $IMG; truncate -s 2300M $IMG
     S=2048
     sgdisk -o -j 160 \
       -n 1:$((36*S)):+32M -c 1:boot \

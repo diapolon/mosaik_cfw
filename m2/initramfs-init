@@ -38,9 +38,34 @@ done
 mkdir -p /sd /root
 # controllo del FAT prima di montarlo: spegnimenti bruschi lo possono danneggiare, e un FAT
 # danneggiato impedisce di scrivere (per esempio il file che avvia i giochi)
-fbmsg show blu 0 "1b CONTROLLO LA SD" "" 2>/dev/null
-fsck.fat -a -w "$P" > /tmp/fsck.txt 2>&1
-FSCK=$?
+# Il kernel segna il FAT "in uso" (bit 0 del byte 65 del settore di avvio) quando lo monta e
+# toglie il segno quando lo smonta bene: il controllo serve solo se il segno è rimasto, cioè
+# dopo uno spegnimento brusco. Con una SD grande il controllo legge decine di MB.
+STATE=$(dd if="$P" bs=1 skip=65 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+if [ $(( ${STATE:-1} & 1 )) = 1 ]; then
+    fbmsg show blu 0 "1b CONTROLLO LA SD" "" 2>/dev/null
+    fsck.fat -a -w "$P" > /tmp/fsck.txt 2>&1
+    FSCK=$?
+else
+    FSCK=skip
+fi
+# prima accensione: la partizione ARCADE si allarga fino alla fine della scheda (m2/sdgrow.c).
+# Le volte successive sdgrow vede che non c'è nulla da fare e finisce subito.
+PN=${P#/dev/}
+DISK=/dev/$(basename "$(readlink -f /sys/class/block/$PN/..)")
+GROW=1
+if [ -f /sys/class/block/$PN/partition ] && [ -b "$DISK" ]; then
+    fbmsg show blu 0 "1c SPAZIO SULLA SD" "" 2>/dev/null
+    sdgrow "$DISK" "$P" > /tmp/sdgrow.txt 2>&1
+    GROW=$?
+fi
+if [ $GROW = 3 ]; then
+    # partizione allargata ma il kernel vede ancora la misura vecchia: il FAT si allarga al
+    # prossimo avvio
+    fbmsg show blu 3 "SD ALLARGATA" "RIAVVIO" 2>/dev/null
+    sync
+    reboot -f
+fi
 # flush: i dati vanno sulla scheda appena un file è chiuso, non restano in memoria
 mount -t vfat -o rw,noatime,flush "$P" /sd || fail "SD NON LEGGIBILE" "$P"
 mkdir -p /sd/Arcade/Logs
@@ -49,9 +74,15 @@ STEPS=/sd/Arcade/Logs/passi.txt
 echo "=== avvio $(date) · $(cat /proc/version)" >> "$STEPS"
 step "2 SD MONTATA" "$P"
 case $FSCK in
+    skip) step "2b FAT chiuso bene all'ultimo spegnimento: controllo non necessario" ;;
     0) step "2b FAT: nessun errore" ;;
     1) step "2b FAT: errori corretti (dettagli in Logs/fsck.txt)"; cp /tmp/fsck.txt /sd/Arcade/Logs/fsck.txt; sync ;;
     *) step "2b FAT: controllo non riuscito ($FSCK, dettagli in Logs/fsck.txt)"; cp /tmp/fsck.txt /sd/Arcade/Logs/fsck.txt; sync ;;
+esac
+case $GROW in
+    0) step "2c SD allargata a tutta la scheda: $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
+    1) ;;
+    *) step "2c allargamento della SD non riuscito ($GROW): $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
 esac
 SYS=/sd/Arcade/System/arcade-system.squashfs
 [ -f "$SYS" ] || fail "MANCA IL SISTEMA" "ARCADE/SYSTEM/ARCADE-SYSTEM.SQUASHFS"

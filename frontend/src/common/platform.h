@@ -3,6 +3,7 @@
    fanno nulla e la luminosità resta simulata scurendo l'immagine. */
 #pragma once
 #include <stdbool.h>
+#include <time.h>
 #include "settings.h"
 
 bool plat_is_device(void);
@@ -26,3 +27,6 @@ void plat_poll(plat_keys_t *k);
 bool plat_standalone(void);
 /* nome di un dispositivo /dev/input/eventN (EVIOCGNAME); false se non leggibile */
 bool plat_device_name(const char *path, char *out, int n);
+/* imposta data e ora del sistema e le scrive nell'orologio della console (RTC), che le
+   conserva da spenta; false se non riesce (sul Mac non fa nulla) */
+bool plat_set_time(time_t t);

@@ -55,6 +55,7 @@
     "wifi": "WLAN",
     "sleep": "Automatisch ausschalten",
     "resume": "Letztes Spiel beim Einschalten fortsetzen",
+    "clock": "Datum und Uhrzeit",
     "device": "Bildschirm (Prototyp)",
     "info": "Info",
     "power": "Konsole ausschalten",
@@ -79,6 +80,7 @@
     "wifi": "Drahtloses Netzwerk. Im Prototyp ist der Schalter nur simuliert.",
     "sleep": "Schaltet die Konsole nach einer Weile ohne Eingabe im Launcher aus.",
     "resume": "Wird die Konsole während eines Spiels ausgeschaltet, geht es dort weiter.",
+    "clock": "Datum und Uhrzeit einstellen: die Uhr der Konsole behält sie auch ausgeschaltet.",
     "device": "Simuliert den Bildschirm von Smart Pro oder Brick Pro auf dem Mac.",
     "info": "Anzahl gefundener Spiele und Version des Prototyps.",
     "power": "Speichert und schaltet aus.",
@@ -315,5 +317,11 @@
   "fn": {
     "on": "FN: maximale Leistung",
     "off": "FN: normales Profil"
+  },
+  "clock": {
+    "title": "Datum und Uhrzeit",
+    "field": "Feld",
+    "saved": "Datum und Uhrzeit gespeichert",
+    "error": "Datum und Uhrzeit konnten nicht eingestellt werden"
   }
 }

@@ -148,7 +148,9 @@ sync
 finish() {
     step "spegnimento"
     sync
-    umount /mnt/SDCARD 2>/dev/null || mount -o remount,ro /mnt/SDCARD
+    # SD smontata o in sola lettura: il kernel toglie il segno "in uso" dal FAT e al prossimo
+    # avvio il controllo non serve (vedi initramfs-init)
+    umount /mnt/SDCARD 2>/dev/null || mount -o remount,ro /mnt/SDCARD || { echo "SD non chiusa: controllo al prossimo avvio" >> "$STEPS"; sync; }
     poweroff -f
     while :; do sleep 60; done
 }

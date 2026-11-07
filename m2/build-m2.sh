@@ -15,9 +15,11 @@ TOP="$PWD"
 # dati e core (stessa cartella Arcade del pacchetto per il firmware originale)
 sh toolchain/package.sh >/dev/null
 
-# programma per i messaggi a schermo (lo stesso della prova M1)
-docker run --rm --platform linux/amd64 -v "$TOP/m1":/m1:ro -v trimui-build:/build trimui-tg5040 sh -c \
-    'mkdir -p /build/m2 && aarch64-linux-gnu-gcc -static -O2 -o /build/m2/fbmsg /m1/m1test.c && aarch64-linux-gnu-strip /build/m2/fbmsg'
+# programmi statici dell'initramfs: messaggi a schermo (lo stesso della prova M1) e
+# allargamento della partizione ARCADE a tutta la scheda
+docker run --rm --platform linux/amd64 -v "$TOP/m1":/m1:ro -v "$TOP/m2":/m2:ro -v trimui-build:/build trimui-tg5040 sh -c \
+    'mkdir -p /build/m2 && aarch64-linux-gnu-gcc -static -O2 -o /build/m2/fbmsg /m1/m1test.c && aarch64-linux-gnu-strip /build/m2/fbmsg &&
+     aarch64-linux-gnu-gcc -static -O2 -Wall -o /build/m2/sdgrow /m2/sdgrow.c && aarch64-linux-gnu-strip /build/m2/sdgrow'
 
 # tutto il resto in un Linux arm64 (script separato: niente apici annidati)
 docker run --rm --platform linux/arm64 -v "$TOP":/trimui -v trimui-build:/build alpine:3.20 sh /trimui/m2/build-in-container.sh

@@ -1119,12 +1119,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "device", "romcheck", "scrape", "info", "power",
+    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "device", "romcheck", "scrape", "info", "power",
 };
 
 static const char *set_text(const char *group, int item) {
@@ -1209,6 +1209,13 @@ static void set_value(int item, char *buf, size_t n) {
         else snprintf(buf, n, "%s", T("common.never"));
         break;
     case S_RESUME: snprintf(buf, n, "%s", T(s->resume_last ? "common.yes" : "common.no")); break;
+    case S_CLOCK: {
+        time_t now = time(NULL);
+        struct tm tmv;
+        localtime_r(&now, &tmv);
+        strftime(buf, n, "%d/%m/%Y  %H:%M", &tmv);
+        break;
+    }
     case S_DEVICE: snprintf(buf, n, "%s", device_label(s->device)); break;
     case S_INFO: snprintf(buf, n, T("info.games"), ngames); break;
     case S_LANG: snprintf(buf, n, "%s", nlangs ? lang_names[lang_index()] : UI.set.lang); break;
@@ -1296,6 +1303,98 @@ static void set_change(int item, int dir) {
     ui_sound(SND_MOVE);
 }
 
+/* Data e ora: giorno, mese, anno, ore, minuti. Su/giù cambiano il campo scelto con
+   sinistra/destra; A salva (anche nell'orologio della console), B annulla. */
+static bool clock_open;
+static int clock_field;
+static struct tm clock_tm;
+
+static int days_in_month(int year, int mon) {
+    static const int d[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    bool leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    return mon == 1 && leap ? 29 : d[mon];
+}
+
+static void clock_start(void) {
+    time_t now = time(NULL);
+    localtime_r(&now, &clock_tm);
+    /* senza batteria tampone l'orologio può ripartire dal 1970: si parte da un anno sensato */
+    if (clock_tm.tm_year < 2024 - 1900) { clock_tm.tm_year = 2026 - 1900; clock_tm.tm_mon = 0; clock_tm.tm_mday = 1; }
+    clock_field = 0;
+    clock_open = true;
+}
+
+static int wrap(int v, int lo, int hi) { return v < lo ? hi : v > hi ? lo : v; }
+
+static void clock_change(int dir) {
+    struct tm *c = &clock_tm;
+    switch (clock_field) {
+    case 0: c->tm_mday = wrap(c->tm_mday + dir, 1, days_in_month(c->tm_year + 1900, c->tm_mon)); break;
+    case 1: c->tm_mon = wrap(c->tm_mon + dir, 0, 11); break;
+    case 2: c->tm_year = wrap(c->tm_year + dir, 2024 - 1900, 2099 - 1900); break;
+    case 3: c->tm_hour = wrap(c->tm_hour + dir, 0, 23); break;
+    case 4: c->tm_min = wrap(c->tm_min + dir, 0, 59); break;
+    }
+    int dim = days_in_month(c->tm_year + 1900, c->tm_mon);
+    if (c->tm_mday > dim) c->tm_mday = dim;
+}
+
+static void clock_input(void) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_LEFT]) { clock_field = (clock_field + 4) % 5; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_RIGHT]) { clock_field = (clock_field + 1) % 5; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_UP]) { clock_change(+1); ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN]) { clock_change(-1); ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { clock_open = false; ui_sound(SND_BACK); }
+    if (in->pressed[BTN_A]) {
+        struct tm c = clock_tm;
+        c.tm_sec = 0;
+        c.tm_isdst = -1;
+        bool ok = plat_set_time(mktime(&c));
+        ui_toast(T(ok ? "clock.saved" : "clock.error"));
+        ui_sound(ok ? SND_OK : SND_ERROR);
+        clock_open = false;
+    }
+}
+
+static void clock_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    int w = M(0.9f), h = M(0.36f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_text(UI.f_title, T("clock.title"), x + w / 2, y + M(0.05f), t->text, ALIGN_CENTER);
+    char v[5][8];
+    snprintf(v[0], 8, "%02d", clock_tm.tm_mday);
+    snprintf(v[1], 8, "%02d", clock_tm.tm_mon + 1);
+    snprintf(v[2], 8, "%04d", clock_tm.tm_year + 1900);
+    snprintf(v[3], 8, "%02d", clock_tm.tm_hour);
+    snprintf(v[4], 8, "%02d", clock_tm.tm_min);
+    /* campi in riga: gg / mm / aaaa   hh : mm, ognuno in una casella */
+    TTF_Font *f = UI.f_title;
+    int fh = TTF_FontHeight(f), pad = M(0.02f), cw2 = ui_text_w(f, "00") + 2 * pad, cw4 = ui_text_w(f, "0000") + 2 * pad;
+    int sepw = ui_text_w(f, "/") + 2 * pad, gap = M(0.05f);
+    int total = 4 * cw2 + cw4 + 3 * sepw + gap;
+    int cx = x + (w - total) / 2, cy = y + h / 2 - fh / 2 + M(0.035f);
+    const char *sep[5] = { "/", "/", "", ":", "" };
+    for (int i = 0; i < 5; i++) {
+        int bw = i == 2 ? cw4 : cw2;
+        bool sel = i == clock_field;
+        ui_rrect(cx, cy - pad / 2, bw, fh + pad, M(t->panel_radius), sel ? t->accent : with_alpha(t->text_dim, 40));
+        ui_text(f, v[i], cx + bw / 2, cy, sel ? t->accent_text : t->text, ALIGN_CENTER);
+        if (sel) {
+            int a = M(0.015f), mx2 = cx + bw / 2, ty = cy - pad / 2 - M(0.015f), by = cy + fh + pad / 2 + M(0.015f);
+            ui_triangle(mx2 - a, ty, mx2 + a, ty, mx2, ty - a, t->accent);
+            ui_triangle(mx2 - a, by, mx2 + a, by, mx2, by + a, t->accent);
+        }
+        cx += bw;
+        if (*sep[i]) { ui_text(f, sep[i], cx + sepw / 2, cy, t->text_dim, ALIGN_CENTER); cx += sepw; }
+        else if (i == 2) cx += gap;
+    }
+    const char *h2[] = { "B", T("common.cancel"), "<>", T("clock.field"), "^v", T("common.change"), "A", T("common.ok") };
+    ui_hints(h2, 8);
+}
+
 static void settings_input(void) {
     input_t *in = &UI.in;
     if (in->pressed[BTN_UP]) { set_sel = (set_sel + S_COUNT - 1) % S_COUNT; ui_sound(SND_MOVE); }
@@ -1304,6 +1403,7 @@ static void settings_input(void) {
     if (in->pressed[BTN_RIGHT]) set_change(set_sel, +1);
     if (in->pressed[BTN_A]) {
         if (set_sel == S_POWER) { dlg_open = true; dlg_sel = 0; ui_sound(SND_OK); }
+        else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
         else if (set_sel == S_ROMCHECK) {
             if (romcheck_start(UI.root, games, ngames)) { romcheck_open = true; ui_sound(SND_OK); }
         }
@@ -1383,8 +1483,9 @@ static void settings_draw(void) {
             draw_switch(vx - sh * 9 / 5, cy - sh / 2, sh, on);
         } else {
             color_t vc = sel ? t->accent : t->text_dim;
-            int tw = ui_text(f, val, vx - (sel && i != S_INFO ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
-            if (sel && i != S_INFO) {
+            bool arrows = sel && i != S_INFO && i != S_CLOCK;
+            int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
+            if (arrows) {
                 ui_text(f, "‹", vx - M(0.035f) - tw - M(0.02f), cy - fh / 2, vc, ALIGN_RIGHT);
                 ui_text(f, "›", vx, cy - fh / 2, vc, ALIGN_RIGHT);
             }
@@ -1395,6 +1496,8 @@ static void settings_draw(void) {
     int n = ui_wrap(UI.f_small, set_text("settings_desc", set_sel), w, lines, 2);
     int dy = UI.h - M(t->hintbar_h) - desc_h + M(0.01f);
     for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], mx, dy + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
+    /* con la finestra di data e ora aperta, la barra dei tasti è quella della finestra */
+    if (clock_open) return;
     const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
     ui_hints(h, 4);
 }
@@ -2252,7 +2355,7 @@ int main(int argc, char **argv) {
         if (UI.in.power && !dlg_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open) {
-            kb_open = fpanel_open = dlg_open = gopt_open = false;
+            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
         }
@@ -2265,6 +2368,7 @@ int main(int argc, char **argv) {
         else if (gopt_open && screen == SCR_DETAIL) gopt_input();
         else if (fpanel_open) fpanel_input();
         else if (dlg_open) dialog_input();
+        else if (clock_open) clock_input();
         else if (screen == SCR_HOME && is_bar_layout()) bar_input();
         else if (screen == SCR_HOME) home_input();
         else if (screen == SCR_LIBRARY) lib_common_input(is_list_layout() ? 1 : grid_cols());
@@ -2280,6 +2384,7 @@ int main(int argc, char **argv) {
         } else if (screen == SCR_DETAIL) detail_draw();
         else settings_draw();
         if (dlg_open) dialog_draw();
+        if (clock_open) clock_draw();
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
         if (kb_open) keyboard_draw();

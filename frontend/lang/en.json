@@ -55,6 +55,7 @@
     "wifi": "Wi-Fi",
     "sleep": "Auto power off",
     "resume": "Resume last game at power on",
+    "clock": "Date and time",
     "device": "Screen (prototype only)",
     "info": "About",
     "power": "Power off the console",
@@ -79,6 +80,7 @@
     "wifi": "Wireless network. In the prototype the switch is only simulated.",
     "sleep": "Turns the console off after a period without input, in the launcher.",
     "resume": "If the console is turned off during a game, it starts again from there.",
+    "clock": "Set the date and time: they are kept by the console's clock even when it's off.",
     "device": "Simulates the Smart Pro or Brick Pro screen on the Mac.",
     "info": "Number of games found and prototype version.",
     "power": "Saves and powers off.",
@@ -315,5 +317,11 @@
   "fn": {
     "on": "FN: maximum performance",
     "off": "FN: normal profile"
+  },
+  "clock": {
+    "title": "Date and time",
+    "field": "Field",
+    "saved": "Date and time saved",
+    "error": "Unable to set date and time"
   }
 }

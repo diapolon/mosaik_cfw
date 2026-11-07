@@ -29,18 +29,29 @@ launcher non parte compare un errore rosso invece di un riavvio.
 La console si accende direttamente nel launcher Arcade, senza il sistema TrimUI e senza
 toccare la memoria interna. Si toglie la scheda e riparte il sistema originale.
 
-## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2 GB)
+**Spazio della SD e data/ora (7 novembre).** Alla prima accensione la partizione ARCADE si
+allarga da sola fino alla fine della scheda (`m2/sdgrow.c`, provato con `m2/test-sdgrow.sh` su
+schede simulate da 2,3 GB a 300 GB e letto dal Mac). Il FAT dell'immagine nasce con la
+tabella dei cluster già grande per 256 GB (cluster da 32 KB, `m2/fatprep.py`): allargarlo
+vuol dire solo cambiare il numero di settori, senza spostare dati. Sopra i 256 GB la
+partizione occupa tutta la scheda ma il FAT si ferma a 256 GB. Il controllo del FAT
+(`fsck.fat`) ora parte solo se all'ultimo spegnimento il FAT non è stato chiuso bene: con la
+tabella più grande ogni controllo legge decine di MB. In Impostazioni c'è "Data e ora", che
+scrive anche l'orologio della console (`hwclock -w`); all'avvio il sistema lo rilegge.
+
+## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2,3 GB)
 
 | Parte | Contenuto |
 |---|---|
 | boot0, boot_package | originali del firmware v1.1.1, modalità normale (come M1) |
 | partizione `boot` | kernel originale 4.9.191 + nostro initramfs (`m2/initramfs-init`) |
 | `env`, `env-redund` | ambiente di U-Boot originale |
-| FAT "ARCADE" (1,9 GB) | cartella `Arcade` (temi, lingue, filtri, core, indici, ROM, salvataggi, log) e `LEGGIMI.txt` |
+| FAT "ARCADE" (2,2 GB, poi tutta la scheda) | cartella `Arcade` (temi, lingue, filtri, core, indici, ROM, salvataggi, log) e `LEGGIMI.txt` |
 | `Arcade/System/arcade-system.squashfs` (13 MB) | il sistema: BusyBox, librerie di base, GPU, audio, `trimui_inputd`, `amixer`/`tinymix` del firmware, i nostri programmi, `m2/system-init` |
 
 Avvio:
-1. **initramfs**: alimenta il watchdog, trova la FAT "ARCADE", monta lo squashfs e gli passa
+1. **initramfs**: alimenta il watchdog, trova la FAT "ARCADE" (controllo con `fsck.fat` se
+   serve, allargamento con `sdgrow` alla prima accensione), monta lo squashfs e gli passa
    il controllo (`switch_root`). Se qualcosa manca lo dice a schermo (rosso) e lo scrive in
    `Arcade/Logs/initramfs.txt`.
 2. **system-init**: carica i moduli della GPU (`pvrsrvkm`, `dc_sunxi`), avvia `trimui_inputd`,
@@ -61,8 +72,9 @@ della cartella `Arcade`) sulla scheda: non serve riscriverla.
 
 ## Limiti di questa versione
 
-- La FAT è di 1,9 GB qualunque sia la scheda: l'allargamento automatico allo spazio libero
-  arriverà più avanti (oggi si può fare a mano con un programma di partizionamento).
+- Il FAT arriva al massimo a 256 GB. Una scheda scritta con un'immagine di prima del 7
+  novembre ha il FAT da 1,9 GB non preparato a crescere: la partizione si allarga, il FAT no.
+  Per avere tutto lo spazio va riscritta con l'immagine nuova (prima salva ROM e salvataggi).
 - Niente Wi-Fi, Bluetooth, sospensione e LED (fase M6).
 - Calibrazione delle levette: quella di fabbrica è nella memoria interna. Se le levette
   sono imprecise, si può copiare `joypad.config` dal sistema originale in `Arcade/System`.

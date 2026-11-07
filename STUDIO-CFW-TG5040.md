@@ -476,6 +476,11 @@ Codice in [frontend/](frontend/README.md).
 - **M2 funziona anche sulla Smart Pro (7 novembre)**: stesso sistema con uno strato per
   modello (`/fw/tg5040`), immagine `dist/m2-smartpro.img`. Gradino 3 raggiunto su entrambe le
   console: sistema proprio su SD, senza toccare la memoria interna.
+- **Spazio e orologio (7 novembre, da provare sulla console)**: la partizione ARCADE si
+  allarga a tutta la scheda alla prima accensione (`m2/sdgrow.c`; FAT con tabella preparata
+  per 256 GB da `m2/fatprep.py`), `fsck.fat` solo dopo uno spegnimento brusco (segno "in uso"
+  del FAT), "Data e ora" nelle impostazioni con scrittura dell'RTC, luminosità registrata nel
+  log (`luminosità: livello … esito …`).
 - **M2 pronta per la Brick Pro (6 novembre, `m2/`)**: SD che avvia direttamente il launcher.
   Sistema in un unico squashfs (13 MB) sulla FAT, con BusyBox e le librerie del firmware
   (glibc 2.33, SDL2 2.30.8 con driver "mali", PowerVR, ALSA, `trimui_inputd`); initramfs che

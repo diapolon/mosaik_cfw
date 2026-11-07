@@ -55,6 +55,7 @@
     "wifi": "Wi-Fi",
     "sleep": "Apagado automático",
     "resume": "Reanudar el último juego al encender",
+    "clock": "Fecha y hora",
     "device": "Pantalla (prototipo)",
     "info": "Información",
     "power": "Apagar la consola",
@@ -79,6 +80,7 @@
     "wifi": "Red inalámbrica. En el prototipo el interruptor es simulado.",
     "sleep": "Apaga la consola tras un tiempo sin usar los botones, en el lanzador.",
     "resume": "Si la consola se apaga durante una partida, vuelve a empezar desde ahí.",
+    "clock": "Ajusta la fecha y la hora: el reloj de la consola las conserva incluso apagada.",
     "device": "Simula la pantalla de la Smart Pro o de la Brick Pro en el Mac.",
     "info": "Número de juegos encontrados y versión del prototipo.",
     "power": "Guarda y apaga.",
@@ -315,5 +317,11 @@
   "fn": {
     "on": "FN: máximo rendimiento",
     "off": "FN: perfil normal"
+  },
+  "clock": {
+    "title": "Fecha y hora",
+    "field": "Campo",
+    "saved": "Fecha y hora guardadas",
+    "error": "No se pudo ajustar la fecha y la hora"
   }
 }

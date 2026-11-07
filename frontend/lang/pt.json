@@ -55,6 +55,7 @@
     "wifi": "Wi-Fi",
     "sleep": "Desligar automático",
     "resume": "Retomar o último jogo ao ligar",
+    "clock": "Data e hora",
     "device": "Ecrã (protótipo)",
     "info": "Sobre",
     "power": "Desligar a consola",
@@ -79,6 +80,7 @@
     "wifi": "Rede sem fios. No protótipo o interruptor é simulado.",
     "sleep": "Desliga a consola após algum tempo sem usar os botões, no launcher.",
     "resume": "Se a consola for desligada durante um jogo, retoma a partir daí.",
+    "clock": "Define a data e a hora: o relógio da consola guarda-as mesmo desligada.",
     "device": "Simula o ecrã da Smart Pro ou da Brick Pro no Mac.",
     "info": "Número de jogos encontrados e versão do protótipo.",
     "power": "Guarda e desliga.",
@@ -315,5 +317,11 @@
   "fn": {
     "on": "FN: desempenho máximo",
     "off": "FN: perfil normal"
+  },
+  "clock": {
+    "title": "Data e hora",
+    "field": "Campo",
+    "saved": "Data e hora guardadas",
+    "error": "Não foi possível definir a data e a hora"
   }
 }

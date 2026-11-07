@@ -55,6 +55,7 @@
     "wifi": "Wi-Fi",
     "sleep": "Spegnimento automatico",
     "resume": "Riprendi l'ultimo gioco all'accensione",
+    "clock": "Data e ora",
     "device": "Schermo (solo prototipo)",
     "info": "Informazioni",
     "power": "Spegni la console",
@@ -79,6 +80,7 @@
     "wifi": "Rete senza fili. Nel prototipo l'interruttore è solo simulato.",
     "sleep": "Spegne la console dopo un periodo senza usare i tasti, nel launcher.",
     "resume": "Se la console viene spenta durante una partita, alla riaccensione riparte da lì.",
+    "clock": "Imposta la data e l'ora: restano salvate nell'orologio della console anche da spenta.",
     "device": "Simula lo schermo della Smart Pro o della Brick Pro sul Mac.",
     "info": "Numero di giochi trovati e versione del prototipo.",
     "power": "Salva e spegne.",
@@ -315,5 +317,11 @@
   "fn": {
     "on": "FN: prestazioni massime",
     "off": "FN: profilo normale"
+  },
+  "clock": {
+    "title": "Data e ora",
+    "field": "Campo",
+    "saved": "Data e ora salvate",
+    "error": "Impossibile impostare data e ora"
   }
 }

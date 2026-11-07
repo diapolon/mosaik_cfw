@@ -10,6 +10,7 @@ bool plat_standalone(void) { const char *e = getenv("ARCADE_STANDALONE"); return
 #include <linux/input.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 bool plat_is_device(void) { return true; }
@@ -38,12 +39,23 @@ static int get_int(const char *path) {
 
 /* retroilluminazione: ioctl del driver display Allwinner, valori 0-255 */
 #define DISP_LCD_SET_BRIGHTNESS 0x102
+#define DISP_LCD_GET_BRIGHTNESS 0x103
+void ui_log(const char *fmt, ...);   /* da ui.c (ui.h qui non si può includere: vedi linux/input.h) */
+
 static void set_brightness(int level) {
     static const int raw[11] = { 4, 6, 10, 16, 32, 48, 64, 96, 128, 192, 255 };
+    static int logged;
     int fd = open("/dev/disp", O_RDWR);
-    if (fd < 0) return;
+    if (fd < 0) {
+        if (!logged++) ui_log("luminosità: /dev/disp non disponibile");
+        return;
+    }
     unsigned long param[4] = { 0, (unsigned long)raw[level < 0 ? 0 : level > 10 ? 10 : level], 0, 0 };
-    ioctl(fd, DISP_LCD_SET_BRIGHTNESS, &param);
+    int r = ioctl(fd, DISP_LCD_SET_BRIGHTNESS, &param);
+    unsigned long q[4] = { 0, 0, 0, 0 };
+    int now = ioctl(fd, DISP_LCD_GET_BRIGHTNESS, &q);
+    /* nel log solo le prime volte e gli errori: basta per capire se il driver risponde */
+    if (r < 0 || logged < 3) { logged++; ui_log("luminosità: livello %d -> %lu (esito %d, ora %d)", level, param[1], r, now); }
     close(fd);
 }
 
@@ -137,6 +149,15 @@ void plat_poll(plat_keys_t *k) {
     k->fn = fn_state;
 }
 
+bool plat_set_time(time_t t) {
+    struct timeval tv = { .tv_sec = t, .tv_usec = 0 };
+    if (settimeofday(&tv, NULL) != 0) { ui_log("data e ora: settimeofday non riuscita"); return false; }
+    /* stesso formato che il sistema rilegge all'avvio con "hwclock -s" */
+    int r = system("hwclock -w 2>/dev/null");
+    ui_log("data e ora impostate, orologio della console %s", r == 0 ? "aggiornato" : "non aggiornato");
+    return true;
+}
+
 int plat_battery(bool *charging) {
     *charging = get_int("/sys/class/power_supply/axp2202-usb/online") == 1;
     return get_int("/sys/class/power_supply/axp2202-battery/capacity");
@@ -150,5 +171,6 @@ void plat_apply(const settings_t *s) { (void)s; }
 int plat_battery(bool *charging) { *charging = false; return -1; }
 void plat_poll(plat_keys_t *k) { memset(k, 0, sizeof *k); k->fn = -1; }
 bool plat_device_name(const char *path, char *out, int n) { (void)path; if (n) out[0] = 0; return false; }
+bool plat_set_time(time_t t) { (void)t; return false; }
 
 #endif
