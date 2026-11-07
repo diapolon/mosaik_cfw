@@ -210,12 +210,19 @@ static void layer_show(SDL_Surface *s) {
     int sp = s->pitch / 4, W = s->w, H = s->h;
     if (ov_rot == 0) {
         for (int y = 0; y < H && y < ov_h; y++) memcpy(ov + (size_t)y * ov_w, src + (size_t)y * sp, (size_t)(W < ov_w ? W : ov_w) * 4);
-    } else if (ov_rot == 270) {   /* (x, y) -> (y, ov_h - 1 - x) */
-        for (int y = 0; y < H && y < ov_w; y++)
-            for (int x = 0; x < W && x < ov_h; x++) ov[(size_t)(ov_h - 1 - x) * ov_w + y] = src[(size_t)y * sp + x];
-    } else {                      /* 90: (x, y) -> (ov_w - 1 - y, x) */
-        for (int y = 0; y < H && y < ov_w; y++)
-            for (int x = 0; x < W && x < ov_h; x++) ov[(size_t)x * ov_w + (ov_w - 1 - y)] = src[(size_t)y * sp + x];
+    } else {
+        /* La memoria video si scrive bene solo in ordine: ogni riga del livello si prepara in
+           una riga in memoria normale (leggendo una colonna dell'immagine) e si copia intera. */
+        static uint32_t row[4096];
+        for (int Y = 0; Y < ov_h; Y++) {
+            int x = ov_rot == 270 ? ov_h - 1 - Y : Y;   /* colonna dell'immagine */
+            if (x < 0 || x >= W) continue;
+            for (int X = 0; X < ov_w && X < 4096; X++) {
+                int y = ov_rot == 270 ? X : ov_w - 1 - X;   /* riga dell'immagine */
+                row[X] = y < H ? src[(size_t)y * sp + x] : 0;
+            }
+            memcpy(ov + (size_t)Y * ov_w, row, (size_t)ov_w * 4);
+        }
     }
 }
 
@@ -255,17 +262,36 @@ int main(int argc, char **argv) {
     int rc = -1;
     /* il tasto Menu è ancora premuto da quando si è aperto il menu: si aspetta che si lasci */
     bool armed = false;
+    /* Si ridisegna solo quando cambia qualcosa (tasti, animazioni, avvisi): senza GPU ogni
+       disegno costa. I tempi dei primi disegni vanno nel log. */
+    int last_sel = -1, last_vol = -1, last_bri = -1, logged = 0;
     while (rc < 0) {
         ui_poll();
         if (!armed) {
             armed = !UI.in.down[BTN_MENU];
             memset(UI.in.pressed, 0, sizeof UI.in.pressed);
         } else rc = input();
+        if (rc >= 0) break;
         plat_apply(&UI.set);
-        ui_overlay_begin();
-        draw(title);
-        layer_show(ui_overlay_end());
-        SDL_Delay(16);
+        float rh = (float)M(UI.th.list_row_h);
+        bool moving = anim < 0.999f || hl - sel * rh > 0.5f || sel * rh - hl > 0.5f || ui_toast_active();
+        if (moving || sel != last_sel || UI.set.volume != last_vol || UI.set.brightness != last_bri) {
+            last_sel = sel;
+            last_vol = UI.set.volume;
+            last_bri = UI.set.brightness;
+            Uint64 f = SDL_GetPerformanceFrequency(), t0 = SDL_GetPerformanceCounter();
+            ui_overlay_begin();
+            draw(title);
+            SDL_Surface *img = ui_overlay_end();
+            Uint64 t1 = SDL_GetPerformanceCounter();
+            layer_show(img);
+            Uint64 t2 = SDL_GetPerformanceCounter();
+            if (logged < 3) {
+                logged++;
+                ui_log("menu: disegno %.1f ms, copia %.1f ms", (t1 - t0) * 1000.0 / f, (t2 - t1) * 1000.0 / f);
+            }
+        }
+        SDL_Delay(moving ? 1 : 8);
     }
     layer_close();
     ui_log("menu del gioco Linux: %s", rc == RC_RESUME ? "riprendi" : rc == RC_QUIT ? "esci" : "spegni");

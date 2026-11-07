@@ -1322,6 +1322,7 @@ void ui_poll(void) {
 
 static char toast_msg[160];
 static double toast_until;
+bool ui_toast_active(void) { return toast_msg[0] && UI.t <= toast_until; }
 
 void ui_toast(const char *msg) {
     snprintf(toast_msg, sizeof toast_msg, "%s", msg);

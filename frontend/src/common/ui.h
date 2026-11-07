@@ -154,6 +154,7 @@ void ui_toast(const char *msg);
 /* salva il prossimo frame del canvas in un PNG */
 void ui_screenshot(const char *path);
 void ui_draw_toast(void);
+bool ui_toast_active(void);   /* un avviso è a schermo (serve ridisegnare) */
 
 /* temi */
 bool theme_load(theme_t *t, const char *root, const char *id, const char *variant);
