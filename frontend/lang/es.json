@@ -82,7 +82,7 @@
     "resume": "Si la consola se apaga durante una partida, vuelve a empezar desde ahí.",
     "clock": "Ajusta la fecha y la hora: el reloj de la consola las conserva incluso apagada.",
     "device": "Simula la pantalla de la Smart Pro o de la Brick Pro en el Mac.",
-    "info": "Número de juegos encontrados y versión del prototipo.",
+    "info": "Espacio en la tarjeta SD y qué lo ocupa: juegos por emulador, imágenes, partidas, música.",
     "power": "Guarda y apaga.",
     "duplicates": "Juego presente en FinalBurn Neo y MAME 2003+: mostrar ambos o solo uno.",
     "scrape": "Descarga capturas, pantallas de título y marquees de ArcadeDB y las miniaturas de libretro. Requiere Wi-Fi.",
@@ -323,5 +323,18 @@
     "field": "Campo",
     "saved": "Fecha y hora guardadas",
     "error": "No se pudo ajustar la fecha y la hora"
+  },
+  "sdinfo": {
+    "title": "Tarjeta SD",
+    "free": "%s libres de %s",
+    "used": "%s usados",
+    "unknown": "No se puede leer el espacio",
+    "bios": "BIOS",
+    "media": "Imágenes de juegos",
+    "saves": "Partidas guardadas",
+    "music": "Música",
+    "system": "Sistema y ajustes",
+    "footer": "Arcade 0.1 · %s",
+    "one_game": "1 juego"
   }
 }

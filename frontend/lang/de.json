@@ -82,7 +82,7 @@
     "resume": "Wird die Konsole während eines Spiels ausgeschaltet, geht es dort weiter.",
     "clock": "Datum und Uhrzeit einstellen: die Uhr der Konsole behält sie auch ausgeschaltet.",
     "device": "Simuliert den Bildschirm von Smart Pro oder Brick Pro auf dem Mac.",
-    "info": "Anzahl gefundener Spiele und Version des Prototyps.",
+    "info": "Speicherplatz auf der SD-Karte und was ihn belegt: Spiele pro Emulator, Bilder, Spielstände, Musik.",
     "power": "Speichert und schaltet aus.",
     "duplicates": "Spiel in FinalBurn Neo und MAME 2003+ vorhanden: beide oder nur eines anzeigen.",
     "scrape": "Lädt Screenshots, Titelbilder und Marquees von ArcadeDB und den libretro-Thumbnails. WLAN nötig.",
@@ -323,5 +323,18 @@
     "field": "Feld",
     "saved": "Datum und Uhrzeit gespeichert",
     "error": "Datum und Uhrzeit konnten nicht eingestellt werden"
+  },
+  "sdinfo": {
+    "title": "SD-Karte",
+    "free": "%s frei von %s",
+    "used": "%s belegt",
+    "unknown": "Speicherplatz nicht lesbar",
+    "bios": "BIOS",
+    "media": "Spielbilder",
+    "saves": "Spielstände",
+    "music": "Musik",
+    "system": "System und Einstellungen",
+    "footer": "Arcade 0.1 · %s",
+    "one_game": "1 Spiel"
   }
 }

@@ -82,7 +82,7 @@
     "resume": "Se la console viene spenta durante una partita, alla riaccensione riparte da lì.",
     "clock": "Imposta la data e l'ora: restano salvate nell'orologio della console anche da spenta.",
     "device": "Simula lo schermo della Smart Pro o della Brick Pro sul Mac.",
-    "info": "Numero di giochi trovati e versione del prototipo.",
+    "info": "Spazio sulla scheda SD e cosa lo occupa: giochi per emulatore, immagini, salvataggi, musica.",
     "power": "Salva e spegne.",
     "duplicates": "Gioco presente sia in FinalBurn Neo sia in MAME 2003+: mostra entrambi o solo uno.",
     "scrape": "Scarica schermate, titoli e marquee dei giochi da ArcadeDB e dalle miniature libretro. Serve il Wi-Fi.",
@@ -323,5 +323,18 @@
     "field": "Campo",
     "saved": "Data e ora salvate",
     "error": "Impossibile impostare data e ora"
+  },
+  "sdinfo": {
+    "title": "Scheda SD",
+    "free": "%s liberi su %s",
+    "used": "%s usati",
+    "unknown": "Spazio della scheda non leggibile",
+    "bios": "BIOS",
+    "media": "Immagini dei giochi",
+    "saves": "Salvataggi",
+    "music": "Musica",
+    "system": "Sistema e impostazioni",
+    "footer": "Arcade 0.1 · %s",
+    "one_game": "1 gioco"
   }
 }

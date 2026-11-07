@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <dirent.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -1395,6 +1397,153 @@ static void clock_draw(void) {
     ui_hints(h2, 8);
 }
 
+/* Informazioni: spazio della scheda SD e cosa lo occupa. Si calcola all'apertura. */
+static bool sdinfo_open;
+typedef struct { char label[64]; int count; long long bytes; } sdrow_t;
+static sdrow_t sdrows[24];
+static int nsdrows;
+static long long sd_total, sd_free;
+
+static long long dir_bytes(const char *path, int depth) {
+    DIR *d = opendir(path);
+    if (!d) return 0;
+    long long sum = 0;
+    struct dirent *e;
+    char p[1200];
+    while ((e = readdir(d))) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        snprintf(p, sizeof p, "%s/%s", path, e->d_name);
+        struct stat st;
+        if (lstat(p, &st) != 0) continue;
+        if (S_ISDIR(st.st_mode)) { if (depth < 8) sum += dir_bytes(p, depth + 1); }
+        else if (S_ISREG(st.st_mode)) sum += st.st_size;
+    }
+    closedir(d);
+    return sum;
+}
+
+static void fmt_bytes(long long b, char *out, size_t n) {
+    const char *u[] = { "B", "KB", "MB", "GB", "TB" };
+    double v = (double)b;
+    int i = 0;
+    while (v >= 1024 && i < 4) { v /= 1024; i++; }
+    snprintf(out, n, i == 0 ? "%.0f %s" : v < 10 ? "%.1f %s" : "%.0f %s", v, u[i]);
+    /* virgola decimale in tutte le lingue tranne l'inglese */
+    if (strcmp(UI.set.lang, "en")) for (char *c = out; *c; c++) if (*c == '.') *c = ',';
+}
+
+static void sdrow_add(const char *label, int count, long long bytes) {
+    if (nsdrows >= (int)(sizeof sdrows / sizeof *sdrows)) return;
+    sdrow_t *r = &sdrows[nsdrows++];
+    snprintf(r->label, sizeof r->label, "%s", label);
+    r->count = count;
+    r->bytes = bytes;
+}
+
+static void sdinfo_start(void) {
+    struct statvfs vs;
+    sd_total = sd_free = -1;
+    if (statvfs(UI.root, &vs) == 0) {
+        sd_total = (long long)vs.f_blocks * vs.f_frsize;
+        sd_free = (long long)vs.f_bavail * vs.f_frsize;
+    }
+    nsdrows = 0;
+    /* giochi per emulatore: numero e misura dei file ROM (i giochi Linux: la loro cartella) */
+    const char *cores[18];
+    int ncores = 0;
+    for (int i = 0; i < NEMUS && ncores < 17; i++) cores[ncores++] = EMUS[i].id;
+    cores[ncores++] = "linux";
+    for (int c = 0; c < ncores; c++) {
+        int cnt = 0;
+        long long b = 0;
+        for (int i = 0; i < ngames; i++) {
+            game_t *g = &games[i];
+            if (g->missing || !g->path || !*g->path || strcmp(g->core, cores[c])) continue;
+            cnt++;
+            if (!strcmp(cores[c], "linux")) {
+                char dir[1024];
+                snprintf(dir, sizeof dir, "%s", g->path);
+                char *sl = strrchr(dir, '/');
+                if (sl) { *sl = 0; b += dir_bytes(dir, 0); }
+            } else {
+                struct stat st;
+                if (stat(g->path, &st) == 0) b += st.st_size;
+            }
+        }
+        if (cnt) sdrow_add(games_core_label(cores[c]), cnt, b);
+    }
+    static const char *dirs[][2] = { { "Bios", "sdinfo.bios" }, { "Media", "sdinfo.media" },
+                                     { "Saves", "sdinfo.saves" }, { "Music", "sdinfo.music" },
+                                     { "System", "sdinfo.system" } };
+    for (int i = 0; i < 5; i++) {
+        char p[1100];
+        snprintf(p, sizeof p, "%s/%s", UI.root, dirs[i][0]);
+        sdrow_add(T(dirs[i][1]), -1, dir_bytes(p, 0));
+    }
+    sdinfo_open = true;
+}
+
+static void sdinfo_input(void) {
+    if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { sdinfo_open = false; ui_sound(SND_BACK); }
+}
+
+static void sdinfo_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    TTF_Font *f = UI.f_normal, *fs = UI.f_small;
+    int fh = TTF_FontHeight(f), sh = TTF_FontHeight(fs), rh = fh + M(0.008f);
+    int w = M(0.9f), pad = M(0.04f);
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + M(0.03f) + M(0.015f) + sh + M(0.03f) + nsdrows * rh + M(0.02f) + sh + pad;
+    if (h > UI.h - M(t->hintbar_h) - M(0.02f)) h = UI.h - M(t->hintbar_h) - M(0.02f);
+    int x = (UI.w - w) / 2, y = (UI.h - M(t->hintbar_h) - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    int cy = y + pad, lx = x + pad, rx = x + w - pad, bw = w - 2 * pad;
+    ui_text(UI.f_title, T("sdinfo.title"), lx, cy, t->text, ALIGN_LEFT);
+    cy += TTF_FontHeight(UI.f_title) + M(0.02f);
+    char a[32], b[32], line[160];
+    /* barra dello spazio usato */
+    int bh = M(0.03f);
+    ui_rrect(lx, cy, bw, bh, bh / 2, with_alpha(t->text_dim, 60));
+    if (sd_total > 0) {
+        long long used = sd_total - sd_free;
+        int uw = (int)((double)bw * used / sd_total);
+        if (uw < bh) uw = bh;
+        ui_rrect(lx, cy, uw, bh, bh / 2, sd_free * 10 < sd_total ? rgba(220, 70, 70, 255) : t->accent);
+        cy += bh + M(0.015f);
+        fmt_bytes(sd_free, a, sizeof a);
+        fmt_bytes(sd_total, b, sizeof b);
+        snprintf(line, sizeof line, T("sdinfo.free"), a, b);
+        ui_text(fs, line, lx, cy, t->text_dim, ALIGN_LEFT);
+        fmt_bytes(used, a, sizeof a);
+        snprintf(line, sizeof line, T("sdinfo.used"), a);
+        ui_text(fs, line, rx, cy, t->text_dim, ALIGN_RIGHT);
+    } else {
+        cy += bh + M(0.015f);
+        ui_text(fs, T("sdinfo.unknown"), lx, cy, t->text_dim, ALIGN_LEFT);
+    }
+    cy += sh + M(0.03f);
+    int bottom = y + h - pad - sh - M(0.02f);
+    for (int i = 0; i < nsdrows && cy + rh <= bottom; i++) {
+        sdrow_t *rw = &sdrows[i];
+        ui_text(f, rw->label, lx, cy, t->text, ALIGN_LEFT);
+        fmt_bytes(rw->bytes, a, sizeof a);
+        if (rw->count >= 0) {
+            if (rw->count == 1) snprintf(b, sizeof b, "%s", T("sdinfo.one_game"));
+            else snprintf(b, sizeof b, T("info.games"), rw->count);
+            snprintf(line, sizeof line, "%s · %s", b, a);
+        } else snprintf(line, sizeof line, "%s", a);
+        ui_text(f, line, rx, cy, t->text_dim, ALIGN_RIGHT);
+        cy += rh;
+    }
+    const char *model = plat_model();
+    snprintf(line, sizeof line, T("sdinfo.footer"),
+             model ? (!strcmp(model, "brickpro") ? "TrimUI Brick Pro" : "TrimUI Smart Pro") : device_label(UI.set.device));
+    ui_text(fs, line, lx, y + h - pad - sh, t->text_dim, ALIGN_LEFT);
+    const char *hint[] = { "B", T("common.back") };
+    ui_hints(hint, 2);
+}
+
 static void settings_input(void) {
     input_t *in = &UI.in;
     if (in->pressed[BTN_UP]) { set_sel = (set_sel + S_COUNT - 1) % S_COUNT; ui_sound(SND_MOVE); }
@@ -1415,12 +1564,8 @@ static void settings_input(void) {
             music_next();
             ui_sound(SND_OK);
         }
-        else if (set_sel == S_INFO) {
-            char m[160];
-            snprintf(m, sizeof m, T("info.about"), ngames, device_label(UI.set.device));
-            ui_toast(m);
-            ui_sound(SND_OK);
-        } else set_change(set_sel, +1);
+        else if (set_sel == S_INFO) { sdinfo_start(); ui_sound(SND_OK); }
+        else set_change(set_sel, +1);
     }
     if (in->pressed[BTN_B] || in->pressed[BTN_START]) {
         go(is_list_layout() ? SCR_LIBRARY : (back_screen == SCR_SETTINGS ? SCR_HOME : back_screen));
@@ -1497,7 +1642,7 @@ static void settings_draw(void) {
     int dy = UI.h - M(t->hintbar_h) - desc_h + M(0.01f);
     for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], mx, dy + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
     /* con la finestra di data e ora aperta, la barra dei tasti è quella della finestra */
-    if (clock_open) return;
+    if (clock_open || sdinfo_open) return;
     const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
     ui_hints(h, 4);
 }
@@ -2355,7 +2500,7 @@ int main(int argc, char **argv) {
         if (UI.in.power && !dlg_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open) {
-            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = false;
+            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
         }
@@ -2369,6 +2514,7 @@ int main(int argc, char **argv) {
         else if (fpanel_open) fpanel_input();
         else if (dlg_open) dialog_input();
         else if (clock_open) clock_input();
+        else if (sdinfo_open) sdinfo_input();
         else if (screen == SCR_HOME && is_bar_layout()) bar_input();
         else if (screen == SCR_HOME) home_input();
         else if (screen == SCR_LIBRARY) lib_common_input(is_list_layout() ? 1 : grid_cols());
@@ -2385,6 +2531,7 @@ int main(int argc, char **argv) {
         else settings_draw();
         if (dlg_open) dialog_draw();
         if (clock_open) clock_draw();
+        if (sdinfo_open) sdinfo_draw();
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
         if (kb_open) keyboard_draw();

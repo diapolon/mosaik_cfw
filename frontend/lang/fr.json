@@ -82,7 +82,7 @@
     "resume": "Si la console est éteinte pendant une partie, elle reprend à cet endroit.",
     "clock": "Règle la date et l'heure : l'horloge de la console les conserve même éteinte.",
     "device": "Simule l'écran de la Smart Pro ou de la Brick Pro sur le Mac.",
-    "info": "Nombre de jeux trouvés et version du prototype.",
+    "info": "Espace sur la carte SD et ce qui l'occupe : jeux par émulateur, images, sauvegardes, musique.",
     "power": "Enregistre et éteint.",
     "duplicates": "Jeu présent dans FinalBurn Neo et MAME 2003+ : afficher les deux ou un seul.",
     "scrape": "Télécharge captures, écrans titres et marquees depuis ArcadeDB et les vignettes libretro. Wi-Fi requis.",
@@ -323,5 +323,18 @@
     "field": "Champ",
     "saved": "Date et heure enregistrées",
     "error": "Impossible de régler la date et l'heure"
+  },
+  "sdinfo": {
+    "title": "Carte SD",
+    "free": "%s libres sur %s",
+    "used": "%s utilisés",
+    "unknown": "Espace de la carte illisible",
+    "bios": "BIOS",
+    "media": "Images des jeux",
+    "saves": "Sauvegardes",
+    "music": "Musique",
+    "system": "Système et réglages",
+    "footer": "Arcade 0.1 · %s",
+    "one_game": "1 jeu"
   }
 }

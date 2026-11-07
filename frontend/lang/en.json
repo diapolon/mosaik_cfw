@@ -82,7 +82,7 @@
     "resume": "If the console is turned off during a game, it starts again from there.",
     "clock": "Set the date and time: they are kept by the console's clock even when it's off.",
     "device": "Simulates the Smart Pro or Brick Pro screen on the Mac.",
-    "info": "Number of games found and prototype version.",
+    "info": "Space on the SD card and what uses it: games per emulator, images, saves, music.",
     "power": "Saves and powers off.",
     "duplicates": "Game present in both FinalBurn Neo and MAME 2003+: show both or only one.",
     "scrape": "Downloads game screenshots, titles and marquees from ArcadeDB and libretro thumbnails. Needs Wi-Fi.",
@@ -323,5 +323,18 @@
     "field": "Field",
     "saved": "Date and time saved",
     "error": "Unable to set date and time"
+  },
+  "sdinfo": {
+    "title": "SD card",
+    "free": "%s free of %s",
+    "used": "%s used",
+    "unknown": "Card space not readable",
+    "bios": "BIOS",
+    "media": "Game images",
+    "saves": "Saves",
+    "music": "Music",
+    "system": "System and settings",
+    "footer": "Arcade 0.1 · %s",
+    "one_game": "1 game"
   }
 }

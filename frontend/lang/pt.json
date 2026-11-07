@@ -82,7 +82,7 @@
     "resume": "Se a consola for desligada durante um jogo, retoma a partir daí.",
     "clock": "Define a data e a hora: o relógio da consola guarda-as mesmo desligada.",
     "device": "Simula o ecrã da Smart Pro ou da Brick Pro no Mac.",
-    "info": "Número de jogos encontrados e versão do protótipo.",
+    "info": "Espaço no cartão SD e o que o ocupa: jogos por emulador, imagens, gravações, música.",
     "power": "Guarda e desliga.",
     "duplicates": "Jogo presente no FinalBurn Neo e no MAME 2003+: mostrar ambos ou só um.",
     "scrape": "Transfere capturas, ecrãs de título e marquees do ArcadeDB e das miniaturas libretro. Requer Wi-Fi.",
@@ -323,5 +323,18 @@
     "field": "Campo",
     "saved": "Data e hora guardadas",
     "error": "Não foi possível definir a data e a hora"
+  },
+  "sdinfo": {
+    "title": "Cartão SD",
+    "free": "%s livres de %s",
+    "used": "%s usados",
+    "unknown": "Espaço do cartão ilegível",
+    "bios": "BIOS",
+    "media": "Imagens dos jogos",
+    "saves": "Jogos guardados",
+    "music": "Música",
+    "system": "Sistema e definições",
+    "footer": "Arcade 0.1 · %s",
+    "one_game": "1 jogo"
   }
 }
