@@ -1130,11 +1130,11 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
-    "brightness", "volume", "music", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
+    "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
     "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "info", "power",
 };
 
@@ -1196,6 +1196,13 @@ static void set_value(int item, char *buf, size_t n) {
         else if (music_title()[0]) snprintf(buf, n, "%d · %s", s->music_vol, music_title());
         else snprintf(buf, n, "%d", s->music_vol);
         break;
+    case S_LED: {
+        static const char *k[4] = { "led.off", "led.static", "led.breath", "led.pulse" };
+        snprintf(buf, n, "%s", T(k[s->led_mode & 3]));
+        break;
+    }
+    case S_LEDCOLOR: snprintf(buf, n, "%s", T(LED_COLORS[s->led_color % NLED_COLORS].key)); break;
+    case S_LEDBRIGHT: snprintf(buf, n, "%d", s->led_bright); break;
     case S_THEME: snprintf(buf, n, "%s", nthemes ? theme_names[theme_index()] : UI.th.name); break;
     case S_VARIANT: snprintf(buf, n, "%s", UI.th.nvariants ? variant_label(UI.th.variants[variant_index()]) : "—"); break;
     case S_ASPECT: snprintf(buf, n, "%s", T(aspect_names[s->aspect % 3])); break;
@@ -1311,6 +1318,9 @@ static void set_change(int item, int dir) {
         break;
     }
     case S_RESUME: s->resume_last = !s->resume_last; break;
+    case S_LED: s->led_mode = (s->led_mode + dir + 4) % 4; break;
+    case S_LEDCOLOR: s->led_color = (s->led_color + dir + NLED_COLORS) % NLED_COLORS; break;
+    case S_LEDBRIGHT: s->led_bright = s->led_bright + dir < 1 ? 1 : s->led_bright + dir > 10 ? 10 : s->led_bright + dir; break;
     case S_TZ:
         snprintf(s->tz, sizeof s->tz, "%s", TIMEZONES[(settings_tz_index(s) + dir + NTIMEZONES) % NTIMEZONES].id);
         settings_apply_tz(s);
@@ -1773,9 +1783,9 @@ static void settings_draw(void) {
         int vx = mx + w - M(0.03f);
         char val[160];
         set_value(i, val, sizeof val);
-        if (i == S_BRIGHT || i == S_VOLUME) {
-            int bw = M(0.32f), bh = M(0.012f), mn = i == S_BRIGHT ? 1 : 0, mxv = i == S_BRIGHT ? 10 : 20;
-            int v = i == S_BRIGHT ? UI.set.brightness : UI.set.volume;
+        if (i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT) {
+            int bw = M(0.32f), bh = M(0.012f), mn = i == S_VOLUME ? 0 : 1, mxv = i == S_VOLUME ? 20 : 10;
+            int v = i == S_BRIGHT ? UI.set.brightness : i == S_VOLUME ? UI.set.volume : UI.set.led_bright;
             int nx = vx - ui_text_w(f, "20") - M(0.03f) - bw;
             ui_rrect(nx, cy - bh / 2, bw, bh, bh / 2, with_alpha(t->text_dim, 80));
             int fw = bw * (v - mn) / (mxv - mn);
@@ -1805,6 +1815,15 @@ static void settings_draw(void) {
             color_t vc = sel ? t->accent : t->text_dim;
             bool arrows = sel && i != S_INFO && i != S_CLOCK;
             int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
+            if (i == S_LEDCOLOR) {
+                /* pallino del colore (per "tema": il colore principale del tema) */
+                unsigned c = UI.set.led_color ? LED_COLORS[UI.set.led_color % NLED_COLORS].rgb
+                                              : (unsigned)t->accent.r << 16 | t->accent.g << 8 | t->accent.b;
+                int rr = fh / 3, px = vx - (arrows ? M(0.035f) : 0) - tw - M(0.015f) - rr;
+                ui_circle(px, cy, rr, rgba(c >> 16 & 255, c >> 8 & 255, c & 255, 255));
+                ui_ring(px, cy, rr, 1, with_alpha(t->text_dim, 120));
+                tw += 2 * rr + M(0.015f);
+            }
             if (arrows) {
                 ui_text(f, "‹", vx - M(0.035f) - tw - M(0.02f), cy - fh / 2, vc, ALIGN_RIGHT);
                 ui_text(f, "›", vx, cy - fh / 2, vc, ALIGN_RIGHT);

@@ -25,12 +25,18 @@ typedef struct {
     bool wifi;
     int music_vol;       /* musica del launcher: 0 spenta, 1..10 */
     bool ext_p1;         /* controller esterno come giocatore 1 (la console diventa il 2) */
+    int led_mode;        /* LED: 0 spenti, 1 fissi, 2 respiro, 3 pulsazione */
+    int led_color;       /* indice in LED_COLORS (0 = colore del tema) */
+    int led_bright;      /* 1..10 */
     char tz[40];         /* fuso orario, nome come "Europe/Rome" (vedi TIMEZONES in settings.c) */
 } settings_t;
 
 void settings_defaults(settings_t *s);
 /* Fusi orari: l'orologio della console è in UTC, l'ora mostrata è quella del fuso scelto.
    Regole POSIX (variabile TZ), così non servono i file zoneinfo. */
+typedef struct { const char *key; unsigned rgb; } led_color_t;   /* key: nome nei file di lingua */
+extern const led_color_t LED_COLORS[];
+extern const int NLED_COLORS;
 typedef struct { const char *id, *posix; } timezone_t;
 extern const timezone_t TIMEZONES[];
 extern const int NTIMEZONES;

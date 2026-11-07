@@ -85,8 +85,83 @@ bool plat_device_name(const char *path, char *out, int n) {
 
 static int fn_state = -1;
 
+/* LED (driver led_anim di TrimUI, come init_leds.sh e low_battery_led.sh del firmware).
+   Zone: lr (sinistra/destra, anelli delle levette sulla Smart Pro), m (centro), f1 e f2 (le
+   barrette della Brick Pro), rear (retro). Per ogni zona colore, ripetizioni, durata e poi
+   l'effetto, che fa partire l'animazione. Le zone che un modello non ha non esistono. */
+#define LED_DIR "/sys/class/led_anim/"
+static const char *led_zones[] = { "lr", "m", "f1", "f2", "rear" };
+static unsigned led_theme_rgb = 0xFFFFFF;
+
+void plat_led_theme(unsigned rgb) { led_theme_rgb = rgb; }
+
+static void led_put(const char *name, const char *zone, const char *v) {
+    char p[96];
+    snprintf(p, sizeof p, LED_DIR "%s%s%s", name, zone ? "_" : "", zone ? zone : "");
+    put_str(p, v);
+}
+
+/* effect: codice del driver (0 spento, 2 respiro, 3 pulsazione, 4 fisso, 6 lampeggio) */
+static void led_set(unsigned rgb, int effect, int duration_ms, int scale) {
+    static int logged;
+    if (access(LED_DIR "effect_enable", F_OK) != 0) {
+        if (!logged++) ui_log("LED: driver led_anim assente");
+        return;
+    }
+    char v[32];
+    put_str(LED_DIR "effect_enable", "1");
+    put_str(LED_DIR "anim_frames_enable", "0");
+    snprintf(v, sizeof v, "%d", scale);
+    put_str(LED_DIR "max_scale", v);
+    put_str(LED_DIR "max_scale_lr", v);
+    put_str(LED_DIR "max_scale_f1f2", v);
+    put_str(LED_DIR "max_scale_rear", v);
+    char zones[64] = "";
+    for (unsigned i = 0; i < sizeof led_zones / sizeof *led_zones; i++) {
+        char p[96];
+        snprintf(p, sizeof p, LED_DIR "effect_%s", led_zones[i]);
+        if (access(p, F_OK) != 0) continue;
+        if (!logged) { strcat(zones, " "); strcat(zones, led_zones[i]); }
+        snprintf(v, sizeof v, "%06X ", rgb & 0xFFFFFF);
+        led_put("effect_rgb_hex", led_zones[i], v);
+        led_put("effect_cycles", led_zones[i], effect ? "30000" : "0");
+        snprintf(v, sizeof v, "%d", duration_ms);
+        led_put("effect_duration", led_zones[i], v);
+        snprintf(v, sizeof v, "%d", effect);
+        led_put("effect", led_zones[i], v);
+    }
+    if (!logged++) ui_log("LED: zone%s", zones[0] ? zones : " nessuna");
+    ui_log("LED: colore %06X, effetto %d, durata %d ms, scala %d", rgb & 0xFFFFFF, effect, duration_ms, scale);
+}
+
+static void apply_leds(const settings_t *s, bool low_battery) {
+    if (low_battery) { led_set(0xFF0000, 6, 2000, 40); return; }   /* come il firmware */
+    if (s->led_mode == 0) { led_set(0, 0, 1000, 0); return; }
+    static const int effect[4] = { 0, 4, 2, 3 }, duration[4] = { 1000, 1000, 3000, 1500 };
+    unsigned rgb = s->led_color > 0 && s->led_color < NLED_COLORS ? LED_COLORS[s->led_color].rgb : led_theme_rgb;
+    led_set(rgb, effect[s->led_mode & 3], duration[s->led_mode & 3], s->led_bright * 4);
+}
+
 void plat_apply(const settings_t *s) {
     static int bright = -1, vol = -1, cpu = -1;
+    /* LED: solo nel sistema su SD (nell'app li gestisce il firmware TrimUI) */
+    if (plat_standalone()) {
+        static int lmode = -1, lcolor = -1, lbright = -1;
+        static unsigned ltheme;
+        static bool low;
+        static unsigned tick;
+        bool low_now = low;
+        if (tick++ % 600 == 0) {   /* batteria ogni 10 s circa */
+            bool ch;
+            int pct = plat_battery(&ch);
+            low_now = pct >= 0 && pct <= 10 && !ch;
+        }
+        unsigned theme_now = s->led_color == 0 ? led_theme_rgb : 0;
+        if (s->led_mode != lmode || s->led_color != lcolor || s->led_bright != lbright || theme_now != ltheme || low_now != low) {
+            lmode = s->led_mode; lcolor = s->led_color; lbright = s->led_bright; ltheme = theme_now; low = low_now;
+            apply_leds(s, low);
+        }
+    }
     if (s->brightness != bright) { bright = s->brightness; set_brightness(bright); }
     if (s->volume != vol) { vol = s->volume; set_volume(vol); }
     /* FN attivo: prestazioni massime, qualunque sia il profilo scelto */
@@ -172,5 +247,6 @@ int plat_battery(bool *charging) { *charging = false; return -1; }
 void plat_poll(plat_keys_t *k) { memset(k, 0, sizeof *k); k->fn = -1; }
 bool plat_device_name(const char *path, char *out, int n) { (void)path; if (n) out[0] = 0; return false; }
 bool plat_set_time(time_t t) { (void)t; return false; }
+void plat_led_theme(unsigned rgb) { (void)rgb; }
 
 #endif

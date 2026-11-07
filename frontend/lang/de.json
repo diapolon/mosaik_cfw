@@ -67,7 +67,10 @@
     "screensaver": "Bildschirmschoner",
     "romcheck": "ROMs prüfen",
     "pads": "Controller",
-    "music": "Musik"
+    "music": "Musik",
+    "led": "LEDs",
+    "led_color": "LED-Farbe",
+    "led_brightness": "LED-Helligkeit"
   },
   "settings_desc": {
     "brightness": "Bildschirmhelligkeit. Auf der Konsole steuert sie die Hintergrundbeleuchtung.",
@@ -93,7 +96,10 @@
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
     "romcheck": "Prüft, ob jedes Zip die richtigen Dateien für seinen Emulator enthält (Namen, Größen, CRC aus dem DAT).",
     "pads": "Die Konsole ist Spieler 1, ein Bluetooth- oder USB-Controller Spieler 2. Mit „Spieler 1“ spielt man allein mit dem externen Controller.",
-    "music": "Hintergrundmusik aus dem Ordner Music der SD-Karte (MP3, OGG, FLAC, MOD). A springt zum nächsten Titel."
+    "music": "Hintergrundmusik aus dem Ordner Music der SD-Karte (MP3, OGG, FLAC, MOD). A springt zum nächsten Titel.",
+    "led": "Lichteffekt der Konsole: aus, dauerhaft, Atmen oder Pulsieren. Bei schwachem Akku blinken sie rot.",
+    "led_color": "Lichtfarbe; „Thema“ nutzt die Hauptfarbe des gewählten Themas.",
+    "led_brightness": "Helligkeit der Konsolenlichter."
   },
   "aspect": {
     "original": "Original",
@@ -362,5 +368,21 @@
     "short": "Das Passwort braucht mindestens 8 Zeichen",
     "error": "Verbindung nicht möglich",
     "already": "Du bist bereits mit diesem Netz verbunden"
+  },
+  "led": {
+    "off": "Aus",
+    "static": "Dauerhaft",
+    "breath": "Atmen",
+    "pulse": "Pulsieren",
+    "theme": "Thema",
+    "white": "Weiß",
+    "red": "Rot",
+    "orange": "Orange",
+    "yellow": "Gelb",
+    "green": "Grün",
+    "cyan": "Cyan",
+    "blue": "Blau",
+    "purple": "Violett",
+    "pink": "Rosa"
   }
 }

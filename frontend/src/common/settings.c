@@ -6,6 +6,13 @@
 #include <time.h>
 #include <string.h>
 
+const led_color_t LED_COLORS[] = {
+    { "led.theme", 0 }, { "led.white", 0xFFFFFF }, { "led.red", 0xFF0000 }, { "led.orange", 0xFF6000 },
+    { "led.yellow", 0xFFD000 }, { "led.green", 0x00FF30 }, { "led.cyan", 0x00E0FF }, { "led.blue", 0x0030FF },
+    { "led.purple", 0x9000FF }, { "led.pink", 0xFF2090 },
+};
+const int NLED_COLORS = sizeof LED_COLORS / sizeof *LED_COLORS;
+
 const timezone_t TIMEZONES[] = {
     { "UTC", "UTC0" },
     { "Europe/London", "GMT0BST,M3.5.0/1,M10.5.0" },
@@ -53,6 +60,9 @@ void settings_defaults(settings_t *s) {
     s->wifi = true;
     s->music_vol = 5;
     strcpy(s->tz, "Europe/Rome");
+    s->led_mode = 1;
+    s->led_color = 0;
+    s->led_bright = 5;
 }
 
 static void copy(char *dst, size_t n, const char *src) {
@@ -88,6 +98,11 @@ bool settings_load(settings_t *s, const char *root) {
     s->ext_p1 = json_bool(j, "external_p1", s->ext_p1);
     s->music_vol = (int)json_num(j, "music_volume", s->music_vol);
     copy(s->tz, sizeof s->tz, json_str(j, "timezone", NULL));
+    s->led_mode = (int)json_num(j, "led_mode", s->led_mode) & 3;
+    s->led_color = (int)json_num(j, "led_color", s->led_color);
+    if (s->led_color < 0 || s->led_color >= NLED_COLORS) s->led_color = 0;
+    s->led_bright = (int)json_num(j, "led_brightness", s->led_bright);
+    if (s->led_bright < 1 || s->led_bright > 10) s->led_bright = 5;
     if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 5;
     json_free(j);
     return true;
@@ -120,11 +135,14 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"wifi\": %s,\n"
             "  \"external_p1\": %s,\n"
             "  \"music_volume\": %d,\n"
-            "  \"timezone\": \"%s\"\n"
+            "  \"timezone\": \"%s\",\n"
+            "  \"led_mode\": %d,\n"
+            "  \"led_color\": %d,\n"
+            "  \"led_brightness\": %d\n"
             "}\n",
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
             s->autosleep_min, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
-            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz);
+            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright);
     fclose(f);
     /* scrittura atomica: su SD uno spegnimento a metà non lascia file corrotti */
     return rename(tmp, path) == 0;

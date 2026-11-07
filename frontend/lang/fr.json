@@ -67,7 +67,10 @@
     "screensaver": "Économiseur d'écran",
     "romcheck": "Vérifier les ROM",
     "pads": "Manettes",
-    "music": "Musique"
+    "music": "Musique",
+    "led": "LED",
+    "led_color": "Couleur des LED",
+    "led_brightness": "Luminosité des LED"
   },
   "settings_desc": {
     "brightness": "Luminosité de l'écran. Sur la console, elle réglera le rétroéclairage.",
@@ -93,7 +96,10 @@
     "screensaver": "Après un moment sans action : captures de vos jeux ou écran éteint.",
     "romcheck": "Vérifie que chaque zip contient les bons fichiers pour son émulateur (noms, tailles, CRC du DAT).",
     "pads": "Les commandes de la console sont le joueur 1, une manette Bluetooth ou USB le 2. Avec « joueur 1 » on joue seul avec la manette externe.",
-    "music": "Musique de fond depuis le dossier Music de la carte SD (MP3, OGG, FLAC, MOD). A passe au morceau suivant."
+    "music": "Musique de fond depuis le dossier Music de la carte SD (MP3, OGG, FLAC, MOD). A passe au morceau suivant.",
+    "led": "Effet des lumières de la console : éteintes, fixes, respiration ou pulsation. Batterie faible : elles clignotent en rouge.",
+    "led_color": "Couleur des lumières ; « Thème » utilise la couleur principale du thème choisi.",
+    "led_brightness": "Intensité des lumières de la console."
   },
   "aspect": {
     "original": "Original",
@@ -362,5 +368,21 @@
     "short": "Le mot de passe doit avoir au moins 8 caractères",
     "error": "Connexion impossible",
     "already": "Tu es déjà connecté à ce réseau"
+  },
+  "led": {
+    "off": "Éteintes",
+    "static": "Fixes",
+    "breath": "Respiration",
+    "pulse": "Pulsation",
+    "theme": "Thème",
+    "white": "Blanc",
+    "red": "Rouge",
+    "orange": "Orange",
+    "yellow": "Jaune",
+    "green": "Vert",
+    "cyan": "Cyan",
+    "blue": "Bleu",
+    "purple": "Violet",
+    "pink": "Rose"
   }
 }

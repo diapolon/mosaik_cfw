@@ -30,3 +30,5 @@ bool plat_device_name(const char *path, char *out, int n);
 /* imposta data e ora del sistema e le scrive nell'orologio della console (RTC), che le
    conserva da spenta; false se non riesce (sul Mac non fa nulla) */
 bool plat_set_time(time_t t);
+/* colore principale del tema, per i LED con "colore del tema" (0xRRGGBB) */
+void plat_led_theme(unsigned rgb);

@@ -1607,6 +1607,7 @@ void ui_end(void) {
     SDL_Rect dst = { (int)((ow - UI.w * s) / 2), (int)((oh - UI.h * s) / 2), (int)(UI.w * s), (int)(UI.h * s) };
     SDL_RenderCopy(UI.ren, UI.canvas, NULL, &dst);
     /* luminosità: sulla console agisce la retroilluminazione, sul Mac si scurisce l'immagine */
+    plat_led_theme((unsigned)UI.th.accent.r << 16 | UI.th.accent.g << 8 | UI.th.accent.b);
     plat_apply(&UI.set);
     int dark = plat_is_device() ? 0 : (10 - UI.set.brightness) * 19;
     if (dark > 0) {

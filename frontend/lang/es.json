@@ -67,7 +67,10 @@
     "screensaver": "Salvapantallas",
     "romcheck": "Verificar ROM",
     "pads": "Mandos",
-    "music": "Música"
+    "music": "Música",
+    "led": "LED",
+    "led_color": "Color de los LED",
+    "led_brightness": "Brillo de los LED"
   },
   "settings_desc": {
     "brightness": "Brillo de la pantalla. En la consola controlará la retroiluminación.",
@@ -93,7 +96,10 @@
     "screensaver": "Tras un rato sin usar los botones: capturas de tus juegos o pantalla apagada.",
     "romcheck": "Comprueba que cada zip contenga los archivos correctos para su emulador (nombres, tamaños, CRC del DAT).",
     "pads": "Los controles de la consola son el jugador 1, un mando Bluetooth o USB el 2. Con «jugador 1» se juega solo con el mando externo.",
-    "music": "Música de fondo desde la carpeta Music de la SD (MP3, OGG, FLAC, MOD). A pasa a la siguiente pista."
+    "music": "Música de fondo desde la carpeta Music de la SD (MP3, OGG, FLAC, MOD). A pasa a la siguiente pista.",
+    "led": "Efecto de las luces de la consola: apagadas, fijas, respiración o pulso. Con batería baja parpadean en rojo.",
+    "led_color": "Color de las luces; «Tema» usa el color principal del tema elegido.",
+    "led_brightness": "Intensidad de las luces de la consola."
   },
   "aspect": {
     "original": "Original",
@@ -362,5 +368,21 @@
     "short": "La contraseña necesita al menos 8 caracteres",
     "error": "No se pudo conectar",
     "already": "Ya estás conectado a esta red"
+  },
+  "led": {
+    "off": "Apagados",
+    "static": "Fijos",
+    "breath": "Respiración",
+    "pulse": "Pulso",
+    "theme": "Tema",
+    "white": "Blanco",
+    "red": "Rojo",
+    "orange": "Naranja",
+    "yellow": "Amarillo",
+    "green": "Verde",
+    "cyan": "Celeste",
+    "blue": "Azul",
+    "purple": "Morado",
+    "pink": "Rosa"
   }
 }
