@@ -55,6 +55,13 @@ launcher (`frontend/src/common/wifi.c`) usa `wpa_cli` per stato, ricerca, colleg
 reti da dimenticare. Log in `Arcade/Logs/wifi.log` e nella sezione wi-fi di `sistema.txt`.
 Aggiunte anche `libnss_dns` e `libnss_files`: senza, la glibc non risolve i nomi internet.
 
+**LED e sospensione (7 novembre).** LED dal driver `led_anim` (zone `lr`, `m`, `f1`, `f2`,
+`rear` se esistono; luminosità `max_scale` = livello × 4 come il firmware), provati sulla Smart
+Pro. Tasto di accensione: breve = sospensione con `m2/arcade-suspend` (Wi-Fi e LED spenti,
+`/tmp/system_suspend` per `trimui_inputd`, `wakeup_count` e `echo mem > /sys/power/state` come
+`/sbin/suspendtomem.sh`; al risveglio audio, LED, Wi-Fi, luminosità e volume riapplicati);
+tenuto premuto 1,2 s = spegnimento (in gioco salva prima). Da provare sulla console.
+
 ## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2,3 GB)
 
 | Parte | Contenuto |

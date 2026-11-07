@@ -1222,8 +1222,10 @@ int main(int argc, char **argv) {
         if (UI.in.quit) { power_off_from_game(); break; }   /* chiusura finestra = tasto di accensione */
         /* tasti extra della Brick Pro: HOME torna al launcher, F1 salva, F2 carica */
         if (UI.in.home) { exit_code = EXIT_MENU; break; }
-        /* tasto di accensione (sistema su SD): salva la partita e spegne */
-        if (UI.in.power) { power_off_from_game(); break; }
+        /* tasto di accensione (sistema su SD): breve sospende (il gioco riprende da dove era),
+           tenuto premuto salva la partita e spegne */
+        if (UI.in.power) { ui_suspend(); next = SDL_GetPerformanceCounter(); continue; }
+        if (UI.in.power_long) { power_off_from_game(); break; }
         if (UI.in.f1 && !menu_open) ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed"));
         if (UI.in.f2 && !menu_open) ui_toast(T(state_load(false) ? "game.state_loaded" : "game.no_state"));
         if (!menu_open && hotkeys()) {

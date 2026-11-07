@@ -53,6 +53,17 @@ static Uint32 frame_no;
 
 /* ------------------------------------------------------------------ log */
 
+void ui_suspend(void) {
+    if (!plat_standalone()) return;
+    if (UI.audio) { SDL_PauseAudioDevice(UI.audio, 1); SDL_ClearQueuedAudio(UI.audio); }
+    plat_suspend();
+    /* tasti premuti prima o durante il sonno: non devono valere dopo il risveglio */
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    memset(UI.in.pressed, 0, sizeof UI.in.pressed);
+    UI.in.power = UI.in.power_long = false;
+    if (UI.audio) SDL_PauseAudioDevice(UI.audio, 0);
+}
+
 void ui_log(const char *fmt, ...) {
     char msg[1024];
     va_list ap;
@@ -1256,6 +1267,7 @@ void ui_poll(void) {
     UI.in.f2 = pk.f2;
     /* sul firmware originale il tasto di accensione lo gestisce TrimUI (sospensione) */
     UI.in.power = pk.power && plat_standalone();
+    UI.in.power_long = pk.power_long && plat_standalone();
     UI.in.fn = pk.fn;
     if (pk.home || pk.f1 || pk.f2) UI.in.any = true;
     if (pk.fn_changed) ui_toast(T(pk.fn == 1 ? "fn.on" : "fn.off"));

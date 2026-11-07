@@ -25,7 +25,8 @@ typedef struct {
     bool quit;
     bool any;
     bool home, f1, f2;   /* tasti extra della Brick Pro (HOME laterale, barrette F1/F2) */
-    bool power;          /* tasto di accensione (solo nel sistema su SD) */
+    bool power;          /* tasto di accensione, pressione breve (solo nel sistema su SD) */
+    bool power_long;     /* tasto di accensione tenuto premuto */
     int fn;              /* interruttore FN: -1 ignoto, 0 o 1 */
 } input_t;
 
@@ -74,6 +75,8 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
 void ui_shutdown(void);
 /* chiusura con codice di uscita, scritto prima in System/exit.txt */
 void ui_shutdown_code(int code);
+/* sospensione (sistema su SD): audio in pausa, console in sospensione, poi si riprende */
+void ui_suspend(void);
 void ui_apply_device(void);          /* ridimensiona finestra e canvas secondo il modello */
 void ui_poll(void);
 /* controller collegati: nome e giocatore assegnato (0 = giocatore 1) */

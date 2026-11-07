@@ -18,7 +18,8 @@ int plat_battery(bool *charging);
 typedef struct {
     bool home, f1, f2;     /* premuti in questo fotogramma */
     int vol;               /* tasti volume: +1, -1 o 0 */
-    bool power;            /* tasto di accensione premuto (axp2202-pek) */
+    bool power;            /* tasto di accensione: pressione breve (rilasciato entro 1,2 s) */
+    bool power_long;       /* tasto di accensione tenuto premuto 1,2 s */
     int fn;                /* posizione dell'interruttore FN: -1 ignota, 0 o 1 */
     bool fn_changed;
 } plat_keys_t;
@@ -32,3 +33,6 @@ bool plat_device_name(const char *path, char *out, int n);
 bool plat_set_time(time_t t);
 /* colore principale del tema, per i LED con "colore del tema" (0xRRGGBB) */
 void plat_led_theme(unsigned rgb);
+/* sospende la console (m2/arcade-suspend) e torna al risveglio; poi plat_apply riapplica
+   luminosità, volume, CPU e LED. false se la sospensione non è riuscita */
+bool plat_suspend(void);

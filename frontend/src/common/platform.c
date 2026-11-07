@@ -84,6 +84,7 @@ bool plat_device_name(const char *path, char *out, int n) {
 }
 
 static int fn_state = -1;
+static bool reapply;   /* dopo la sospensione: si riapplica tutto */
 
 /* LED (driver led_anim di TrimUI, come init_leds.sh e low_battery_led.sh del firmware).
    Zone: lr (sinistra/destra, anelli delle levette sulla Smart Pro), m (centro), f1 e f2 (le
@@ -143,10 +144,10 @@ static void apply_leds(const settings_t *s, bool low_battery) {
 }
 
 void plat_apply(const settings_t *s) {
-    static int bright = -1, vol = -1, cpu = -1;
+    static int bright = -1, vol = -1, cpu = -1, lmode = -1, lcolor = -1, lbright = -1;
+    if (reapply) { reapply = false; bright = vol = cpu = lmode = lcolor = lbright = -1; }
     /* LED: solo nel sistema su SD (nell'app li gestisce il firmware TrimUI) */
     if (plat_standalone()) {
-        static int lmode = -1, lcolor = -1, lbright = -1;
         static unsigned ltheme;
         static bool low;
         static unsigned tick;
@@ -199,9 +200,24 @@ static int fn_gpio(void) {
 void plat_poll(plat_keys_t *k) {
     memset(k, 0, sizeof *k);
     if ((keys_fd < 0 || power_fd < 0) && scan_tick++ % 180 == 0) keys_open();
+    /* tasto di accensione: breve = sospensione, tenuto premuto = spegnimento. Se il driver
+       non segnalasse il rilascio, dopo 1,2 s vale comunque come pressione lunga. */
+    static double power_t0 = -1;
+    static bool long_sent, release_seen;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    double now = ts.tv_sec + ts.tv_nsec / 1e9;
     struct input_event pev;
-    while (power_fd >= 0 && read(power_fd, &pev, sizeof pev) == (ssize_t)sizeof pev)
-        if (pev.type == EV_KEY && pev.code == KEY_POWER && pev.value == 1) k->power = true;
+    while (power_fd >= 0 && read(power_fd, &pev, sizeof pev) == (ssize_t)sizeof pev) {
+        if (pev.type != EV_KEY || pev.code != KEY_POWER) continue;
+        if (pev.value == 1) { power_t0 = now; long_sent = false; }
+        else if (pev.value == 0) {
+            if (!release_seen) { release_seen = true; ui_log("tasto di accensione: il rilascio viene segnalato"); }
+            if (power_t0 >= 0 && !long_sent) k->power = true;
+            power_t0 = -1;
+        }
+    }
+    if (power_t0 >= 0 && !long_sent && now - power_t0 >= 1.2) { k->power_long = true; long_sent = true; }
     struct input_event ev;
     while (keys_fd >= 0 && read(keys_fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
         if (ev.type == EV_KEY && ev.value == 1) {
@@ -222,6 +238,17 @@ void plat_poll(plat_keys_t *k) {
         if (v >= 0 && v != fn_state) { k->fn_changed = fn_state != -1; fn_state = v; }
     }
     k->fn = fn_state;
+}
+
+bool plat_suspend(void) {
+    ui_log("sospensione");
+    int r = system("arcade-suspend");
+    ui_log("risveglio (%s)", r == 0 ? "sospensione riuscita" : "sospensione non riuscita");
+    reapply = true;
+    /* eventi del tasto arrivati durante il sonno (quello che ha svegliato la console) */
+    struct input_event ev;
+    while (power_fd >= 0 && read(power_fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {}
+    return r == 0;
 }
 
 bool plat_set_time(time_t t) {
@@ -248,5 +275,6 @@ void plat_poll(plat_keys_t *k) { memset(k, 0, sizeof *k); k->fn = -1; }
 bool plat_device_name(const char *path, char *out, int n) { (void)path; if (n) out[0] = 0; return false; }
 bool plat_set_time(time_t t) { (void)t; return false; }
 void plat_led_theme(unsigned rgb) { (void)rgb; }
+bool plat_suspend(void) { return false; }
 
 #endif

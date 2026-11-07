@@ -2711,7 +2711,9 @@ int main(int argc, char **argv) {
             power_off();
         }
         /* tasto di accensione (sistema su SD): finestra per spegnere */
-        if (UI.in.power && !dlg_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
+        /* tasto di accensione (sistema su SD): breve sospende, tenuto premuto chiede se spegnere */
+        if (UI.in.power) { ui_suspend(); last_input = UI.t; }
+        if (UI.in.power_long && !dlg_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open) {
             kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = false;

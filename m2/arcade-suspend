@@ -1,0 +1,43 @@
+#!/bin/sh
+# Sospensione della console, come keymon e /sbin/suspendtomem.sh del firmware TrimUI:
+# si fermano Wi-Fi e LED, si avvisa trimui_inputd (/tmp/system_suspend: gestisce la
+# retroilluminazione), si scrive tutto sulla SD e si sospende in RAM. Il tasto di accensione
+# risveglia la console: lo script riprende da "echo mem" e rimette le cose com'erano.
+# Lo chiama il launcher o il runner (plat_suspend), che restano fermi finché non torna.
+ROOT=${ROOT:-/mnt/SDCARD/Arcade}
+STEPS=$ROOT/Logs/passi.txt
+step() { echo "$(cut -d' ' -f1 /proc/uptime)s sospensione: $1" >> "$STEPS"; }
+
+wifi=0
+pidof wpa_supplicant > /dev/null && wifi=1
+step "inizio (wi-fi $([ $wifi = 1 ] && echo acceso || echo spento))"
+[ $wifi = 1 ] && wifi-ctl off > /dev/null 2>&1
+echo 0 > /sys/class/led_anim/enable 2> /dev/null
+touch /tmp/system_suspend
+sync
+
+# wakeup_count: se arriva un evento di risveglio mentre ci si prepara, la scrittura fallisce
+# e si riprova (altrimenti la console potrebbe non svegliarsi più)
+r="non riuscita"
+for i in 1 2 3 4 5; do
+    cnt=$(cat /sys/power/wakeup_count 2> /dev/null) || break
+    if echo "$cnt" > /sys/power/wakeup_count 2> /dev/null; then
+        if echo mem > /sys/power/state 2> /dev/null; then r=riuscita; fi
+        break
+    fi
+    sleep 1
+done
+
+rm -f /tmp/system_suspend
+touch /tmp/wakeup_from_suspend
+echo 1 > /sys/class/led_anim/enable 2> /dev/null
+# audio: interruttori e uscita del codec come all'avvio (system-init)
+if [ "$(cat "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
+    amixer -q cset name="LINEOUT Output Select" DAC_SINGLE
+    amixer -q cset name="LINEOUT volume" 26
+fi
+for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" on; done
+[ -w /sys/class/speaker/mute ] && echo 0 > /sys/class/speaker/mute
+step "risveglio (sospensione $r)"
+[ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
+[ "$r" = riuscita ]
