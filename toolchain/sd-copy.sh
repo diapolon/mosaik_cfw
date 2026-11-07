@@ -5,9 +5,10 @@
 # DESTINAZIONE è relativa alla radice della SD (/Volumes/ARCADE).
 #
 # Alcuni lettori USB (per esempio il Super Top 14cd:1212) ogni tanto mettono un blocco da 32 KB
-# nel posto sbagliato: si copia con un nome provvisorio, si smonta e rimonta (niente cache del
-# Mac), si confronta e, se serve, si riprova; solo una copia identica prende il nome giusto,
-# e dopo un altro rimontaggio si rilegge due volte.
+# nel posto sbagliato, sempre negli stessi punti della scheda: si copia con un nome provvisorio,
+# si smonta e rimonta (niente cache del Mac) e si confronta. Una copia sbagliata si mette da
+# parte (Arcade/System/da-esaminare-*.bin) così occupa quei punti, e si riprova; solo una copia
+# identica prende il nome giusto, e dopo un altro rimontaggio si rilegge due volte.
 set -u
 VOL=/Volumes/ARCADE
 [ -d "$VOL" ] || { echo "SD ARCADE non collegata"; exit 1; }
@@ -34,7 +35,11 @@ while [ $# -ge 2 ]; do
         cp "$src" "$tmp" && sync
         remount
         if cmp -s "$src" "$tmp"; then ok=1; break; fi
-        echo "$(basename "$src"): copia $try diversa, riprovo"
+        # la copia sbagliata resta (con un altro nome) a occupare i punti della scheda dove la
+        # scrittura non resta: così la copia successiva va su spazio diverso
+        q="$VOL/Arcade/System/da-esaminare-$(date +%s).bin"
+        mv -f "$tmp" "$q" && sync
+        echo "$(basename "$src"): copia $try diversa, messa da parte in $(basename "$q"), riprovo"
     done
     if [ $ok = 0 ]; then echo "$(basename "$src"): NON RIUSCITA dopo 5 tentativi"; rm -f "$tmp"; fail=1; continue; fi
     mv -f "$tmp" "$dst" && sync
