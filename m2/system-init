@@ -165,7 +165,13 @@ finish() {
         sleep 0.3
     done
     sync
-    if ! umount /mnt/SDCARD 2>/dev/null && ! mount -o remount,ro /mnt/SDCARD 2>/dev/null; then
+    # Prima la sola lettura, poi lo smontaggio. La SD è montata due volte: anche dall'initramfs,
+    # che non può smontarla perché il sistema (squashfs) è un file sulla SD. Smontare solo
+    # /mnt/SDCARD non basta: il kernel toglie il segno "in uso" quando il FAT diventa di sola
+    # lettura o quando sparisce l'ultimo montaggio, e quello dell'initramfs resta.
+    if mount -o remount,ro /mnt/SDCARD 2>/dev/null; then
+        umount /mnt/SDCARD 2>/dev/null
+    else
         { echo "SD non chiusa: controllo al prossimo avvio. File aperti:"
           ls -l /proc/[0-9]*/fd 2>/dev/null | grep /mnt/SDCARD; } >> "$STEPS"
         sync
