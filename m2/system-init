@@ -203,7 +203,8 @@ finish() {
 
 # Avvia un programma (launcher o runner) e ne attende la fine. I programmi scrivono il
 # codice di uscita in System/exit.txt prima di chiudere SDL: se poi la chiusura si blocca
-# (driver grafico o audio), dopo 3 secondi si termina il processo e vale quel codice.
+# (driver grafico o audio), dopo 6 secondi si termina il processo e vale quel codice (dopo
+# una sospensione la chiusura della grafica può durare 3 secondi).
 run_app() {
     rm -f "$ROOT/System/exit.txt"
     "$@" >> "$LOG" 2>&1 &
@@ -212,7 +213,7 @@ run_app() {
     while kill -0 $pid 2>/dev/null; do
         if [ -f "$ROOT/System/exit.txt" ]; then
             t=$((t + 1))
-            if [ $t -ge 30 ]; then
+            if [ $t -ge 60 ]; then
                 step "chiusura bloccata di $(basename "$1"): processo terminato"
                 kill -9 $pid 2>/dev/null
                 break

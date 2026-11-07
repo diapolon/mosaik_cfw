@@ -1027,8 +1027,9 @@ static void pad_announce(const pad_t *pd, bool added) {
     int idx = (int)(pd - pads);
     if (added) snprintf(msg, sizeof msg, T("pad.connected"), pd->name, port_of(idx) + 1);
     else snprintf(msg, sizeof msg, T("pad.removed"), pd->name);
-    ui_toast(msg);
-    ui_log("%s", msg);
+    ui_log("%s%s", msg, pd->builtin ? " (integrato)" : "");
+    /* i tasti della console sono sempre il giocatore 1: si annunciano solo i controller esterni */
+    if (!pd->builtin) ui_toast(msg);
 }
 
 static pad_t *pad_by_id(SDL_JoystickID id) {
