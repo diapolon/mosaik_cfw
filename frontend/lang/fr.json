@@ -165,7 +165,9 @@
     "no_params": "Ce shader n'a pas de paramètres.",
     "no_shader": "Le filtre actuel n'utilise pas de shader.",
     "shader_note": "Gauche/droite modifient la valeur, A rétablit la valeur par défaut. Ce jeu uniquement.",
-    "audio_stalled": "Audio indisponible : jeu sans son"
+    "audio_stalled": "Audio indisponible : jeu sans son",
+    "linux_game": "Jeu Linux",
+    "linux_note": "Le jeu est en pause : B ou Menu pour reprendre."
   },
   "genre": {
     "fighter": "Combat",

@@ -24,13 +24,16 @@ COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/l
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c
 RUNNER   := src/runner/runner.c src/runner/glshader.c
 
-all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch
+all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu
 
 $(OUT)/bin/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h | $(OUT)/bin
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
 
 $(OUT)/bin/runner: $(COMMON) $(RUNNER) src/common/*.h src/runner/*.h | $(OUT)/bin
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(RUNNER) $(LDFLAGS) $(SDLLIBS)
+
+$(OUT)/bin/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(OUT)/bin
+	$(CC) $(CFLAGS) -o $@ $(COMMON) src/tools/gamemenu.c $(LDFLAGS) $(SDLLIBS)
 
 $(OUT)/bin/gamewatch: src/tools/gamewatch.c | $(OUT)/bin
 	$(CC) -std=c11 -O2 -Wall -Wextra -D_DEFAULT_SOURCE -o $@ $< -Wl,-rpath-link,$(TCLIBC)/lib

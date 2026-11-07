@@ -29,11 +29,8 @@
 #include <fcntl.h>
 #include <linux/input.h>
 #include <linux/uinput.h>
-#include <linux/fb.h>
 #include <poll.h>
 #include <sys/ioctl.h>
-#include <sys/mman.h>
-#include "font5x7.h"
 #endif
 
 /* tasti della console, con i nomi usati in game.json */
@@ -113,281 +110,18 @@ static void stop_group(pid_t pgid) {
 }
 
 #ifdef __linux__
-/* ------------------------------------------------------------------ menu sul framebuffer
-   Il gioco è fermo (SIGSTOP): la sua ultima immagine resta nella memoria video (/dev/fb0, la
-   parte mostrata è quella a yoffset). Si salva, si scurisce, si disegna il menu con il font
-   di fbmsg; all'uscita si rimette l'immagine com'era e il gioco riparte. */
-static struct fb_var_screeninfo fbv;
-static struct fb_fix_screeninfo fbf;
-static uint8_t *fbm;
-
-/* Driver display Allwinner "disp2" (include/video/sunxi_display2.h del kernel 4.9) */
-struct disp_rect { int x, y; unsigned int width, height; };
-struct disp_rectsz { unsigned int width, height; };
-struct disp_rect64 { long long x, y, width, height; };
-struct disp_fb_info {
-    unsigned long long addr[3];
-    struct disp_rectsz size[3];
-    unsigned int align[3];
-    int format;              /* enum disp_pixel_format: 0 = ARGB 8888 */
-    int color_space;
-    unsigned int trd_right_addr[3];
-    bool pre_multiply;
-    struct disp_rect64 crop; /* valori a virgola fissa 32.32 */
-    int flags;
-    int scan;
-};
-struct disp_layer_info {
-    int mode;                /* 0 = buffer */
-    unsigned char zorder, alpha_mode, alpha_value;
-    struct disp_rect screen_win;
-    bool b_trd_out;
-    int out_trd_mode;
-    union { unsigned int color; struct disp_fb_info fb; };
-    unsigned int id;
-};
-struct disp_layer_config { struct disp_layer_info info; bool enable; unsigned int channel, layer_id; };
-#define DISP_LAYER_SET_CONFIG 0x47
-#define DISP_LAYER_GET_CONFIG 0x48
-
-/* Il menu sta in un livello del display sopra al gioco, con un'immagine ARGB nella parte
-   finale della memoria di fb0 (con la GPU attiva fb0 non è mostrata: il gioco ha un livello
-   suo). Lo schermo della Smart Pro è montato in verticale (720x1280): se il livello del gioco
-   è verticale e il menu orizzontale, si disegna ruotato; il verso si corregge con
-   System/menu-rotazione (90 o 270; sulla Smart Pro 270). */
-static uint32_t *ov;          /* immagine del livello */
-static int ov_w, ov_h;        /* misura del livello (come lo schermo) */
-static int lw, lh;            /* misura "logica" orizzontale in cui si disegna */
-static int ov_rot;            /* 0, 90 o 270 */
-
-static void fb_px(int x, int y, uint32_t argb) {
-    if (x < 0 || y < 0 || x >= lw || y >= lh) return;
-    int X = x, Y = y;
-    if (ov_rot == 90) { X = ov_w - 1 - y; Y = x; }
-    else if (ov_rot == 270) { X = y; Y = ov_h - 1 - x; }
-    ov[(size_t)Y * ov_w + X] = argb;
-}
-
-static void fb_rect(int x, int y, int w, int h, uint32_t c) {
-    if ((c >> 24) == 0 && c) c |= 0xFF000000u;   /* colori senza alfa: opachi */
-    for (int j = y; j < y + h; j++)
-        for (int i = x; i < x + w; i++) fb_px(i, j, c);
-}
-
-static void fb_text(const char *s, int x, int y, int sc, uint32_t c) {
-    for (; *s; s++, x += 6 * sc) {
-        char ch = *s >= 'a' && *s <= 'z' ? *s - 32 : *s;
-        for (size_t k = 0; k < sizeof FONT / sizeof FONT[0]; k++) {
-            if (FONT[k].c != ch) continue;
-            for (int r = 0; r < 7; r++)
-                for (int col = 0; col < 5; col++)
-                    if (FONT[k].rows[r] >> (4 - col) & 1) fb_rect(x + col * sc, y + r * sc, sc, sc, c | 0xFF000000u);
-        }
+/* menu sopra il gioco fermo: programma gamemenu (grafica del launcher in un livello del
+   display). Uscita: 0 riprendi, 10 esci dal gioco, 20 spegni, altro = riprendi */
+static int run_menu(void) {
+    pid_t m = fork();
+    if (m < 0) return 0;
+    if (m == 0) {
+        execlp("gamemenu", "gamemenu", (char *)NULL);
+        _exit(3);
     }
-}
-
-static int disp_layer(int dfd, int cmd, struct disp_layer_config *c) {
-    unsigned long arg[4] = { 0, (unsigned long)c, 1, 0 };
-    return ioctl(dfd, cmd, arg);
-}
-
-/* impostazioni del launcher: si leggono e si aggiornano solo volume e luminosità */
-static char settings_path[1100];
-static int setting_get(const char *key, int def) {
-    FILE *f = fopen(settings_path, "r");
-    if (!f) return def;
-    char line[256], k[64];
-    snprintf(k, sizeof k, "\"%s\":", key);
-    int v = def;
-    while (fgets(line, sizeof line, f)) { char *p = strstr(line, k); if (p) { v = atoi(p + strlen(k)); break; } }
-    fclose(f);
-    return v;
-}
-static bool setting_lang_it(void) {
-    FILE *f = fopen(settings_path, "r");
-    if (!f) return true;
-    char line[256];
-    bool it = true;
-    while (fgets(line, sizeof line, f)) if (strstr(line, "\"language\":")) { it = strstr(line, "\"it\"") != NULL; break; }
-    fclose(f);
-    return it;
-}
-static void setting_put(const char *key, int v) {
-    FILE *f = fopen(settings_path, "r");
-    if (!f) return;
-    static char buf[8192];
-    size_t n = fread(buf, 1, sizeof buf - 1, f);
-    fclose(f);
-    buf[n] = 0;
-    char k[64], out[8400];
-    snprintf(k, sizeof k, "\"%s\":", key);
-    char *p = strstr(buf, k);
-    if (!p) return;
-    char *e = p + strlen(k);
-    while (*e == ' ' || (*e >= '0' && *e <= '9') || *e == '-') e++;
-    snprintf(out, sizeof out, "%.*s%s %d%s", (int)(p - buf), buf, k, v, e);
-    char tmp[1200];
-    snprintf(tmp, sizeof tmp, "%s.tmp", settings_path);
-    f = fopen(tmp, "w");
-    if (!f) return;
-    fputs(out, f);
-    fclose(f);
-    rename(tmp, settings_path);
-}
-
-static void apply_volume(int level) {   /* come plat_apply del launcher */
-    char cmd[160];
-    snprintf(cmd, sizeof cmd, "amixer sset 'digital volume' -M %d%% >/dev/null 2>&1", 100 - level * 5);
-    if (system(cmd)) {}
-}
-static void apply_brightness(int level) {
-    static const int raw[11] = { 4, 6, 10, 16, 32, 48, 64, 96, 128, 192, 255 };
-    int fd = open("/dev/disp", O_RDWR);
-    if (fd < 0) return;
-    unsigned long param[4] = { 0, (unsigned long)raw[level < 0 ? 0 : level > 10 ? 10 : level], 0, 0 };
-    ioctl(fd, 0x102, &param);
-    close(fd);
-}
-
-enum { MENU_RESUME, MENU_QUIT, MENU_POWEROFF };
-
-/* menu con il gioco fermo; restituisce MENU_* */
-static int fb_menu(struct pollfd *fds, int nfds) {
-    int fd = open("/dev/fb0", O_RDWR), dfd = open("/dev/disp", O_RDWR);
-    if (fd < 0 || dfd < 0) { perror("gamewatch: fb0/disp"); if (fd >= 0) close(fd); if (dfd >= 0) close(dfd); return MENU_RESUME; }
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &fbv) || ioctl(fd, FBIOGET_FSCREENINFO, &fbf)) { close(fd); close(dfd); return MENU_RESUME; }
-    /* livello del gioco: canale 1, livello 0 (dal log di /sys/class/disp/disp/attr/sys) */
-    struct disp_layer_config game;
-    memset(&game, 0, sizeof game);
-    game.channel = 1;
-    game.layer_id = 0;
-    int r = disp_layer(dfd, DISP_LAYER_GET_CONFIG, &game);
-    fprintf(stderr, "gamewatch: livello del gioco (esito %d, struttura %zu byte): acceso %d, modo %d, z %d, finestra %dx%d, "
-            "immagine %ux%u, formato %d, indirizzo 0x%llx; fb0 a 0x%lx (%u byte)\n",
-            r, sizeof game, game.enable, game.info.mode, game.info.zorder, game.info.screen_win.width, game.info.screen_win.height,
-            game.info.fb.size[0].width, game.info.fb.size[0].height, game.info.fb.format, game.info.fb.addr[0],
-            (unsigned long)fbf.smem_start, fbf.smem_len);
-    /* verifica: se i valori non sono plausibili le strutture non combaciano e non si tocca nulla */
-    if (r < 0 || !game.enable || game.info.mode != 0 || !game.info.fb.addr[0] || game.info.screen_win.width < 320 ||
-        game.info.screen_win.height < 240 || game.info.screen_win.width > 4096 || game.info.screen_win.height > 4096) {
-        fprintf(stderr, "gamewatch: livello del gioco non riconosciuto: niente menu\n");
-        close(fd);
-        close(dfd);
-        return MENU_RESUME;
-    }
-    ov_w = (int)game.info.screen_win.width;
-    ov_h = (int)game.info.screen_win.height;
-    size_t need = (size_t)ov_w * ov_h * 4;
-    if (need + 4096 > fbf.smem_len) { close(fd); close(dfd); return MENU_RESUME; }
-    size_t off = (fbf.smem_len - need) & ~(size_t)4095;
-    fbm = mmap(NULL, fbf.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (fbm == MAP_FAILED) { close(fd); close(dfd); return MENU_RESUME; }
-    ov = (uint32_t *)(fbm + off);
-    /* menu orizzontale: su uno schermo verticale si ruota */
-    ov_rot = 0;
-    lw = ov_w;
-    lh = ov_h;
-    if (ov_h > ov_w) {
-        ov_rot = 270;   /* provato sulla Smart Pro: con 90 il menu era capovolto */
-        char rp[1200];
-        snprintf(rp, sizeof rp, "%.*s/menu-rotazione", (int)(strlen(settings_path) - strlen("/settings.json")), settings_path);
-        FILE *rf = fopen(rp, "r");
-        if (rf) { int v = 0; if (fscanf(rf, "%d", &v) == 1 && (v == 90 || v == 270)) ov_rot = v; fclose(rf); }
-        lw = ov_h;
-        lh = ov_w;
-    }
-    /* sfondo: gioco scurito (nero semitrasparente) */
-    for (size_t i = 0; i < (size_t)ov_w * ov_h; i++) ov[i] = 0xA0000000u;
-    struct disp_layer_config mine = game;
-    mine.channel = 2;
-    mine.layer_id = 0;
-    mine.enable = 1;
-    mine.info.zorder = (unsigned char)(game.info.zorder + 1);
-    mine.info.alpha_mode = 0;    /* alfa per pixel */
-    mine.info.alpha_value = 255;
-    mine.info.fb.addr[0] = fbf.smem_start + off;
-    mine.info.fb.addr[1] = mine.info.fb.addr[2] = 0;
-    mine.info.fb.format = 0;     /* ARGB 8888 */
-    mine.info.fb.pre_multiply = 0;
-    for (int k = 0; k < 3; k++) { mine.info.fb.size[k].width = (unsigned)ov_w; mine.info.fb.size[k].height = (unsigned)ov_h; }
-    mine.info.fb.crop = (struct disp_rect64){ 0, 0, (long long)ov_w << 32, (long long)ov_h << 32 };
-    mine.info.screen_win = (struct disp_rect){ 0, 0, (unsigned)ov_w, (unsigned)ov_h };
-    r = disp_layer(dfd, DISP_LAYER_SET_CONFIG, &mine);
-    if (r < 0) {   /* canale 2 assente: si prova il canale 0 */
-        mine.channel = 0;
-        r = disp_layer(dfd, DISP_LAYER_SET_CONFIG, &mine);
-    }
-    fprintf(stderr, "gamewatch: livello del menu sul canale %u (esito %d), rotazione %d\n", mine.channel, r, ov_rot);
-    if (r < 0) { munmap(fbm, fbf.smem_len); close(fd); close(dfd); return MENU_RESUME; }
-    FILE *ds = fopen("/sys/class/disp/disp/attr/sys", "r");
-    if (ds) { char l[256]; while (fgets(l, sizeof l, ds)) if (strstr(l, "enable")) fprintf(stderr, "gamewatch: disp: %s", l); fclose(ds); }
-
-    bool it = setting_lang_it();
-    int vol = setting_get("volume", 12), bri = setting_get("brightness", 8);
-    const char *labels_it[5] = { "RIPRENDI", "VOLUME", "LUMINOSITA", "ESCI DAL GIOCO", "SPEGNI" };
-    const char *labels_en[5] = { "RESUME", "VOLUME", "BRIGHTNESS", "QUIT GAME", "POWER OFF" };
-    const char **labels = it ? labels_it : labels_en;
-    int W = lw, H = lh;
-    int sel = 0, result = -1, sc = W >= 1000 ? 5 : 4;
-    int pw = W * 6 / 10, rh = 7 * sc + 4 * sc, ph = 5 * rh + 10 * sc + 7 * sc + 6 * sc;
-    int px0 = (W - pw) / 2, py0 = (H - ph) / 2;
-    int hx = 0, hy = 0;   /* croce (cappello) */
-    bool redraw = true;
-    while (result < 0) {
-        if (redraw) {
-            fb_rect(px0, py0, pw, ph, 0xFF202530);
-            fb_rect(px0, py0, pw, 3 * sc, 0xFF0FB1D4);
-            fb_text("MENU", px0 + 4 * sc, py0 + 5 * sc, sc, 0xFFFFFF);
-            for (int i = 0; i < 5; i++) {
-                int y = py0 + 10 * sc + 7 * sc + i * rh;
-                fb_rect(px0 + 2 * sc, y - 2 * sc, pw - 4 * sc, rh - sc, i == sel ? 0xFF0FB1D4 : 0xFF202530);
-                uint32_t c = i == sel ? 0xFF000000 : 0xFFFFFFFF;
-                fb_text(labels[i], px0 + 4 * sc, y, sc, c);
-                if (i == 1 || i == 2) {
-                    char v[24];
-                    snprintf(v, sizeof v, "< %d >", i == 1 ? vol : bri);
-                    fb_text(v, px0 + pw - 4 * sc - (int)strlen(v) * 6 * sc, y, sc, c);
-                }
-            }
-            redraw = false;
-        }
-        if (poll(fds, (nfds_t)nfds, 200) <= 0) continue;
-        for (int i = 0; i < nfds && result < 0; i++) {
-            struct input_event ev;
-            while (read(fds[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
-                int up = 0, down = 0, left = 0, right = 0;
-                if (ev.type == EV_ABS && ev.code == ABS_HAT0Y) { if (ev.value < 0 && hy >= 0) up = 1; if (ev.value > 0 && hy <= 0) down = 1; hy = ev.value; }
-                if (ev.type == EV_ABS && ev.code == ABS_HAT0X) { if (ev.value < 0 && hx >= 0) left = 1; if (ev.value > 0 && hx <= 0) right = 1; hx = ev.value; }
-                if (ev.type == EV_KEY && ev.value == 1) {
-                    if (ev.code == BTN_DPAD_UP) up = 1;
-                    if (ev.code == BTN_DPAD_DOWN) down = 1;
-                    if (ev.code == BTN_DPAD_LEFT) left = 1;
-                    if (ev.code == BTN_DPAD_RIGHT) right = 1;
-                    if (ev.code == pad_codes[P_B] || ev.code == BTN_MODE) result = MENU_RESUME;
-                    if (ev.code == pad_codes[P_A]) {
-                        if (sel == 0) result = MENU_RESUME;
-                        if (sel == 3) result = MENU_QUIT;
-                        if (sel == 4) result = MENU_POWEROFF;
-                    }
-                }
-                if (up) { sel = (sel + 4) % 5; redraw = true; }
-                if (down) { sel = (sel + 1) % 5; redraw = true; }
-                if ((left || right) && (sel == 1 || sel == 2)) {
-                    int d = right ? 1 : -1;
-                    if (sel == 1) { vol = vol + d < 0 ? 0 : vol + d > 20 ? 20 : vol + d; apply_volume(vol); setting_put("volume", vol); }
-                    else { bri = bri + d < 1 ? 1 : bri + d > 10 ? 10 : bri + d; apply_brightness(bri); setting_put("brightness", bri); }
-                    redraw = true;
-                }
-            }
-        }
-    }
-    mine.enable = 0;
-    disp_layer(dfd, DISP_LAYER_SET_CONFIG, &mine);
-    munmap(fbm, fbf.smem_len);
-    close(fd);
-    close(dfd);
-    fprintf(stderr, "gamewatch: menu chiuso (%s)\n", result == MENU_RESUME ? "riprendi" : result == MENU_QUIT ? "esci" : "spegni");
-    return result;
+    int st = 0;
+    waitpid(m, &st, 0);
+    return WIFEXITED(st) ? WEXITSTATUS(st) : 3;
 }
 #endif
 
@@ -476,7 +210,6 @@ int main(int argc, char **argv) {
        (SIGSTOP) finché la console non si risveglia; tenuto premuto 1,2 s = chiude il gioco e
        chiede lo spegnimento (codice di uscita 120 per system-init) */
     bool standalone = getenv("ARCADE_STANDALONE") && getenv("ARCADE_STANDALONE")[0] == '1';
-    snprintf(settings_path, sizeof settings_path, "%s/System/settings.json", getenv("ROOT") ? getenv("ROOT") : "/mnt/SDCARD/Arcade");
     double power_at = 0;
     double pressed_at = 0;
     bool open_menu = false;
@@ -566,14 +299,13 @@ int main(int argc, char **argv) {
         if (open_menu) {
             open_menu = false;
             kill(-pid, SIGSTOP);
-            usleep(50 * 1000);   /* l'ultimo fotogramma del gioco è a schermo */
-            int m = fb_menu(fds, nfds);
-            if (m == MENU_RESUME) kill(-pid, SIGCONT);
-            else {
-                kill(-pid, SIGCONT);
+            int m = run_menu();
+            fprintf(stderr, "gamewatch: menu chiuso (%d)\n", m);
+            kill(-pid, SIGCONT);
+            if (m == 10 || m == 20) {
                 stop_group(pid);
                 if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
-                return m == MENU_POWEROFF ? 120 : 0;
+                return m == 20 ? 120 : 0;
             }
             /* eventi arrivati durante il menu: il gioco non deve vederli come nuovi */
             struct input_event skip;

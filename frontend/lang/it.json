@@ -165,7 +165,9 @@
     "no_params": "Questo shader non ha parametri.",
     "no_shader": "Il filtro attuale non usa uno shader.",
     "shader_note": "Sinistra/destra cambiano il valore, A torna al predefinito. Solo per questo gioco.",
-    "audio_stalled": "Audio non disponibile: gioco senza suono"
+    "audio_stalled": "Audio non disponibile: gioco senza suono",
+    "linux_game": "Gioco Linux",
+    "linux_note": "Il gioco è in pausa: B o Menu per riprendere."
   },
   "genre": {
     "fighter": "Picchiaduro",

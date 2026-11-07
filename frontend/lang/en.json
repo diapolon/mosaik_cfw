@@ -165,7 +165,9 @@
     "no_params": "This shader has no parameters.",
     "no_shader": "The current filter does not use a shader.",
     "shader_note": "Left/right change the value, A restores the default. This game only.",
-    "audio_stalled": "Audio unavailable: playing without sound"
+    "audio_stalled": "Audio unavailable: playing without sound",
+    "linux_game": "Linux game",
+    "linux_note": "The game is paused: B or Menu to resume."
   },
   "genre": {
     "fighter": "Fighting",

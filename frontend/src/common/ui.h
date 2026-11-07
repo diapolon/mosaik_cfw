@@ -80,6 +80,13 @@ void ui_suspend(void);
 /* schermata d'attesa (spegnimento, uscita, avvio): un indicatore che gira per qualche istante,
    poi l'ultima immagine resta a schermo mentre il programma lavora */
 void ui_busy(const char *msg, double seconds);
+/* Grafica fuori schermo (menu sopra i giochi Linux): niente finestra né GPU, si disegna con
+   il renderer software di SDL su un'immagine ARGB in memoria, con tema, caratteri e lingua
+   del launcher. Sfondo trasparente: tra ui_overlay_begin e ui_overlay_end si disegna come
+   tra ui_begin e ui_end; ui_overlay_end restituisce l'immagine (UI.w x UI.h). */
+bool ui_init_offscreen(const char *app, const char *root);
+void ui_overlay_begin(void);
+SDL_Surface *ui_overlay_end(void);
 void ui_apply_device(void);          /* ridimensiona finestra e canvas secondo il modello */
 void ui_poll(void);
 /* controller collegati: nome e giocatore assegnato (0 = giocatore 1) */

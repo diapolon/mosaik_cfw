@@ -1457,7 +1457,7 @@ void ui_apply_device(void) {
     if (UI.canvas) SDL_DestroyTexture(UI.canvas);
     UI.canvas = SDL_CreateTexture(UI.ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, UI.w, UI.h);
     SDL_SetTextureScaleMode(UI.canvas, SDL_ScaleModeLinear);
-    if (!UI.automation && !plat_is_device()) {
+    if (UI.win && !UI.automation && !plat_is_device()) {
         SDL_Rect usable;
         int ww = UI.w, wh = UI.h;
         if (SDL_GetDisplayUsableBounds(0, &usable) == 0) {
@@ -1598,6 +1598,74 @@ static void draw_waves(void) {
             }
         SDL_RenderGeometry(UI.ren, NULL, v, (N + 1) * 3, idx, k);
     }
+}
+
+static SDL_Surface *offscreen;
+
+bool ui_init_offscreen(const char *app, const char *root) {
+    memset(&UI, 0, sizeof UI);
+    snprintf(UI.root, sizeof UI.root, "%s", root);
+    char p[1200];
+    snprintf(p, sizeof p, "%s/Logs/%s.log", root, app);
+    logf_ = fopen(p, "a");
+    ui_log("---- avvio %s (fuori schermo)", app);
+    settings_load(&UI.set, root);
+    settings_apply_tz(&UI.set);
+    lang_load(root, UI.set.lang);
+    /* solo tasti: lo schermo e l'audio restano al gioco */
+    if (SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK) != 0) {
+        ui_log("SDL_Init: %s", SDL_GetError());
+        return false;
+    }
+    TTF_Init();
+    IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
+    const char *model = plat_model();
+    int w, h;
+    device_size(model ? model : UI.set.device, &w, &h);
+    offscreen = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_ARGB8888);
+    UI.ren = offscreen ? SDL_CreateSoftwareRenderer(offscreen) : NULL;
+    if (!UI.ren) {
+        ui_log("renderer software: %s", SDL_GetError());
+        return false;
+    }
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
+    ui_apply_device();
+    t0 = tprev = SDL_GetPerformanceCounter();
+    return true;
+}
+
+void ui_overlay_begin(void) {
+    Uint64 now = SDL_GetPerformanceCounter(), freq = SDL_GetPerformanceFrequency();
+    UI.dt = (double)(now - tprev) / (double)freq;
+    if (UI.dt > 0.1) UI.dt = 0.1;
+    UI.t = (double)(now - t0) / (double)freq;
+    tprev = now;
+    frame_no++;
+    SDL_SetRenderTarget(UI.ren, UI.canvas);
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(UI.ren, 0, 0, 0, 0);
+    SDL_RenderClear(UI.ren);
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
+}
+
+SDL_Surface *ui_overlay_end(void) {
+    ui_draw_toast();
+    /* l'immagine passa così com'è, trasparenza compresa */
+    SDL_SetRenderTarget(UI.ren, NULL);
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(UI.ren, 0, 0, 0, 0);
+    SDL_RenderClear(UI.ren);
+    SDL_SetTextureBlendMode(UI.canvas, SDL_BLENDMODE_NONE);
+    SDL_RenderCopy(UI.ren, UI.canvas, NULL, NULL);
+    SDL_SetTextureBlendMode(UI.canvas, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
+    SDL_RenderPresent(UI.ren);
+    if (shot_path[0]) {
+        IMG_SavePNG(offscreen, shot_path);
+        ui_log("screenshot: %s", shot_path);
+        shot_path[0] = 0;
+    }
+    return offscreen;
 }
 
 void ui_begin(void) {

@@ -250,6 +250,8 @@ while :; do
             cd "$(dirname "$rom")" || exit 1
             [ -f "$ROOT/System/linux-env.sh" ] && . "$ROOT/System/linux-env.sh"
             [ -f "$ROOT/System/next.env" ] && . "$ROOT/System/next.env"
+            # titolo per il menu sopra il gioco (gamemenu)
+            export ARCADE_TITLE="$title"
             exec "$BIN/gamewatch" -- sh "./$(basename "$rom")"
         ) >> "$ROOT/Logs/linux-games.log" 2>&1
         grc=$?
