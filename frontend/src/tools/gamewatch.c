@@ -16,6 +16,7 @@
    se un controller ne usa altri si correggono con GAMEWATCH_PAD="A=0x131,B=0x130". */
 #include <signal.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,8 +29,11 @@
 #include <fcntl.h>
 #include <linux/input.h>
 #include <linux/uinput.h>
+#include <linux/fb.h>
 #include <poll.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include "font5x7.h"
 #endif
 
 /* tasti della console, con i nomi usati in game.json */
@@ -107,6 +111,191 @@ static void stop_group(pid_t pgid) {
     }
     kill(-pgid, SIGKILL);
 }
+
+#ifdef __linux__
+/* ------------------------------------------------------------------ menu sul framebuffer
+   Il gioco è fermo (SIGSTOP): la sua ultima immagine resta nella memoria video (/dev/fb0, la
+   parte mostrata è quella a yoffset). Si salva, si scurisce, si disegna il menu con il font
+   di fbmsg; all'uscita si rimette l'immagine com'era e il gioco riparte. */
+static struct fb_var_screeninfo fbv;
+static struct fb_fix_screeninfo fbf;
+static uint8_t *fbm;
+
+static void fb_px(int x, int y, uint32_t rgb) {
+    if (x < 0 || y < 0 || x >= (int)fbv.xres || y >= (int)fbv.yres) return;
+    uint8_t *p = fbm + (size_t)(y + fbv.yoffset) * fbf.line_length + (size_t)(x + fbv.xoffset) * (fbv.bits_per_pixel / 8);
+    uint32_t r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
+    uint32_t v = (r >> (8 - fbv.red.length)) << fbv.red.offset | (g >> (8 - fbv.green.length)) << fbv.green.offset |
+                 (b >> (8 - fbv.blue.length)) << fbv.blue.offset;
+    if (fbv.transp.length) v |= ((1u << fbv.transp.length) - 1) << fbv.transp.offset;
+    if (fbv.bits_per_pixel == 32) *(uint32_t *)p = v;
+    else if (fbv.bits_per_pixel == 16) *(uint16_t *)p = (uint16_t)v;
+}
+
+static void fb_rect(int x, int y, int w, int h, uint32_t c) {
+    for (int j = y; j < y + h; j++)
+        for (int i = x; i < x + w; i++) fb_px(i, j, c);
+}
+
+static void fb_text(const char *s, int x, int y, int sc, uint32_t c) {
+    for (; *s; s++, x += 6 * sc) {
+        char ch = *s >= 'a' && *s <= 'z' ? *s - 32 : *s;
+        for (size_t k = 0; k < sizeof FONT / sizeof FONT[0]; k++) {
+            if (FONT[k].c != ch) continue;
+            for (int r = 0; r < 7; r++)
+                for (int col = 0; col < 5; col++)
+                    if (FONT[k].rows[r] >> (4 - col) & 1) fb_rect(x + col * sc, y + r * sc, sc, sc, c);
+        }
+    }
+}
+
+/* impostazioni del launcher: si leggono e si aggiornano solo volume e luminosità */
+static char settings_path[1100];
+static int setting_get(const char *key, int def) {
+    FILE *f = fopen(settings_path, "r");
+    if (!f) return def;
+    char line[256], k[64];
+    snprintf(k, sizeof k, "\"%s\":", key);
+    int v = def;
+    while (fgets(line, sizeof line, f)) { char *p = strstr(line, k); if (p) { v = atoi(p + strlen(k)); break; } }
+    fclose(f);
+    return v;
+}
+static bool setting_lang_it(void) {
+    FILE *f = fopen(settings_path, "r");
+    if (!f) return true;
+    char line[256];
+    bool it = true;
+    while (fgets(line, sizeof line, f)) if (strstr(line, "\"language\":")) { it = strstr(line, "\"it\"") != NULL; break; }
+    fclose(f);
+    return it;
+}
+static void setting_put(const char *key, int v) {
+    FILE *f = fopen(settings_path, "r");
+    if (!f) return;
+    static char buf[8192];
+    size_t n = fread(buf, 1, sizeof buf - 1, f);
+    fclose(f);
+    buf[n] = 0;
+    char k[64], out[8400];
+    snprintf(k, sizeof k, "\"%s\":", key);
+    char *p = strstr(buf, k);
+    if (!p) return;
+    char *e = p + strlen(k);
+    while (*e == ' ' || (*e >= '0' && *e <= '9') || *e == '-') e++;
+    snprintf(out, sizeof out, "%.*s%s %d%s", (int)(p - buf), buf, k, v, e);
+    char tmp[1200];
+    snprintf(tmp, sizeof tmp, "%s.tmp", settings_path);
+    f = fopen(tmp, "w");
+    if (!f) return;
+    fputs(out, f);
+    fclose(f);
+    rename(tmp, settings_path);
+}
+
+static void apply_volume(int level) {   /* come plat_apply del launcher */
+    char cmd[160];
+    snprintf(cmd, sizeof cmd, "amixer sset 'digital volume' -M %d%% >/dev/null 2>&1", 100 - level * 5);
+    if (system(cmd)) {}
+}
+static void apply_brightness(int level) {
+    static const int raw[11] = { 4, 6, 10, 16, 32, 48, 64, 96, 128, 192, 255 };
+    int fd = open("/dev/disp", O_RDWR);
+    if (fd < 0) return;
+    unsigned long param[4] = { 0, (unsigned long)raw[level < 0 ? 0 : level > 10 ? 10 : level], 0, 0 };
+    ioctl(fd, 0x102, &param);
+    close(fd);
+}
+
+enum { MENU_RESUME, MENU_QUIT, MENU_POWEROFF };
+
+/* menu con il gioco fermo; restituisce MENU_* */
+static int fb_menu(struct pollfd *fds, int nfds) {
+    int fd = open("/dev/fb0", O_RDWR);
+    if (fd < 0) { perror("gamewatch: /dev/fb0"); return MENU_RESUME; }
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &fbv) || ioctl(fd, FBIOGET_FSCREENINFO, &fbf)) { close(fd); return MENU_RESUME; }
+    fbm = mmap(NULL, fbf.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (fbm == MAP_FAILED) { close(fd); return MENU_RESUME; }
+    fprintf(stderr, "gamewatch: menu su fb0 %ux%u (virtuale %ux%u, yoffset %u, %u bpp)\n",
+            fbv.xres, fbv.yres, fbv.xres_virtual, fbv.yres_virtual, fbv.yoffset, fbv.bits_per_pixel);
+    int W = (int)fbv.xres, H = (int)fbv.yres, bpp = (int)fbv.bits_per_pixel / 8;
+    size_t rowb = (size_t)W * bpp;
+    uint8_t *saved = malloc(rowb * H);
+    uint8_t *base = fbm + (size_t)fbv.yoffset * fbf.line_length + (size_t)fbv.xoffset * bpp;
+    for (int y = 0; y < H; y++) memcpy(saved + y * rowb, base + (size_t)y * fbf.line_length, rowb);
+    /* immagine del gioco scurita, come sfondo del menu */
+    if (bpp == 4)
+        for (int y = 0; y < H; y++) {
+            uint32_t *row = (uint32_t *)(base + (size_t)y * fbf.line_length);
+            for (int x = 0; x < W; x++) { uint32_t v = row[x]; row[x] = (v & 0xFF000000u) | ((v >> 2) & 0x3F3F3Fu); }
+        }
+
+    bool it = setting_lang_it();
+    int vol = setting_get("volume", 12), bri = setting_get("brightness", 8);
+    const char *labels_it[5] = { "RIPRENDI", "VOLUME", "LUMINOSITA", "ESCI DAL GIOCO", "SPEGNI" };
+    const char *labels_en[5] = { "RESUME", "VOLUME", "BRIGHTNESS", "QUIT GAME", "POWER OFF" };
+    const char **labels = it ? labels_it : labels_en;
+    int sel = 0, result = -1, sc = W >= 1000 ? 5 : 4;
+    int pw = W * 6 / 10, rh = 7 * sc + 4 * sc, ph = 5 * rh + 10 * sc + 7 * sc + 6 * sc;
+    int px0 = (W - pw) / 2, py0 = (H - ph) / 2;
+    int hx = 0, hy = 0;   /* croce (cappello) */
+    bool redraw = true;
+    while (result < 0) {
+        if (redraw) {
+            fb_rect(px0, py0, pw, ph, 0x202530);
+            fb_rect(px0, py0, pw, 3 * sc, 0x0FB1D4);
+            fb_text("MENU", px0 + 4 * sc, py0 + 5 * sc, sc, 0xFFFFFF);
+            for (int i = 0; i < 5; i++) {
+                int y = py0 + 10 * sc + 7 * sc + i * rh;
+                fb_rect(px0 + 2 * sc, y - 2 * sc, pw - 4 * sc, rh - sc, i == sel ? 0x0FB1D4 : 0x202530);
+                uint32_t c = i == sel ? 0x000000 : 0xFFFFFF;
+                fb_text(labels[i], px0 + 4 * sc, y, sc, c);
+                if (i == 1 || i == 2) {
+                    char v[24];
+                    snprintf(v, sizeof v, "< %d >", i == 1 ? vol : bri);
+                    fb_text(v, px0 + pw - 4 * sc - (int)strlen(v) * 6 * sc, y, sc, c);
+                }
+            }
+            redraw = false;
+        }
+        if (poll(fds, (nfds_t)nfds, 200) <= 0) continue;
+        for (int i = 0; i < nfds && result < 0; i++) {
+            struct input_event ev;
+            while (read(fds[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
+                int up = 0, down = 0, left = 0, right = 0;
+                if (ev.type == EV_ABS && ev.code == ABS_HAT0Y) { if (ev.value < 0 && hy >= 0) up = 1; if (ev.value > 0 && hy <= 0) down = 1; hy = ev.value; }
+                if (ev.type == EV_ABS && ev.code == ABS_HAT0X) { if (ev.value < 0 && hx >= 0) left = 1; if (ev.value > 0 && hx <= 0) right = 1; hx = ev.value; }
+                if (ev.type == EV_KEY && ev.value == 1) {
+                    if (ev.code == BTN_DPAD_UP) up = 1;
+                    if (ev.code == BTN_DPAD_DOWN) down = 1;
+                    if (ev.code == BTN_DPAD_LEFT) left = 1;
+                    if (ev.code == BTN_DPAD_RIGHT) right = 1;
+                    if (ev.code == pad_codes[P_B] || ev.code == BTN_MODE) result = MENU_RESUME;
+                    if (ev.code == pad_codes[P_A]) {
+                        if (sel == 0) result = MENU_RESUME;
+                        if (sel == 3) result = MENU_QUIT;
+                        if (sel == 4) result = MENU_POWEROFF;
+                    }
+                }
+                if (up) { sel = (sel + 4) % 5; redraw = true; }
+                if (down) { sel = (sel + 1) % 5; redraw = true; }
+                if ((left || right) && (sel == 1 || sel == 2)) {
+                    int d = right ? 1 : -1;
+                    if (sel == 1) { vol = vol + d < 0 ? 0 : vol + d > 20 ? 20 : vol + d; apply_volume(vol); setting_put("volume", vol); }
+                    else { bri = bri + d < 1 ? 1 : bri + d > 10 ? 10 : bri + d; apply_brightness(bri); setting_put("brightness", bri); }
+                    redraw = true;
+                }
+            }
+        }
+    }
+    for (int y = 0; y < H; y++) memcpy(base + (size_t)y * fbf.line_length, saved + y * rowb, rowb);
+    free(saved);
+    munmap(fbm, fbf.smem_len);
+    close(fd);
+    fprintf(stderr, "gamewatch: menu chiuso (%s)\n", result == MENU_RESUME ? "riprendi" : result == MENU_QUIT ? "esci" : "spegni");
+    return result;
+}
+#endif
 
 int main(int argc, char **argv) {
     double hold = 1.5;
@@ -193,8 +382,10 @@ int main(int argc, char **argv) {
        (SIGSTOP) finché la console non si risveglia; tenuto premuto 1,2 s = chiude il gioco e
        chiede lo spegnimento (codice di uscita 120 per system-init) */
     bool standalone = getenv("ARCADE_STANDALONE") && getenv("ARCADE_STANDALONE")[0] == '1';
+    snprintf(settings_path, sizeof settings_path, "%s/System/settings.json", getenv("ROOT") ? getenv("ROOT") : "/mnt/SDCARD/Arcade");
     double power_at = 0;
     double pressed_at = 0;
+    bool open_menu = false;
     for (;;) {
         int status;
         pid_t r = waitpid(pid, &status, WNOHANG);
@@ -232,6 +423,8 @@ int main(int argc, char **argv) {
                         for (int k = 0; k < nkeys; k++)
                             if (ev.code == keys[k]) {
                                 if (ev.value != 2) fprintf(stderr, "gamewatch: Menu %s\n", ev.value ? "premuto" : "rilasciato");
+                                /* pressione breve (sistema su SD): menu sopra il gioco fermo */
+                                if (standalone && ev.value == 0 && pressed_at && now() - pressed_at < hold) open_menu = true;
                                 pressed_at = ev.value ? (pressed_at ? pressed_at : now()) : 0;
                             }
                     if (ui < 0) continue;
@@ -277,6 +470,23 @@ int main(int argc, char **argv) {
                     }
                 }
             }
+        }
+        if (open_menu) {
+            open_menu = false;
+            kill(-pid, SIGSTOP);
+            usleep(50 * 1000);   /* l'ultimo fotogramma del gioco è a schermo */
+            int m = fb_menu(fds, nfds);
+            if (m == MENU_RESUME) kill(-pid, SIGCONT);
+            else {
+                kill(-pid, SIGCONT);
+                stop_group(pid);
+                if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+                return m == MENU_POWEROFF ? 120 : 0;
+            }
+            /* eventi arrivati durante il menu: il gioco non deve vederli come nuovi */
+            struct input_event skip;
+            for (int j = 0; j < nfds; j++) while (read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
+            continue;
         }
         if (power_at && now() - power_at >= 1.2) {
             fprintf(stderr, "gamewatch: tasto di accensione tenuto, chiudo il gioco e spengo\n");
