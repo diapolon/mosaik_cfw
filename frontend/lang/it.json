@@ -22,7 +22,8 @@
     "shutting_down": "Spegnimento…",
     "loading": "Caricamento…",
     "leaving": "Uscita dal gioco…",
-    "starting": "Avvio di %s…"
+    "starting": "Avvio di %s…",
+    "open": "Apri"
   },
   "home": {
     "no_games": "Nessun gioco trovato: copia le ROM in Roms/FBNEO o Roms/MAME2003P",
@@ -399,5 +400,26 @@
     "delete": "Elimina",
     "done": "Eliminate %d immagini (%s)",
     "none": "Nessuna immagine da eliminare"
+  },
+  "settings_cat": {
+    "display": "Schermo e suono",
+    "look": "Aspetto",
+    "games": "Giochi",
+    "system": "Sistema",
+    "tools": "Strumenti"
+  },
+  "settings_cat_sum": {
+    "display": "Luminosità, volume, musica, LED",
+    "look": "Tema, lingua, salvaschermo",
+    "games": "Immagine, filtri, controller",
+    "system": "Wi-Fi, data e ora, spegnimento",
+    "tools": "ROM, immagini, informazioni"
+  },
+  "settings_cat_desc": {
+    "display": "Luminosità dello schermo, volume, musica di sottofondo e luci della console.",
+    "look": "Tema del launcher, sua variante, lingua e salvaschermo.",
+    "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni, controller.",
+    "system": "Wi-Fi, data, ora e fuso orario, spegnimento automatico.",
+    "tools": "Verifica delle ROM, scaricamento e pulizia delle immagini, spazio sulla scheda."
   }
 }

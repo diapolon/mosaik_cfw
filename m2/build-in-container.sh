@@ -31,7 +31,7 @@ cp /bin/busybox.static $R/bin/busybox
 for a in $($R/bin/busybox --list-full); do [ -e $R/$a ] || ln -s /bin/busybox $R/$a; done
 rm -f $R/sbin/init
 cp $T/m2/system-init $R/sbin/init
-cp /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch /build/out/bin/gamemenu $W/fbmsg $R/usr/arcade/bin/
+cp /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch /build/out/bin/gamemenu $W/fbmsg $W/envtool $R/usr/arcade/bin/
 # fsck.fat (Alpine, musl) anche nel sistema: controllo della SD su richiesta (System/controlla-sd)
 cp /sbin/fsck.fat $R/usr/sbin/fsck.fat
 cp /lib/ld-musl-aarch64.so.1 $R/lib/
@@ -150,8 +150,20 @@ models | while IFS="|" read -r id fw name file; do
     put $FW/boot0_sdcard.fex 256
     put $FW/boot_package.fex 32800
     put $W/boot-$id.img $(start 1)
-    put $FW/env.fex $(start 2)
-    put $FW/env.fex $(start 3)
+    # ambiente di U-Boot con loglevel=4: con 8 il kernel scrive ogni messaggio sulla porta
+    # seriale (115200 baud) e l'avvio rallenta; i messaggi restano comunque in dmesg
+    python3 -I - "$FW/env.fex" "$W/env-$id.fex" <<'PYEOF'
+import sys, struct, zlib
+d = bytearray(open(sys.argv[1], "rb").read())
+assert struct.unpack("<I", d[:4])[0] == zlib.crc32(bytes(d[5:])) & 0xffffffff, "env.fex: CRC"
+i = d.find(b"\0loglevel=8\0")
+assert i > 0, "env.fex: loglevel=8 non trovato"
+d[i + 10] = ord("4")
+struct.pack_into("<I", d, 0, zlib.crc32(bytes(d[5:])) & 0xffffffff)
+open(sys.argv[2], "wb").write(d)
+PYEOF
+    put $W/env-$id.fex $(start 2)
+    put $W/env-$id.fex $(start 3)
     P4=$(( $(sgdisk -i 4 $IMG | sed -n "s/^Partition size: \([0-9]*\).*/\1/p") * 512 ))
     [ $(stat -c %s $FAT) -le $P4 ] || { echo "FAT più grande della partizione"; exit 1; }
     put $FAT $(start 4)

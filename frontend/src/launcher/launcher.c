@@ -56,8 +56,12 @@ static int *view, nview, lib_sel;
 static float lib_scroll, lib_scroll_target, lib_hl;
 
 /* impostazioni */
-static int set_sel;
+static int set_sel;              /* voce scelta (S_*) */
+static int set_page = -1;        /* -1: elenco delle categorie; altrimenti la categoria aperta */
+static int set_row;              /* riga scelta nella pagina */
 static float set_scroll, set_hl;
+static void settings_open(int page, int row);
+enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_SYSTEM, SC_TOOLS, SC_COUNT };
 static char theme_ids[16][64], theme_names[16][64];
 static int nthemes;
 
@@ -544,8 +548,8 @@ static void home_activate_icon(void) {
         build_view();
         go(SCR_LIBRARY);
         break;
-    case IC_THEMES: set_sel = 2; go(SCR_SETTINGS); break;
-    case IC_SETTINGS: set_sel = 0; go(SCR_SETTINGS); break;
+    case IC_THEMES: settings_open(SC_LOOK, 0); go(SCR_SETTINGS); break;
+    case IC_SETTINGS: settings_open(-1, 0); go(SCR_SETTINGS); break;
     case IC_POWER: dlg_open = true; dlg_sel = 0; break;
     }
     ui_sound(SND_OK);
@@ -575,7 +579,7 @@ static void home_input(void) {
         if (in->pressed[BTN_RIGHT] && icon_sel < IC_COUNT - 1) { icon_sel++; ui_sound(SND_MOVE); }
         if (in->pressed[BTN_A]) home_activate_icon();
     }
-    if (in->pressed[BTN_START]) { set_sel = 0; go(SCR_SETTINGS); ui_sound(SND_OK); }
+    if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
 }
 
 static void home_draw(void) {
@@ -791,7 +795,7 @@ static void bar_input(void) {
     if (in->pressed[BTN_R] && nbar) { *it = *it + 8 < nbar ? *it + 8 : nbar - 1; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_SELECT]) { fpanel_open = true; fpanel_sel = 0; ui_sound(SND_OK); return; }
     if (in->pressed[BTN_START] || (in->pressed[BTN_A] && cats[cat_sel].kind == CAT_SETTINGS)) {
-        set_sel = 0;
+        settings_open(-1, 0);
         go(SCR_SETTINGS);
         ui_sound(SND_OK);
         return;
@@ -924,7 +928,7 @@ static void lib_common_input(int cols) {
         build_carousel();
         ui_sound(SND_OK);
     }
-    if (in->pressed[BTN_START]) { set_sel = 0; go(SCR_SETTINGS); ui_sound(SND_OK); }
+    if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
     if (in->pressed[BTN_B] && !is_list_layout()) { go(SCR_HOME); ui_sound(SND_BACK); }
 }
 
@@ -1140,6 +1144,43 @@ static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
     "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "info", "power",
 };
+
+/* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
+static const char *cat_key[SC_COUNT] = { "display", "look", "games", "system", "tools" };
+static const int cat_items[SC_COUNT][10] = {
+    { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
+    { S_THEME, S_VARIANT, S_LANG, S_SAVER, -1 },
+    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_RESUME, -1 },
+    { S_WIFI, S_CLOCK, S_TZ, S_SLEEP, S_DEVICE, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_INFO, -1 },
+};
+#define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
+
+/* righe della pagina corrente: voci S_* oppure ROW_CAT + categoria */
+static int page_rows(int *rows) {
+    int n = 0;
+    if (set_page < 0) {
+        for (int c = 0; c < SC_COUNT; c++) rows[n++] = ROW_CAT + c;
+        rows[n++] = S_POWER;
+        return n;
+    }
+    for (int k = 0; k < 10 && cat_items[set_page][k] >= 0; k++) {
+        int it = cat_items[set_page][k];
+        if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
+        rows[n++] = it;
+    }
+    return n;
+}
+
+static void settings_open(int page, int row) {
+    set_page = page;
+    set_row = row;
+    int rows[16], n = page_rows(rows);
+    if (set_row >= n) set_row = n - 1;
+    set_sel = rows[set_row];
+    set_hl = set_scroll = (float)set_row * (M(UI.th.list_row_h) + M(0.01f));
+    set_scroll = 0;
+}
 
 static const char *set_text(const char *group, int item) {
     char k[64];
@@ -1817,8 +1858,21 @@ static void clean_draw(void) {
 
 static void settings_input(void) {
     input_t *in = &UI.in;
-    if (in->pressed[BTN_UP]) { set_sel = (set_sel + S_COUNT - 1) % S_COUNT; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_DOWN]) { set_sel = (set_sel + 1) % S_COUNT; ui_sound(SND_MOVE); }
+    int rows[16], n = page_rows(rows);
+    if (in->pressed[BTN_UP]) { set_row = (set_row + n - 1) % n; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN]) { set_row = (set_row + 1) % n; ui_sound(SND_MOVE); }
+    if (set_row >= n) set_row = n - 1;
+    set_sel = rows[set_row];
+    if (in->pressed[BTN_B] || in->pressed[BTN_START]) {
+        if (set_page >= 0 && in->pressed[BTN_B]) { settings_open(-1, set_page); ui_sound(SND_BACK); return; }
+        go(is_list_layout() ? SCR_LIBRARY : (back_screen == SCR_SETTINGS ? SCR_HOME : back_screen));
+        ui_sound(SND_BACK);
+        return;
+    }
+    if (set_sel >= ROW_CAT) {   /* categoria: A o destra la aprono */
+        if (in->pressed[BTN_A] || in->pressed[BTN_RIGHT]) { settings_open(set_sel - ROW_CAT, 0); ui_sound(SND_OK); }
+        return;
+    }
     if (in->pressed[BTN_LEFT]) set_change(set_sel, -1);
     if (in->pressed[BTN_RIGHT]) set_change(set_sel, +1);
     if (in->pressed[BTN_A]) {
@@ -1844,10 +1898,6 @@ static void settings_input(void) {
         else if (set_sel == S_INFO) { sdinfo_start(); ui_sound(SND_OK); }
         else set_change(set_sel, +1);
     }
-    if (in->pressed[BTN_B] || in->pressed[BTN_START]) {
-        go(is_list_layout() ? SCR_LIBRARY : (back_screen == SCR_SETTINGS ? SCR_HOME : back_screen));
-        ui_sound(SND_BACK);
-    }
 }
 
 static void draw_switch(int x, int y, int h, bool on) {
@@ -1859,12 +1909,16 @@ static void draw_switch(int x, int y, int h, bool on) {
 
 static void settings_draw(void) {
     theme_t *t = &UI.th;
-    ui_topbar(T("settings.title"));
+    char ttl[128];
+    if (set_page < 0) snprintf(ttl, sizeof ttl, "%s", T("settings.title"));
+    else { char k[64]; snprintf(k, sizeof k, "settings_cat.%s", cat_key[set_page]); snprintf(ttl, sizeof ttl, "%s", T(k)); }
+    ui_topbar(ttl);
+    int rows[16], nrows = page_rows(rows);
     int mx = M(t->margin), top = M(t->topbar_h) + M(0.02f), rh = M(t->list_row_h) + M(0.01f);
     int desc_h = TTF_FontHeight(UI.f_small) * 2 + M(0.03f);
     int area_h = UI.h - M(t->hintbar_h) - desc_h - top;
     area_h -= area_h % rh;   /* solo righe intere: niente voci tagliate a metà */
-    float ry = (float)set_sel * rh;
+    float ry = (float)set_row * rh;
     float target = set_scroll;
     if (ry - target > area_h - rh) target = ry - (area_h - rh);
     if (ry < target) target = ry;
@@ -1879,10 +1933,23 @@ static void settings_draw(void) {
     ui_shadow(mx, hy + M(0.004f), w, rh - M(0.01f), M(t->panel_radius), M(0.012f), t->shadow);
     ui_rrect(mx, hy, w, rh - M(0.01f), M(t->panel_radius), t->surface);
     selection_ring(mx, hy, w, rh - M(0.01f), M(t->panel_radius));
-    for (int i = 0; i < S_COUNT; i++) {
-        int y = top + (int)(i * rh - set_scroll), cy = y + (rh - M(0.01f)) / 2;
+    for (int k = 0; k < nrows; k++) {
+        int i = rows[k];
+        int y = top + (int)(k * rh - set_scroll), cy = y + (rh - M(0.01f)) / 2;
         if (y + rh < top - rh || y > top + area_h) continue;
-        bool sel = i == set_sel;
+        bool sel = k == set_row;
+        if (i >= ROW_CAT) {   /* categoria: nome, voci in breve e freccia */
+            char key[64];
+            snprintf(key, sizeof key, "settings_cat.%s", cat_key[i - ROW_CAT]);
+            int lw = ui_text(f, T(key), mx + M(0.03f), cy - fh / 2, t->text, ALIGN_LEFT);
+            snprintf(key, sizeof key, "settings_cat_sum.%s", cat_key[i - ROW_CAT]);
+            char fit[160];
+            int vx2 = mx + w - M(0.03f) - ui_text_w(f, "›") - M(0.02f);
+            ui_text_fit(UI.f_small, T(key), vx2 - (mx + M(0.06f) + lw), fit, sizeof fit);
+            ui_text(UI.f_small, fit, vx2, cy - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_RIGHT);
+            ui_text(f, "›", mx + w - M(0.03f), cy - fh / 2, sel ? t->accent : t->text_dim, ALIGN_RIGHT);
+            continue;
+        }
         color_t lc = i == S_POWER ? (sel ? rgba(220, 70, 70, 255) : t->text) : t->text;
         ui_text(f, set_text("settings", i), mx + M(0.03f), cy - fh / 2, lc, ALIGN_LEFT);
         if (i == S_POWER || i == S_SCRAPE || i == S_ROMCHECK || i == S_CLEANMEDIA) continue;
@@ -1938,13 +2005,21 @@ static void settings_draw(void) {
     }
     ui_clip_pop();
     char lines[2][160];
-    int n = ui_wrap(UI.f_small, set_text("settings_desc", set_sel), w, lines, 2);
+    const char *desc;
+    if (set_sel >= ROW_CAT) { char k[64]; snprintf(k, sizeof k, "settings_cat_desc.%s", cat_key[set_sel - ROW_CAT]); desc = T(k); }
+    else desc = set_text("settings_desc", set_sel);
+    int n = ui_wrap(UI.f_small, desc, w, lines, 2);
     int dy = UI.h - M(t->hintbar_h) - desc_h + M(0.01f);
     for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], mx, dy + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
     /* con la finestra di data e ora aperta, la barra dei tasti è quella della finestra */
     if (clock_open || sdinfo_open || wpanel_open || clean_open) return;
-    const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
-    ui_hints(h, 4);
+    if (set_page < 0) {
+        const char *h[] = { "B", T("common.back"), "A", T("common.open") };
+        ui_hints(h, 4);
+    } else {
+        const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
+        ui_hints(h, 4);
+    }
 }
 
 /* --------------------------------------------------------- dialogo */
@@ -2799,9 +2874,11 @@ int main(int argc, char **argv) {
     nlangs = lang_list(UI.root, lang_codes, lang_names, 16);
     nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
     reload_games();
+    ui_log("tempi: giochi caricati a %u ms", SDL_GetTicks());
     music_init(UI.root);
     screen = is_list_layout() ? SCR_LIBRARY : SCR_HOME;
     screen_t0 = -1;
+    bool first_frame = true;
 
     while (!UI.in.quit) {
         ui_poll();
@@ -2865,6 +2942,7 @@ int main(int argc, char **argv) {
         if (scrape_open) scrape_draw();
         if (romcheck_open) romcheck_draw();
         battery_check();
+        if (first_frame) { first_frame = false; ui_log("tempi: prima schermata a %u ms", SDL_GetTicks()); }
         if (saver_on) saver_draw();
         float fade = screen_t0 < 0 ? 0 : 1 - (float)((UI.t - screen_t0) / 0.18);
         if (fade > 0) ui_rect(0, 0, UI.w, UI.h, with_alpha(UI.th.bg, (int)(255 * fade)));
