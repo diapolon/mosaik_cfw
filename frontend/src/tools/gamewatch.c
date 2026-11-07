@@ -154,7 +154,7 @@ struct disp_layer_config { struct disp_layer_info info; bool enable; unsigned in
    finale della memoria di fb0 (con la GPU attiva fb0 non è mostrata: il gioco ha un livello
    suo). Lo schermo della Smart Pro è montato in verticale (720x1280): se il livello del gioco
    è verticale e il menu orizzontale, si disegna ruotato; il verso si corregge con
-   System/menu-rotazione (90 o 270). */
+   System/menu-rotazione (90 o 270; sulla Smart Pro 270). */
 static uint32_t *ov;          /* immagine del livello */
 static int ov_w, ov_h;        /* misura del livello (come lo schermo) */
 static int lw, lh;            /* misura "logica" orizzontale in cui si disegna */
@@ -288,7 +288,7 @@ static int fb_menu(struct pollfd *fds, int nfds) {
     lw = ov_w;
     lh = ov_h;
     if (ov_h > ov_w) {
-        ov_rot = 90;
+        ov_rot = 270;   /* provato sulla Smart Pro: con 90 il menu era capovolto */
         char rp[1200];
         snprintf(rp, sizeof rp, "%.*s/menu-rotazione", (int)(strlen(settings_path) - strlen("/settings.json")), settings_path);
         FILE *rf = fopen(rp, "r");
