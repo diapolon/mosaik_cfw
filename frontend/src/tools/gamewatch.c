@@ -120,10 +120,11 @@ static void stop_group(pid_t pgid) {
 static struct fb_var_screeninfo fbv;
 static struct fb_fix_screeninfo fbf;
 static uint8_t *fbm;
+static unsigned fb_yoff;   /* immagine su cui si disegna (la GPU ne usa diverse a turno) */
 
 static void fb_px(int x, int y, uint32_t rgb) {
     if (x < 0 || y < 0 || x >= (int)fbv.xres || y >= (int)fbv.yres) return;
-    uint8_t *p = fbm + (size_t)(y + fbv.yoffset) * fbf.line_length + (size_t)(x + fbv.xoffset) * (fbv.bits_per_pixel / 8);
+    uint8_t *p = fbm + (size_t)(y + fb_yoff) * fbf.line_length + (size_t)(x + fbv.xoffset) * (fbv.bits_per_pixel / 8);
     uint32_t r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
     uint32_t v = (r >> (8 - fbv.red.length)) << fbv.red.offset | (g >> (8 - fbv.green.length)) << fbv.green.offset |
                  (b >> (8 - fbv.blue.length)) << fbv.blue.offset;
@@ -218,17 +219,21 @@ static int fb_menu(struct pollfd *fds, int nfds) {
     if (fbm == MAP_FAILED) { close(fd); return MENU_RESUME; }
     fprintf(stderr, "gamewatch: menu su fb0 %ux%u (virtuale %ux%u, yoffset %u, %u bpp)\n",
             fbv.xres, fbv.yres, fbv.xres_virtual, fbv.yres_virtual, fbv.yoffset, fbv.bits_per_pixel);
+    /* cosa mostra davvero il controller dello schermo (livelli e indirizzi): con la GPU attiva
+       l'immagine visibile può non essere quella indicata da yoffset */
+    fprintf(stderr, "gamewatch: fb0 a 0x%lx, %u byte\n", (unsigned long)fbf.smem_start, fbf.smem_len);
+    FILE *ds = fopen("/sys/class/disp/disp/attr/sys", "r");
+    if (ds) {
+        char l[256];
+        while (fgets(l, sizeof l, ds)) fprintf(stderr, "gamewatch: disp: %s", l);
+        fclose(ds);
+    }
     int W = (int)fbv.xres, H = (int)fbv.yres, bpp = (int)fbv.bits_per_pixel / 8;
-    size_t rowb = (size_t)W * bpp;
-    uint8_t *saved = malloc(rowb * H);
-    uint8_t *base = fbm + (size_t)fbv.yoffset * fbf.line_length + (size_t)fbv.xoffset * bpp;
-    for (int y = 0; y < H; y++) memcpy(saved + y * rowb, base + (size_t)y * fbf.line_length, rowb);
-    /* immagine del gioco scurita, come sfondo del menu */
-    if (bpp == 4)
-        for (int y = 0; y < H; y++) {
-            uint32_t *row = (uint32_t *)(base + (size_t)y * fbf.line_length);
-            for (int x = 0; x < W; x++) { uint32_t v = row[x]; row[x] = (v & 0xFF000000u) | ((v >> 2) & 0x3F3F3Fu); }
-        }
+    /* tutte le immagini della memoria video: il pannello va su ognuna */
+    unsigned nbuf = fbv.yres_virtual / fbv.yres;
+    while (nbuf > 1 && (size_t)nbuf * fbv.yres * fbf.line_length > fbf.smem_len) nbuf--;
+    if (nbuf < 1) nbuf = 1;
+    if (nbuf > 32) nbuf = 32;
 
     bool it = setting_lang_it();
     int vol = setting_get("volume", 12), bri = setting_get("brightness", 8);
@@ -238,10 +243,21 @@ static int fb_menu(struct pollfd *fds, int nfds) {
     int sel = 0, result = -1, sc = W >= 1000 ? 5 : 4;
     int pw = W * 6 / 10, rh = 7 * sc + 4 * sc, ph = 5 * rh + 10 * sc + 7 * sc + 6 * sc;
     int px0 = (W - pw) / 2, py0 = (H - ph) / 2;
+    /* si salva solo la zona del pannello (con un bordo), in ogni immagine */
+    int bx = px0 - 2 * sc, by = py0 - 2 * sc, bw = pw + 4 * sc, bh = ph + 4 * sc;
+    size_t rowb = (size_t)bw * bpp;
+    uint8_t *saved = malloc(rowb * bh * nbuf);
+    if (!saved) { munmap(fbm, fbf.smem_len); close(fd); return MENU_RESUME; }
+    for (unsigned b = 0; b < nbuf; b++)
+        for (int y = 0; y < bh; y++)
+            memcpy(saved + (b * bh + y) * rowb, fbm + (size_t)(b * fbv.yres + by + y) * fbf.line_length + (size_t)bx * bpp, rowb);
+    fprintf(stderr, "gamewatch: disegno su %u immagini\n", nbuf);
     int hx = 0, hy = 0;   /* croce (cappello) */
     bool redraw = true;
     while (result < 0) {
-        if (redraw) {
+        if (redraw) for (unsigned b = 0; b < nbuf; b++) {
+            fb_yoff = b * fbv.yres;
+            fb_rect(bx, by, bw, bh, 0x000000);
             fb_rect(px0, py0, pw, ph, 0x202530);
             fb_rect(px0, py0, pw, 3 * sc, 0x0FB1D4);
             fb_text("MENU", px0 + 4 * sc, py0 + 5 * sc, sc, 0xFFFFFF);
@@ -256,7 +272,7 @@ static int fb_menu(struct pollfd *fds, int nfds) {
                     fb_text(v, px0 + pw - 4 * sc - (int)strlen(v) * 6 * sc, y, sc, c);
                 }
             }
-            redraw = false;
+            if (b == nbuf - 1) redraw = false;
         }
         if (poll(fds, (nfds_t)nfds, 200) <= 0) continue;
         for (int i = 0; i < nfds && result < 0; i++) {
@@ -288,7 +304,9 @@ static int fb_menu(struct pollfd *fds, int nfds) {
             }
         }
     }
-    for (int y = 0; y < H; y++) memcpy(base + (size_t)y * fbf.line_length, saved + y * rowb, rowb);
+    for (unsigned b = 0; b < nbuf; b++)
+        for (int y = 0; y < bh; y++)
+            memcpy(fbm + (size_t)(b * fbv.yres + by + y) * fbf.line_length + (size_t)bx * bpp, saved + (b * bh + y) * rowb, rowb);
     free(saved);
     munmap(fbm, fbf.smem_len);
     close(fd);
@@ -423,8 +441,6 @@ int main(int argc, char **argv) {
                         for (int k = 0; k < nkeys; k++)
                             if (ev.code == keys[k]) {
                                 if (ev.value != 2) fprintf(stderr, "gamewatch: Menu %s\n", ev.value ? "premuto" : "rilasciato");
-                                /* pressione breve (sistema su SD): menu sopra il gioco fermo */
-                                if (standalone && ev.value == 0 && pressed_at && now() - pressed_at < hold) open_menu = true;
                                 pressed_at = ev.value ? (pressed_at ? pressed_at : now()) : 0;
                             }
                     if (ui < 0) continue;
@@ -493,6 +509,14 @@ int main(int argc, char **argv) {
             stop_group(pid);
             if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
             return 120;
+        }
+        /* sistema su SD: Menu tenuto 1 s apre il menu sopra il gioco fermo (la pressione breve
+           resta al gioco, che può usare quel tasto); altrove tenuto premuto chiude il gioco */
+        if (standalone && pressed_at && now() - pressed_at >= 1.0) {
+            fprintf(stderr, "gamewatch: tasto Menu tenuto, apro il menu\n");
+            pressed_at = 0;
+            open_menu = true;
+            continue;
         }
         if (pressed_at && now() - pressed_at >= hold) {
             fprintf(stderr, "gamewatch: tasto Menu tenuto, chiudo il gioco\n");
