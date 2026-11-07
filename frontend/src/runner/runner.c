@@ -804,6 +804,42 @@ static void write_resume(void) {
     }
 }
 
+/* Prestazioni: ogni 10 s di gioco nel log fotogrammi al secondo, tempi dell'emulatore e del
+   disegno (media e massimo), audio rimasto senza campioni, frequenza e temperatura della CPU */
+static struct { int frames, starved; double emu, emu_max, draw, draw_max; Uint64 t0; } perf;
+
+static int read_int(const char *path) {
+    FILE *f = fopen(path, "r");
+    int v = -1;
+    if (f) { if (fscanf(f, "%d", &v) != 1) v = -1; fclose(f); }
+    return v;
+}
+
+static void perf_frame(Uint64 a, Uint64 b, Uint64 c, Uint32 queued, Uint32 frame_bytes, double fps) {
+    double f = (double)SDL_GetPerformanceFrequency();
+    double emu = (b - a) * 1000.0 / f, draw = (c - b) * 1000.0 / f;
+    /* dopo una pausa (menu, sospensione) si ricomincia a contare */
+    static Uint64 last;
+    if (last && (a - last) / f > 0.5) memset(&perf, 0, sizeof perf);
+    last = c;
+    if (!perf.t0) perf.t0 = a;
+    perf.frames++;
+    perf.emu += emu;
+    perf.draw += draw;
+    if (emu > perf.emu_max) perf.emu_max = emu;
+    if (draw > perf.draw_max) perf.draw_max = draw;
+    if (queued < frame_bytes) perf.starved++;   /* la scheda audio ha quasi finito i campioni */
+    double secs = (c - perf.t0) / f;
+    if (secs < 10) return;
+    int mhz = read_int("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq") / 1000;
+    int temp = read_int("/sys/class/thermal/thermal_zone0/temp");
+    ui_log("prestazioni: %.1f fps (gioco a %.1f), emulatore %.1f ms (max %.1f), disegno %.1f ms (max %.1f), "
+           "audio scarso %d volte, CPU %d MHz, %d °C",
+           perf.frames / secs, fps, perf.emu / perf.frames, perf.emu_max, perf.draw / perf.frames, perf.draw_max,
+           perf.starved, mhz, temp > 1000 ? temp / 1000 : temp);
+    memset(&perf, 0, sizeof perf);
+}
+
 static void power_off_from_game(void) {
     if (state_save(true)) write_resume();
     exit_code = EXIT_POWEROFF;
@@ -1240,6 +1276,7 @@ int main(int argc, char **argv) {
             menu_input();
         }
         battery_watch();
+        Uint64 pf0 = SDL_GetPerformanceCounter();
         if (!menu_open) {
             for (int k = 0; k < (fast_forward ? 3 : 1); k++) core.run();
             played += UI.dt;
@@ -1254,11 +1291,13 @@ int main(int argc, char **argv) {
             }
         }
 
+        Uint64 pf1 = SDL_GetPerformanceCounter();
         ui_begin();
         draw_game();
         if (menu_open) menu_draw();
         else osd_draw();
         ui_end();
+        if (!menu_open && !fast_forward) perf_frame(pf0, pf1, SDL_GetPerformanceCounter(), audio_on ? SDL_GetQueuedAudioSize(UI.audio) : 0, frame_bytes, fps);
 
         /* ritmo: l'audio in coda fa da orologio; senza audio si usa il timer */
         if (UI.automation) continue;
