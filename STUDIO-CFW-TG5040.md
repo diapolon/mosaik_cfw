@@ -476,6 +476,10 @@ Codice in [frontend/](frontend/README.md).
 - **M2 funziona anche sulla Smart Pro (7 novembre)**: stesso sistema con uno strato per
   modello (`/fw/tg5040`), immagine `dist/m2-smartpro.img`. Gradino 3 raggiunto su entrambe le
   console: sistema proprio su SD, senza toccare la memoria interna.
+- **7 novembre sera, provati sulla Smart Pro**: Wi-Fi, LED, sospensione (anche nei giochi
+  Linux), menu sopra i giochi Linux (livello del display, `gamemenu`), Impostazioni a
+  categorie, Pulisci immagini, avvio in 4,9 s con logo. Copie dal Mac: il lettore USB
+  dell'utente sbaglia blocchi da 32 KB, `toolchain/sd-copy.sh` verifica e riprova.
 - **Wi-Fi (7 novembre, da provare sulla console)**: XR829 con i moduli `xradio` del firmware,
   `wpa_supplicant`/`wpa_cli` 2.6, `udhcpc` e `ntpd` di BusyBox (`m2/wifi-ctl`); schermata
   delle reti nel launcher con tastiera a tre disposizioni per le password.

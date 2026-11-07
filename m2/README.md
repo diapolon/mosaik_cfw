@@ -62,6 +62,17 @@ Pro. Tasto di accensione: breve = sospensione con `m2/arcade-suspend` (Wi-Fi e L
 `/sbin/suspendtomem.sh`; al risveglio audio, LED, Wi-Fi, luminosità e volume riapplicati);
 tenuto premuto 1,2 s = spegnimento (in gioco salva prima). Da provare sulla console.
 
+**Avvio più rapido e logo (7 novembre, provati sulla Smart Pro).** Dall'avvio del kernel alla
+prima schermata del launcher: da 9,6 a 4,9 s. Kernel 3,7 → 2,1 s con `loglevel=4`
+nell'ambiente di U-Boot (`m2/envtool` lo scrive nella copia di riserva `env-redund`, con
+verifica; le immagini nuove nascono così): con 8 ogni messaggio andava sulla porta seriale.
+Moduli GPU in parallelo con udev e tasti; audio con la configurazione ricordata applicata
+senza prova e in una sola chiamata `amixer -s` (2,2 → 0,07 s); niente sync e schermate a ogni
+passo. Logo: `bootlogo.bmp` nella FAT ARCADE (U-Boot lo legge da "boot-resource", come il
+logo TrimUI; 396x66, 32 bit Smart Pro / 24 bit Brick Pro, da `m2/mklogo.py`) e lo stesso logo
+mostrato da `fbmsg logo` fino al launcher; le schermate a strisce restano per gli errori.
+Tempi del launcher nel log (`tempi: ...`).
+
 ## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2,3 GB)
 
 | Parte | Contenuto |
