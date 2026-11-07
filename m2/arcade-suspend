@@ -16,16 +16,25 @@ echo 0 > /sys/class/led_anim/enable 2> /dev/null
 touch /tmp/system_suspend
 sync
 
+# Il rilascio del tasto è esso stesso un evento di risveglio: si lascia passare mezzo secondo.
 # wakeup_count: se arriva un evento di risveglio mentre ci si prepara, la scrittura fallisce
-# e si riprova (altrimenti la console potrebbe non svegliarsi più)
+# e si riprova. Se il kernel annulla la sospensione (un dispositivo rifiuta, o un evento di
+# risveglio arriva a metà) si riprova fino a 3 volte; i messaggi del kernel di ogni tentativo
+# fallito vanno in Logs/sospensione.txt.
+sleep 0.5
 r="non riuscita"
-for i in 1 2 3 4 5; do
+tries=0
+while [ $tries -lt 3 ] && [ "$r" != riuscita ]; do
+    tries=$((tries + 1))
     cnt=$(cat /sys/power/wakeup_count 2> /dev/null) || break
-    if echo "$cnt" > /sys/power/wakeup_count 2> /dev/null; then
-        if echo mem > /sys/power/state 2> /dev/null; then r=riuscita; fi
-        break
+    if ! echo "$cnt" > /sys/power/wakeup_count 2> /dev/null; then sleep 1; continue; fi
+    echo "arcade: sospensione, tentativo $tries" > /dev/kmsg
+    if echo mem > /sys/power/state 2> /dev/null; then
+        r=riuscita
+    else
+        { echo "=== $(date) tentativo $tries"; dmesg | sed -n "/arcade: sospensione, tentativo $tries/,\$p" | tail -80; } >> "$ROOT/Logs/sospensione.txt"
+        sleep 1
     fi
-    sleep 1
 done
 
 rm -f /tmp/system_suspend
@@ -38,6 +47,6 @@ if [ "$(cat "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
 fi
 for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" on; done
 [ -w /sys/class/speaker/mute ] && echo 0 > /sys/class/speaker/mute
-step "risveglio (sospensione $r)"
+step "risveglio (sospensione $r, tentativi $tries)"
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
 [ "$r" = riuscita ]
