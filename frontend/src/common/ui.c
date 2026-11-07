@@ -1635,7 +1635,7 @@ bool ui_init_offscreen(const char *app, const char *root) {
     return true;
 }
 
-void ui_overlay_begin(void) {
+void ui_overlay_begin(bool clear) {
     Uint64 now = SDL_GetPerformanceCounter(), freq = SDL_GetPerformanceFrequency();
     UI.dt = (double)(now - tprev) / (double)freq;
     if (UI.dt > 0.1) UI.dt = 0.1;
@@ -1643,6 +1643,7 @@ void ui_overlay_begin(void) {
     tprev = now;
     frame_no++;
     SDL_SetRenderTarget(UI.ren, UI.canvas);
+    if (!clear) return;   /* si disegna sopra l'immagine precedente */
     SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_NONE);
     SDL_SetRenderDrawColor(UI.ren, 0, 0, 0, 0);
     SDL_RenderClear(UI.ren);

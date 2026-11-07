@@ -19,7 +19,8 @@ enum { GM_RESUME, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_POWER, GM_COUNT };
 enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20 };
 
 static int sel;
-static float anim, hl;
+/* geometria del pannello e delle righe (in pixel dell'immagine del menu) */
+static int g_px, g_py, g_pw, g_ph, g_rows_y, g_rh;
 
 static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
     static const char *keys[GM_COUNT] = { "game.back_to_game", "settings.volume", "settings.brightness", "game.exit", "game.power" };
@@ -29,53 +30,55 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
     if (i == GM_BRIGHT) snprintf(value, vn, "%d", UI.set.brightness);
 }
 
-/* come menu_draw del runner, pagina principale */
-static void draw(const char *title) {
+/* parti fisse, come menu_draw del runner (pagina principale): si disegnano una volta */
+static void draw_static(const char *title) {
     theme_t *t = &UI.th;
-    anim = ui_approach(anim, 1);
-    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, (Uint8)(150 * anim)));
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 150));
     int hb = M(t->hintbar_h), my = M(0.035f);
     int pw = M(0.80f);
     if (pw > UI.w - 2 * M(t->margin)) pw = UI.w - 2 * M(t->margin);
     int ph = UI.h - hb - 2 * my;
-    int px = M(t->margin) - (int)((1 - anim) * pw), py = my, r = M(t->panel_radius) * 2;
+    int px = M(t->margin), py = my, r = M(t->panel_radius) * 2;
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
     ui_rrect(px, py, pw, ph, r, t->surface);
-
-    char buf[300], label[200], value[120];
+    char buf[300];
     int pad = M(0.04f), y = py + pad;
     ui_text_fit(UI.f_title, title, pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_title, buf, px + pad, y, t->text, ALIGN_LEFT);
     y += TTF_FontHeight(UI.f_title);
     ui_text(UI.f_small, T("game.linux_game"), px + pad, y, t->accent, ALIGN_LEFT);
     y += TTF_FontHeight(UI.f_small) + M(0.02f);
-
     int note_h = TTF_FontHeight(UI.f_small) + M(0.02f);
     ui_text_fit(UI.f_small, T("game.linux_note"), pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_small, buf, px + pad, py + ph - pad / 2 - note_h + M(0.01f), t->text_dim, ALIGN_LEFT);
+    ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, 235));
+    const char *h[] = { "B", T("game.back_to_game"), "<>", T("common.change"), "A", T("common.ok") };
+    ui_hints(h, 6);
+    g_px = px; g_py = py; g_pw = pw; g_ph = ph; g_rows_y = y; g_rh = M(t->list_row_h);
+}
 
-    int rh = M(t->list_row_h);
-    hl = ui_approach(hl, (float)sel * rh);
+/* righe delle voci: a ogni tasto si ridisegna solo questa zona */
+static void draw_rows(void) {
+    theme_t *t = &UI.th;
+    char buf[300], label[200], value[120];
+    int x0 = g_px + M(0.015f), w0 = g_pw - M(0.03f);
+    ui_rect(x0, g_rows_y, w0, GM_COUNT * g_rh, t->surface);   /* copre le righe di prima */
     TTF_Font *f = UI.f_normal;
     int fh = TTF_FontHeight(f);
-    ui_rrect(px + M(0.02f), y + (int)hl, pw - M(0.04f), rh, M(t->panel_radius), t->accent);
+    ui_rrect(g_px + M(0.02f), g_rows_y + sel * g_rh, g_pw - M(0.04f), g_rh, M(t->panel_radius), t->accent);
     for (int i = 0; i < GM_COUNT; i++) {
-        int ry = y + i * rh;
+        int ry = g_rows_y + i * g_rh;
         bool is_sel = i == sel;
         row_text(i, label, sizeof label, value, sizeof value);
         color_t c = is_sel ? t->accent_text : t->text;
-        int ty = ry + (rh - fh) / 2, right = px + pw - M(0.05f), vw = 0;
+        int ty = ry + (g_rh - fh) / 2, right = g_px + g_pw - M(0.05f), vw = 0;
         if (value[0]) {
             snprintf(buf, sizeof buf, is_sel ? "‹ %s ›" : "%s", value);
             vw = ui_text(f, buf, right, ty, is_sel ? c : t->text_dim, ALIGN_RIGHT) + M(0.03f);
         }
-        ui_text_fit(f, label, right - vw - (px + M(0.05f)), buf, sizeof buf);
-        ui_text(f, buf, px + M(0.05f), ty, c, ALIGN_LEFT);
+        ui_text_fit(f, label, right - vw - (g_px + M(0.05f)), buf, sizeof buf);
+        ui_text(f, buf, g_px + M(0.05f), ty, c, ALIGN_LEFT);
     }
-
-    ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, (int)(235 * anim)));
-    const char *h[] = { "B", T("game.back_to_game"), "<>", T("common.change"), "A", T("common.ok") };
-    ui_hints(h, 6);
 }
 
 /* restituisce RC_* oppure -1 se il menu resta aperto */
@@ -204,24 +207,42 @@ static bool layer_open(void) {
     return r >= 0;
 }
 
-/* immagine del menu (UI.w x UI.h) nel livello, ruotata se serve */
-static void layer_show(SDL_Surface *s) {
+/* zona (x, y, w, h) dell'immagine del menu (UI.w x UI.h) nel livello, ruotata se serve.
+   Rotazione a quadratini di 32x32: si leggono in ordine dall'immagine (memoria normale), si
+   girano in una piccola tabella e si scrivono nel livello a pezzi contigui (la memoria
+   video è lenta se scritta a salti). */
+static void layer_show(SDL_Surface *s, int x0, int y0, int w, int h) {
     const uint32_t *src = s->pixels;
-    int sp = s->pitch / 4, W = s->w, H = s->h;
+    int sp = s->pitch / 4;
+    if (x0 < 0) { w += x0; x0 = 0; }
+    if (y0 < 0) { h += y0; y0 = 0; }
+    if (x0 + w > s->w) w = s->w - x0;
+    if (y0 + h > s->h) h = s->h - y0;
+    if (w <= 0 || h <= 0) return;
     if (ov_rot == 0) {
-        for (int y = 0; y < H && y < ov_h; y++) memcpy(ov + (size_t)y * ov_w, src + (size_t)y * sp, (size_t)(W < ov_w ? W : ov_w) * 4);
-    } else {
-        /* La memoria video si scrive bene solo in ordine: ogni riga del livello si prepara in
-           una riga in memoria normale (leggendo una colonna dell'immagine) e si copia intera. */
-        static uint32_t row[4096];
-        for (int Y = 0; Y < ov_h; Y++) {
-            int x = ov_rot == 270 ? ov_h - 1 - Y : Y;   /* colonna dell'immagine */
-            if (x < 0 || x >= W) continue;
-            for (int X = 0; X < ov_w && X < 4096; X++) {
-                int y = ov_rot == 270 ? X : ov_w - 1 - X;   /* riga dell'immagine */
-                row[X] = y < H ? src[(size_t)y * sp + x] : 0;
+        for (int y = y0; y < y0 + h && y < ov_h; y++) memcpy(ov + (size_t)y * ov_w + x0, src + (size_t)y * sp + x0, (size_t)w * 4);
+        return;
+    }
+    enum { T = 32 };
+    uint32_t tile[T][T];   /* tile[colonna][riga] dell'immagine */
+    for (int ty = y0; ty < y0 + h; ty += T) {
+        int bh = y0 + h - ty < T ? y0 + h - ty : T;
+        for (int tx = x0; tx < x0 + w; tx += T) {
+            int bw = x0 + w - tx < T ? x0 + w - tx : T;
+            for (int j = 0; j < bh; j++) {
+                const uint32_t *row = src + (size_t)(ty + j) * sp + tx;
+                for (int i = 0; i < bw; i++) tile[i][ov_rot == 270 ? j : bh - 1 - j] = row[i];
             }
-            memcpy(ov + (size_t)Y * ov_w, row, (size_t)ov_w * 4);
+            for (int i = 0; i < bw; i++) {
+                int x = tx + i;
+                if (ov_rot == 270) {   /* (x, y) -> (X = y, Y = ov_h - 1 - x) */
+                    int Y = ov_h - 1 - x;
+                    if (Y >= 0 && ty + bh <= ov_w) memcpy(ov + (size_t)Y * ov_w + ty, tile[i], (size_t)bh * 4);
+                } else {               /* 90: (x, y) -> (X = ov_w - 1 - y, Y = x) */
+                    int X0 = ov_w - (ty + bh);
+                    if (x < ov_h && X0 >= 0) memcpy(ov + (size_t)x * ov_w + X0, tile[i], (size_t)bh * 4);
+                }
+            }
         }
     }
 }
@@ -234,7 +255,7 @@ static void layer_close(void) {
 }
 #else
 static bool layer_open(void) { return true; }
-static void layer_show(SDL_Surface *s) { (void)s; }
+static void layer_show(SDL_Surface *s, int x0, int y0, int w, int h) { (void)s; (void)x0; (void)y0; (void)w; (void)h; }
 static void layer_close(void) {}
 #endif
 
@@ -250,11 +271,10 @@ int main(int argc, char **argv) {
     if (!title || !*title) title = T("game.linux_game");
     if (shot) {   /* prova sul Mac: menu già aperto, seconda voce scelta */
         sel = 1;
-        anim = 1;
-        hl = (float)sel * M(UI.th.list_row_h);
         ui_screenshot(shot);
-        ui_overlay_begin();
-        draw(title);
+        ui_overlay_begin(true);
+        draw_static(title);
+        draw_rows();
         ui_overlay_end();
         return 0;
     }
@@ -262,9 +282,11 @@ int main(int argc, char **argv) {
     int rc = -1;
     /* il tasto Menu è ancora premuto da quando si è aperto il menu: si aspetta che si lasci */
     bool armed = false;
-    /* Si ridisegna solo quando cambia qualcosa (tasti, animazioni, avvisi): senza GPU ogni
-       disegno costa. I tempi dei primi disegni vanno nel log. */
+    /* Le parti fisse si disegnano e si copiano una volta; poi a ogni tasto si ridisegnano e si
+       copiano solo le righe delle voci (senza GPU ogni pixel costa). Con un avviso a schermo
+       si ridisegna tutto. I tempi dei primi disegni vanno nel log. */
     int last_sel = -1, last_vol = -1, last_bri = -1, logged = 0;
+    bool full = true, toast_was = false;
     while (rc < 0) {
         ui_poll();
         if (!armed) {
@@ -273,25 +295,29 @@ int main(int argc, char **argv) {
         } else rc = input();
         if (rc >= 0) break;
         plat_apply(&UI.set);
-        float rh = (float)M(UI.th.list_row_h);
-        bool moving = anim < 0.999f || hl - sel * rh > 0.5f || sel * rh - hl > 0.5f || ui_toast_active();
-        if (moving || sel != last_sel || UI.set.volume != last_vol || UI.set.brightness != last_bri) {
+        bool toast = ui_toast_active();
+        if (toast || toast_was) full = true;
+        toast_was = toast;
+        if (full || sel != last_sel || UI.set.volume != last_vol || UI.set.brightness != last_bri) {
             last_sel = sel;
             last_vol = UI.set.volume;
             last_bri = UI.set.brightness;
             Uint64 f = SDL_GetPerformanceFrequency(), t0 = SDL_GetPerformanceCounter();
-            ui_overlay_begin();
-            draw(title);
+            ui_overlay_begin(full);
+            if (full) draw_static(title);
+            draw_rows();
             SDL_Surface *img = ui_overlay_end();
             Uint64 t1 = SDL_GetPerformanceCounter();
-            layer_show(img);
+            if (full) layer_show(img, 0, 0, UI.w, UI.h);
+            else layer_show(img, g_px, g_rows_y, g_pw, GM_COUNT * g_rh);
             Uint64 t2 = SDL_GetPerformanceCounter();
-            if (logged < 3) {
+            if (logged < 4) {
                 logged++;
-                ui_log("menu: disegno %.1f ms, copia %.1f ms", (t1 - t0) * 1000.0 / f, (t2 - t1) * 1000.0 / f);
+                ui_log("menu: disegno %.1f ms, copia %.1f ms (%s)", (t1 - t0) * 1000.0 / f, (t2 - t1) * 1000.0 / f, full ? "tutto" : "righe");
             }
+            full = false;
         }
-        SDL_Delay(moving ? 1 : 8);
+        SDL_Delay(8);
     }
     layer_close();
     ui_log("menu del gioco Linux: %s", rc == RC_RESUME ? "riprendi" : rc == RC_QUIT ? "esci" : "spegni");

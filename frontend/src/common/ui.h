@@ -85,7 +85,7 @@ void ui_busy(const char *msg, double seconds);
    del launcher. Sfondo trasparente: tra ui_overlay_begin e ui_overlay_end si disegna come
    tra ui_begin e ui_end; ui_overlay_end restituisce l'immagine (UI.w x UI.h). */
 bool ui_init_offscreen(const char *app, const char *root);
-void ui_overlay_begin(void);
+void ui_overlay_begin(bool clear);   /* false: si disegna sopra l'immagine precedente */
 SDL_Surface *ui_overlay_end(void);
 void ui_apply_device(void);          /* ridimensiona finestra e canvas secondo il modello */
 void ui_poll(void);
