@@ -16,6 +16,10 @@ Cartelle:
 Alla prima accensione la scheda si allarga da sola: la partizione ARCADE occupa tutto lo
 spazio della microSD (fino a 256 GB). Data e ora si impostano in Impostazioni.
 
+Wi-Fi: Impostazioni > Wi-Fi, A mostra le reti; la password si scrive con la tastiera a
+schermo (X cambia tra maiuscole, minuscole e simboli). Le reti restano in
+Arcade/System/wifi.conf.
+
 La cartella Arcade è uguale per i due modelli: ROM e salvataggi si possono spostare da una
 scheda all'altra. Cambia solo l'area di avvio, per questo ci sono due immagini.
 

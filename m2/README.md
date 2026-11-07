@@ -43,6 +43,18 @@ con l'ora legale. Allo spegnimento si fermano i programmi con file aperti sulla 
 (`trimui_inputd` tiene aperto il suo log), altrimenti il FAT non si chiude e al prossimo
 avvio riparte il controllo. La pulizia dei file di macOS (`._*`) parte 20 s dopo l'avvio.
 
+**Wi-Fi (7 novembre, da provare sulla console).** Entrambe le console hanno il chip XR829
+(driver `xradio_mac`, `xradio_core`, `xradio_wlan`, compilati per il kernel di ogni modello:
+sono nello strato `/fw/<id>/modules`; il firmware del chip è in `/lib/firmware`, uguale per
+tutti). `m2/wifi-ctl on|off` carica il driver e avvia `wpa_supplicant` 2.6 del firmware
+(controllo in `/run/wpa`, reti salvate in `Arcade/System/wifi.conf`) e `wpa_cli -a
+m2/wifi-event`: a ogni connessione `udhcpc` di BusyBox chiede l'indirizzo
+(`m2/udhcpc-script`, `resolv.conf` in `/run`) e alla prima prende l'ora con `ntpd` e la
+scrive nell'RTC. Il sistema accende il Wi-Fi all'avvio se è attivo nelle impostazioni; il
+launcher (`frontend/src/common/wifi.c`) usa `wpa_cli` per stato, ricerca, collegamento e
+reti da dimenticare. Log in `Arcade/Logs/wifi.log` e nella sezione wi-fi di `sistema.txt`.
+Aggiunte anche `libnss_dns` e `libnss_files`: senza, la glibc non risolve i nomi internet.
+
 ## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2,3 GB)
 
 | Parte | Contenuto |
@@ -79,7 +91,7 @@ della cartella `Arcade`) sulla scheda: non serve riscriverla.
 - Il FAT arriva al massimo a 256 GB. Una scheda scritta con un'immagine di prima del 7
   novembre ha il FAT da 1,9 GB non preparato a crescere: la partizione si allarga, il FAT no.
   Per avere tutto lo spazio va riscritta con l'immagine nuova (prima salva ROM e salvataggi).
-- Niente Wi-Fi, Bluetooth, sospensione e LED (fase M6).
+- Niente Bluetooth, sospensione e LED (fase M6).
 - Calibrazione delle levette: quella di fabbrica è nella memoria interna. Se le levette
   sono imprecise, si può copiare `joypad.config` dal sistema originale in `Arcade/System`.
 - Il nome del modello è fisso ("Trimui Brick Pro"): per le altre console servirà un'immagine

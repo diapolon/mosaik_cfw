@@ -78,7 +78,7 @@
     "aspect": "Original: cabinet proportions. Integer pixels: sharp image. Full screen: fills everything.",
     "filter": "Filters are folders in Filters/: masks over the image, vignette and, in future, shaders.",
     "cpu": "Power saving extends battery life, Performance helps heavier games (CPS3).",
-    "wifi": "Wireless network. In the prototype the switch is only simulated.",
+    "wifi": "Left/right turn Wi-Fi on and off; A shows the networks to connect to.",
     "sleep": "Turns the console off after a period without input, in the launcher.",
     "resume": "If the console is turned off during a game, it starts again from there.",
     "clock": "Set the date and time: they are kept by the console's clock even when it's off.",
@@ -236,7 +236,10 @@
     "delete": "Delete",
     "done": "Done",
     "space": "Space",
-    "results": "%d games found"
+    "results": "%d games found",
+    "lower": "abc",
+    "symbols": "#+=",
+    "upper": "ABC"
   },
   "detail": {
     "hint": "Details",
@@ -338,5 +341,26 @@
     "system": "System and settings",
     "footer": "Arcade 0.1 · %s",
     "one_game": "1 game"
+  },
+  "wifi": {
+    "title": "Wi-Fi networks",
+    "connected": "Connected to %s · %s",
+    "connecting": "Connecting to %s…",
+    "disconnected": "Not connected",
+    "starting": "Starting Wi-Fi…",
+    "searching": "Looking for networks…",
+    "none": "No networks found",
+    "saved": "saved",
+    "current": "connected",
+    "failed": "wrong password?",
+    "connect": "Connect",
+    "forget": "Forget",
+    "refresh": "Search",
+    "forgot": "Network forgotten: %s",
+    "joining": "Connecting to %s…",
+    "password_for": "Password for %s",
+    "short": "The password needs at least 8 characters",
+    "error": "Unable to connect",
+    "already": "You're already connected to this network"
   }
 }

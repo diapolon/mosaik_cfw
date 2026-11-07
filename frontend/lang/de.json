@@ -78,7 +78,7 @@
     "aspect": "Original: Proportionen des Automaten. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus.",
     "filter": "Filter sind Ordner in Filters/: Masken, Vignette und später Shader.",
     "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3).",
-    "wifi": "Drahtloses Netzwerk. Im Prototyp ist der Schalter nur simuliert.",
+    "wifi": "Links/rechts schalten das WLAN ein und aus; A zeigt die Netze zum Verbinden.",
     "sleep": "Schaltet die Konsole nach einer Weile ohne Eingabe im Launcher aus.",
     "resume": "Wird die Konsole während eines Spiels ausgeschaltet, geht es dort weiter.",
     "clock": "Datum und Uhrzeit einstellen: die Uhr der Konsole behält sie auch ausgeschaltet.",
@@ -236,7 +236,10 @@
     "delete": "Löschen",
     "done": "Fertig",
     "space": "Leerzeichen",
-    "results": "%d Spiele gefunden"
+    "results": "%d Spiele gefunden",
+    "lower": "abc",
+    "symbols": "#+=",
+    "upper": "ABC"
   },
   "detail": {
     "hint": "Details",
@@ -338,5 +341,26 @@
     "system": "System und Einstellungen",
     "footer": "Arcade 0.1 · %s",
     "one_game": "1 Spiel"
+  },
+  "wifi": {
+    "title": "WLAN-Netze",
+    "connected": "Verbunden mit %s · %s",
+    "connecting": "Verbinde mit %s…",
+    "disconnected": "Nicht verbunden",
+    "starting": "WLAN startet…",
+    "searching": "Suche Netze…",
+    "none": "Keine Netze gefunden",
+    "saved": "gespeichert",
+    "current": "verbunden",
+    "failed": "falsches Passwort?",
+    "connect": "Verbinden",
+    "forget": "Vergessen",
+    "refresh": "Suchen",
+    "forgot": "Netz vergessen: %s",
+    "joining": "Verbinde mit %s…",
+    "password_for": "Passwort für %s",
+    "short": "Das Passwort braucht mindestens 8 Zeichen",
+    "error": "Verbindung nicht möglich",
+    "already": "Du bist bereits mit diesem Netz verbunden"
   }
 }

@@ -20,7 +20,7 @@ LDFLAGS := -L$(PREFIX)/lib -L$(SDK)/lib -Wl,-rpath-link,$(TCLIBC)/lib -Wl,-rpath
            -Wl,-rpath-link,$(SDK)/lib -Wl,-rpath,'$$ORIGIN/../lib' -rdynamic
 SDLLIBS := -Wl,-Bstatic -lSDL2_ttf -lSDL2_image -Wl,-Bdynamic -lSDL2 -lm -lpthread -ldl
 
-COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c
+COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c
 RUNNER   := src/runner/runner.c src/runner/glshader.c
 

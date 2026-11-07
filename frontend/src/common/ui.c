@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "wifi.h"
 #include <unistd.h>
 #include "platform.h"
 #include "json.h"
@@ -1311,11 +1312,13 @@ static void battery_icon(int x, int y, int w, int h, int pct, bool charging, col
     if (inner > 0) ui_rrect(x + 2 * t, y + 2 * t, inner, h - 4 * t, h / 6, fill);
 }
 
-static void wifi_icon(int x, int y, int h, bool on, color_t c) {
+/* level: -1 spento, 0 acceso ma non collegato, 1..3 tacche di segnale */
+static void wifi_icon(int x, int y, int h, int level, color_t c) {
     int bw = h / 4, gap = h / 8;
     for (int i = 0; i < 3; i++) {
         int bh = h * (i + 1) / 3;
-        ui_rrect(x + i * (bw + gap), y + h - bh, bw, bh, bw / 3, on ? c : with_alpha(c, 70));
+        int a = level < 0 ? 45 : i < level ? 255 : 90;
+        ui_rrect(x + i * (bw + gap), y + h - bh, bw, bh, bw / 3, with_alpha(c, a));
     }
 }
 
@@ -1343,7 +1346,12 @@ void ui_topbar(const char *title) {
     battery_icon(x, cy - bih / 2, biw, bih, pct, charging, t->text);
     int wh = M(0.026f);
     x -= M(0.03f) + wh;
-    wifi_icon(x, cy - wh / 2, wh, UI.set.wifi, t->text);
+    int level = UI.set.wifi ? 3 : -1;
+    if (wifi_supported()) {
+        const wifi_status_t *ws = wifi_status(false);
+        level = !UI.set.wifi ? -1 : ws->state == WIFI_CONNECTED ? (ws->bars ? ws->bars : 1) : 0;
+    }
+    wifi_icon(x, cy - wh / 2, wh, level, t->text);
     time_t now = time(NULL);
     struct tm tmv;
     localtime_r(&now, &tmv);

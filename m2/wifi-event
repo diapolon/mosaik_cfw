@@ -1,0 +1,20 @@
+#!/bin/sh
+# Chiamato da wpa_cli (-a) a ogni cambio di stato: wifi-event wlan0 CONNECTED|DISCONNECTED
+ROOT=${ROOT:-/mnt/SDCARD/Arcade}
+LOG=$ROOT/Logs/wifi.log
+log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
+
+case "$2" in
+CONNECTED)
+    log "collegato a $(wpa_cli -p /run/wpa -i "$1" status | sed -n 's/^ssid=//p')"
+    killall udhcpc 2>/dev/null
+    # udhcpc resta attivo per rinnovare l'indirizzo; i passaggi vanno in udhcpc-script
+    udhcpc -i "$1" -b -t 8 -T 2 -A 5 -x hostname:arcade -s /usr/arcade/bin/udhcpc-script > /dev/null 2>&1
+    ;;
+DISCONNECTED)
+    log "scollegato"
+    killall udhcpc 2>/dev/null
+    ip addr flush dev "$1" 2>/dev/null
+    rm -f /run/resolv.conf
+    ;;
+esac

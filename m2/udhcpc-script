@@ -1,0 +1,35 @@
+#!/bin/sh
+# Script di udhcpc (BusyBox): applica l'indirizzo ricevuto dal router.
+# Alla prima connessione dopo l'accensione prende anche l'ora da internet e la scrive
+# nell'orologio della console (in UTC).
+ROOT=${ROOT:-/mnt/SDCARD/Arcade}
+LOG=$ROOT/Logs/wifi.log
+log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
+
+case "$1" in
+deconfig)
+    ip addr flush dev "$interface" 2>/dev/null
+    ip link set "$interface" up
+    ;;
+bound|renew)
+    ip addr flush dev "$interface" 2>/dev/null
+    ip addr add "$ip/${mask:-24}" ${broadcast:+broadcast "$broadcast"} dev "$interface"
+    if [ -n "$router" ]; then
+        while ip route del default dev "$interface" 2>/dev/null; do :; done
+        for r in $router; do ip route add default via "$r" dev "$interface" && break; done
+    fi
+    : > /run/resolv.conf.new
+    [ -n "$domain" ] && echo "search $domain" >> /run/resolv.conf.new
+    for d in $dns; do echo "nameserver $d" >> /run/resolv.conf.new; done
+    mv -f /run/resolv.conf.new /run/resolv.conf
+    [ "$1" = bound ] && log "indirizzo $ip (router $router, dns $dns)"
+    if [ ! -f /run/ntp-done ]; then
+        touch /run/ntp-done
+        ( if ntpd -n -q -p pool.ntp.org -p time.google.com > /dev/null 2>&1; then
+              hwclock -w -u && log "ora da internet: $(date -u '+%Y-%m-%d %H:%M') UTC"
+          else
+              rm -f /run/ntp-done; log "ora da internet non disponibile"
+          fi ) &
+    fi
+    ;;
+esac

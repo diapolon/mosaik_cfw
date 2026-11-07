@@ -476,6 +476,9 @@ Codice in [frontend/](frontend/README.md).
 - **M2 funziona anche sulla Smart Pro (7 novembre)**: stesso sistema con uno strato per
   modello (`/fw/tg5040`), immagine `dist/m2-smartpro.img`. Gradino 3 raggiunto su entrambe le
   console: sistema proprio su SD, senza toccare la memoria interna.
+- **Wi-Fi (7 novembre, da provare sulla console)**: XR829 con i moduli `xradio` del firmware,
+  `wpa_supplicant`/`wpa_cli` 2.6, `udhcpc` e `ntpd` di BusyBox (`m2/wifi-ctl`); schermata
+  delle reti nel launcher con tastiera a tre disposizioni per le password.
 - **Spazio e orologio (7 novembre, da provare sulla console)**: la partizione ARCADE si
   allarga a tutta la scheda alla prima accensione (`m2/sdgrow.c`; FAT con tabella preparata
   per 256 GB da `m2/fatprep.py`), `fsck.fat` solo dopo uno spegnimento brusco (segno "in uso"

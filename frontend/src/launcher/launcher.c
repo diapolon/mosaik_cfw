@@ -8,6 +8,7 @@
 #include "romcheck.h"
 #include "music.h"
 #include "../common/platform.h"
+#include "../common/wifi.h"
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
@@ -77,10 +78,18 @@ static int coll_sel = COLL_ALL;
 /* finestra "opzioni del gioco" nella scheda: collezioni e nascondi */
 static bool gopt_open;
 static int gopt_sel;
-/* la tastiera serve per la ricerca e per il nome di una nuova collezione */
-enum { KBM_SEARCH, KBM_COLL };
+/* la tastiera serve per la ricerca, il nome di una nuova collezione e la password Wi-Fi */
+enum { KBM_SEARCH, KBM_COLL, KBM_WIFI };
 static int kb_mode;
+static int kb_layout;   /* 0 maiuscole, 1 minuscole, 2 simboli (si cambia con X) */
 static char coll_name[48];
+/* finestra delle reti Wi-Fi */
+static bool wpanel_open;
+static wifi_net_t wnets[32];
+static int nwnets, wsel;
+static float wscroll;
+static double wscan_t, wlist_t;
+static char wifi_target[33], wifi_pass[64];
 static int dlg_sel;
 
 static bool is_list_layout(void) { return !strcmp(UI.th.layout, "list"); }
@@ -1289,7 +1298,10 @@ static void set_change(int item, int dir) {
         settings_save(s, UI.root);
         reload_games();
         break;
-    case S_WIFI: s->wifi = !s->wifi; break;
+    case S_WIFI:
+        s->wifi = !s->wifi;
+        if (wifi_supported()) wifi_enable(s->wifi);
+        break;
     case S_SAVER: s->saver = (s->saver + dir + 5) % 5; break;
     case S_PADS: s->ext_p1 = !s->ext_p1; break;
     case S_SLEEP: {
@@ -1312,6 +1324,141 @@ static void set_change(int item, int dir) {
     }
     settings_save(s, UI.root);
     ui_sound(SND_MOVE);
+}
+
+/* Reti Wi-Fi: elenco con segnale, lucchetto e stato; A collega (password con la tastiera
+   se serve), X dimentica una rete salvata, Y cerca di nuovo. */
+static void wpanel_refresh(bool scan) {
+    if (scan) { wifi_scan(); wscan_t = UI.t; }
+    char cur[33];
+    snprintf(cur, sizeof cur, "%s", wsel < nwnets ? wnets[wsel].ssid : "");
+    nwnets = wifi_networks(wnets, 32);
+    wlist_t = UI.t;
+    /* la selezione resta sulla stessa rete anche se l'ordine cambia */
+    for (int i = 0; i < nwnets; i++) if (!strcmp(wnets[i].ssid, cur)) wsel = i;
+    if (wsel >= nwnets) wsel = nwnets ? nwnets - 1 : 0;
+}
+
+static void wpanel_start(void) {
+    wpanel_open = true;
+    wsel = 0;
+    wscroll = 0;
+    wifi_status(true);
+    wpanel_refresh(true);
+}
+
+static void wifi_join(const char *ssid, const char *psk) {
+    char m[160];
+    if (wifi_connect(ssid, psk)) { snprintf(m, sizeof m, T("wifi.joining"), ssid); ui_sound(SND_OK); }
+    else { snprintf(m, sizeof m, "%s", T("wifi.error")); ui_sound(SND_ERROR); }
+    ui_toast(m);
+    wifi_status(true);
+    wpanel_refresh(false);
+}
+
+static void wpanel_input(void) {
+    input_t *in = &UI.in;
+    /* ricerca ogni 10 s, elenco e stato ogni 2 s */
+    if (UI.t - wscan_t > 10) wpanel_refresh(true);
+    else if (UI.t - wlist_t > 2) wpanel_refresh(false);
+    if (in->pressed[BTN_UP] && nwnets) { wsel = (wsel + nwnets - 1) % nwnets; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN] && nwnets) { wsel = (wsel + 1) % nwnets; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { wpanel_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_Y]) { wpanel_refresh(true); ui_toast(T("wifi.searching")); ui_sound(SND_OK); }
+    if (!nwnets) return;
+    wifi_net_t *n = &wnets[wsel];
+    if (in->pressed[BTN_X] && n->saved) {
+        char m[160];
+        snprintf(m, sizeof m, T("wifi.forgot"), n->ssid);
+        if (wifi_forget(n->ssid)) { ui_toast(m); ui_sound(SND_OK); }
+        wpanel_refresh(false);
+    }
+    if (in->pressed[BTN_A]) {
+        if (n->current) { ui_toast(T("wifi.already")); ui_sound(SND_MOVE); return; }
+        snprintf(wifi_target, sizeof wifi_target, "%s", n->ssid);
+        if (n->secured && (!n->saved || n->failed)) {
+            /* password: tastiera in minuscolo, la più comune */
+            wifi_pass[0] = 0;
+            kb_mode = KBM_WIFI;
+            kb_layout = 1;
+            kb_row = 1;
+            kb_col = 0;
+            kb_open = true;
+            ui_sound(SND_OK);
+        } else wifi_join(n->ssid, NULL);
+    }
+}
+
+static void wifi_bars(int x, int y, int h, int bars, color_t on, color_t off) {
+    int bw = h / 4, gap = h / 8;
+    for (int i = 0; i < 3; i++) {
+        int bh = h * (i + 1) / 3;
+        ui_rrect(x + i * (bw + gap), y + h - bh, bw, bh, bw / 3, i < bars ? on : off);
+    }
+}
+
+static void lock_icon(int x, int y, int h, color_t c) {
+    int w = h * 3 / 4, bh = h * 6 / 10, t = h > 16 ? 2 : 1;
+    ui_rborder(x + w / 5, y, w * 3 / 5, h - bh + w / 5, w / 4, t, c);   /* archetto */
+    ui_rrect(x, y + h - bh, w, bh, h / 8, c);
+}
+
+static void wpanel_draw(void) {
+    theme_t *t = &UI.th;
+    TTF_Font *f = UI.f_normal, *fs = UI.f_small;
+    int fh = TTF_FontHeight(f), sh = TTF_FontHeight(fs);
+    int pad = M(0.04f), rh = fh + M(0.03f), rows = 6;
+    int w = M(0.95f), h = pad + TTF_FontHeight(UI.f_title) + M(0.01f) + sh + M(0.03f) + rows * rh + pad, x, y;
+    if (h > UI.h - M(t->hintbar_h) - M(0.02f)) { rows = (UI.h - M(t->hintbar_h) - M(0.02f) - (h - rows * rh)) / rh; h = pad + TTF_FontHeight(UI.f_title) + M(0.01f) + sh + M(0.03f) + rows * rh + pad; }
+    panel_box(w, h, &x, &y);
+    int lx = x + pad, rx = x + w - pad, cy = y + pad;
+    ui_text(UI.f_title, T("wifi.title"), lx, cy, t->text, ALIGN_LEFT);
+    cy += TTF_FontHeight(UI.f_title) + M(0.01f);
+    const wifi_status_t *ws = wifi_status(false);
+    char line[160];
+    if (ws->state == WIFI_CONNECTED) snprintf(line, sizeof line, T("wifi.connected"), ws->ssid, ws->ip);
+    else if (ws->state == WIFI_CONNECTING) snprintf(line, sizeof line, T("wifi.connecting"), ws->ssid);
+    else if (ws->state == WIFI_DISCONNECTED) snprintf(line, sizeof line, "%s", T("wifi.disconnected"));
+    else snprintf(line, sizeof line, "%s", T("wifi.starting"));
+    ui_text(fs, line, lx, cy, ws->state == WIFI_CONNECTED ? t->accent : t->text_dim, ALIGN_LEFT);
+    cy += sh + M(0.03f);
+    int top = cy, area = rows * rh;
+    if (!nwnets) {
+        ui_text(f, T(ws->state == WIFI_OFF ? "wifi.starting" : "wifi.none"), x + w / 2, top + area / 2 - fh / 2, t->text_dim, ALIGN_CENTER);
+    } else {
+        float target = wscroll;
+        if (wsel * rh - target > area - rh) target = wsel * rh - (area - rh);
+        if (wsel * rh < target) target = wsel * rh;
+        wscroll = ui_approach(wscroll, target);
+        ui_clip_push(x, top, w, area);
+        for (int i = 0; i < nwnets; i++) {
+            int ry = top + (int)(i * rh - wscroll);
+            if (ry + rh < top || ry > top + area) continue;
+            wifi_net_t *n = &wnets[i];
+            bool sel = i == wsel;
+            if (sel) {
+                ui_rrect(lx - M(0.015f), ry, rx - lx + M(0.03f), rh - M(0.008f), M(t->panel_radius), t->accent);
+                selection_ring(lx - M(0.015f), ry, rx - lx + M(0.03f), rh - M(0.008f), M(t->panel_radius));
+            }
+            color_t tc = sel ? t->accent_text : t->text, dc = sel ? with_alpha(t->accent_text, 200) : t->text_dim;
+            int ty = ry + (rh - M(0.008f) - fh) / 2, ih = M(0.03f), iy = ry + (rh - M(0.008f) - ih) / 2;
+            wifi_bars(lx + M(0.01f), iy, ih, n->bars ? n->bars : 1, tc, with_alpha(tc, 60));
+            int nx = lx + M(0.01f) + ih + M(0.03f);
+            const char *tag = n->current ? T("wifi.current") : n->failed ? T("wifi.failed") : n->saved ? T("wifi.saved") : "";
+            int tagw = tag[0] ? ui_text_w(fs, tag) + M(0.02f) : 0;
+            int lockw = n->secured ? ih + M(0.02f) : 0;
+            char fit[64];
+            ui_text_fit(f, n->ssid, rx - nx - tagw - lockw - M(0.03f), fit, sizeof fit);
+            int tw = ui_text(f, fit, nx, ty, tc, ALIGN_LEFT);
+            if (n->secured) lock_icon(nx + tw + M(0.015f), iy + ih / 8, ih * 3 / 4, dc);
+            if (tag[0]) ui_text(fs, tag, rx - M(0.01f), ry + (rh - M(0.008f) - sh) / 2, n->failed && !sel ? rgba(220, 70, 70, 255) : dc, ALIGN_RIGHT);
+        }
+        ui_clip_pop();
+    }
+    bool can_forget = nwnets && wnets[wsel].saved;
+    const char *hint[] = { "B", T("common.back"), "Y", T("wifi.refresh"), "X", T("wifi.forget"), "A", T("wifi.connect") };
+    if (can_forget) ui_hints(hint, 8);
+    else { const char *h2[] = { "B", T("common.back"), "Y", T("wifi.refresh"), "A", T("wifi.connect") }; ui_hints(h2, 6); }
 }
 
 /* Data e ora: giorno, mese, anno, ore, minuti. Su/giù cambiano il campo scelto con
@@ -1562,6 +1709,11 @@ static void settings_input(void) {
     if (in->pressed[BTN_A]) {
         if (set_sel == S_POWER) { dlg_open = true; dlg_sel = 0; ui_sound(SND_OK); }
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
+        else if (set_sel == S_WIFI && wifi_supported()) {
+            if (!UI.set.wifi) set_change(S_WIFI, +1);
+            wpanel_start();
+            ui_sound(SND_OK);
+        }
         else if (set_sel == S_ROMCHECK) {
             if (romcheck_start(UI.root, games, ngames)) { romcheck_open = true; ui_sound(SND_OK); }
         }
@@ -1635,6 +1787,20 @@ static void settings_draw(void) {
             bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : UI.set.resume_last;
             int sh = M(0.04f);
             draw_switch(vx - sh * 9 / 5, cy - sh / 2, sh, on);
+            /* Wi-Fi: rete collegata accanto all'interruttore */
+            if (i == S_WIFI && on && wifi_supported()) {
+                const wifi_status_t *ws = wifi_status(false);
+                char wl[96];
+                wl[0] = 0;
+                if (ws->state == WIFI_CONNECTED) snprintf(wl, sizeof wl, "%s", ws->ssid);
+                else if (ws->state == WIFI_CONNECTING) snprintf(wl, sizeof wl, "%s…", ws->ssid);
+                else if (ws->state == WIFI_DISCONNECTED) snprintf(wl, sizeof wl, "%s", T("wifi.disconnected"));
+                if (wl[0]) {
+                    char fit[96];
+                    ui_text_fit(UI.f_small, wl, M(0.4f), fit, sizeof fit);
+                    ui_text(UI.f_small, fit, vx - sh * 9 / 5 - M(0.03f), cy - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_RIGHT);
+                }
+            }
         } else {
             color_t vc = sel ? t->accent : t->text_dim;
             bool arrows = sel && i != S_INFO && i != S_CLOCK;
@@ -1651,7 +1817,7 @@ static void settings_draw(void) {
     int dy = UI.h - M(t->hintbar_h) - desc_h + M(0.01f);
     for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], mx, dy + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
     /* con la finestra di data e ora aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open) return;
+    if (clock_open || sdinfo_open || wpanel_open) return;
     const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
     ui_hints(h, 4);
 }
@@ -2203,11 +2369,18 @@ static void fpanel_draw(void) {
     ui_hints(hint, 4);
 }
 
-/* tastiera: 5 righe; l'ultima ha spazio, cancella e fatto */
-static const char *kb_rows[4] = { "1234567890", "QWERTYUIOP", "ASDFGHJKL'", "ZXCVBNM-.&" };
+/* tastiera: 5 righe; l'ultima ha spazio, cancella e fatto. Tre disposizioni (X): maiuscole,
+   minuscole e simboli, per le password Wi-Fi. */
+static const char *kb_layouts[3][4] = {
+    { "1234567890", "QWERTYUIOP", "ASDFGHJKL'", "ZXCVBNM-.&" },
+    { "1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm-.&" },
+    { "1234567890", "!@#$%^&*()", "-_=+[]{};:", "'\"\\|,.<>/?" },
+};
+#define kb_rows kb_layouts[kb_layout % 3]
 enum { KB_SPACE, KB_DEL, KB_DONE };
 
 static char *kb_buf(size_t *cap) {
+    if (kb_mode == KBM_WIFI) { if (cap) *cap = sizeof wifi_pass; return wifi_pass; }
     if (cap) *cap = kb_mode == KBM_COLL ? sizeof coll_name : sizeof search;
     return kb_mode == KBM_COLL ? coll_name : search;
 }
@@ -2229,7 +2402,15 @@ static void kb_delete(void) {
 static void lists_changed(void);
 
 /* fine scrittura: per la ricerca chiude anche i filtri; per la collezione la crea */
+static void wifi_join(const char *ssid, const char *psk);
+
 static void kb_done(void) {
+    if (kb_mode == KBM_WIFI) {
+        if (strlen(wifi_pass) < 8) { ui_toast(T("wifi.short")); ui_sound(SND_ERROR); return; }
+        kb_open = false;
+        wifi_join(wifi_target, wifi_pass);
+        return;
+    }
     kb_open = false;
     if (kb_mode == KBM_SEARCH) { fpanel_open = false; return; }
     if (detail_idx < 0) return;
@@ -2253,6 +2434,7 @@ static void keyboard_input(void) {
     if (in->pressed[BTN_LEFT]) { kb_col = (kb_col + cols - 1) % cols; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_RIGHT]) { kb_col = (kb_col + 1) % cols; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_Y]) { kb_type(' '); ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_X]) { kb_layout = (kb_layout + 1) % 3; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B]) {
         if (kb_buf(NULL)[0]) { kb_delete(); ui_sound(SND_BACK); }
         else { kb_open = false; ui_sound(SND_BACK); }
@@ -2282,7 +2464,10 @@ static void keyboard_draw(void) {
     int tx = x + pad + M(0.02f), ty = fy + (field_h - TTF_FontHeight(f)) / 2;
     const char *typed = kb_buf(NULL);
     int tw = typed[0] ? ui_text(f, typed, tx, ty, t->text, ALIGN_LEFT) : 0;
-    if (!typed[0]) ui_text(f, T(kb_mode == KBM_COLL ? "coll.name_prompt" : "kb.title"), tx, ty, t->text_dim, ALIGN_LEFT);
+    char prompt[96];
+    if (kb_mode == KBM_WIFI) snprintf(prompt, sizeof prompt, T("wifi.password_for"), wifi_target);
+    else snprintf(prompt, sizeof prompt, "%s", T(kb_mode == KBM_COLL ? "coll.name_prompt" : "kb.title"));
+    if (!typed[0]) ui_text(f, prompt, tx, ty, t->text_dim, ALIGN_LEFT);
     if (fmod(UI.t, 1.0) < 0.55) ui_rect(tx + tw + 2, ty + M(0.004f), M(0.004f) + 1, TTF_FontHeight(f) - M(0.008f), t->accent);
     int ky = fy + field_h + M(0.02f);
     for (int r = 0; r < 5; r++, ky += key + gap) {
@@ -2300,8 +2485,9 @@ static void keyboard_draw(void) {
     char res[64];
     snprintf(res, sizeof res, T("kb.results"), nview);
     if (kb_mode == KBM_SEARCH) ui_text(UI.f_small, res, x + pad, ky - gap + M(0.008f), t->text_dim, ALIGN_LEFT);
-    const char *hint[] = { "Y", T("kb.space"), "B", T("kb.delete"), "START", T("kb.done"), "A", T("kb.type") };
-    ui_hints(hint, 8);
+    static const char *layout_keys[3] = { "kb.lower", "kb.symbols", "kb.upper" };
+    const char *hint[] = { "X", T(layout_keys[kb_layout % 3]), "Y", T("kb.space"), "B", T("kb.delete"), "START", T("kb.done"), "A", T("kb.type") };
+    ui_hints(hint, 10);
 }
 
 /* -------------------------------------------------- scaricamento */
@@ -2509,7 +2695,7 @@ int main(int argc, char **argv) {
         if (UI.in.power && !dlg_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open) {
-            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = false;
+            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
         }
@@ -2523,6 +2709,7 @@ int main(int argc, char **argv) {
         else if (fpanel_open) fpanel_input();
         else if (dlg_open) dialog_input();
         else if (clock_open) clock_input();
+        else if (wpanel_open) wpanel_input();
         else if (sdinfo_open) sdinfo_input();
         else if (screen == SCR_HOME && is_bar_layout()) bar_input();
         else if (screen == SCR_HOME) home_input();
@@ -2540,6 +2727,7 @@ int main(int argc, char **argv) {
         else settings_draw();
         if (dlg_open) dialog_draw();
         if (clock_open) clock_draw();
+        if (wpanel_open) wpanel_draw();
         if (sdinfo_open) sdinfo_draw();
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();

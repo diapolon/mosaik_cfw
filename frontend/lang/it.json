@@ -78,7 +78,7 @@
     "aspect": "Originale: proporzioni del cabinato. Pixel interi: immagine nitida. Schermo intero: riempie tutto.",
     "filter": "I filtri sono cartelle in Filters/: maschere sull'immagine, vignettatura e, in futuro, shader.",
     "cpu": "Risparmio allunga la batteria, Prestazioni aiuta i giochi più pesanti (CPS3).",
-    "wifi": "Rete senza fili. Nel prototipo l'interruttore è solo simulato.",
+    "wifi": "Sinistra/destra accendono e spengono il Wi-Fi; A mostra le reti per collegarsi.",
     "sleep": "Spegne la console dopo un periodo senza usare i tasti, nel launcher.",
     "resume": "Se la console viene spenta durante una partita, alla riaccensione riparte da lì.",
     "clock": "Imposta la data e l'ora: restano salvate nell'orologio della console anche da spenta.",
@@ -236,7 +236,10 @@
     "delete": "Cancella",
     "done": "Fatto",
     "space": "Spazio",
-    "results": "%d giochi trovati"
+    "results": "%d giochi trovati",
+    "lower": "abc",
+    "symbols": "#+=",
+    "upper": "ABC"
   },
   "detail": {
     "hint": "Scheda",
@@ -338,5 +341,26 @@
     "system": "Sistema e impostazioni",
     "footer": "Arcade 0.1 · %s",
     "one_game": "1 gioco"
+  },
+  "wifi": {
+    "title": "Reti Wi-Fi",
+    "connected": "Collegato a %s · %s",
+    "connecting": "Collegamento a %s…",
+    "disconnected": "Non collegato",
+    "starting": "Avvio del Wi-Fi…",
+    "searching": "Cerco le reti…",
+    "none": "Nessuna rete trovata",
+    "saved": "salvata",
+    "current": "collegata",
+    "failed": "password errata?",
+    "connect": "Collega",
+    "forget": "Dimentica",
+    "refresh": "Cerca",
+    "forgot": "Rete dimenticata: %s",
+    "joining": "Collegamento a %s…",
+    "password_for": "Password di %s",
+    "short": "La password deve avere almeno 8 caratteri",
+    "error": "Impossibile collegarsi",
+    "already": "Sei già collegato a questa rete"
   }
 }

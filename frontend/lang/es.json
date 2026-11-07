@@ -78,7 +78,7 @@
     "aspect": "Original: proporciones de la recreativa. Píxeles enteros: imagen nítida. Pantalla completa: lo llena todo.",
     "filter": "Los filtros son carpetas en Filters/: máscaras, viñeteado y, en el futuro, shaders.",
     "cpu": "Ahorro alarga la batería, Rendimiento ayuda a los juegos pesados (CPS3).",
-    "wifi": "Red inalámbrica. En el prototipo el interruptor es simulado.",
+    "wifi": "Izquierda/derecha encienden y apagan el Wi-Fi; A muestra las redes para conectarse.",
     "sleep": "Apaga la consola tras un tiempo sin usar los botones, en el lanzador.",
     "resume": "Si la consola se apaga durante una partida, vuelve a empezar desde ahí.",
     "clock": "Ajusta la fecha y la hora: el reloj de la consola las conserva incluso apagada.",
@@ -236,7 +236,10 @@
     "delete": "Borrar",
     "done": "Listo",
     "space": "Espacio",
-    "results": "%d juegos encontrados"
+    "results": "%d juegos encontrados",
+    "lower": "abc",
+    "symbols": "#+=",
+    "upper": "ABC"
   },
   "detail": {
     "hint": "Ficha",
@@ -338,5 +341,26 @@
     "system": "Sistema y ajustes",
     "footer": "Arcade 0.1 · %s",
     "one_game": "1 juego"
+  },
+  "wifi": {
+    "title": "Redes Wi-Fi",
+    "connected": "Conectado a %s · %s",
+    "connecting": "Conectando a %s…",
+    "disconnected": "No conectado",
+    "starting": "Iniciando el Wi-Fi…",
+    "searching": "Buscando redes…",
+    "none": "No se encontraron redes",
+    "saved": "guardada",
+    "current": "conectada",
+    "failed": "¿contraseña incorrecta?",
+    "connect": "Conectar",
+    "forget": "Olvidar",
+    "refresh": "Buscar",
+    "forgot": "Red olvidada: %s",
+    "joining": "Conectando a %s…",
+    "password_for": "Contraseña de %s",
+    "short": "La contraseña necesita al menos 8 caracteres",
+    "error": "No se pudo conectar",
+    "already": "Ya estás conectado a esta red"
   }
 }

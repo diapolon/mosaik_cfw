@@ -9,7 +9,7 @@ CFLAGS  += -std=c11 -O2 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-fiel
 LDLIBS  += $(shell pkg-config --libs $(PKGS)) -lm
 
 BUILD   := build
-COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c
+COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 
 all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch
 

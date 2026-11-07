@@ -141,12 +141,19 @@ setc "Headphone Switch" on; setc "HpSpeaker Switch" on; setc "LINEOUT Switch" on
 { echo "--- controlli dopo la preparazione"; amixer contents; } >> "$AUDIO" 2>&1
 sync
 
+# Wi-Fi: se acceso nelle impostazioni, si avvia in sottofondo (il launcher lo accende e spegne)
+if grep -q '"wifi": *true' "$ROOT/System/settings.json" 2>/dev/null || [ ! -f "$ROOT/System/settings.json" ]; then
+    ( sleep 3; wifi-ctl on ) > /dev/null 2>&1 &
+fi
+
 # rapporto per la diagnosi, rifatto a ogni avvio
 ( sleep 10
   { echo "=== $(date)"; lsmod; echo; ps; echo
     echo "----- ingressi"; cat /proc/bus/input/devices; ls -l /dev/input
     for e in /dev/input/event*; do echo "--- udev: $e"; udevadm info -q property -n "$e"; done
     echo; echo "----- audio"; amixer scontrols; echo; tinymix 2>/dev/null | head -60
+    echo; echo "----- wi-fi"; grep xradio /proc/modules; ifconfig -a; iw dev 2>/dev/null
+    wpa_cli -p /run/wpa -i wlan0 status 2>/dev/null; ip route; cat /run/resolv.conf 2>/dev/null
     echo; ls -l /dev/pvr* /dev/dri 2>/dev/null; echo; dmesg | tail -80; } > "$ROOT/Logs/sistema.txt" 2>&1; sync ) &
 
 finish() {
@@ -156,6 +163,7 @@ finish() {
     # avvio il controllo non serve (vedi initramfs-init). Prima si fermano i programmi che
     # hanno file aperti sulla SD (trimui_inputd scrive il suo log, un gioco può essere rimasto
     # in sottofondo): con un file aperto in scrittura il kernel non la chiude.
+    wifi-ctl off > /dev/null 2>&1
     for sig in TERM KILL; do
         for p in /proc/[0-9]*; do
             pid=${p#/proc/}

@@ -78,7 +78,7 @@
     "aspect": "Original: proporções da máquina. Píxeis inteiros: imagem nítida. Ecrã inteiro: preenche tudo.",
     "filter": "Os filtros são pastas em Filters/: máscaras, vinheta e, no futuro, shaders.",
     "cpu": "Poupança prolonga a bateria, Desempenho ajuda os jogos pesados (CPS3).",
-    "wifi": "Rede sem fios. No protótipo o interruptor é simulado.",
+    "wifi": "Esquerda/direita ligam e desligam o Wi-Fi; A mostra as redes para ligar.",
     "sleep": "Desliga a consola após algum tempo sem usar os botões, no launcher.",
     "resume": "Se a consola for desligada durante um jogo, retoma a partir daí.",
     "clock": "Define a data e a hora: o relógio da consola guarda-as mesmo desligada.",
@@ -236,7 +236,10 @@
     "delete": "Apagar",
     "done": "Feito",
     "space": "Espaço",
-    "results": "%d jogos encontrados"
+    "results": "%d jogos encontrados",
+    "lower": "abc",
+    "symbols": "#+=",
+    "upper": "ABC"
   },
   "detail": {
     "hint": "Ficha",
@@ -338,5 +341,26 @@
     "system": "Sistema e definições",
     "footer": "Arcade 0.1 · %s",
     "one_game": "1 jogo"
+  },
+  "wifi": {
+    "title": "Redes Wi-Fi",
+    "connected": "Ligado a %s · %s",
+    "connecting": "A ligar a %s…",
+    "disconnected": "Não ligado",
+    "starting": "A iniciar o Wi-Fi…",
+    "searching": "A procurar redes…",
+    "none": "Nenhuma rede encontrada",
+    "saved": "guardada",
+    "current": "ligada",
+    "failed": "palavra-passe errada?",
+    "connect": "Ligar",
+    "forget": "Esquecer",
+    "refresh": "Procurar",
+    "forgot": "Rede esquecida: %s",
+    "joining": "A ligar a %s…",
+    "password_for": "Palavra-passe de %s",
+    "short": "A palavra-passe precisa de pelo menos 8 caracteres",
+    "error": "Não foi possível ligar",
+    "already": "Já estás ligado a esta rede"
   }
 }

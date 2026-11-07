@@ -32,6 +32,8 @@ for a in $($R/bin/busybox --list-full); do [ -e $R/$a ] || ln -s /bin/busybox $R
 rm -f $R/sbin/init
 cp $T/m2/system-init $R/sbin/init
 cp /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch $W/fbmsg $R/usr/arcade/bin/
+# Wi-Fi: servizio (wifi-ctl), eventi di wpa_cli e script di udhcpc
+cp $T/m2/wifi-ctl $T/m2/wifi-event $T/m2/udhcpc-script $R/usr/arcade/bin/
 # la SDL2 di TrimUI chiama "setterm" per nascondere il cursore: basta che esista
 rm -f $R/usr/bin/setterm
 printf "#!/bin/sh\nexit 0\n" > $R/usr/bin/setterm
@@ -39,6 +41,12 @@ F0=/build/fw/tg4040b/root
 cp $F0/etc/passwd $F0/etc/group $R/etc/
 echo arcade > $R/etc/hostname
 cp $F0/lib/firmware/rgx.* $R/lib/firmware/
+# firmware del chip Wi-Fi/Bluetooth XR829 (uguale nei due modelli)
+cp $F0/lib/firmware/*xr829* $R/lib/firmware/
+# nomi internet: resolv.conf lo scrive udhcpc in /run (lo squashfs è di sola lettura)
+ln -s /run/resolv.conf $R/etc/resolv.conf
+printf "127.0.0.1 localhost arcade\n" > $R/etc/hosts
+printf "hosts: files dns\nnetworks: files\n" > $R/etc/nsswitch.conf
 # percorsi fissi che puntano allo strato del modello (/run/fw, creato dall'initramfs)
 mkdir -p $R/lib
 ln -s /run/fw/udev $R/lib/udev
@@ -52,7 +60,7 @@ models | while IFS="|" read -r id fw name file; do
     mkdir -p $L/bin $L/modules
     python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/cores/*.so \
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
-        $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm \
+        $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw \
         +libEGL.so.1 +libGLESv2.so.2 +libasound.so.2 +libIMGegl.so +libsrv_um.so +libusc.so +libglslcompiler.so +libudev.so.1 \
         > $W/libs-$id.txt 2> $W/libs-mancanti-$id.txt
     for l in $(cat $W/libs-$id.txt); do mkdir -p $L/$(dirname $l); cp -L $F/$l $L/$l; done
@@ -61,12 +69,15 @@ models | while IFS="|" read -r id fw name file; do
     done
     # il caricatore dinamico e la glibc vanno anche nel percorso fisso /lib (sono uguali nei
     # firmware v1.1.1; le altre librerie si prendono dallo strato con LD_LIBRARY_PATH)
-    for g in ld-linux-aarch64.so.1 libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libresolv.so.2 libcrypt.so.1; do
+    # libnss_*: senza, la glibc non risolve i nomi internet (scraper, ora da internet)
+    for g in ld-linux-aarch64.so.1 libc.so.6 libm.so.6 libpthread.so.0 libdl.so.2 librt.so.1 libresolv.so.2 libcrypt.so.1 \
+             libnss_dns.so.2 libnss_files.so.2; do
         [ -e $R/lib/$g ] || { f=$(find $F/lib -name $g | head -1); [ -n "$f" ] && cp -L "$f" $R/lib/$g; }
     done
     cp $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
-       $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $L/bin/
-    cp $F/lib/modules/4.9.191/pvrsrvkm.ko $F/lib/modules/4.9.191/dc_sunxi.ko $L/modules/
+       $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw $L/bin/
+    # moduli del kernel: GPU e Wi-Fi (compilati per il kernel di ogni modello)
+    cp $F/lib/modules/4.9.191/pvrsrvkm.ko $F/lib/modules/4.9.191/dc_sunxi.ko $F/lib/modules/4.9.191/xradio_*.ko $L/modules/
     cp -a $F/usr/share/alsa $L/alsa
     cp $F/etc/asound.conf $L/asound.conf
     mkdir -p $L/udev $L/etc-udev
