@@ -131,16 +131,36 @@ setc() { amixer -q cset name="$1" "$2" >> "$AUDIO" 2>&1 || echo "  (non riuscito
 step "9b AUDIO"
 # configurazioni provate in ordine; quella che funziona si ricorda in System/audio.conf e
 # agli avvii successivi si applica subito (una sola prova invece di quattro)
-audio_apply() {
+# comandi di ogni configurazione, uno per riga (per "amixer -s", che li esegue in una sola
+# chiamata: lanciare amixer una volta per comando costava quasi un secondo all'avvio)
+audio_lines() {
     case $1 in
-    asis) ;;
-    hub0) setc "codec hub mode" 0 ;;
-    hub1) setc "codec hub mode" 1 ;;
+    hub0) echo 'cset name="codec hub mode" 0' ;;
+    hub1) echo 'cset name="codec hub mode" 1' ;;
     knulli) # valori di una Brick con audio funzionante (asound.state di Knulli)
-        setc "codec hub mode" 0
-        setc "Headphone Switch" on; setc "HpSpeaker Switch" on; setc "LINEOUT Switch" on
-        setc "LINEOUT Output Select" DAC_SINGLE; setc "LINEOUT volume" 26 ;;
+        echo 'cset name="codec hub mode" 0'
+        echo 'cset name="Headphone Switch" on'
+        echo 'cset name="HpSpeaker Switch" on'
+        echo 'cset name="LINEOUT Switch" on'
+        echo 'cset name="LINEOUT Output Select" DAC_SINGLE'
+        echo 'cset name="LINEOUT volume" 26' ;;
     esac
+}
+# uscite accese come nel firmware (altoparlante e cuffie); il volume lo regola il launcher
+OUTPUTS='cset name="Headphone Switch" on
+cset name="HpSpeaker Switch" on
+cset name="LINEOUT Switch" on'
+audio_apply() {
+    audio_lines "$1" | amixer -q -s >> "$AUDIO" 2>&1 || echo "  (amixer -s: errore con $1)" >> "$AUDIO"
+}
+# verifica che la chiamata unica abbia funzionato; altrimenti i comandi uno alla volta
+outputs_on() { amixer cget name="LINEOUT Switch" 2>/dev/null | grep -q ": values=on"; }
+audio_apply_slow() {
+    { audio_lines "$1"; echo "$OUTPUTS"; } | while read -r cmd; do
+        eval "set -- $cmd"
+        shift
+        setc "${1#name=}" "$2"
+    done
 }
 AUDIO_CONF="$ROOT/System/audio.conf"
 saved=$(cat "$AUDIO_CONF" 2>/dev/null)
@@ -148,8 +168,9 @@ ok=0
 # configurazione già trovata su questa scheda: si applica senza la prova (2 s risparmiati a
 # ogni avvio). Per rifare la prova basta cancellare System/audio.conf.
 if [ -n "$saved" ]; then
-    audio_apply "$saved"
-    echo "configurazione ricordata ($saved): applicata senza prova" >> "$AUDIO"
+    { audio_lines "$saved"; echo "$OUTPUTS"; } | amixer -q -s >> "$AUDIO" 2>&1
+    if outputs_on; then echo "configurazione ricordata ($saved): applicata senza prova" >> "$AUDIO"
+    else echo "configurazione ricordata ($saved): amixer -s non riuscito, comandi uno alla volta" >> "$AUDIO"; audio_apply_slow "$saved"; fi
     ok=1
 fi
 if [ $ok = 0 ]; then
@@ -163,8 +184,8 @@ if [ $ok = 0 ]; then
     else step "9c AUDIO NON FUNZIONA: launcher e giochi senza audio"; export ARCADE_NO_AUDIO=1; rm -f "$AUDIO_CONF"; fi
     PROBED=1
 fi
-# uscite accese come nel firmware (altoparlante e cuffie); il volume lo regola il launcher
-setc "Headphone Switch" on; setc "HpSpeaker Switch" on; setc "LINEOUT Switch" on
+# uscite accese (nella prova; con la configurazione ricordata sono già nella chiamata unica)
+[ -n "${PROBED:-}" ] && echo "$OUTPUTS" | amixer -q -s >> "$AUDIO" 2>&1
 [ -n "${PROBED:-}" ] && { echo "--- controlli dopo la preparazione"; amixer contents; } >> "$AUDIO" 2>&1
 
 # Wi-Fi: se acceso nelle impostazioni, si avvia in sottofondo (il launcher lo accende e spegne)
