@@ -816,6 +816,7 @@ static int read_int(const char *path) {
 }
 
 static void perf_frame(Uint64 a, Uint64 b, Uint64 c, Uint32 queued, Uint32 frame_bytes, double fps) {
+    if (!ui_debug_on(1)) return;   /* registro "Prestazioni" o "Completo" */
     double f = (double)SDL_GetPerformanceFrequency();
     double emu = (b - a) * 1000.0 / f, draw = (c - b) * 1000.0 / f;
     /* dopo una pausa (menu, sospensione) si ricomincia a contare */
@@ -1282,7 +1283,7 @@ int main(int argc, char **argv) {
             played += UI.dt;
             /* diagnosi (sistema su SD): dopo 5 s di gioco si salva ciò che è stato disegnato */
             static bool shot_done;
-            if (!shot_done && played > 5 && getenv("ARCADE_DEBUG_SHOT")) {
+            if (!shot_done && played > 5 && (getenv("ARCADE_DEBUG_SHOT") || ui_debug_on(2))) {
                 char p[1200];
                 snprintf(p, sizeof p, "%s/Logs/gioco.png", root);
                 ui_screenshot(p);

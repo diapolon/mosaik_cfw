@@ -95,7 +95,9 @@ void ui_begin(void);                 /* disegno sul canvas con lo sfondo del tem
 void ui_end(void);                   /* presentazione, luminosità, screenshot automatici */
 void ui_log(const char *fmt, ...);
 /* tempi dell'avvio nel log: secondi dall'accensione (come Logs/passi.txt) */
-void ui_mark(const char *what);
+void ui_mark(const char *what);   /* solo con il registro "Prestazioni" o "Completo" */
+/* registro diagnostico (Impostazioni > Strumenti): true se il livello scelto è almeno level */
+bool ui_debug_on(int level);
 
 /* misure: frazione dell'altezza -> pixel */
 int M(float f);

@@ -28,6 +28,7 @@ typedef struct {
     int led_mode;        /* LED: 0 spenti, 1 fissi, 2 respiro, 3 pulsazione */
     int led_color;       /* indice in LED_COLORS (0 = colore del tema) */
     int led_bright;      /* 1..10 */
+    int log_level;       /* registro diagnostico: 0 essenziale, 1 prestazioni, 2 completo */
     char tz[40];         /* fuso orario, nome come "Europe/Rome" (vedi TIMEZONES in settings.c) */
 } settings_t;
 

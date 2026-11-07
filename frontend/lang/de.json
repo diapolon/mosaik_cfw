@@ -68,6 +68,7 @@
     "duplicates": "Doppelte Spiele",
     "scrape": "Bilder herunterladen",
     "clean_media": "Bilder aufräumen",
+    "log_level": "Diagnoseprotokoll",
     "bezel": "Spielrahmen",
     "missing": "Spiele ohne ROM",
     "screensaver": "Bildschirmschoner",
@@ -98,6 +99,7 @@
     "duplicates": "Spiel in FinalBurn Neo und MAME 2003+ vorhanden: beide oder nur eines anzeigen.",
     "scrape": "Lädt Screenshots, Titelbilder und Marquees von ArcadeDB und den libretro-Thumbnails. WLAN nötig.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
+    "log_level": "Was in Arcade/Logs geschrieben wird. Wesentlich: Starts und Fehler. Leistung: auch Startzeiten und Spielgeschwindigkeit. Vollständig: auch Tasten und Schnappschüsse.",
     "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
@@ -421,5 +423,10 @@
     "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung, Controller.",
     "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
     "tools": "ROM-Prüfung, Bilder herunterladen und aufräumen, Speicherplatz."
+  },
+  "loglvl": {
+    "essential": "Wesentlich",
+    "perf": "Leistung",
+    "full": "Vollständig"
   }
 }

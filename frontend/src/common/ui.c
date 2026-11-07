@@ -90,7 +90,10 @@ void ui_suspend(void) {
     UI.in.power = UI.in.power_long = false;
 }
 
+bool ui_debug_on(int level) { return UI.set.log_level >= level; }
+
 void ui_mark(const char *what) {
+    if (!ui_debug_on(1)) return;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     ui_log("tempi: %s a %.2f s", what, ts.tv_sec + ts.tv_nsec / 1e9);
@@ -1225,7 +1228,7 @@ void ui_poll(void) {
             pad_t *pd = pad_by_id(ev.jbutton.which);
             if (!pd || !pd->js) break;
             int b = joy_to_btn(ev.jbutton.button);
-            if (getenv("TRIMUI_JOYDEBUG")) ui_log("pulsante %d %s", ev.jbutton.button, ev.type == SDL_JOYBUTTONDOWN ? "giù" : "su");
+            if (getenv("TRIMUI_JOYDEBUG") || ui_debug_on(2)) ui_log("pulsante %d %s", ev.jbutton.button, ev.type == SDL_JOYBUTTONDOWN ? "giù" : "su");
             if (b >= 0) source_set(pd->down, b, ev.type == SDL_JOYBUTTONDOWN);
             break;
         }
@@ -1268,7 +1271,7 @@ void ui_poll(void) {
         case SDL_CONTROLLERBUTTONUP: {
             pad_t *pd = pad_by_id(ev.cbutton.which);
             int b = pad_btn(ev.cbutton.button);
-            if (getenv("TRIMUI_JOYDEBUG"))
+            if (getenv("TRIMUI_JOYDEBUG") || ui_debug_on(2))
                 ui_log("controller: pulsante SDL %d %s -> %d", ev.cbutton.button, ev.type == SDL_CONTROLLERBUTTONDOWN ? "giù" : "su", b);
             if (pd && b >= 0) source_set(pd->down, b, ev.type == SDL_CONTROLLERBUTTONDOWN);
             break;
@@ -1277,7 +1280,7 @@ void ui_poll(void) {
             pad_t *pd = pad_by_id(ev.caxis.which);
             if (!pd) break;
             int a = ev.caxis.axis, v = ev.caxis.value;
-            if (getenv("TRIMUI_JOYDEBUG") && (v > 16000 || v < -16000)) ui_log("controller: asse SDL %d = %d", a, v);
+            if ((getenv("TRIMUI_JOYDEBUG") || ui_debug_on(2)) && (v > 16000 || v < -16000)) ui_log("controller: asse SDL %d = %d", a, v);
             if (a == SDL_CONTROLLER_AXIS_TRIGGERLEFT || a == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
                 int b = a == SDL_CONTROLLER_AXIS_TRIGGERLEFT ? BTN_L2 : BTN_R2;
                 if ((v > 16000) != pd->down[b]) source_set(pd->down, b, v > 16000);
@@ -1488,8 +1491,8 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     logf_ = fopen(p, "a");
     crash_handlers();
     ui_log("---- avvio %s", app);
-    ui_mark("inizio");
     settings_load(&UI.set, root);
+    ui_mark("inizio");
     settings_apply_tz(&UI.set);
     lang_load(root, UI.set.lang);
     UI.automation = auto_script && *auto_script;

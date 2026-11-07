@@ -196,8 +196,10 @@ if grep -q '"wifi": *true' "$ROOT/System/settings.json" 2>/dev/null || [ ! -f "$
     ( sleep 3; wifi-ctl on ) > /dev/null 2>&1 &
 fi
 
-# rapporto per la diagnosi, rifatto a ogni avvio
-( sleep 10
+# rapporto per la diagnosi (Logs/sistema.txt), con il registro diagnostico "Prestazioni" o
+# "Completo" (Impostazioni > Strumenti)
+LOGLEVEL=$(sed -n 's/.*"log_level": *\([0-9]\).*/\1/p' "$ROOT/System/settings.json" 2>/dev/null)
+[ "${LOGLEVEL:-0}" -ge 1 ] && ( sleep 10
   { echo "=== $(date)"; lsmod; echo; ps; echo
     echo "----- ingressi"; cat /proc/bus/input/devices; ls -l /dev/input
     for e in /dev/input/event*; do echo "--- udev: $e"; udevadm info -q property -n "$e"; done

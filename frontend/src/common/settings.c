@@ -102,6 +102,8 @@ bool settings_load(settings_t *s, const char *root) {
     s->led_color = (int)json_num(j, "led_color", s->led_color);
     if (s->led_color < 0 || s->led_color >= NLED_COLORS) s->led_color = 0;
     s->led_bright = (int)json_num(j, "led_brightness", s->led_bright);
+    s->log_level = (int)json_num(j, "log_level", 0);
+    if (s->log_level < 0 || s->log_level > 2) s->log_level = 0;
     if (s->led_bright < 1 || s->led_bright > 10) s->led_bright = 5;
     if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 5;
     json_free(j);
@@ -138,11 +140,12 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"timezone\": \"%s\",\n"
             "  \"led_mode\": %d,\n"
             "  \"led_color\": %d,\n"
-            "  \"led_brightness\": %d\n"
+            "  \"led_brightness\": %d,\n"
+            "  \"log_level\": %d\n"
             "}\n",
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
             s->autosleep_min, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
-            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright);
+            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright, s->log_level);
     fclose(f);
     /* scrittura atomica: su SD uno spegnimento a metà non lascia file corrotti */
     return rename(tmp, path) == 0;

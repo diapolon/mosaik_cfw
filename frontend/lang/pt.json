@@ -68,6 +68,7 @@
     "duplicates": "Jogos duplicados",
     "scrape": "Transferir imagens",
     "clean_media": "Limpar imagens",
+    "log_level": "Registo de diagnóstico",
     "bezel": "Molduras dos jogos",
     "missing": "Jogos sem ROM",
     "screensaver": "Proteção de ecrã",
@@ -98,6 +99,7 @@
     "duplicates": "Jogo presente no FinalBurn Neo e no MAME 2003+: mostrar ambos ou só um.",
     "scrape": "Transfere capturas, ecrãs de título e marquees do ArcadeDB e das miniaturas libretro. Requer Wi-Fi.",
     "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
+    "log_level": "O que se escreve em Arcade/Logs. Essencial: arranques e erros. Desempenho: também tempos de arranque e velocidade dos jogos. Completo: também botões e capturas.",
     "bezel": "Uma moldura (bezel) à volta do jogo: a do jogo em Bezels/ se existir, senão a predefinida.",
     "missing": "Mostra também os jogos do catálogo que não tem (só versões principais).",
     "screensaver": "Após algum tempo sem usar os botões: capturas dos seus jogos ou ecrã desligado.",
@@ -421,5 +423,10 @@
     "games": "Como os jogos se veem e jogam: proporção, filtros, molduras, duplicados, desempenho, comandos.",
     "system": "Wi-Fi, data, hora e fuso horário, desligar automático.",
     "tools": "Verificação de ROM, transferência e limpeza de imagens, espaço do cartão."
+  },
+  "loglvl": {
+    "essential": "Essencial",
+    "perf": "Desempenho",
+    "full": "Completo"
   }
 }
