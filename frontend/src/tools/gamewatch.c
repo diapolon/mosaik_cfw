@@ -120,20 +120,56 @@ static void stop_group(pid_t pgid) {
 static struct fb_var_screeninfo fbv;
 static struct fb_fix_screeninfo fbf;
 static uint8_t *fbm;
-static unsigned fb_yoff;   /* immagine su cui si disegna (la GPU ne usa diverse a turno) */
 
-static void fb_px(int x, int y, uint32_t rgb) {
-    if (x < 0 || y < 0 || x >= (int)fbv.xres || y >= (int)fbv.yres) return;
-    uint8_t *p = fbm + (size_t)(y + fb_yoff) * fbf.line_length + (size_t)(x + fbv.xoffset) * (fbv.bits_per_pixel / 8);
-    uint32_t r = rgb >> 16 & 255, g = rgb >> 8 & 255, b = rgb & 255;
-    uint32_t v = (r >> (8 - fbv.red.length)) << fbv.red.offset | (g >> (8 - fbv.green.length)) << fbv.green.offset |
-                 (b >> (8 - fbv.blue.length)) << fbv.blue.offset;
-    if (fbv.transp.length) v |= ((1u << fbv.transp.length) - 1) << fbv.transp.offset;
-    if (fbv.bits_per_pixel == 32) *(uint32_t *)p = v;
-    else if (fbv.bits_per_pixel == 16) *(uint16_t *)p = (uint16_t)v;
+/* Driver display Allwinner "disp2" (include/video/sunxi_display2.h del kernel 4.9) */
+struct disp_rect { int x, y; unsigned int width, height; };
+struct disp_rectsz { unsigned int width, height; };
+struct disp_rect64 { long long x, y, width, height; };
+struct disp_fb_info {
+    unsigned long long addr[3];
+    struct disp_rectsz size[3];
+    unsigned int align[3];
+    int format;              /* enum disp_pixel_format: 0 = ARGB 8888 */
+    int color_space;
+    unsigned int trd_right_addr[3];
+    bool pre_multiply;
+    struct disp_rect64 crop; /* valori a virgola fissa 32.32 */
+    int flags;
+    int scan;
+};
+struct disp_layer_info {
+    int mode;                /* 0 = buffer */
+    unsigned char zorder, alpha_mode, alpha_value;
+    struct disp_rect screen_win;
+    bool b_trd_out;
+    int out_trd_mode;
+    union { unsigned int color; struct disp_fb_info fb; };
+    unsigned int id;
+};
+struct disp_layer_config { struct disp_layer_info info; bool enable; unsigned int channel, layer_id; };
+#define DISP_LAYER_SET_CONFIG 0x47
+#define DISP_LAYER_GET_CONFIG 0x48
+
+/* Il menu sta in un livello del display sopra al gioco, con un'immagine ARGB nella parte
+   finale della memoria di fb0 (con la GPU attiva fb0 non è mostrata: il gioco ha un livello
+   suo). Lo schermo della Smart Pro è montato in verticale (720x1280): se il livello del gioco
+   è verticale e il menu orizzontale, si disegna ruotato; il verso si corregge con
+   System/menu-rotazione (90 o 270). */
+static uint32_t *ov;          /* immagine del livello */
+static int ov_w, ov_h;        /* misura del livello (come lo schermo) */
+static int lw, lh;            /* misura "logica" orizzontale in cui si disegna */
+static int ov_rot;            /* 0, 90 o 270 */
+
+static void fb_px(int x, int y, uint32_t argb) {
+    if (x < 0 || y < 0 || x >= lw || y >= lh) return;
+    int X = x, Y = y;
+    if (ov_rot == 90) { X = ov_w - 1 - y; Y = x; }
+    else if (ov_rot == 270) { X = y; Y = ov_h - 1 - x; }
+    ov[(size_t)Y * ov_w + X] = argb;
 }
 
 static void fb_rect(int x, int y, int w, int h, uint32_t c) {
+    if ((c >> 24) == 0 && c) c |= 0xFF000000u;   /* colori senza alfa: opachi */
     for (int j = y; j < y + h; j++)
         for (int i = x; i < x + w; i++) fb_px(i, j, c);
 }
@@ -145,9 +181,14 @@ static void fb_text(const char *s, int x, int y, int sc, uint32_t c) {
             if (FONT[k].c != ch) continue;
             for (int r = 0; r < 7; r++)
                 for (int col = 0; col < 5; col++)
-                    if (FONT[k].rows[r] >> (4 - col) & 1) fb_rect(x + col * sc, y + r * sc, sc, sc, c);
+                    if (FONT[k].rows[r] >> (4 - col) & 1) fb_rect(x + col * sc, y + r * sc, sc, sc, c | 0xFF000000u);
         }
     }
+}
+
+static int disp_layer(int dfd, int cmd, struct disp_layer_config *c) {
+    unsigned long arg[4] = { 0, (unsigned long)c, 1, 0 };
+    return ioctl(dfd, cmd, arg);
 }
 
 /* impostazioni del launcher: si leggono e si aggiornano solo volume e luminosità */
@@ -212,59 +253,95 @@ enum { MENU_RESUME, MENU_QUIT, MENU_POWEROFF };
 
 /* menu con il gioco fermo; restituisce MENU_* */
 static int fb_menu(struct pollfd *fds, int nfds) {
-    int fd = open("/dev/fb0", O_RDWR);
-    if (fd < 0) { perror("gamewatch: /dev/fb0"); return MENU_RESUME; }
-    if (ioctl(fd, FBIOGET_VSCREENINFO, &fbv) || ioctl(fd, FBIOGET_FSCREENINFO, &fbf)) { close(fd); return MENU_RESUME; }
-    fbm = mmap(NULL, fbf.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (fbm == MAP_FAILED) { close(fd); return MENU_RESUME; }
-    fprintf(stderr, "gamewatch: menu su fb0 %ux%u (virtuale %ux%u, yoffset %u, %u bpp)\n",
-            fbv.xres, fbv.yres, fbv.xres_virtual, fbv.yres_virtual, fbv.yoffset, fbv.bits_per_pixel);
-    /* cosa mostra davvero il controller dello schermo (livelli e indirizzi): con la GPU attiva
-       l'immagine visibile può non essere quella indicata da yoffset */
-    fprintf(stderr, "gamewatch: fb0 a 0x%lx, %u byte\n", (unsigned long)fbf.smem_start, fbf.smem_len);
-    FILE *ds = fopen("/sys/class/disp/disp/attr/sys", "r");
-    if (ds) {
-        char l[256];
-        while (fgets(l, sizeof l, ds)) fprintf(stderr, "gamewatch: disp: %s", l);
-        fclose(ds);
+    int fd = open("/dev/fb0", O_RDWR), dfd = open("/dev/disp", O_RDWR);
+    if (fd < 0 || dfd < 0) { perror("gamewatch: fb0/disp"); if (fd >= 0) close(fd); if (dfd >= 0) close(dfd); return MENU_RESUME; }
+    if (ioctl(fd, FBIOGET_VSCREENINFO, &fbv) || ioctl(fd, FBIOGET_FSCREENINFO, &fbf)) { close(fd); close(dfd); return MENU_RESUME; }
+    /* livello del gioco: canale 1, livello 0 (dal log di /sys/class/disp/disp/attr/sys) */
+    struct disp_layer_config game;
+    memset(&game, 0, sizeof game);
+    game.channel = 1;
+    game.layer_id = 0;
+    int r = disp_layer(dfd, DISP_LAYER_GET_CONFIG, &game);
+    fprintf(stderr, "gamewatch: livello del gioco (esito %d, struttura %zu byte): acceso %d, modo %d, z %d, finestra %dx%d, "
+            "immagine %ux%u, formato %d, indirizzo 0x%llx; fb0 a 0x%lx (%u byte)\n",
+            r, sizeof game, game.enable, game.info.mode, game.info.zorder, game.info.screen_win.width, game.info.screen_win.height,
+            game.info.fb.size[0].width, game.info.fb.size[0].height, game.info.fb.format, game.info.fb.addr[0],
+            (unsigned long)fbf.smem_start, fbf.smem_len);
+    /* verifica: se i valori non sono plausibili le strutture non combaciano e non si tocca nulla */
+    if (r < 0 || !game.enable || game.info.mode != 0 || !game.info.fb.addr[0] || game.info.screen_win.width < 320 ||
+        game.info.screen_win.height < 240 || game.info.screen_win.width > 4096 || game.info.screen_win.height > 4096) {
+        fprintf(stderr, "gamewatch: livello del gioco non riconosciuto: niente menu\n");
+        close(fd);
+        close(dfd);
+        return MENU_RESUME;
     }
-    int W = (int)fbv.xres, H = (int)fbv.yres, bpp = (int)fbv.bits_per_pixel / 8;
-    /* tutte le immagini della memoria video: il pannello va su ognuna */
-    unsigned nbuf = fbv.yres_virtual / fbv.yres;
-    while (nbuf > 1 && (size_t)nbuf * fbv.yres * fbf.line_length > fbf.smem_len) nbuf--;
-    if (nbuf < 1) nbuf = 1;
-    if (nbuf > 32) nbuf = 32;
+    ov_w = (int)game.info.screen_win.width;
+    ov_h = (int)game.info.screen_win.height;
+    size_t need = (size_t)ov_w * ov_h * 4;
+    if (need + 4096 > fbf.smem_len) { close(fd); close(dfd); return MENU_RESUME; }
+    size_t off = (fbf.smem_len - need) & ~(size_t)4095;
+    fbm = mmap(NULL, fbf.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (fbm == MAP_FAILED) { close(fd); close(dfd); return MENU_RESUME; }
+    ov = (uint32_t *)(fbm + off);
+    /* menu orizzontale: su uno schermo verticale si ruota */
+    ov_rot = 0;
+    lw = ov_w;
+    lh = ov_h;
+    if (ov_h > ov_w) {
+        ov_rot = 90;
+        char rp[1200];
+        snprintf(rp, sizeof rp, "%.*s/menu-rotazione", (int)(strlen(settings_path) - strlen("/settings.json")), settings_path);
+        FILE *rf = fopen(rp, "r");
+        if (rf) { int v = 0; if (fscanf(rf, "%d", &v) == 1 && (v == 90 || v == 270)) ov_rot = v; fclose(rf); }
+        lw = ov_h;
+        lh = ov_w;
+    }
+    /* sfondo: gioco scurito (nero semitrasparente) */
+    for (size_t i = 0; i < (size_t)ov_w * ov_h; i++) ov[i] = 0xA0000000u;
+    struct disp_layer_config mine = game;
+    mine.channel = 2;
+    mine.layer_id = 0;
+    mine.enable = 1;
+    mine.info.zorder = (unsigned char)(game.info.zorder + 1);
+    mine.info.alpha_mode = 0;    /* alfa per pixel */
+    mine.info.alpha_value = 255;
+    mine.info.fb.addr[0] = fbf.smem_start + off;
+    mine.info.fb.addr[1] = mine.info.fb.addr[2] = 0;
+    mine.info.fb.format = 0;     /* ARGB 8888 */
+    mine.info.fb.pre_multiply = 0;
+    for (int k = 0; k < 3; k++) { mine.info.fb.size[k].width = (unsigned)ov_w; mine.info.fb.size[k].height = (unsigned)ov_h; }
+    mine.info.fb.crop = (struct disp_rect64){ 0, 0, (long long)ov_w << 32, (long long)ov_h << 32 };
+    mine.info.screen_win = (struct disp_rect){ 0, 0, (unsigned)ov_w, (unsigned)ov_h };
+    r = disp_layer(dfd, DISP_LAYER_SET_CONFIG, &mine);
+    if (r < 0) {   /* canale 2 assente: si prova il canale 0 */
+        mine.channel = 0;
+        r = disp_layer(dfd, DISP_LAYER_SET_CONFIG, &mine);
+    }
+    fprintf(stderr, "gamewatch: livello del menu sul canale %u (esito %d), rotazione %d\n", mine.channel, r, ov_rot);
+    if (r < 0) { munmap(fbm, fbf.smem_len); close(fd); close(dfd); return MENU_RESUME; }
+    FILE *ds = fopen("/sys/class/disp/disp/attr/sys", "r");
+    if (ds) { char l[256]; while (fgets(l, sizeof l, ds)) if (strstr(l, "enable")) fprintf(stderr, "gamewatch: disp: %s", l); fclose(ds); }
 
     bool it = setting_lang_it();
     int vol = setting_get("volume", 12), bri = setting_get("brightness", 8);
     const char *labels_it[5] = { "RIPRENDI", "VOLUME", "LUMINOSITA", "ESCI DAL GIOCO", "SPEGNI" };
     const char *labels_en[5] = { "RESUME", "VOLUME", "BRIGHTNESS", "QUIT GAME", "POWER OFF" };
     const char **labels = it ? labels_it : labels_en;
+    int W = lw, H = lh;
     int sel = 0, result = -1, sc = W >= 1000 ? 5 : 4;
     int pw = W * 6 / 10, rh = 7 * sc + 4 * sc, ph = 5 * rh + 10 * sc + 7 * sc + 6 * sc;
     int px0 = (W - pw) / 2, py0 = (H - ph) / 2;
-    /* si salva solo la zona del pannello (con un bordo), in ogni immagine */
-    int bx = px0 - 2 * sc, by = py0 - 2 * sc, bw = pw + 4 * sc, bh = ph + 4 * sc;
-    size_t rowb = (size_t)bw * bpp;
-    uint8_t *saved = malloc(rowb * bh * nbuf);
-    if (!saved) { munmap(fbm, fbf.smem_len); close(fd); return MENU_RESUME; }
-    for (unsigned b = 0; b < nbuf; b++)
-        for (int y = 0; y < bh; y++)
-            memcpy(saved + (b * bh + y) * rowb, fbm + (size_t)(b * fbv.yres + by + y) * fbf.line_length + (size_t)bx * bpp, rowb);
-    fprintf(stderr, "gamewatch: disegno su %u immagini\n", nbuf);
     int hx = 0, hy = 0;   /* croce (cappello) */
     bool redraw = true;
     while (result < 0) {
-        if (redraw) for (unsigned b = 0; b < nbuf; b++) {
-            fb_yoff = b * fbv.yres;
-            fb_rect(bx, by, bw, bh, 0x000000);
-            fb_rect(px0, py0, pw, ph, 0x202530);
-            fb_rect(px0, py0, pw, 3 * sc, 0x0FB1D4);
+        if (redraw) {
+            fb_rect(px0, py0, pw, ph, 0xFF202530);
+            fb_rect(px0, py0, pw, 3 * sc, 0xFF0FB1D4);
             fb_text("MENU", px0 + 4 * sc, py0 + 5 * sc, sc, 0xFFFFFF);
             for (int i = 0; i < 5; i++) {
                 int y = py0 + 10 * sc + 7 * sc + i * rh;
-                fb_rect(px0 + 2 * sc, y - 2 * sc, pw - 4 * sc, rh - sc, i == sel ? 0x0FB1D4 : 0x202530);
-                uint32_t c = i == sel ? 0x000000 : 0xFFFFFF;
+                fb_rect(px0 + 2 * sc, y - 2 * sc, pw - 4 * sc, rh - sc, i == sel ? 0xFF0FB1D4 : 0xFF202530);
+                uint32_t c = i == sel ? 0xFF000000 : 0xFFFFFFFF;
                 fb_text(labels[i], px0 + 4 * sc, y, sc, c);
                 if (i == 1 || i == 2) {
                     char v[24];
@@ -272,7 +349,7 @@ static int fb_menu(struct pollfd *fds, int nfds) {
                     fb_text(v, px0 + pw - 4 * sc - (int)strlen(v) * 6 * sc, y, sc, c);
                 }
             }
-            if (b == nbuf - 1) redraw = false;
+            redraw = false;
         }
         if (poll(fds, (nfds_t)nfds, 200) <= 0) continue;
         for (int i = 0; i < nfds && result < 0; i++) {
@@ -304,12 +381,11 @@ static int fb_menu(struct pollfd *fds, int nfds) {
             }
         }
     }
-    for (unsigned b = 0; b < nbuf; b++)
-        for (int y = 0; y < bh; y++)
-            memcpy(fbm + (size_t)(b * fbv.yres + by + y) * fbf.line_length + (size_t)bx * bpp, saved + (b * bh + y) * rowb, rowb);
-    free(saved);
+    mine.enable = 0;
+    disp_layer(dfd, DISP_LAYER_SET_CONFIG, &mine);
     munmap(fbm, fbf.smem_len);
     close(fd);
+    close(dfd);
     fprintf(stderr, "gamewatch: menu chiuso (%s)\n", result == MENU_RESUME ? "riprendi" : result == MENU_QUIT ? "esci" : "spegni");
     return result;
 }
