@@ -66,6 +66,7 @@
     "power": "Konsole ausschalten",
     "duplicates": "Doppelte Spiele",
     "scrape": "Bilder herunterladen",
+    "clean_media": "Bilder aufräumen",
     "bezel": "Spielrahmen",
     "missing": "Spiele ohne ROM",
     "screensaver": "Bildschirmschoner",
@@ -95,6 +96,7 @@
     "power": "Speichert und schaltet aus.",
     "duplicates": "Spiel in FinalBurn Neo und MAME 2003+ vorhanden: beide oder nur eines anzeigen.",
     "scrape": "Lädt Screenshots, Titelbilder und Marquees von ArcadeDB und den libretro-Thumbnails. WLAN nötig.",
+    "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
     "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
@@ -390,5 +392,12 @@
     "blue": "Blau",
     "purple": "Violett",
     "pink": "Rosa"
+  },
+  "clean": {
+    "title": "Bilder aufräumen",
+    "body": "%d Bilder von Spielen, die nicht mehr auf der Karte sind (%s). Löschen?",
+    "delete": "Löschen",
+    "done": "%d Bilder gelöscht (%s)",
+    "none": "Keine Bilder zu löschen"
   }
 }

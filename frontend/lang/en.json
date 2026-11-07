@@ -66,6 +66,7 @@
     "power": "Power off the console",
     "duplicates": "Duplicate games",
     "scrape": "Download images",
+    "clean_media": "Clean up images",
     "bezel": "Game bezels",
     "missing": "Games without ROM",
     "screensaver": "Screensaver",
@@ -95,6 +96,7 @@
     "power": "Saves and powers off.",
     "duplicates": "Game present in both FinalBurn Neo and MAME 2003+: show both or only one.",
     "scrape": "Downloads game screenshots, titles and marquees from ArcadeDB and libretro thumbnails. Needs Wi-Fi.",
+    "clean_media": "Deletes downloaded images of games that are no longer on the card.",
     "bezel": "A bezel around the game: the game's own from Bezels/ if present, otherwise the default one.",
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
     "screensaver": "After a while without input: your games' screenshots or a blank screen.",
@@ -390,5 +392,12 @@
     "blue": "Blue",
     "purple": "Purple",
     "pink": "Pink"
+  },
+  "clean": {
+    "title": "Clean up images",
+    "body": "%d images of games no longer on the card (%s). Delete them?",
+    "delete": "Delete",
+    "done": "Deleted %d images (%s)",
+    "none": "No images to delete"
   }
 }

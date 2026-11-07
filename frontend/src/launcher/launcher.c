@@ -1133,12 +1133,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "info", "power",
+    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "info", "power",
 };
 
 static const char *set_text(const char *group, int item) {
@@ -1713,6 +1713,108 @@ static void sdinfo_draw(void) {
     ui_hints(hint, 2);
 }
 
+/* Pulisci immagini: le immagini in Media/<tipo>/ di giochi che non sono sulla scheda (ROM
+   tolte) si contano, si mostrano con lo spazio occupato e, con conferma, si eliminano. */
+static bool clean_open;
+static int clean_n, clean_sel;
+static long long clean_bytes;
+
+static int cmp_name(const void *a, const void *b) { return strcmp(*(const char *const *)a, *(const char *const *)b); }
+
+static int media_orphans(bool del, long long *bytes) {
+    const char **names = malloc(sizeof *names * (size_t)(ngames ? ngames : 1));
+    int nn = 0, count = 0;
+    for (int i = 0; i < ngames; i++)
+        if (!games[i].missing) names[nn++] = games[i].name;
+    qsort(names, (size_t)nn, sizeof *names, cmp_name);
+    *bytes = 0;
+    char dir[1100];
+    snprintf(dir, sizeof dir, "%s/Media", UI.root);
+    DIR *d = opendir(dir);
+    struct dirent *e;
+    while (d && (e = readdir(d))) {
+        if (e->d_name[0] == '.') continue;
+        char sub[1400];
+        snprintf(sub, sizeof sub, "%s/%s", dir, e->d_name);
+        struct stat st;
+        if (stat(sub, &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+        DIR *d2 = opendir(sub);
+        struct dirent *f;
+        while (d2 && (f = readdir(d2))) {
+            if (f->d_name[0] == '.') continue;
+            char stem[256];
+            snprintf(stem, sizeof stem, "%s", f->d_name);
+            char *dot = strrchr(stem, '.');
+            if (dot) *dot = 0;
+            const char *key = stem;
+            if (bsearch(&key, names, (size_t)nn, sizeof *names, cmp_name)) continue;
+            char path[1700];
+            snprintf(path, sizeof path, "%s/%s", sub, f->d_name);
+            if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+            count++;
+            *bytes += st.st_size;
+            if (del) unlink(path);
+        }
+        if (d2) closedir(d2);
+    }
+    if (d) closedir(d);
+    free(names);
+    return count;
+}
+
+static void clean_start(void) {
+    clean_n = media_orphans(false, &clean_bytes);
+    if (!clean_n) { ui_toast(T("clean.none")); ui_sound(SND_MOVE); return; }
+    clean_sel = 0;
+    clean_open = true;
+    ui_sound(SND_OK);
+}
+
+static void clean_input(void) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) { clean_sel = !clean_sel; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { clean_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_A]) {
+        clean_open = false;
+        if (clean_sel == 1) {
+            long long b;
+            int n = media_orphans(true, &b);
+            char size[32], m[160];
+            fmt_bytes(b, size, sizeof size);
+            snprintf(m, sizeof m, T("clean.done"), n, size);
+            ui_log("pulizia immagini: %d file, %lld byte", n, b);
+            ui_image_forget_missing();
+            ui_toast(m);
+            ui_sound(SND_OK);
+        } else ui_sound(SND_BACK);
+    }
+}
+
+static void clean_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    int w = M(0.85f), h = M(0.40f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_text(UI.f_title, T("clean.title"), x + w / 2, y + M(0.05f), t->text, ALIGN_CENTER);
+    char size[32], body[200], lines[2][160];
+    fmt_bytes(clean_bytes, size, sizeof size);
+    snprintf(body, sizeof body, T("clean.body"), clean_n, size);
+    int n = ui_wrap(UI.f_small, body, w - M(0.08f), lines, 2);
+    int ty = y + M(0.05f) + TTF_FontHeight(UI.f_title) + M(0.015f);
+    for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], x + w / 2, ty + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_CENTER);
+    int bw = (w - M(0.09f)) / 2, bh = M(0.085f), by = y + h - bh - M(0.04f);
+    const char *labels[2] = { T("common.cancel"), T("clean.delete") };
+    for (int i = 0; i < 2; i++) {
+        int bx = x + M(0.03f) + i * (bw + M(0.03f));
+        bool sel = clean_sel == i;
+        ui_rrect(bx, by, bw, bh, bh / 2, sel ? (i == 1 ? rgba(220, 70, 70, 255) : t->accent) : with_alpha(t->text_dim, 40));
+        ui_text(UI.f_normal, labels[i], bx + bw / 2, by + (bh - TTF_FontHeight(UI.f_normal)) / 2, sel ? rgba(255, 255, 255, 255) : t->text, ALIGN_CENTER);
+    }
+    const char *hint[] = { "B", T("common.cancel"), "<>", T("common.change"), "A", T("common.ok") };
+    ui_hints(hint, 6);
+}
+
 static void settings_input(void) {
     input_t *in = &UI.in;
     if (in->pressed[BTN_UP]) { set_sel = (set_sel + S_COUNT - 1) % S_COUNT; ui_sound(SND_MOVE); }
@@ -1722,6 +1824,7 @@ static void settings_input(void) {
     if (in->pressed[BTN_A]) {
         if (set_sel == S_POWER) { dlg_open = true; dlg_sel = 0; ui_sound(SND_OK); }
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
+        else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_WIFI && wifi_supported()) {
             if (!UI.set.wifi) set_change(S_WIFI, +1);
             wpanel_start();
@@ -1782,7 +1885,7 @@ static void settings_draw(void) {
         bool sel = i == set_sel;
         color_t lc = i == S_POWER ? (sel ? rgba(220, 70, 70, 255) : t->text) : t->text;
         ui_text(f, set_text("settings", i), mx + M(0.03f), cy - fh / 2, lc, ALIGN_LEFT);
-        if (i == S_POWER || i == S_SCRAPE || i == S_ROMCHECK) continue;
+        if (i == S_POWER || i == S_SCRAPE || i == S_ROMCHECK || i == S_CLEANMEDIA) continue;
         int vx = mx + w - M(0.03f);
         char val[160];
         set_value(i, val, sizeof val);
@@ -1839,7 +1942,7 @@ static void settings_draw(void) {
     int dy = UI.h - M(t->hintbar_h) - desc_h + M(0.01f);
     for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], mx, dy + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
     /* con la finestra di data e ora aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || wpanel_open) return;
+    if (clock_open || sdinfo_open || wpanel_open || clean_open) return;
     const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
     ui_hints(h, 4);
 }
@@ -2720,7 +2823,7 @@ int main(int argc, char **argv) {
         if (UI.in.power_long && !dlg_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open) {
-            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = false;
+            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
         }
@@ -2735,6 +2838,7 @@ int main(int argc, char **argv) {
         else if (dlg_open) dialog_input();
         else if (clock_open) clock_input();
         else if (wpanel_open) wpanel_input();
+        else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
         else if (screen == SCR_HOME && is_bar_layout()) bar_input();
         else if (screen == SCR_HOME) home_input();
@@ -2753,6 +2857,7 @@ int main(int argc, char **argv) {
         if (dlg_open) dialog_draw();
         if (clock_open) clock_draw();
         if (wpanel_open) wpanel_draw();
+        if (clean_open) clean_draw();
         if (sdinfo_open) sdinfo_draw();
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();

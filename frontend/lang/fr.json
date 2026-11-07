@@ -66,6 +66,7 @@
     "power": "Éteindre la console",
     "duplicates": "Jeux en double",
     "scrape": "Télécharger les images",
+    "clean_media": "Nettoyer les images",
     "bezel": "Cadres des jeux",
     "missing": "Jeux sans ROM",
     "screensaver": "Économiseur d'écran",
@@ -95,6 +96,7 @@
     "power": "Enregistre et éteint.",
     "duplicates": "Jeu présent dans FinalBurn Neo et MAME 2003+ : afficher les deux ou un seul.",
     "scrape": "Télécharge captures, écrans titres et marquees depuis ArcadeDB et les vignettes libretro. Wi-Fi requis.",
+    "clean_media": "Supprime les images téléchargées des jeux qui ne sont plus sur la carte.",
     "bezel": "Un cadre (bezel) autour du jeu : celui du jeu dans Bezels/ s'il existe, sinon celui par défaut.",
     "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
     "screensaver": "Après un moment sans action : captures de vos jeux ou écran éteint.",
@@ -390,5 +392,12 @@
     "blue": "Bleu",
     "purple": "Violet",
     "pink": "Rose"
+  },
+  "clean": {
+    "title": "Nettoyer les images",
+    "body": "%d images de jeux qui ne sont plus sur la carte (%s). Les supprimer ?",
+    "delete": "Supprimer",
+    "done": "%d images supprimées (%s)",
+    "none": "Aucune image à supprimer"
   }
 }

@@ -66,6 +66,7 @@
     "power": "Desligar a consola",
     "duplicates": "Jogos duplicados",
     "scrape": "Transferir imagens",
+    "clean_media": "Limpar imagens",
     "bezel": "Molduras dos jogos",
     "missing": "Jogos sem ROM",
     "screensaver": "Proteção de ecrã",
@@ -95,6 +96,7 @@
     "power": "Guarda e desliga.",
     "duplicates": "Jogo presente no FinalBurn Neo e no MAME 2003+: mostrar ambos ou só um.",
     "scrape": "Transfere capturas, ecrãs de título e marquees do ArcadeDB e das miniaturas libretro. Requer Wi-Fi.",
+    "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
     "bezel": "Uma moldura (bezel) à volta do jogo: a do jogo em Bezels/ se existir, senão a predefinida.",
     "missing": "Mostra também os jogos do catálogo que não tem (só versões principais).",
     "screensaver": "Após algum tempo sem usar os botões: capturas dos seus jogos ou ecrã desligado.",
@@ -390,5 +392,12 @@
     "blue": "Azul",
     "purple": "Roxo",
     "pink": "Rosa"
+  },
+  "clean": {
+    "title": "Limpar imagens",
+    "body": "%d imagens de jogos que já não estão no cartão (%s). Apagá-las?",
+    "delete": "Apagar",
+    "done": "%d imagens apagadas (%s)",
+    "none": "Nenhuma imagem para apagar"
   }
 }
