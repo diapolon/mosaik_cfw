@@ -10,8 +10,8 @@ U-Boot con la configurazione dell'hardware, kernel) è propria di ogni console e
 legge da una posizione fissa: un'immagine unica non è possibile, ma il contenuto (cartella
 `Arcade`, ROM, salvataggi) è lo stesso e si sposta da una scheda all'altra.
 
-- `dist/m2-brickpro.img` per la Brick Pro (provata: launcher, giochi, audio, tasti)
-- `dist/m2-smartpro.img` per la Smart Pro (da provare)
+- `dist/m2-brickpro.img` per la Brick Pro (provata sulla console)
+- `dist/m2-smartpro.img` per la Smart Pro (provata sulla console)
 
 **Seconda prova**: avvio completo fino al launcher, moduli della GPU caricati (PowerVR
 riconosciuta, framebuffer 1024×768), ma la SDL2 di TrimUI non partiva: `Failed loading

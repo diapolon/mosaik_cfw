@@ -473,8 +473,9 @@ Codice in [frontend/](frontend/README.md).
   di cuffie, altoparlante e LINEOUT, uscita `DAC_SINGLE`), FAT danneggiato dagli spegnimenti
   bruschi (ora `fsck.fat` a ogni avvio e montaggio con `flush`), gioco trasparente (texture
   ARGB con l'alfa a 0: ora RGB888/RGB555).
-- **Smart Pro**: stesso sistema con uno strato per modello (`/fw/tg5040`), immagine
-  `dist/m2-smartpro.img`; provata in container, da provare sulla console.
+- **M2 funziona anche sulla Smart Pro (7 novembre)**: stesso sistema con uno strato per
+  modello (`/fw/tg5040`), immagine `dist/m2-smartpro.img`. Gradino 3 raggiunto su entrambe le
+  console: sistema proprio su SD, senza toccare la memoria interna.
 - **M2 pronta per la Brick Pro (6 novembre, `m2/`)**: SD che avvia direttamente il launcher.
   Sistema in un unico squashfs (13 MB) sulla FAT, con BusyBox e le librerie del firmware
   (glibc 2.33, SDL2 2.30.8 con driver "mali", PowerVR, ALSA, `trimui_inputd`); initramfs che
