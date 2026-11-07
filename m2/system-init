@@ -47,6 +47,16 @@ echo "=== $(date) · sistema Arcade M2 · $TRIMUI_MODEL" >> "$LOG"
 step "5 SISTEMA AVVIATO: $TRIMUI_MODEL ($(readlink /run/fw))" "PREPARO L'HARDWARE"
 /run/fw/hw-init.sh >> "$LOG" 2>&1 || step "preparazione hardware: errore"
 
+# controllo della SD su richiesta: con Arcade/System/controlla-sd, fsck.fat in sola lettura
+# (la SD è montata: è solo una diagnosi) e risultato in Logs/fsck-controllo.txt
+if [ -f "$ROOT/System/controlla-sd" ]; then
+    rm -f "$ROOT/System/controlla-sd"
+    DEV=$(awk '$2 == "/mnt/SDCARD" { print $1 }' /proc/mounts)
+    { echo "=== $(date) $DEV"; fsck.fat -n -v "$DEV"; echo "esito $?"; } > "$ROOT/Logs/fsck-controllo.txt" 2>&1
+    sync
+    step "controllo della SD: Logs/fsck-controllo.txt"
+fi
+
 # pulizia dei file che macOS lascia sulla SD copiando (._nome, .DS_Store; il launcher li
 # ignora): in sottofondo e solo quando il launcher è già partito. Fatta durante l'avvio,
 # centinaia di cancellazioni rallentavano i "sync" successivi (16 s al primo avvio).

@@ -32,6 +32,10 @@ for a in $($R/bin/busybox --list-full); do [ -e $R/$a ] || ln -s /bin/busybox $R
 rm -f $R/sbin/init
 cp $T/m2/system-init $R/sbin/init
 cp /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch $W/fbmsg $R/usr/arcade/bin/
+# fsck.fat (Alpine, musl) anche nel sistema: controllo della SD su richiesta (System/controlla-sd)
+cp /sbin/fsck.fat $R/usr/sbin/fsck.fat
+cp /lib/ld-musl-aarch64.so.1 $R/lib/
+ln -sf ld-musl-aarch64.so.1 $R/lib/libc.musl-aarch64.so.1
 # Wi-Fi: servizio (wifi-ctl), eventi di wpa_cli e script di udhcpc
 cp $T/m2/wifi-ctl $T/m2/wifi-event $T/m2/udhcpc-script $R/usr/arcade/bin/
 # la SDL2 di TrimUI chiama "setterm" per nascondere il cursore: basta che esista
