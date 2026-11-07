@@ -296,6 +296,7 @@ static void reload_games(void) {
     games_free(games, ngames);
     emulators_load(UI.root);
     ngames = games_scan(UI.root, &games, UI.set.show_missing);
+    ui_mark("lettura dei giochi");
     games_mark_lists(UI.root, games, ngames);
     romcheck_load(UI.root, games, ngames);
     mark_duplicates();
@@ -2870,12 +2871,14 @@ int main(int argc, char **argv) {
         ui_shutdown_code(EXIT_LAUNCH);
         return EXIT_LAUNCH;
     }
+    ui_mark("schermata di caricamento");
     nthemes = theme_list(UI.root, theme_ids, theme_names, 16);
     nlangs = lang_list(UI.root, lang_codes, lang_names, 16);
     nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
     reload_games();
-    ui_log("tempi: giochi caricati a %u ms", SDL_GetTicks());
+    ui_mark("giochi pronti");
     music_init(UI.root);
+    ui_mark("musica");
     screen = is_list_layout() ? SCR_LIBRARY : SCR_HOME;
     screen_t0 = -1;
     bool first_frame = true;
@@ -2942,7 +2945,7 @@ int main(int argc, char **argv) {
         if (scrape_open) scrape_draw();
         if (romcheck_open) romcheck_draw();
         battery_check();
-        if (first_frame) { first_frame = false; ui_log("tempi: prima schermata a %u ms", SDL_GetTicks()); }
+        if (first_frame) { first_frame = false; ui_mark("prima schermata"); }
         if (saver_on) saver_draw();
         float fade = screen_t0 < 0 ? 0 : 1 - (float)((UI.t - screen_t0) / 0.18);
         if (fade > 0) ui_rect(0, 0, UI.w, UI.h, with_alpha(UI.th.bg, (int)(255 * fade)));

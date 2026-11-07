@@ -16,10 +16,11 @@ echo 0 > /proc/sys/kernel/panic
 
 P=""
 STEPS=""
+# passi nel log (a schermo resta il logo di U-Boot, poi il nostro: le schermate di prova a
+# strisce compaiono solo per gli errori, rosse)
 step() {
     echo "$(cut -d' ' -f1 /proc/uptime)s initramfs: $1" >> /tmp/passi.txt
-    fbmsg show blu 0 "$1" "$2" 2>/dev/null
-    if [ -n "$STEPS" ]; then cat /tmp/passi.txt >> "$STEPS"; : > /tmp/passi.txt; sync; fi
+    if [ -n "$STEPS" ]; then cat /tmp/passi.txt >> "$STEPS"; : > /tmp/passi.txt; fi
 }
 fail() {
     step "ERRORE: $1" "$2"
@@ -43,7 +44,7 @@ mkdir -p /sd /root
 # dopo uno spegnimento brusco. Con una SD grande il controllo legge decine di MB.
 STATE=$(dd if="$P" bs=1 skip=65 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
 if [ $(( ${STATE:-1} & 1 )) = 1 ]; then
-    fbmsg show blu 0 "1b CONTROLLO LA SD" "" 2>/dev/null
+    fbmsg show blu 0 "CONTROLLO LA SD" "" 2>/dev/null
     fsck.fat -a -w "$P" > /tmp/fsck.txt 2>&1
     FSCK=$?
 else
@@ -55,7 +56,7 @@ PN=${P#/dev/}
 DISK=/dev/$(basename "$(readlink -f /sys/class/block/$PN/..)")
 GROW=1
 if [ -f /sys/class/block/$PN/partition ] && [ -b "$DISK" ]; then
-    fbmsg show blu 0 "1c SPAZIO SULLA SD" "" 2>/dev/null
+    fbmsg show blu 0 "PREPARO LA SD" "PRIMA ACCENSIONE" 2>/dev/null
     sdgrow "$DISK" "$P" > /tmp/sdgrow.txt 2>&1
     GROW=$?
 fi
@@ -73,6 +74,7 @@ STEPS=/sd/Arcade/Logs/passi.txt
 [ -f "$STEPS" ] && [ "$(wc -c < "$STEPS")" -gt 100000 ] && mv -f "$STEPS" "$STEPS.old"
 echo "=== avvio $(date) · $(cat /proc/version)" >> "$STEPS"
 step "2 SD MONTATA" "$P"
+fbmsg logo /sd/bootlogo.bmp 2>/dev/null
 case $FSCK in
     skip) step "2b FAT chiuso bene all'ultimo spegnimento: controllo non necessario" ;;
     0) step "2b FAT: nessun errore" ;;
@@ -97,6 +99,7 @@ MID=$(sed -n 1p /etc/arcade-model 2>/dev/null); MNAME=$(sed -n 2p /etc/arcade-mo
 ln -s /fw/$MID /root/run/fw
 echo "$MNAME" > /root/run/trimui-model
 step "4 PASSO AL SISTEMA" "$MNAME"
+sync
 umount /sd
 mount -t vfat -o rw,noatime,flush "$P" /root/mnt/SDCARD || fail "RIMONTAGGIO SD"
 mount --move /dev /root/dev

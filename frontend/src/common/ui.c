@@ -90,6 +90,12 @@ void ui_suspend(void) {
     UI.in.power = UI.in.power_long = false;
 }
 
+void ui_mark(const char *what) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    ui_log("tempi: %s a %.2f s", what, ts.tv_sec + ts.tv_nsec / 1e9);
+}
+
 void ui_log(const char *fmt, ...) {
     char msg[1024];
     va_list ap;
@@ -1482,6 +1488,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     logf_ = fopen(p, "a");
     crash_handlers();
     ui_log("---- avvio %s", app);
+    ui_mark("inizio");
     settings_load(&UI.set, root);
     settings_apply_tz(&UI.set);
     lang_load(root, UI.set.lang);
@@ -1494,6 +1501,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
         ui_log("SDL_Init: %s", SDL_GetError());
         return false;
     }
+    ui_mark("SDL_Init");
     TTF_Init();
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     /* Sulla console la finestra ha la misura del modello, come in MinUI: lo schermo della
@@ -1517,6 +1525,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
         UI.ren = SDL_CreateRenderer(UI.win, -1, SDL_RENDERER_SOFTWARE | SDL_RENDERER_TARGETTEXTURE);
     }
+    ui_mark("finestra e renderer");
     if (UI.ren) {
         SDL_RendererInfo ri;
         SDL_GetRendererInfo(UI.ren, &ri);
@@ -1529,7 +1538,9 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
     UI.audio_rate = audio_rate > 0 ? audio_rate : 48000;
     audio_open();
+    ui_mark("audio");
     ui_apply_device();
+    ui_mark("tema e caratteri");
     t0 = tprev = SDL_GetPerformanceCounter();
     return true;
 }

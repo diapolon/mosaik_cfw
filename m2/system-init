@@ -50,6 +50,9 @@ done
 # orologio della console in UTC (come nel firmware TrimUI); il fuso orario lo applica il launcher
 hwclock -s -u 2>/dev/null
 echo "=== $(date) · sistema Arcade M2 · $TRIMUI_MODEL" >> "$LOG"
+# logo di avvio (lo stesso bootlogo.bmp che mostra U-Boot) al posto della schermata di prova,
+# fino alla prima schermata del launcher
+fbmsg logo /mnt/SDCARD/bootlogo.bmp 2>/dev/null
 step "5 SISTEMA AVVIATO: $TRIMUI_MODEL ($(readlink /run/fw))"
 /run/fw/hw-init.sh >> "$LOG" 2>&1 || step "preparazione hardware: errore"
 

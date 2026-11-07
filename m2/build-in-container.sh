@@ -167,6 +167,10 @@ PYEOF
     P4=$(( $(sgdisk -i 4 $IMG | sed -n "s/^Partition size: \([0-9]*\).*/\1/p") * 512 ))
     [ $(stat -c %s $FAT) -le $P4 ] || { echo "FAT più grande della partizione"; exit 1; }
     put $FAT $(start 4)
+    # logo di avvio di U-Boot (bootlogo.bmp nella partizione boot-resource, cioè ARCADE): come
+    # l'originale, 32 bit per la Smart Pro e 24 per la Brick Pro
+    bits=24; [ $id = tg5040 ] && bits=32
+    mcopy -o -i "$IMG@@$(( $(start 4) * 512 ))" $T/m2/bootlogo-$bits.bmp ::bootlogo.bmp
     sgdisk -v $IMG | grep -qi "no problems" || { sgdisk -v $IMG; exit 1; }
     wm=$(dd if=$IMG bs=1 skip=$((32800 * 512 + 2272)) count=1 2>/dev/null | od -An -tu1 | tr -d " ")
     [ "$wm" = 0 ] || { echo "ATTENZIONE: immagine $file con work mode $wm: non usarla"; rm -f $IMG; exit 1; }

@@ -94,6 +94,8 @@ int ui_pads(char names[][64], int *ports, int max);
 void ui_begin(void);                 /* disegno sul canvas con lo sfondo del tema */
 void ui_end(void);                   /* presentazione, luminosità, screenshot automatici */
 void ui_log(const char *fmt, ...);
+/* tempi dell'avvio nel log: secondi dall'accensione (come Logs/passi.txt) */
+void ui_mark(const char *what);
 
 /* misure: frazione dell'altezza -> pixel */
 int M(float f);

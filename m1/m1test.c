@@ -2,6 +2,7 @@
      m1test info                stampa le caratteristiche del framebuffer
      m1test show COLORE SEC RIGA1 [RIGA2]   schermata con barre di colore e messaggio
      m1test keys SEC            registra per SEC secondi i tasti premuti (tutti i /dev/input/event*)
+     m1test logo FILE.bmp       schermo nero con il logo al centro (bootlogo.bmp di U-Boot, 24/32 bit)
    COLORE: blu (in corso), verde (riuscito), rosso (fallito). Compilato statico: gira con
    il solo kernel, senza librerie. */
 #include <dirent.h>
@@ -89,6 +90,43 @@ static void show(const char *color, int secs, const char *l1, const char *l2) {
         rect(W / 10, H * 7 / 8, (int)((long)W * 8 / 10 * t / (secs > 0 ? secs * 10 : 1)), H / 30, 0xffffff);
         if (t) usleep(100 * 1000);
     }
+}
+
+/* logo: BMP non compresso a 24 o 32 bit (lo stesso bootlogo.bmp che mostra U-Boot), al centro
+   di uno schermo nero, alla misura originale: l'avvio sembra un'unica schermata */
+static int logo(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return 0;
+    uint8_t h[54];
+    if (fread(h, 1, 54, f) != 54 || h[0] != 'B' || h[1] != 'M') { fclose(f); return 0; }
+    uint32_t off = h[10] | h[11] << 8 | h[12] << 16 | (uint32_t)h[13] << 24;
+    int32_t w = (int32_t)(h[18] | h[19] << 8 | h[20] << 16 | (uint32_t)h[21] << 24);
+    int32_t hh = (int32_t)(h[22] | h[23] << 8 | h[24] << 16 | (uint32_t)h[25] << 24);
+    int bpp = h[28] | h[29] << 8, comp = h[30];
+    int H = hh < 0 ? -hh : hh;
+    if ((bpp != 24 && bpp != 32) || comp != 0 || w <= 0 || w > 4096 || H <= 0 || H > 4096) { fclose(f); return 0; }
+    size_t row = ((size_t)w * (size_t)bpp / 8 + 3) & ~(size_t)3;
+    uint8_t *buf = malloc(row * (size_t)H);
+    if (!buf || fseek(f, (long)off, SEEK_SET) || fread(buf, 1, row * (size_t)H, f) != row * (size_t)H) { free(buf); fclose(f); return 0; }
+    fclose(f);
+    /* nero (con l'alfa piena se il framebuffer ne ha una), riga per riga */
+    uint32_t black = var.transp.length ? ((1u << var.transp.length) - 1) << var.transp.offset : 0;
+    int W = (int)var.xres, HS = (int)var.yres;
+    for (int y = 0; y < HS; y++) {
+        uint8_t *p = fbmem + (size_t)(y + var.yoffset) * fix.line_length + (size_t)var.xoffset * (var.bits_per_pixel / 8);
+        if (var.bits_per_pixel == 32) for (int x = 0; x < W; x++) ((uint32_t *)p)[x] = black;
+        else memset(p, 0, (size_t)W * (var.bits_per_pixel / 8));
+    }
+    int x0 = (W - w) / 2, y0 = (HS - H) / 2;
+    for (int y = 0; y < H; y++) {
+        const uint8_t *src = buf + row * (size_t)(hh > 0 ? H - 1 - y : y);
+        for (int x = 0; x < w; x++) {
+            const uint8_t *q = src + (size_t)x * (size_t)(bpp / 8);
+            px(x0 + x, y0 + y, (uint32_t)q[2] << 16 | (uint32_t)q[1] << 8 | q[0]);
+        }
+    }
+    free(buf);
+    return 1;
 }
 
 static double now(void) {
@@ -179,6 +217,7 @@ int main(int argc, char **argv) {
         if (ok) show(argv[2], atoi(argv[3]), argv[4], argc > 5 ? argv[5] : NULL);
         return ok ? 0 : 1;
     }
+    if (!strcmp(argv[1], "logo") && argc >= 3) return ok && logo(argv[2]) ? 0 : 1;
     if (!strcmp(argv[1], "keys") && argc >= 3) {
         if (ok) {
             int W = (int)var.xres, H = (int)var.yres;
