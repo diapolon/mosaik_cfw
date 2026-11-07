@@ -152,8 +152,8 @@ void plat_poll(plat_keys_t *k) {
 bool plat_set_time(time_t t) {
     struct timeval tv = { .tv_sec = t, .tv_usec = 0 };
     if (settimeofday(&tv, NULL) != 0) { ui_log("data e ora: settimeofday non riuscita"); return false; }
-    /* stesso formato che il sistema rilegge all'avvio con "hwclock -s" */
-    int r = system("hwclock -w 2>/dev/null");
+    /* in UTC, come lo rilegge il sistema all'avvio (hwclock -s -u) */
+    int r = system("hwclock -w -u 2>/dev/null");
     ui_log("data e ora impostate, orologio della console %s", r == 0 ? "aggiornato" : "non aggiornato");
     return true;
 }

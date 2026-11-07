@@ -37,7 +37,11 @@ vuol dire solo cambiare il numero di settori, senza spostare dati. Sopra i 256 G
 partizione occupa tutta la scheda ma il FAT si ferma a 256 GB. Il controllo del FAT
 (`fsck.fat`) ora parte solo se all'ultimo spegnimento il FAT non è stato chiuso bene: con la
 tabella più grande ogni controllo legge decine di MB. In Impostazioni c'è "Data e ora", che
-scrive anche l'orologio della console (`hwclock -w`); all'avvio il sistema lo rilegge.
+scrive anche l'orologio della console in UTC (`hwclock -w -u`); all'avvio il sistema lo rilegge.
+Il fuso orario (Impostazioni, predefinito Europe/Rome) è una regola POSIX nella variabile TZ,
+con l'ora legale. Allo spegnimento si fermano i programmi con file aperti sulla SD
+(`trimui_inputd` tiene aperto il suo log), altrimenti il FAT non si chiude e al prossimo
+avvio riparte il controllo. La pulizia dei file di macOS (`._*`) parte 20 s dopo l'avvio.
 
 ## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2,3 GB)
 

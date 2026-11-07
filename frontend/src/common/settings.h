@@ -25,9 +25,17 @@ typedef struct {
     bool wifi;
     int music_vol;       /* musica del launcher: 0 spenta, 1..10 */
     bool ext_p1;         /* controller esterno come giocatore 1 (la console diventa il 2) */
+    char tz[40];         /* fuso orario, nome come "Europe/Rome" (vedi TIMEZONES in settings.c) */
 } settings_t;
 
 void settings_defaults(settings_t *s);
+/* Fusi orari: l'orologio della console è in UTC, l'ora mostrata è quella del fuso scelto.
+   Regole POSIX (variabile TZ), così non servono i file zoneinfo. */
+typedef struct { const char *id, *posix; } timezone_t;
+extern const timezone_t TIMEZONES[];
+extern const int NTIMEZONES;
+int settings_tz_index(const settings_t *s);
+void settings_apply_tz(const settings_t *s);   /* imposta TZ per questo processo e i figli */
 bool settings_load(settings_t *s, const char *root);
 bool settings_save(const settings_t *s, const char *root);
 

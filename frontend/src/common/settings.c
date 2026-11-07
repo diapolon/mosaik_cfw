@@ -2,7 +2,38 @@
 #include "json.h"
 #include "filters.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <string.h>
+
+const timezone_t TIMEZONES[] = {
+    { "UTC", "UTC0" },
+    { "Europe/London", "GMT0BST,M3.5.0/1,M10.5.0" },
+    { "Europe/Lisbon", "WET0WEST,M3.5.0/1,M10.5.0" },
+    { "Europe/Rome", "CET-1CEST,M3.5.0,M10.5.0/3" },
+    { "Europe/Athens", "EET-2EEST,M3.5.0/3,M10.5.0/4" },
+    { "Europe/Moscow", "MSK-3" },
+    { "America/New_York", "EST5EDT,M3.2.0,M11.1.0" },
+    { "America/Chicago", "CST6CDT,M3.2.0,M11.1.0" },
+    { "America/Denver", "MST7MDT,M3.2.0,M11.1.0" },
+    { "America/Los_Angeles", "PST8PDT,M3.2.0,M11.1.0" },
+    { "America/Sao_Paulo", "<-03>3" },
+    { "Asia/Shanghai", "CST-8" },
+    { "Asia/Tokyo", "JST-9" },
+    { "Australia/Sydney", "AEST-10AEDT,M10.1.0,M4.1.0/3" },
+};
+const int NTIMEZONES = sizeof TIMEZONES / sizeof *TIMEZONES;
+
+int settings_tz_index(const settings_t *s) {
+    for (int i = 0; i < NTIMEZONES; i++)
+        if (!strcmp(TIMEZONES[i].id, s->tz)) return i;
+    return 3;   /* Europe/Rome */
+}
+
+void settings_apply_tz(const settings_t *s) {
+    setenv("TZ", TIMEZONES[settings_tz_index(s)].posix, 1);
+    tzset();
+}
 
 void settings_defaults(settings_t *s) {
     memset(s, 0, sizeof *s);
@@ -21,6 +52,7 @@ void settings_defaults(settings_t *s) {
     s->resume_last = false;
     s->wifi = true;
     s->music_vol = 5;
+    strcpy(s->tz, "Europe/Rome");
 }
 
 static void copy(char *dst, size_t n, const char *src) {
@@ -55,6 +87,7 @@ bool settings_load(settings_t *s, const char *root) {
     s->wifi = json_bool(j, "wifi", s->wifi);
     s->ext_p1 = json_bool(j, "external_p1", s->ext_p1);
     s->music_vol = (int)json_num(j, "music_volume", s->music_vol);
+    copy(s->tz, sizeof s->tz, json_str(j, "timezone", NULL));
     if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 5;
     json_free(j);
     return true;
@@ -86,11 +119,12 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"resume_last\": %s,\n"
             "  \"wifi\": %s,\n"
             "  \"external_p1\": %s,\n"
-            "  \"music_volume\": %d\n"
+            "  \"music_volume\": %d,\n"
+            "  \"timezone\": \"%s\"\n"
             "}\n",
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
             s->autosleep_min, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
-            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol);
+            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz);
     fclose(f);
     /* scrittura atomica: su SD uno spegnimento a metà non lascia file corrotti */
     return rename(tmp, path) == 0;

@@ -41,13 +41,17 @@ halt_with() {
 for f in "$LOG" "$ROOT/Logs/Arcade.log" "$ROOT/Logs/linux-games.log"; do
     [ -f "$f" ] && [ "$(wc -c < "$f")" -gt 200000 ] && mv -f "$f" "$f.old"
 done
-hwclock -s 2>/dev/null
+# orologio della console in UTC (come nel firmware TrimUI); il fuso orario lo applica il launcher
+hwclock -s -u 2>/dev/null
 echo "=== $(date) · sistema Arcade M2 · $TRIMUI_MODEL" >> "$LOG"
 step "5 SISTEMA AVVIATO: $TRIMUI_MODEL ($(readlink /run/fw))" "PREPARO L'HARDWARE"
 /run/fw/hw-init.sh >> "$LOG" 2>&1 || step "preparazione hardware: errore"
 
-# pulizia dei file che macOS lascia sulla SD copiando (._nome, .DS_Store): in sottofondo
-( n=$(find /mnt/SDCARD \( -name '._*' -o -name '.DS_Store' \) -type f 2>/dev/null | wc -l)
+# pulizia dei file che macOS lascia sulla SD copiando (._nome, .DS_Store; il launcher li
+# ignora): in sottofondo e solo quando il launcher è già partito. Fatta durante l'avvio,
+# centinaia di cancellazioni rallentavano i "sync" successivi (16 s al primo avvio).
+( sleep 20
+  n=$(find /mnt/SDCARD \( -name '._*' -o -name '.DS_Store' \) -type f 2>/dev/null | wc -l)
   if [ "$n" -gt 0 ]; then
       find /mnt/SDCARD \( -name '._*' -o -name '.DS_Store' \) -type f -delete 2>/dev/null
       step "pulizia: tolti $n file di macOS"
@@ -149,8 +153,23 @@ finish() {
     step "spegnimento"
     sync
     # SD smontata o in sola lettura: il kernel toglie il segno "in uso" dal FAT e al prossimo
-    # avvio il controllo non serve (vedi initramfs-init)
-    umount /mnt/SDCARD 2>/dev/null || mount -o remount,ro /mnt/SDCARD || { echo "SD non chiusa: controllo al prossimo avvio" >> "$STEPS"; sync; }
+    # avvio il controllo non serve (vedi initramfs-init). Prima si fermano i programmi che
+    # hanno file aperti sulla SD (trimui_inputd scrive il suo log, un gioco può essere rimasto
+    # in sottofondo): con un file aperto in scrittura il kernel non la chiude.
+    for sig in TERM KILL; do
+        for p in /proc/[0-9]*; do
+            pid=${p#/proc/}
+            [ "$pid" = 1 ] || [ "$pid" = $$ ] && continue
+            ls -l "$p/fd" 2>/dev/null | grep -q /mnt/SDCARD && kill -$sig "$pid" 2>/dev/null
+        done
+        sleep 0.3
+    done
+    sync
+    if ! umount /mnt/SDCARD 2>/dev/null && ! mount -o remount,ro /mnt/SDCARD 2>/dev/null; then
+        { echo "SD non chiusa: controllo al prossimo avvio. File aperti:"
+          ls -l /proc/[0-9]*/fd 2>/dev/null | grep /mnt/SDCARD; } >> "$STEPS"
+        sync
+    fi
     poweroff -f
     while :; do sleep 60; done
 }

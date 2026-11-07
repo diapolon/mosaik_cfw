@@ -1121,12 +1121,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "device", "romcheck", "scrape", "info", "power",
+    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "info", "power",
 };
 
 static const char *set_text(const char *group, int item) {
@@ -1218,6 +1218,11 @@ static void set_value(int item, char *buf, size_t n) {
         strftime(buf, n, "%d/%m/%Y  %H:%M", &tmv);
         break;
     }
+    case S_TZ: {
+        snprintf(buf, n, "%s", TIMEZONES[settings_tz_index(s)].id);
+        for (char *c = buf; *c; c++) if (*c == '_') *c = ' ';
+        break;
+    }
     case S_DEVICE: snprintf(buf, n, "%s", device_label(s->device)); break;
     case S_INFO: snprintf(buf, n, T("info.games"), ngames); break;
     case S_LANG: snprintf(buf, n, "%s", nlangs ? lang_names[lang_index()] : UI.set.lang); break;
@@ -1294,6 +1299,10 @@ static void set_change(int item, int dir) {
         break;
     }
     case S_RESUME: s->resume_last = !s->resume_last; break;
+    case S_TZ:
+        snprintf(s->tz, sizeof s->tz, "%s", TIMEZONES[(settings_tz_index(s) + dir + NTIMEZONES) % NTIMEZONES].id);
+        settings_apply_tz(s);
+        break;
     case S_DEVICE:
         snprintf(s->device, sizeof s->device, "%s", !strcmp(s->device, "smartpro") ? "brickpro" : "smartpro");
         ui_apply_device();

@@ -1435,6 +1435,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     crash_handlers();
     ui_log("---- avvio %s", app);
     settings_load(&UI.set, root);
+    settings_apply_tz(&UI.set);
     lang_load(root, UI.set.lang);
     UI.automation = auto_script && *auto_script;
     if (UI.automation) {
