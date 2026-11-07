@@ -251,7 +251,10 @@ while :; do
             [ -f "$ROOT/System/next.env" ] && . "$ROOT/System/next.env"
             exec "$BIN/gamewatch" -- sh "./$(basename "$rom")"
         ) >> "$ROOT/Logs/linux-games.log" 2>&1
+        grc=$?
         rm -f "$ROOT/System/next.env"
+        # 120: tasto di accensione tenuto premuto durante il gioco (gamewatch)
+        [ $grc -eq 120 ] && finish
         continue
     fi
     set -- --root "$ROOT" --core "$core" --rom "$rom" --title "$title"

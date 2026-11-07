@@ -53,15 +53,41 @@ static Uint32 frame_no;
 
 /* ------------------------------------------------------------------ log */
 
+static void audio_open(void);
+
+void ui_busy(const char *msg, double seconds) {
+    if (!UI.ren) return;
+    if (UI.automation) seconds = 0;
+    Uint32 t0 = SDL_GetTicks();
+    do {
+        double t = (SDL_GetTicks() - t0) / 1000.0;
+        ui_begin();
+        theme_t *th = &UI.th;
+        int cx = UI.w / 2, cy = UI.h / 2 - M(0.04f), r = M(0.055f), dot = M(0.011f);
+        /* otto punti in cerchio, quello "in testa" pieno e gli altri via via più tenui */
+        int head = (int)(t * 12) % 8;
+        for (int i = 0; i < 8; i++) {
+            double a = i * M_PI / 4 - M_PI / 2;
+            int age = (head - i + 8) % 8;
+            ui_circle(cx + (int)(cos(a) * r), cy + (int)(sin(a) * r), dot, with_alpha(th->accent, 255 - age * 28));
+        }
+        if (msg && *msg) ui_text(UI.f_normal, msg, cx, cy + r + M(0.05f), th->text, ALIGN_CENTER);
+        ui_end();
+        SDL_Delay(16);
+    } while ((SDL_GetTicks() - t0) / 1000.0 < seconds);
+}
+
 void ui_suspend(void) {
     if (!plat_standalone()) return;
-    if (UI.audio) { SDL_PauseAudioDevice(UI.audio, 1); SDL_ClearQueuedAudio(UI.audio); }
+    /* l'uscita audio si chiude e si riapre: dopo il risveglio chiuderla poteva bloccarsi */
+    bool had_audio = UI.audio != 0;
+    if (had_audio) { SDL_CloseAudioDevice(UI.audio); UI.audio = 0; }
     plat_suspend();
+    if (had_audio) audio_open();
     /* tasti premuti prima o durante il sonno: non devono valere dopo il risveglio */
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
     memset(UI.in.pressed, 0, sizeof UI.in.pressed);
     UI.in.power = UI.in.power_long = false;
-    if (UI.audio) SDL_PauseAudioDevice(UI.audio, 0);
 }
 
 void ui_log(const char *fmt, ...) {

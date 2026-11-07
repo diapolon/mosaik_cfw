@@ -378,7 +378,9 @@ static void launch(game_t *g) {
     fclose(f);
     ui_log("avvio %s (%s)", g->title, g->core);
     ui_sound(SND_OK);
-    SDL_Delay(UI.automation ? 0 : 90);
+    char msg[200];
+    snprintf(msg, sizeof msg, T("common.starting"), g->title);
+    ui_busy(msg, 0.35);
     music_quit();
     ui_shutdown_code(EXIT_LAUNCH);
     exit(EXIT_LAUNCH);
@@ -389,6 +391,7 @@ static void power_off(void) {
     snprintf(p, sizeof p, "%s/System/resume.txt", UI.root);
     unlink(p);   /* spento dal menu: al riavvio non c'è una partita da riprendere */
     settings_save(&UI.set, UI.root);
+    ui_busy(T("common.shutting_down"), 0.5);
     music_quit();
     ui_shutdown_code(EXIT_POWEROFF);
     exit(EXIT_POWEROFF);
@@ -2683,6 +2686,7 @@ int main(int argc, char **argv) {
     snprintf(p, sizeof p, "%s/System", root);
     mkdir(p, 0755);
     if (!ui_init("Arcade", root, auto_script, 48000, true)) return 1;
+    ui_busy(T("common.loading"), 0);   /* subito qualcosa a schermo mentre si caricano i giochi */
     if (!auto_script && consume_resume()) {
         ui_log("riprendo l'ultima partita");
         ui_shutdown_code(EXIT_LAUNCH);

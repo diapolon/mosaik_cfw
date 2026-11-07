@@ -11,7 +11,15 @@ step() { echo "$(cut -d' ' -f1 /proc/uptime)s sospensione: $1" >> "$STEPS"; }
 wifi=0
 pidof wpa_supplicant > /dev/null && wifi=1
 step "inizio (wi-fi $([ $wifi = 1 ] && echo acceso || echo spento))"
-[ $wifi = 1 ] && wifi-ctl off > /dev/null 2>&1
+# Wi-Fi: una ricerca di reti in corso fa rifiutare la sospensione al driver ("phy0 failed to
+# suspend: error -16"): si interrompe, si spegne e si blocca la radio (rfkill) come keymon
+if [ $wifi = 1 ]; then
+    wpa_cli -p /run/wpa -i wlan0 abort_scan > /dev/null 2>&1
+    wifi-ctl off > /dev/null 2>&1
+fi
+for k in /sys/class/rfkill/rfkill*; do
+    [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 0 > "$k/state" 2> /dev/null
+done
 echo 0 > /sys/class/led_anim/enable 2> /dev/null
 touch /tmp/system_suspend
 sync
@@ -19,12 +27,12 @@ sync
 # Il rilascio del tasto è esso stesso un evento di risveglio: si lascia passare mezzo secondo.
 # wakeup_count: se arriva un evento di risveglio mentre ci si prepara, la scrittura fallisce
 # e si riprova. Se il kernel annulla la sospensione (un dispositivo rifiuta, o un evento di
-# risveglio arriva a metà) si riprova fino a 3 volte; i messaggi del kernel di ogni tentativo
+# risveglio arriva a metà) si riprova fino a 5 volte; i messaggi del kernel di ogni tentativo
 # fallito vanno in Logs/sospensione.txt.
 sleep 0.5
 r="non riuscita"
 tries=0
-while [ $tries -lt 3 ] && [ "$r" != riuscita ]; do
+while [ $tries -lt 5 ] && [ "$r" != riuscita ]; do
     tries=$((tries + 1))
     cnt=$(cat /sys/power/wakeup_count 2> /dev/null) || break
     if ! echo "$cnt" > /sys/power/wakeup_count 2> /dev/null; then sleep 1; continue; fi
@@ -37,6 +45,9 @@ while [ $tries -lt 3 ] && [ "$r" != riuscita ]; do
     fi
 done
 
+for k in /sys/class/rfkill/rfkill*; do
+    [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 1 > "$k/state" 2> /dev/null
+done
 rm -f /tmp/system_suspend
 touch /tmp/wakeup_from_suspend
 echo 1 > /sys/class/led_anim/enable 2> /dev/null

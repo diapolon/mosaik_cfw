@@ -77,6 +77,9 @@ void ui_shutdown(void);
 void ui_shutdown_code(int code);
 /* sospensione (sistema su SD): audio in pausa, console in sospensione, poi si riprende */
 void ui_suspend(void);
+/* schermata d'attesa (spegnimento, uscita, avvio): un indicatore che gira per qualche istante,
+   poi l'ultima immagine resta a schermo mentre il programma lavora */
+void ui_busy(const char *msg, double seconds);
 void ui_apply_device(void);          /* ridimensiona finestra e canvas secondo il modello */
 void ui_poll(void);
 /* controller collegati: nome e giocatore assegnato (0 = giocatore 1) */

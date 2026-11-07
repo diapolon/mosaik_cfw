@@ -1285,6 +1285,7 @@ int main(int argc, char **argv) {
         }
     }
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
+    ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : "common.leaving"), 0.35);
     stats_update();
     core.unload_game();
     core.deinit();

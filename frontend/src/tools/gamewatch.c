@@ -189,6 +189,11 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* tasto di accensione (solo nel sistema su SD): breve = sospensione, con il gioco fermo
+       (SIGSTOP) finché la console non si risveglia; tenuto premuto 1,2 s = chiude il gioco e
+       chiede lo spegnimento (codice di uscita 120 per system-init) */
+    bool standalone = getenv("ARCADE_STANDALONE") && getenv("ARCADE_STANDALONE")[0] == '1';
+    double power_at = 0;
     double pressed_at = 0;
     for (;;) {
         int status;
@@ -201,6 +206,22 @@ int main(int argc, char **argv) {
             for (int i = 0; i < nfds; i++) {
                 struct input_event ev;
                 while (read(fds[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
+                    if (standalone && ev.type == EV_KEY && ev.code == KEY_POWER) {
+                        if (ev.value == 1) power_at = now();
+                        else if (ev.value == 0 && power_at) {
+                            power_at = 0;
+                            fprintf(stderr, "gamewatch: sospensione\n");
+                            kill(-pid, SIGSTOP);
+                            int rc = system("arcade-suspend");
+                            kill(-pid, SIGCONT);
+                            fprintf(stderr, "gamewatch: risveglio (%s)\n", rc == 0 ? "riuscita" : "non riuscita");
+                            /* eventi arrivati durante il sonno: non devono valere dopo */
+                            struct input_event skip;
+                            for (int j = 0; j < nfds; j++) while (read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
+                            pressed_at = 0;
+                            break;
+                        }
+                    }
                     if (ev.type == EV_KEY && ev.code == quick_key && ev.value == 1) {
                         fprintf(stderr, "gamewatch: HOME, chiudo il gioco\n");
                         stop_group(pid);
@@ -256,6 +277,12 @@ int main(int argc, char **argv) {
                     }
                 }
             }
+        }
+        if (power_at && now() - power_at >= 1.2) {
+            fprintf(stderr, "gamewatch: tasto di accensione tenuto, chiudo il gioco e spengo\n");
+            stop_group(pid);
+            if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+            return 120;
         }
         if (pressed_at && now() - pressed_at >= hold) {
             fprintf(stderr, "gamewatch: tasto Menu tenuto, chiudo il gioco\n");

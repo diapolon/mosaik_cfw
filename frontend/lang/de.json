@@ -18,7 +18,11 @@
     "power_off": "Ausschalten",
     "all_games": "Alle Spiele",
     "launch_error": "Spiel kann nicht gestartet werden",
-    "quit_menu": "Beenden"
+    "quit_menu": "Beenden",
+    "shutting_down": "Wird ausgeschaltet…",
+    "loading": "Wird geladen…",
+    "leaving": "Spiel wird beendet…",
+    "starting": "%s wird gestartet…"
   },
   "home": {
     "no_games": "Keine Spiele gefunden: ROMs nach Roms/FBNEO oder Roms/MAME2003P kopieren",
