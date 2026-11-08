@@ -194,10 +194,13 @@ if [ -n "$saved" ]; then
 fi
 if [ $ok = 0 ]; then
     { echo "--- controlli all'avvio"; amixer contents; } >> "$AUDIO" 2>&1
-    for cfg in asis hub0 hub1 knulli; do
+    # prima quella che funziona sulle console provate: le altre costano 3 secondi l'una se si
+    # bloccano, e a schermo nero sembrerebbe una console guasta
+    for cfg in knulli asis hub0 hub1; do
         audio_apply $cfg
         if audio_test; then echo "prova $cfg: riuscita" >> "$AUDIO"; ok=1; echo $cfg > "$AUDIO_CONF"; break; fi
         echo "prova $cfg: bloccata" >> "$AUDIO"
+        [ -n "${WAIT_SHOWN:-}" ] || { step_show "PREPARO L'AUDIO" "PRIMA ACCENSIONE"; WAIT_SHOWN=1; }
     done
     if [ $ok = 1 ]; then step "9c AUDIO SISTEMATO ($(cat "$AUDIO_CONF"))"
     else step "9c AUDIO NON FUNZIONA: launcher e giochi senza audio"; export ARCADE_NO_AUDIO=1; rm -f "$AUDIO_CONF"; fi

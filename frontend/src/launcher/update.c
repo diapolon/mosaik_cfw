@@ -301,6 +301,11 @@ static bool fetch_one(const item_t *it, const char *tmp, int *err) {
 
 static void tmp_name(const item_t *it, char *out, size_t n) { snprintf(out, n, "%s/%s.nuovo", root_dir, it->path); }
 
+/* errore a metà: si rimette il sistema di prima. Se non riesce resta il .prec, che l'avvio sa usare */
+static void restore_system(const char *prev, const char *dst) {
+    if (rename(prev, dst) != 0) ui_log("aggiornamento: sistema precedente NON ripristinato (%s): resta %s", strerror(errno), prev);
+}
+
 static void remove_tmps(void) {
     char t[1100];
     for (int i = 0; i < nitems; i++) if (items[i].need) { tmp_name(&items[i], t, sizeof t); unlink(t); }
@@ -364,14 +369,14 @@ static void *apply_worker(void *arg) {
         if (!marked) {
             ui_log("aggiornamento: impossibile scrivere update-pending");
             unlink(pend);
-            rename(prev, dst);
+            restore_system(prev, dst);
             remove_tmps();
             fail(UPE_WRITE);
             return NULL;
         }
         if (rename(tmp, dst) != 0) {
             ui_log("aggiornamento: rename del sistema nuovo: %s", strerror(errno));
-            rename(prev, dst);
+            restore_system(prev, dst);
             unlink(pend);
             remove_tmps();
             fail(UPE_WRITE);

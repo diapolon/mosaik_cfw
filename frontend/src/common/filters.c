@@ -26,7 +26,7 @@ bool filter_load(const char *root, const char *lang, const char *id, filter_t *f
         if (!n && name->child && name->child->t == J_STR) n = name->child->s;
     }
     snprintf(f->name, sizeof f->name, "%s", n ? n : id);
-    f->order = (int)json_num(j, "order", 100);
+    f->order = json_int(j, "order", 100);
     f->smooth = json_bool(j, "smooth", false);
     const char *mask = json_str(j, "mask", NULL);
     if (mask) snprintf(f->mask, sizeof f->mask, "%s/Filters/%s/%s", root, id, mask);

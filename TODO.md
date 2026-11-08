@@ -3,7 +3,16 @@
 ## Testing
 
 - [ ] Full test on the Brick Pro
-- [ ] Automatic return to the previous system after a failed update, on a real console
+- [x] Automatic return to the previous system on a Smart Pro (broken system, three failed boots)
+- [ ] Power loss during an update, on a real console
+- [ ] Wi-Fi password containing quotes, on a real console
+
+## Reliability
+
+- [ ] Make updates a complete transaction (journal with backups, or A/B slots): today an error or a rollback can leave files from two versions on the card
+- [ ] Replace `volatile` status fields with atomics or a mutex in the worker threads
+- [ ] Full ROM check that decompresses the data, as an option next to the quick check
+- [ ] Test matrix per console and feature, with version and date
 
 ## Features
 

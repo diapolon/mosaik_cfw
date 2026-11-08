@@ -72,12 +72,6 @@ static void copy(char *dst, size_t n, const char *src) {
     if (src) { strncpy(dst, src, n - 1); dst[n - 1] = 0; }
 }
 
-/* numero dal file: un valore enorme o non valido non deve diventare un intero qualsiasi */
-static int ni(jval *j, const char *key, int def) {
-    double d = json_num(j, key, def);
-    return d >= -1000000 && d <= 1000000 ? (int)d : def;
-}
-
 #define IN_RANGE(field, lo, hi, def) do { if (s->field < (lo) || s->field > (hi)) s->field = (def); } while (0)
 
 bool settings_load(settings_t *s, const char *root) {
@@ -90,36 +84,36 @@ bool settings_load(settings_t *s, const char *root) {
     copy(s->variant, sizeof s->variant, json_str(j, "variant", NULL));
     copy(s->device, sizeof s->device, json_str(j, "device", NULL));
     copy(s->lang, sizeof s->lang, json_str(j, "language", NULL));
-    s->brightness = ni(j, "brightness", s->brightness);
-    s->volume = ni(j, "volume", s->volume);
-    s->cpu_profile = ni(j, "cpu_profile", s->cpu_profile);
-    s->autosleep_min = ni(j, "autosleep_min", s->autosleep_min);
-    s->autosuspend_min = ni(j, "autosuspend_min", s->autosuspend_min);
-    s->update_channel = ni(j, "update_channel", 0) ? 1 : 0;
-    s->saver = ni(j, "screensaver", s->saver) % 5;
-    s->aspect = ni(j, "aspect", s->aspect);
+    s->brightness = json_int(j, "brightness", s->brightness);
+    s->volume = json_int(j, "volume", s->volume);
+    s->cpu_profile = json_int(j, "cpu_profile", s->cpu_profile);
+    s->autosleep_min = json_int(j, "autosleep_min", s->autosleep_min);
+    s->autosuspend_min = json_int(j, "autosuspend_min", s->autosuspend_min);
+    s->update_channel = json_int(j, "update_channel", 0) ? 1 : 0;
+    s->saver = json_int(j, "screensaver", s->saver) % 5;
+    s->aspect = json_int(j, "aspect", s->aspect);
     /* il filtro era un numero (0 nitido, 1 morbido, 2 scanline): resta leggibile */
     jval *fv = json_get(j, "filter");
-    if (fv && fv->t == J_NUM) copy(s->filter, sizeof s->filter, filter_legacy_id((int)fv->n));
+    if (fv && fv->t == J_NUM) copy(s->filter, sizeof s->filter, filter_legacy_id(json_to_int(fv->n, 0)));
     else copy(s->filter, sizeof s->filter, json_str(j, "filter", NULL));
     s->bezel = json_bool(j, "bezel", s->bezel);
-    s->dup_mode = ni(j, "duplicates", s->dup_mode);
-    s->sort_mode = ni(j, "sort", s->sort_mode) % 4;
+    s->dup_mode = json_int(j, "duplicates", s->dup_mode);
+    s->sort_mode = json_int(j, "sort", s->sort_mode) % 4;
     s->show_missing = json_bool(j, "show_missing", s->show_missing);
     s->resume_last = json_bool(j, "resume_last", s->resume_last);
     s->wifi = json_bool(j, "wifi", s->wifi);
     s->ext_p1 = json_bool(j, "external_p1", s->ext_p1);
-    s->music_vol = ni(j, "music_volume", s->music_vol);
+    s->music_vol = json_int(j, "music_volume", s->music_vol);
     copy(s->tz, sizeof s->tz, json_str(j, "timezone", NULL));
-    s->led_mode = ni(j, "led_mode", s->led_mode) & 3;
-    s->led_color = ni(j, "led_color", s->led_color);
+    s->led_mode = json_int(j, "led_mode", s->led_mode) & 3;
+    s->led_color = json_int(j, "led_color", s->led_color);
     if (s->led_color < 0 || s->led_color >= NLED_COLORS) s->led_color = 0;
-    s->led_bright = ni(j, "led_brightness", s->led_bright);
-    s->grid_columns = ni(j, "grid_columns", 0);
+    s->led_bright = json_int(j, "led_brightness", s->led_bright);
+    s->grid_columns = json_int(j, "grid_columns", 0);
     if (s->grid_columns != 0 && (s->grid_columns < 3 || s->grid_columns > 7)) s->grid_columns = 0;
-    s->home_size = ni(j, "home_size", s->home_size);
+    s->home_size = json_int(j, "home_size", s->home_size);
     if (s->home_size < 0 || s->home_size > 2) s->home_size = 1;
-    s->log_level = ni(j, "debug_level", 0);
+    s->log_level = json_int(j, "debug_level", 0);
     if (s->log_level < 0 || s->log_level > 3) s->log_level = 0;
     if (s->led_bright < 1 || s->led_bright > 10) s->led_bright = 5;
     if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 5;

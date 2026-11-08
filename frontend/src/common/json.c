@@ -169,6 +169,10 @@ jval *json_get(jval *obj, const char *path) {
     return obj;
 }
 
+int json_to_int(double d, int def) { return d >= -1000000 && d <= 1000000 ? (int)d : def; }
+
+int json_int(jval *obj, const char *path, int def) { return json_to_int(json_num(obj, path, def), def); }
+
 double json_num(jval *obj, const char *path, double def) {
     jval *v = json_get(obj, path);
     return v && (v->t == J_NUM || v->t == J_BOOL) ? v->n : def;

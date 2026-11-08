@@ -20,5 +20,8 @@ void json_free(jval *v);
 /* Percorso con punti: "variants.dark.accent". NULL se assente. */
 jval *json_get(jval *obj, const char *path);
 double json_num(jval *obj, const char *path, double def);
+/* numero come int: def se è fuori da un intervallo ragionevole o non valido */
+int json_int(jval *obj, const char *path, int def);
+int json_to_int(double d, int def);
 const char *json_str(jval *obj, const char *path, const char *def);
 bool json_bool(jval *obj, const char *path, bool def);

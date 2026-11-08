@@ -59,6 +59,12 @@ sums() { (cd "$1" && find . -type f | sort | xargs sha256sum); }
 [ "$(sums $W/sd)" = "$(sums $W/sd-prima)" ] || { diff -r $W/sd $W/sd-prima; ko "file cambiati dopo l'annullamento"; }
 ok "annullando la scheda resta com'era"
 rm -rf $W/sd-prima
+echo "--- errore a metà: limite noto, l'installazione resta parziale (vedi TODO)"
+card
+mkdir -p $S/Themes/t/theme.json
+expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"
+cmp $A/Lang/it.json $S/Lang/it.json && cmp $W/vecchio $S/System/arcade-system.squashfs && ok "file già sostituiti restano, il sistema resta il vecchio"
+card
 echo "--- impossibile scrivere il segno degli avvii di prova"
 mkdir $S/System/update-pending
 expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"

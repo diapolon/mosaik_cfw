@@ -633,7 +633,7 @@ static bool bezel_open(const char *path) {
     jval *j = json_load(json), *vp = json_get(j, "viewport");
     if (vp && vp->t == J_ARR && vp->child && vp->child->next && vp->child->next->next && vp->child->next->next->next) {
         jval *c = vp->child;
-        bez_vp = (SDL_Rect){ (int)c->n, (int)c->next->n, (int)c->next->next->n, (int)c->next->next->next->n };
+        bez_vp = (SDL_Rect){ json_to_int(c->n, 0), json_to_int(c->next->n, 0), json_to_int(c->next->next->n, 0), json_to_int(c->next->next->next->n, 0) };
     }
     json_free(j);
     bez_w = s->w;

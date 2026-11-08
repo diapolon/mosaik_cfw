@@ -280,7 +280,7 @@ static int worker(void *arg) {
             for (int k = i; k < ntodo && k < i + 20 && !asked; k++) asked = !strcmp(items[todo[k]].name, name);
             if (!asked) continue;
             char players[8];
-            snprintf(players, sizeof players, "%d", (int)json_num(r, "players", 0));
+            snprintf(players, sizeof players, "%d", json_int(r, "players", 0));
             meta_set(name, json_str(r, "genre", ""), json_num(r, "players", 0) > 0 ? players : "");
             const char *hist = json_str(r, "history", NULL);
             if (hist && *hist) {

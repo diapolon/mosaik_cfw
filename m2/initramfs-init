@@ -94,6 +94,7 @@ case $GROW in
     1) ;;
     *) step "2c allargamento della SD non riuscito ($GROW): $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
 esac
+# >>> scelta del sistema (m2/test-boot.sh prova questo blocco)
 # strato del modello (driver GPU, librerie e programmi del firmware di questa console)
 MID=$(sed -n 1p /etc/arcade-model 2>/dev/null); MNAME=$(sed -n 2p /etc/arcade-model 2>/dev/null)
 SYS=/sd/Arcade/System/arcade-system.squashfs
@@ -132,6 +133,7 @@ if ! usable "$SYS"; then
     step "sistema non avviabile: provo il precedente"
     [ -f "$SYS.prec" ] && usable "$SYS.prec" || fail "SISTEMA NON AVVIABILE" "ARCADE/SYSTEM"
 fi
+# <<< scelta del sistema
 step "3 SISTEMA MONTATO"
 for d in tmp run var; do mount -t tmpfs -o mode=755 tmpfs /root/$d || fail "TMPFS" "$d"; done
 mount -t tmpfs -o size=4m tmpfs /root/mnt/UDISK || fail "TMPFS" "UDISK"

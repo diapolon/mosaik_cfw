@@ -46,7 +46,7 @@ int emulators_load(const char *root) {
         snprintf(m->roms, sizeof m->roms, "%s", json_str(j, "roms", def));
         snprintf(def, sizeof def, "Dats/%s.tsv", m->id);
         snprintf(m->index, sizeof m->index, "%s", json_str(j, "index", def));
-        m->order = (int)json_num(j, "order", 100);
+        m->order = json_int(j, "order", 100);
         jval *ex = json_get(j, "extensions");
         for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v && m->nexts < 8; v = v->next)
             if (v->t == J_STR) snprintf(m->exts[m->nexts++], sizeof m->exts[0], ".%s", v->s);
