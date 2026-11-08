@@ -48,9 +48,10 @@ def wanted():
                     continue
                 p = os.path.join(d, n)
                 yield os.path.relpath(p, DATA).replace(os.sep, "/"), p
-    dats = os.path.join(DATA, "Dats")   # gli indici, non Dats/history (lo aggiorna lo scraper)
+    # gli indici degli emulatori; Dats/arcadedb.tsv e Dats/history li scrive lo scraper sulla console
+    dats = os.path.join(DATA, "Dats")
     for n in sorted(os.listdir(dats)):
-        if n.endswith((".tsv", ".roms")):
+        if n.endswith((".tsv", ".roms")) and n != "arcadedb.tsv":
             yield "Dats/" + n, os.path.join(dats, n)
 
 

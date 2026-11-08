@@ -225,6 +225,8 @@ static bool sha256_file(const char *path, char out[65], bool count) {
 static bool path_ok(const char *p) {
     static const char *dirs[] = { "Lang/", "Emulators/", "Cores/", "Themes/", "Filters/", "Bezels/", "Dats/" };
     if (!*p || *p == '/' || strstr(p, "..") || strchr(p, '\\')) return false;
+    /* dati scritti dallo scraper sulla console: non sono del sistema */
+    if (!strcmp(p, "Dats/arcadedb.tsv") || !strncmp(p, "Dats/history/", 13)) return false;
     if (!strcmp(p, SYSFILE) || !strcmp(p, "System/cacert.pem")) return true;
     for (size_t i = 0; i < sizeof dirs / sizeof *dirs; i++)
         if (!strncmp(p, dirs[i], strlen(dirs[i]))) return true;

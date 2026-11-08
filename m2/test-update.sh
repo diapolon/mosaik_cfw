@@ -34,13 +34,14 @@ D=$W/dist; A=$D/SD/Arcade; mkdir -p $A/System $A/Lang $A/Cores $A/Themes/t $A/Da
 head -c 3000000 /dev/urandom > $D/arcade-system.squashfs
 echo "0.9.0 20270101.0000" > $D/arcade-version.txt
 echo certs > $A/System/cacert.pem; echo '{"it":1}' > $A/Lang/it.json; head -c 5000000 /dev/urandom > $A/Cores/a.so
-echo tema > $A/Themes/t/theme.json; echo idx > $A/Dats/fbneo.tsv; echo storia > $A/Dats/history/x.txt
+echo tema > $A/Themes/t/theme.json; echo idx > $A/Dats/fbneo.tsv; echo storia > $A/Dats/history/x.txt; echo pacchetto > $A/Dats/arcadedb.tsv
 
 card() {  # scheda con il sistema vecchio e i dati dell'utente
     rm -rf $W/sd; S=$W/sd; mkdir -p $S/System $S/Lang $S/Cores $S/Roms
     head -c 1000000 /dev/urandom > $S/System/arcade-system.squashfs
     cp $S/System/arcade-system.squashfs $W/vecchio
     echo vecchio > $S/Lang/it.json; echo '{"mio":1}' > $S/System/settings.json; echo rom > $S/Roms/a.zip
+    mkdir -p $S/Dats; echo scaricato > $S/Dats/arcadedb.tsv
 }
 serve() { python3 /trimui/toolchain/update-server.py --dist $D --http-port 8765 --udp-port 8766 --key "$1" >/dev/null & SRV=$!; for i in $(seq 50); do nc -z 127.0.0.1 8765 2>/dev/null && break; sleep 0.1; done; }
 stop() { kill $SRV 2>/dev/null; wait $SRV 2>/dev/null || true; }
@@ -55,7 +56,7 @@ cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio cons
 cmp $A/Cores/a.so $S/Cores/a.so && cmp $A/Lang/it.json $S/Lang/it.json && cmp $A/Themes/t/theme.json $S/Themes/t/theme.json && ok "dati aggiornati"
 [ "$(cat $S/System/settings.json)" = '{"mio":1}' ] && [ -f $S/Roms/a.zip ] && ok "impostazioni e ROM intatte"
 [ -f $S/System/update-pending ] && ok "segno di prova del sistema nuovo"
-[ ! -e $S/Dats/history ] && ok "Dats/history non toccata"
+[ ! -e $S/Dats/history ] && [ "$(cat $S/Dats/arcadedb.tsv)" = scaricato ] && ok "dati dello scraper non toccati"
 [ -z "$(find $S -name '*.nuovo')" ] && ok "nessun file provvisorio rimasto"
 
 echo "--- seconda volta: già aggiornato"
@@ -94,7 +95,7 @@ expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 5 1" 
 stop
 
 echo "--- elenco firmato che punta fuori dalle cartelle del sistema"
-for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x; do
+for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x Dats/arcadedb.tsv Dats/history/a.txt; do
     printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 %s\n' $h "$bad" > $X/update.txt; mk_static $X
     expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 3 0" "$bad"
     stop
