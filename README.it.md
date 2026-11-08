@@ -69,7 +69,7 @@
 
 Servono una microSD di buona qualità (da 4 GB a 256 GB) e [balenaEtcher](https://etcher.balena.io/).
 
-1. **Scarica l'immagine** del tuo modello da [Releases](https://github.com/diapolon/mosaik_cfw/releases). Le due non sono intercambiabili e non serve decomprimerle.
+1. **Scarica l'immagine** del tuo modello da [Releases](https://github.com/diapolon/mosaik_cfw/releases). Non serve decomprimerla. **Controlla il nome del file: con l'immagine dell'altro modello la console non parte.** Non si rovina nulla: basta scrivere quella giusta.
 2. **Scrivila sulla microSD** con balenaEtcher. Tutto ciò che c'è sulla scheda viene cancellato. Se poi il computer chiede di formattare una parte della scheda, rispondi di no.
 3. **Metti la scheda nella console e accendi.** Alla prima accensione la partizione si allarga a tutta la scheda, quindi l'avvio dura un po' di più.
 4. **Apri le impostazioni con Start** per scegliere la lingua (Aspetto) e impostare data e ora (Sistema).
@@ -157,6 +157,7 @@ Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi
 
 ## Problemi frequenti
 
+- **La console non si accende con la scheda:** controlla di aver scritto l'immagine del tuo modello (`smartpro` o `brickpro` nel nome del file). Senza la scheda parte il sistema originale, come sempre.
 - **Schermo nero o rosso all'avvio:** tieni premuto il tasto di accensione per 10-20 secondi, togli la scheda e guarda in `Arcade/Logs`.
 - **Un gioco non parte:** di solito mancano file o la raccolta di ROM è diversa. Esegui Verifica ROM e apri la scheda del gioco.
 - **I giochi Neo Geo non partono:** serve `neogeo.zip` in `Arcade/Bios`.

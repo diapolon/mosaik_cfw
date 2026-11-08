@@ -69,7 +69,7 @@
 
 You need a good-quality microSD card (4 GB to 256 GB) and [balenaEtcher](https://etcher.balena.io/).
 
-1. **Download the image** for your model from [Releases](https://github.com/diapolon/mosaik_cfw/releases). The two are not interchangeable, and there's no need to decompress them.
+1. **Download the image** for your model from [Releases](https://github.com/diapolon/mosaik_cfw/releases). There's no need to decompress them. **Check the file name: with the image of the other model the console won't start.** Nothing gets damaged: just write the right one.
 2. **Write it to the microSD** with balenaEtcher. Everything on the card is erased. If your computer then asks to format part of the card, say no.
 3. **Put the card in the console and turn it on.** On first boot the partition grows to fill the card, so startup takes a little longer.
 4. **Open the settings with Start** to set the language (Appearance) and the date and time (System).
@@ -157,6 +157,7 @@ To update, open **Settings → Tools → Update system** and press A to download
 
 ## Troubleshooting
 
+- **The console doesn't turn on with the card:** check that you wrote the image for your model (`smartpro` or `brickpro` in the file name). Without the card the original system starts as usual.
 - **Black or red screen at startup:** hold the power button for 10-20 seconds, remove the card and look in `Arcade/Logs`.
 - **A game won't start:** it's usually missing files or the wrong ROM set. Run Verify ROMs and open the game's details page.
 - **Neo Geo games won't start:** they need `neogeo.zip` in `Arcade/Bios`.
