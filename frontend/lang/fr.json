@@ -54,6 +54,8 @@
     "theme": "Thème",
     "variant": "Variante du thème",
     "language": "Langue",
+    "grid_columns": "Miniatures par ligne",
+    "home_size": "Jaquettes de l'accueil",
     "aspect": "Format des jeux",
     "filter": "Filtre vidéo",
     "cpu": "Profil de performances",
@@ -86,6 +88,8 @@
     "theme": "Apparence du lanceur et du menu en jeu.",
     "variant": "Couleurs du thème, s'il en propose plusieurs.",
     "language": "Langue des menus. Également transmise aux émulateurs.",
+    "grid_columns": "Nombre de jaquettes par ligne de la bibliothèque. Automatique utilise celles du thème.",
+    "home_size": "Taille des jaquettes sur l'écran d'accueil, pour les thèmes en carrousel.",
     "aspect": "Original : proportions de la borne. Pixels entiers : image nette. Plein écran : remplit tout.",
     "filter": "Les filtres sont des dossiers dans Filters/ : masques, vignettage et, plus tard, shaders.",
     "cpu": "Économie prolonge la batterie, Performances aide les jeux lourds (CPS3).",
@@ -455,5 +459,11 @@
     "err6": "Échec de l'écriture sur la carte",
     "err7": "Mise à jour annulée",
     "err_safe": "Le système en service n'a pas été touché."
+  },
+  "look": {
+    "auto": "Automatique",
+    "small": "Petites",
+    "normal": "Normales",
+    "large": "Grandes"
   }
 }

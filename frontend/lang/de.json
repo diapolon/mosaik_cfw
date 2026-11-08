@@ -54,6 +54,8 @@
     "theme": "Design",
     "variant": "Designvariante",
     "language": "Sprache",
+    "grid_columns": "Miniaturen pro Reihe",
+    "home_size": "Cover auf dem Startbildschirm",
     "aspect": "Seitenverhältnis der Spiele",
     "filter": "Videofilter",
     "cpu": "Leistungsprofil",
@@ -86,6 +88,8 @@
     "theme": "Aussehen des Launchers und des Spielmenüs.",
     "variant": "Farben des Designs, falls es mehrere anbietet.",
     "language": "Sprache der Menüs. Wird auch an die Emulatoren übergeben.",
+    "grid_columns": "Wie viele Cover pro Reihe der Bibliothek angezeigt werden. Automatisch nutzt die Vorgabe des Themas.",
+    "home_size": "Größe der Cover auf dem Startbildschirm, bei Karussell-Themen.",
     "aspect": "Original: Proportionen des Automaten. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus.",
     "filter": "Filter sind Ordner in Filters/: Masken, Vignette und später Shader.",
     "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3).",
@@ -455,5 +459,11 @@
     "err6": "Schreiben auf die Karte fehlgeschlagen",
     "err7": "Update abgebrochen",
     "err_safe": "Das laufende System wurde nicht verändert."
+  },
+  "look": {
+    "auto": "Automatisch",
+    "small": "Klein",
+    "normal": "Normal",
+    "large": "Groß"
   }
 }

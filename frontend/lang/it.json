@@ -54,6 +54,8 @@
     "theme": "Tema",
     "variant": "Variante del tema",
     "language": "Lingua",
+    "grid_columns": "Miniature per riga",
+    "home_size": "Copertine in home",
     "aspect": "Proporzioni dei giochi",
     "filter": "Filtro video",
     "cpu": "Profilo prestazioni",
@@ -86,6 +88,8 @@
     "theme": "Aspetto del launcher e del menu in gioco.",
     "variant": "Combinazione di colori del tema, se ne offre più di una.",
     "language": "Lingua dei menu. Viene comunicata anche agli emulatori.",
+    "grid_columns": "Quante copertine mostrare in ogni riga della libreria. Automatico usa quelle previste dal tema.",
+    "home_size": "Grandezza delle copertine nella schermata iniziale, nei temi a carosello.",
     "aspect": "Originale: proporzioni del cabinato. Pixel interi: immagine nitida. Schermo intero: riempie tutto.",
     "filter": "I filtri sono cartelle in Filters/: maschere sull'immagine, vignettatura e, in futuro, shader.",
     "cpu": "Risparmio allunga la batteria, Prestazioni aiuta i giochi più pesanti (CPS3).",
@@ -455,5 +459,11 @@
     "err6": "Scrittura sulla scheda non riuscita",
     "err7": "Aggiornamento annullato",
     "err_safe": "Il sistema in uso non è stato toccato."
+  },
+  "look": {
+    "auto": "Automatico",
+    "small": "Piccole",
+    "normal": "Normali",
+    "large": "Grandi"
   }
 }

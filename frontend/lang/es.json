@@ -54,6 +54,8 @@
     "theme": "Tema",
     "variant": "Variante del tema",
     "language": "Idioma",
+    "grid_columns": "Miniaturas por fila",
+    "home_size": "Carátulas en inicio",
     "aspect": "Proporción de los juegos",
     "filter": "Filtro de vídeo",
     "cpu": "Perfil de rendimiento",
@@ -86,6 +88,8 @@
     "theme": "Aspecto del lanzador y del menú del juego.",
     "variant": "Colores del tema, si ofrece varios.",
     "language": "Idioma de los menús. También se pasa a los emuladores.",
+    "grid_columns": "Cuántas carátulas mostrar en cada fila de la biblioteca. Automático usa las del tema.",
+    "home_size": "Tamaño de las carátulas en la pantalla de inicio, en los temas de carrusel.",
     "aspect": "Original: proporciones de la recreativa. Píxeles enteros: imagen nítida. Pantalla completa: lo llena todo.",
     "filter": "Los filtros son carpetas en Filters/: máscaras, viñeteado y, en el futuro, shaders.",
     "cpu": "Ahorro alarga la batería, Rendimiento ayuda a los juegos pesados (CPS3).",
@@ -455,5 +459,11 @@
     "err6": "Error al escribir en la tarjeta",
     "err7": "Actualización cancelada",
     "err_safe": "El sistema en uso no se ha tocado."
+  },
+  "look": {
+    "auto": "Automático",
+    "small": "Pequeñas",
+    "normal": "Normales",
+    "large": "Grandes"
   }
 }

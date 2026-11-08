@@ -587,7 +587,8 @@ static void home_input(void) {
 static void home_draw(void) {
     theme_t *t = &UI.th;
     ui_topbar(t->title);
-    int S = M(t->tile_size), SW = (int)(S * t->tile_aspect), gap = M(t->tile_gap), mx = M(t->margin), r = M(t->tile_radius);
+    static const float home_scale[3] = { 0.8f, 1.0f, 1.2f };
+    int S = (int)(M(t->tile_size) * home_scale[UI.set.home_size % 3]), SW = (int)(S * t->tile_aspect), gap = M(t->tile_gap), mx = M(t->margin), r = M(t->tile_radius);
     int top = M(t->topbar_h), label_h = TTF_FontHeight(UI.f_normal);
     int y = top + label_h + M(0.05f);
     int items = ncarousel + 1;
@@ -1006,11 +1007,26 @@ static void lib_footer(const game_t *g, int y) {
     ui_text(UI.f_small, fit, M(t->margin), y + TTF_FontHeight(UI.f_normal), t->text_dim, ALIGN_LEFT);
 }
 
-static int grid_cols(void) {
+/* misura delle miniature: quella del tema, o ricavata dal numero scelto per riga */
+static void grid_metrics(int *cols, int *tw, int *th) {
     theme_t *t = &UI.th;
-    int TW = (int)(M(t->grid_tile) * t->tile_aspect), gap = M(t->tile_gap);
-    int cols = (UI.w - 2 * M(t->margin) + gap) / (TW + gap);
-    return cols < 1 ? 1 : cols;
+    int gap = M(t->tile_gap), avail = UI.w - 2 * M(t->margin);
+    if (UI.set.grid_columns) {
+        *cols = UI.set.grid_columns;
+        *tw = (avail - gap * (*cols - 1)) / *cols;
+        *th = (int)(*tw / t->tile_aspect);
+        return;
+    }
+    *th = M(t->grid_tile);
+    *tw = (int)(*th * t->tile_aspect);
+    *cols = (avail + gap) / (*tw + gap);
+    if (*cols < 1) *cols = 1;
+}
+
+static int grid_cols(void) {
+    int c, w, h;
+    grid_metrics(&c, &w, &h);
+    return c;
 }
 
 static void library_grid_draw(void) {
@@ -1018,9 +1034,8 @@ static void library_grid_draw(void) {
     ui_topbar(T("library.title"));
     int top = M(t->topbar_h);
     draw_tabs(top);
-    int TH = M(t->grid_tile), TW = (int)(TH * t->tile_aspect), gap = M(t->tile_gap), r = M(t->tile_radius);
-    int cols = grid_cols();
-    if (cols < 1) cols = 1;
+    int cols, TW, TH, gap = M(t->tile_gap), r = M(t->tile_radius);
+    grid_metrics(&cols, &TW, &TH);
     int gx = (UI.w - (cols * (TW + gap) - gap)) / 2;
     int area_y = top + TTF_FontHeight(UI.f_normal) + M(0.05f);
     int footer_h = TTF_FontHeight(UI.f_normal) + TTF_FontHeight(UI.f_small) + M(0.02f);
@@ -1139,11 +1154,11 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
-    "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
+    "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing",
     "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "log_level", "info", "power",
 };
 
@@ -1151,7 +1166,7 @@ static const char *set_key[S_COUNT] = {
 static const char *cat_key[SC_COUNT] = { "display", "look", "games", "system", "tools" };
 static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
-    { S_THEME, S_VARIANT, S_LANG, S_SAVER, -1 },
+    { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_RESUME, -1 },
     { S_WIFI, S_CLOCK, S_TZ, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, -1 },
@@ -1250,6 +1265,15 @@ static void set_value(int item, char *buf, size_t n) {
     }
     case S_LEDCOLOR: snprintf(buf, n, "%s", T(LED_COLORS[s->led_color % NLED_COLORS].key)); break;
     case S_LEDBRIGHT: snprintf(buf, n, "%d", s->led_bright); break;
+    case S_GRIDCOLS:
+        if (s->grid_columns) snprintf(buf, n, "%d", s->grid_columns);
+        else snprintf(buf, n, "%s", T("look.auto"));
+        break;
+    case S_HOMESIZE: {
+        static const char *k[3] = { "look.small", "look.normal", "look.large" };
+        snprintf(buf, n, "%s", T(k[s->home_size % 3]));
+        break;
+    }
     case S_UPDATE: snprintf(buf, n, "%s", update_current()); break;
     case S_LOGLEVEL: {
         static const char *k[3] = { "loglvl.essential", "loglvl.perf", "loglvl.full" };
@@ -1374,6 +1398,18 @@ static void set_change(int item, int dir) {
     case S_LED: s->led_mode = (s->led_mode + dir + 4) % 4; break;
     case S_LEDCOLOR: s->led_color = (s->led_color + dir + NLED_COLORS) % NLED_COLORS; break;
     case S_LOGLEVEL: s->log_level = (s->log_level + dir + 3) % 3; break;
+    case S_GRIDCOLS: {   /* 0 (tema), 3, 4, 5, 6, 7 */
+        int c = s->grid_columns ? s->grid_columns - 2 : 0;
+        c = (c + dir + 6) % 6;
+        s->grid_columns = c ? c + 2 : 0;
+        lib_scroll = lib_scroll_target = 0;
+        ring_init = false;
+        break;
+    }
+    case S_HOMESIZE:
+        s->home_size = (s->home_size + dir + 3) % 3;
+        ring_init = false;
+        break;
     case S_LEDBRIGHT: s->led_bright = s->led_bright + dir < 1 ? 1 : s->led_bright + dir > 10 ? 10 : s->led_bright + dir; break;
     case S_TZ:
         snprintf(s->tz, sizeof s->tz, "%s", TIMEZONES[(settings_tz_index(s) + dir + NTIMEZONES) % NTIMEZONES].id);

@@ -54,6 +54,8 @@
     "theme": "Theme",
     "variant": "Theme variant",
     "language": "Language",
+    "grid_columns": "Thumbnails per row",
+    "home_size": "Home covers",
     "aspect": "Game aspect ratio",
     "filter": "Video filter",
     "cpu": "Performance profile",
@@ -86,6 +88,8 @@
     "theme": "Look of the launcher and the in-game menu.",
     "variant": "Theme color scheme, when it offers more than one.",
     "language": "Menu language. Also passed to the emulators.",
+    "grid_columns": "How many covers to show on each library row. Auto uses the theme's default.",
+    "home_size": "Size of the covers on the home screen, in carousel themes.",
     "aspect": "Original: cabinet proportions. Integer pixels: sharp image. Full screen: fills everything.",
     "filter": "Filters are folders in Filters/: masks over the image, vignette and, in future, shaders.",
     "cpu": "Power saving extends battery life, Performance helps heavier games (CPS3).",
@@ -455,5 +459,11 @@
     "err6": "Writing to the card failed",
     "err7": "Update cancelled",
     "err_safe": "The system in use was not touched."
+  },
+  "look": {
+    "auto": "Auto",
+    "small": "Small",
+    "normal": "Normal",
+    "large": "Large"
   }
 }

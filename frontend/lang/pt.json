@@ -54,6 +54,8 @@
     "theme": "Tema",
     "variant": "Variante do tema",
     "language": "Idioma",
+    "grid_columns": "Miniaturas por linha",
+    "home_size": "Capas no início",
     "aspect": "Proporção dos jogos",
     "filter": "Filtro de vídeo",
     "cpu": "Perfil de desempenho",
@@ -86,6 +88,8 @@
     "theme": "Aspeto do launcher e do menu no jogo.",
     "variant": "Cores do tema, se oferecer várias.",
     "language": "Idioma dos menus. Também é passado aos emuladores.",
+    "grid_columns": "Quantas capas mostrar em cada linha da biblioteca. Automático usa as do tema.",
+    "home_size": "Tamanho das capas no ecrã inicial, nos temas em carrossel.",
     "aspect": "Original: proporções da máquina. Píxeis inteiros: imagem nítida. Ecrã inteiro: preenche tudo.",
     "filter": "Os filtros são pastas em Filters/: máscaras, vinheta e, no futuro, shaders.",
     "cpu": "Poupança prolonga a bateria, Desempenho ajuda os jogos pesados (CPS3).",
@@ -455,5 +459,11 @@
     "err6": "Falha ao escrever no cartão",
     "err7": "Atualização cancelada",
     "err_safe": "O sistema em uso não foi tocado."
+  },
+  "look": {
+    "auto": "Automático",
+    "small": "Pequenas",
+    "normal": "Normais",
+    "large": "Grandes"
   }
 }
