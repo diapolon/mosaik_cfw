@@ -1,6 +1,6 @@
-Arcade - sistema su SD per TrimUI Brick Pro (TG4040) e Smart Pro (TG5040) - prova M2
+Mosaik - sistema su SD per TrimUI Brick Pro (TG4040) e Smart Pro (TG5040) - prova M2
 
-Questa scheda avvia la console direttamente nel launcher Arcade, senza il sistema TrimUI.
+Questa scheda avvia la console direttamente nel launcher Mosaik, senza il sistema TrimUI.
 La memoria interna della console non viene toccata: togliendo la scheda riparte il
 sistema originale.
 

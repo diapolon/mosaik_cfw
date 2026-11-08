@@ -91,6 +91,8 @@ models | while IFS="|" read -r id fw name file; do
     cp -a $F/lib/udev/. $L/udev/
     cp -a $F/etc/udev/. $L/etc-udev/
     cp $T/m2/hw-init-$id.sh $L/hw-init.sh
+    bits=24; [ $id = tg5040 ] && bits=32
+    cp $T/m2/bootlogo-$bits.bmp $L/bootlogo.bmp   # lo stesso bootlogo.bmp dell'immagine
     chmod 755 $L/bin/* $L/hw-init.sh
     echo "strato $id: $(du -sh $L | cut -f1), librerie $(wc -l < $W/libs-$id.txt)"
     if [ -s $W/libs-mancanti-$id.txt ]; then echo "librerie non trovate ($id):"; cat $W/libs-mancanti-$id.txt; fi

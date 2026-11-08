@@ -4,7 +4,7 @@
 # Ogni passo va a schermo e in Arcade/Logs/passi.txt con sync subito dopo: se la console
 # si riavvia, l'ultimo passo scritto dice dove si è fermata.
 /bin/busybox --install -s /bin
-export PATH=/bin:/sbin FB_TITLE=ARCADE
+export PATH=/bin:/sbin FB_TITLE=MOSAIK
 mount -t proc proc /proc
 mount -t sysfs sys /sys
 mount -t devtmpfs dev /dev

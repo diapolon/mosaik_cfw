@@ -11,7 +11,7 @@ if [ ! -e /run/fw ]; then
 fi
 export PATH=/run/fw/bin:/usr/arcade/bin:/usr/bin:/usr/sbin:/bin:/sbin
 export LD_LIBRARY_PATH=/run/fw/usr/trimui/lib:/run/fw/usr/lib:/run/fw/lib:/usr/lib:/lib
-export ROOT=/mnt/SDCARD/Arcade HOME=/mnt/SDCARD/Arcade FB_TITLE=ARCADE
+export ROOT=/mnt/SDCARD/Arcade HOME=/mnt/SDCARD/Arcade FB_TITLE=MOSAIK
 export TRIMUI_MODEL="$(cat /run/trimui-model)" ARCADE_STANDALONE=1
 # diagnostica facoltativa: Arcade/System/device-env.sh (vedi device-env.sh.esempio), per
 # esempio TRIMUI_JOYDEBUG=1 (tasti nel log) o ARCADE_DEBUG_SHOT=1 (istantanea dei giochi)
@@ -52,6 +52,9 @@ hwclock -s -u 2>/dev/null
 echo "=== $(date) · sistema Arcade M2 · $TRIMUI_MODEL" >> "$LOG"
 # logo di avvio (lo stesso bootlogo.bmp che mostra U-Boot) al posto della schermata di prova,
 # fino alla prima schermata del launcher
+# Il logo di U-Boot sta nella radice della SD, fuori dagli aggiornamenti: quello giusto è nel
+# sistema e si rimette al suo posto se è cambiato
+cmp -s /run/fw/bootlogo.bmp /mnt/SDCARD/bootlogo.bmp || cp -f /run/fw/bootlogo.bmp /mnt/SDCARD/bootlogo.bmp 2>/dev/null
 fbmsg logo /mnt/SDCARD/bootlogo.bmp 2>/dev/null
 step "5 SISTEMA AVVIATO: $TRIMUI_MODEL ($(readlink /run/fw))"
 /run/fw/hw-init.sh >> "$LOG" 2>&1 || step "preparazione hardware: errore"

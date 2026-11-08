@@ -87,6 +87,10 @@ il sistema per ultimo. Passano solo i file del sistema (mai ROM, salvataggi, imp
 Il sistema precedente resta come `.prec`: se il nuovo non arriva alla prima schermata del
 launcher per 3 avvii, `system-init` lo rimette. Prove: `m2/test-update.sh`.
 
+**Nome.** Il sistema si chiama Mosaik. La cartella `Arcade`, l'etichetta ARCADE della SD,
+`arcade-system.squashfs` e gli altri nomi interni restano: cambiarli romperebbe le schede già
+installate e gli aggiornamenti.
+
 ## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2,3 GB)
 
 | Parte | Contenuto |

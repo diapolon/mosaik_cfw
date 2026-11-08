@@ -4,7 +4,7 @@
   // da solo a 1280x720 (Smart Pro) e 1024x768 (Brick Pro).
   "name": "Tessera",
   "author": "Prototipo",
-  "title": "Arcade",
+  "title": "Mosaik",
   "layout": "carousel",
   "sound_style": "soft",
   "fonts": {

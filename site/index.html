@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arcade per TrimUI</title>
-<meta name="description" content="Sistema arcade su microSD per TrimUI Smart Pro e Brick Pro: FinalBurn Neo, MAME 2003-Plus e giochi Linux.">
+<title>Mosaik per TrimUI</title>
+<meta name="description" content="Mosaik: sistema di gioco su microSD per TrimUI Smart Pro e Brick Pro, con FinalBurn Neo, MAME 2003-Plus e giochi Linux.">
 <style>
 @font-face { font-family: Nunito; src: url(assets/Nunito.ttf); font-weight: 200 1000; font-display: swap; }
 :root { --bg: #0b0e13; --surface: #151a22; --line: #262e3a; --text: #eef2f6; --dim: #9aa6b2; --accent: #0fb1d4; }
@@ -39,6 +39,11 @@ li b { font-weight: 800; }
 .features li { margin: 0; padding-left: 16px; border-left: 3px solid var(--accent); }
 .note { background: var(--surface); border-radius: 12px; padding: 16px 20px; color: var(--dim); font-size: 15px; margin-top: 16px; }
 .note b { color: var(--text); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; margin: 0; }
+.gallery figure { margin: 0; }
+.gallery img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.gallery figcaption { color: var(--dim); font-size: 15px; margin-top: 8px; }
+.gallery .wide { grid-column: 1 / -1; }
 a { color: var(--accent); }
 footer { margin-top: 64px; padding-top: 20px; padding-bottom: 40px; border-top: 1px solid var(--line); color: var(--dim); font-size: 14px; }
 @media (max-width: 640px) { .split { grid-template-columns: 1fr; } header { padding-top: 32px; } .logo { font-size: 36px; } }
@@ -46,12 +51,24 @@ footer { margin-top: 64px; padding-top: 20px; padding-bottom: 40px; border-top: 
 </head>
 <body>
 <header>
-  <div class="logo"><span class="tiles"><i></i><i></i><i></i><i></i></span>ARCADE</div>
-  <h1>Il tuo cabinato, in tasca.</h1>
-  <p class="lead">Un sistema dedicato ai giochi arcade per TrimUI Smart Pro e Brick Pro. Parte dalla microSD e non tocca la memoria interna della console: togli la scheda e torna tutto come prima.</p>
+  <div class="logo"><span class="tiles"><i></i><i></i><i></i><i></i></span>MOSAIK</div>
+  <h1>Tutti i tuoi giochi, in tasca.</h1>
+  <p class="lead">Un sistema di gioco per TrimUI Smart Pro e Brick Pro: arcade e giochi Linux. Parte dalla microSD e non tocca la memoria interna della console: togli la scheda e torna tutto come prima.</p>
   <span class="version">Versione <b>{{VERSION}}</b> · {{DATE}}</span>
 </header>
 <main>
+  <h2>L'interfaccia</h2>
+  <div class="gallery">
+    <figure class="wide"><img src="assets/home.png" width="1024" height="768" alt="La schermata iniziale di Mosaik, con le copertine dei giochi e le icone di libreria, preferiti, aspetto, impostazioni e spegnimento"><figcaption>La home: i tuoi giochi e tutto il resto a portata di tasto.</figcaption></figure>
+    <figure><img src="assets/libreria.png" width="1024" height="768" alt="La libreria a griglia di copertine, con il tema scuro" loading="lazy"><figcaption>La libreria, con quante miniature per riga vuoi.</figcaption></figure>
+    <figure><img src="assets/scheda.png" width="1024" height="768" alt="La scheda di un gioco, con immagine, anno, genere, numero di giocatori e descrizione" loading="lazy"><figcaption>La scheda del gioco, con storia e informazioni.</figcaption></figure>
+    <figure><img src="assets/filtri.png" width="1024" height="768" alt="La finestra dei filtri: ricerca, genere, collezione, ordinamento e stato delle ROM" loading="lazy"><figcaption>Ricerca, generi, collezioni e ordinamento.</figcaption></figure>
+    <figure><img src="assets/aspetto.png" width="1024" height="768" alt="Le impostazioni di aspetto: tema, variante, lingua, miniature per riga, copertine in home e salvaschermo" loading="lazy"><figcaption>Tema, lingua e miniature, a tuo gusto.</figcaption></figure>
+    <figure><img src="assets/tema-cabinato.png" width="1024" height="768" alt="Il tema Cabinato: elenco dei giochi su fondo viola scuro" loading="lazy"><figcaption>Tema Cabinato.</figcaption></figure>
+    <figure><img src="assets/tema-onda.png" width="1024" height="768" alt="Il tema Onda: icone delle collezioni in alto ed elenco dei giochi su fondo blu" loading="lazy"><figcaption>Tema Onda.</figcaption></figure>
+  </div>
+  <p class="note">I giochi e le copertine in queste immagini sono inventati, solo per mostrare l'interfaccia.</p>
+
   <h2>Scarica</h2>
   <div class="cards">
     <section class="card">
@@ -84,7 +101,7 @@ footer { margin-top: 64px; padding-top: 20px; padding-bottom: 40px; border-top: 
       <li>Apri Impostazioni → Strumenti → <b>Aggiorna sistema</b>.</li>
       <li>Conferma con A. Alla fine la console si riavvia.</li>
     </ol>
-    <img src="assets/impostazioni.png" width="1024" height="768" alt="Le impostazioni del launcher Arcade, divise in categorie">
+    <img src="assets/impostazioni.png" width="1024" height="768" alt="Le impostazioni del launcher Mosaik, divise in categorie">
   </div>
   <p class="note">ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se il sistema nuovo non parte la console torna da sola a quello precedente.</p>
 

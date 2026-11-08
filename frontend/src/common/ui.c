@@ -820,7 +820,7 @@ bool theme_load(theme_t *t, const char *root, const char *id, const char *varian
     t->line = rgba(0, 0, 0, 40);
     strcpy(t->layout, "carousel");
     strcpy(t->sound_style, "soft");
-    strcpy(t->title, "Arcade");
+    strcpy(t->title, "Mosaik");
     t->topbar_h = 0.12f; t->hintbar_h = 0.10f; t->margin = 0.07f;
     t->tile_size = 0.36f; t->grid_tile = 0.25f; t->tile_gap = 0.02f; t->tile_radius = 0.01f;
     t->select_border = 0.007f; t->icon_size = 0.105f;

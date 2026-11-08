@@ -2,7 +2,7 @@
   // Cabinato: elenco giochi con anteprima, colori neon e scanline, suoni da sala giochi.
   "name": "Cabinato",
   "author": "Prototipo",
-  "title": "Arcade",
+  "title": "Mosaik",
   "title_uppercase": true,
   "layout": "list",
   "sound_style": "retro",

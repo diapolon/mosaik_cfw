@@ -1,4 +1,4 @@
-# Sito di Arcade
+# Sito di Mosaik
 
 `index.html` e `assets/` sono il modello. Il sito vero si genera, dopo `sh m2/build-m2.sh`, con:
 

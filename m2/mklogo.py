@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Logo di avvio per U-Boot (bootlogo.bmp nella partizione ARCADE, che per U-Boot è
+"""Logo di avvio per U-Boot, scritta MOSAIK (bootlogo.bmp nella partizione ARCADE, che per U-Boot è
 "boot-resource"): stesso formato del logo TrimUI del firmware, 396x66 su fondo nero,
 BMP non compresso dal basso verso l'alto, 32 bit (Smart Pro, alfa a 0 come l'originale) o
 24 bit (Brick Pro).
@@ -20,7 +20,7 @@ d = ImageDraw.Draw(img)
 # simbolo: quattro tessere arrotondate, una piena di bianco (come la selezione nel launcher)
 font = ImageFont.truetype(font_path, 58)
 font.set_variation_by_name("Black")
-text = "ARCADE"
+text = "MOSAIK"
 bbox = d.textbbox((0, 0), text, font=font)
 tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 s, g, gap = 22, 6, 16

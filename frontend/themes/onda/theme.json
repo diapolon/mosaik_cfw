@@ -2,7 +2,7 @@
   // Onda: categorie in orizzontale e giochi in verticale, sfondo a gradiente con onde animate.
   "name": "Onda",
   "author": "Prototipo",
-  "title": "Arcade",
+  "title": "Mosaik",
   "layout": "bar",
   "sound_style": "soft",
   "fonts": {
