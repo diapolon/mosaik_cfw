@@ -32,7 +32,7 @@
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
 - **Themes, languages, LEDs and video filters** you can configure.
-- **Signed updates** over Wi-Fi, with automatic return to the previous version.
+- **Signed updates** over Wi-Fi, with an attempt to return to the previous version if one fails.
 
 ## The interface
 
@@ -151,7 +151,7 @@ On the Brick Pro, HOME goes back to the launcher, the two bars below the screen 
 
 Open **Settings → System → Wi-Fi**: left and right turn it on and off, A shows the networks. On the on-screen keyboard, X switches between uppercase, lowercase and symbols.
 
-To update, open **Settings → Tools → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if the new system fails to start, the console goes back to the previous one by itself.
+To update, open **Settings → Tools → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if a new system fails to start, the console tries to go back to the previous one by itself. This does not cover every failure: in the worst case, write the image to the card again.
 
 **Settings → Tools → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
 

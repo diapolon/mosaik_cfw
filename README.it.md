@@ -32,7 +32,7 @@
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
 - **Temi, lingue, LED e filtri video** configurabili.
-- **Aggiornamenti firmati** via Wi-Fi, con ritorno automatico alla versione precedente.
+- **Aggiornamenti firmati** via Wi-Fi, con un tentativo di ritorno alla versione precedente se uno fallisce.
 
 ## L'interfaccia
 
@@ -151,7 +151,7 @@ Sulla Brick Pro, HOME torna al launcher, le due barrette sotto lo schermo salvan
 
 Apri **Impostazioni → Sistema → Wi-Fi**: sinistra e destra accendono e spengono, A mostra le reti. Sulla tastiera a schermo, X passa tra maiuscole, minuscole e simboli.
 
-Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se il sistema nuovo non parte la console torna da sola a quello precedente.
+Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se un sistema nuovo non parte la console prova a tornare da sola a quello precedente. Non copre ogni guasto: nel caso peggiore, riscrivi l'immagine sulla scheda.
 
 **Impostazioni → Strumenti → Canale aggiornamenti** passa tra Stabile e Sviluppo (versioni di prova, che possono avere problemi). Tornando a Stabile si resta così fino alla prossima versione stabile.
 
