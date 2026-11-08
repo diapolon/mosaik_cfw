@@ -88,7 +88,11 @@ case $GROW in
 esac
 SYS=/sd/Arcade/System/arcade-system.squashfs
 [ -f "$SYS" ] || fail "MANCA IL SISTEMA" "ARCADE/SYSTEM/ARCADE-SYSTEM.SQUASHFS"
-mount -t squashfs -o loop,ro "$SYS" /root || fail "SISTEMA NON MONTABILE" "ARCADE-SYSTEM.SQUASHFS"
+if ! mount -t squashfs -o loop,ro "$SYS" /root; then
+    # sistema rovinato: si prova quello precedente, che l'aggiornamento tiene da parte
+    step "sistema non montabile: provo il precedente"
+    [ -f "$SYS.prec" ] && mount -t squashfs -o loop,ro "$SYS.prec" /root || fail "SISTEMA NON MONTABILE" "ARCADE-SYSTEM.SQUASHFS"
+fi
 step "3 SISTEMA MONTATO"
 for d in tmp run var; do mount -t tmpfs -o mode=755 tmpfs /root/$d || fail "TMPFS" "$d"; done
 mount -t tmpfs -o size=4m tmpfs /root/mnt/UDISK || fail "TMPFS" "UDISK"

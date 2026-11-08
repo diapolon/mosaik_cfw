@@ -68,6 +68,7 @@
     "duplicates": "Juegos duplicados",
     "scrape": "Descargar imágenes",
     "clean_media": "Limpiar imágenes",
+    "update": "Actualizar sistema",
     "log_level": "Registro de diagnóstico",
     "bezel": "Marcos de los juegos",
     "missing": "Juegos sin ROM",
@@ -99,6 +100,7 @@
     "duplicates": "Juego presente en FinalBurn Neo y MAME 2003+: mostrar ambos o solo uno.",
     "scrape": "Descarga capturas, pantallas de título y marquees de ArcadeDB y las miniaturas de libretro. Requiere Wi-Fi.",
     "clean_media": "Borra las imágenes descargadas de juegos que ya no están en la tarjeta.",
+    "update": "Descarga la versión nueva por Wi-Fi. ROM, partidas y ajustes no se tocan.",
     "log_level": "Qué se escribe en Arcade/Logs. Esencial: arranques y errores. Rendimiento: también tiempos de arranque y velocidad de los juegos. Completo: también botones pulsados e instantáneas.",
     "bezel": "Un marco (bezel) alrededor del juego: el del juego en Bezels/ si existe, si no el predeterminado.",
     "missing": "Muestra también los juegos del catálogo que no tienes (solo versiones principales).",
@@ -356,7 +358,7 @@
     "saves": "Partidas guardadas",
     "music": "Música",
     "system": "Sistema y ajustes",
-    "footer": "Arcade 0.1 · %s",
+    "footer": "Arcade %s · %s",
     "one_game": "1 juego"
   },
   "wifi": {
@@ -428,5 +430,30 @@
     "essential": "Esencial",
     "perf": "Rendimiento",
     "full": "Completo"
+  },
+  "update": {
+    "title": "Actualizar sistema",
+    "no_wifi": "El Wi-Fi debe estar conectado",
+    "searching": "Buscando una actualización…",
+    "checking": "Comprobando los archivos de la tarjeta…",
+    "none": "No se encontró ninguna actualización",
+    "none_hint": "Comprueba la conexión a internet o inicia el servidor de actualización en el Mac.",
+    "current": "El sistema está actualizado",
+    "available": "Disponible: %s",
+    "details": "En uso: %s · %d archivos por descargar, %s. Al final la consola se reinicia.",
+    "install": "Instalar",
+    "downloading": "Descargando y comprobando archivos…",
+    "installing": "Instalando…",
+    "done": "Actualización instalada",
+    "restart": "Reiniciar",
+    "restarting": "Reiniciando…",
+    "err1": "Conexión fallida",
+    "err2": "Firma no válida: actualización rechazada",
+    "err3": "Lista de archivos no válida",
+    "err4": "No hay espacio suficiente en la tarjeta",
+    "err5": "El archivo difiere del original tras escribirlo",
+    "err6": "Error al escribir en la tarjeta",
+    "err7": "Actualización cancelada",
+    "err_safe": "El sistema en uso no se ha tocado."
   }
 }

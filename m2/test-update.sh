@@ -1,0 +1,126 @@
+#!/bin/sh
+# Prova dell'aggiornamento via Wi-Fi in un Linux arm64, con il server vero e il modulo vero:
+#   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-update.sh
+set -e
+apk add -q build-base curl-dev openssl-dev python3 openssl coreutils >/dev/null
+W=/tmp/upd; rm -rf $W; mkdir -p $W/src; cd $W
+ok() { echo "  ok: $*"; }
+ko() { echo "  ERRORE: $*"; exit 1; }
+
+openssl ecparam -name prime256v1 -genkey -noout -out key.pem 2>/dev/null
+openssl ecparam -name prime256v1 -genkey -noout -out altra.pem 2>/dev/null
+cp /trimui/frontend/src/launcher/update.c /trimui/frontend/src/launcher/update.h src/
+{ echo 'static const char UPDATE_PUBKEY[] ='; openssl ec -in key.pem -pubout 2>/dev/null | sed 's/.*/"&\\n"/'; echo ';'; } > src/update_pubkey.h
+cat > src/t.c <<'C'
+#include "update.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
+int main(int c, char **v) {
+    update_check(v[1]); update_join();
+    const update_status_t *s = update_status();
+    if (c > 2 && s->phase == UPD_AVAILABLE) { update_install(); update_join(); }
+    printf("%d %d %d\n", s->phase, s->error, s->files);
+    return 0;
+}
+C
+gcc -O2 -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DUPDATE_REAL -DARCADE_VERSION='"0.0.0"' -o t src/t.c src/update.c -lcurl -lcrypto -lpthread
+echo "0.8.0 20260101.0000" > old.txt; echo "0.9.0 20270101.0000" > same.txt; echo "1.0.0 20300101.0000" > newer.txt
+export ARCADE_UPDATE_ADDR=127.0.0.1
+
+# pacchetto sul "Mac"
+D=$W/dist; A=$D/SD/Arcade; mkdir -p $A/System $A/Lang $A/Cores $A/Themes/t $A/Dats/history $A/Emulators $A/Filters $A/Bezels
+head -c 3000000 /dev/urandom > $D/arcade-system.squashfs
+echo "0.9.0 20270101.0000" > $D/arcade-version.txt
+echo certs > $A/System/cacert.pem; echo '{"it":1}' > $A/Lang/it.json; head -c 5000000 /dev/urandom > $A/Cores/a.so
+echo tema > $A/Themes/t/theme.json; echo idx > $A/Dats/fbneo.tsv; echo storia > $A/Dats/history/x.txt
+
+card() {  # scheda con il sistema vecchio e i dati dell'utente
+    rm -rf $W/sd; S=$W/sd; mkdir -p $S/System $S/Lang $S/Cores $S/Roms
+    head -c 1000000 /dev/urandom > $S/System/arcade-system.squashfs
+    cp $S/System/arcade-system.squashfs $W/vecchio
+    echo vecchio > $S/Lang/it.json; echo '{"mio":1}' > $S/System/settings.json; echo rom > $S/Roms/a.zip
+}
+serve() { python3 /trimui/toolchain/update-server.py --dist $D --http-port 8765 --udp-port 8766 --key "$1" >/dev/null & SRV=$!; for i in $(seq 50); do nc -z 127.0.0.1 8765 2>/dev/null && break; sleep 0.1; done; }
+stop() { kill $SRV 2>/dev/null; wait $SRV 2>/dev/null || true; }
+expect() { [ "$1" = "$2" ] && ok "$3 ($1)" || ko "$3: atteso $2, ottenuto $1"; }
+
+echo "--- installazione completa, server trovato col broadcast"
+card; serve key.pem
+export ARCADE_VERSION_FILE=$W/old.txt
+expect "$(./t $W/sd install 2>/dev/null)" "9 0 6" "fine installazione, 6 file"
+cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nuovo identico"
+cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio conservato"
+cmp $A/Cores/a.so $S/Cores/a.so && cmp $A/Lang/it.json $S/Lang/it.json && cmp $A/Themes/t/theme.json $S/Themes/t/theme.json && ok "dati aggiornati"
+[ "$(cat $S/System/settings.json)" = '{"mio":1}' ] && [ -f $S/Roms/a.zip ] && ok "impostazioni e ROM intatte"
+[ -f $S/System/update-pending ] && ok "segno di prova del sistema nuovo"
+[ ! -e $S/Dats/history ] && ok "Dats/history non toccata"
+[ -z "$(find $S -name '*.nuovo')" ] && ok "nessun file provvisorio rimasto"
+
+echo "--- seconda volta: già aggiornato"
+export ARCADE_VERSION_FILE=$W/same.txt
+expect "$(./t $W/sd install 2>/dev/null)" "4 0 0" "stessa versione"
+echo "--- versione offerta più vecchia"
+export ARCADE_VERSION_FILE=$W/newer.txt
+expect "$(./t $W/sd install 2>/dev/null)" "4 0 0" "niente ritorno indietro"
+
+echo "--- cambia solo una lingua: il sistema non si tocca"
+export ARCADE_VERSION_FILE=$W/old.txt
+rm -f $S/System/update-pending $S/System/arcade-system.squashfs.prec; echo modificata > $S/Lang/it.json
+expect "$(./t $W/sd install 2>/dev/null)" "9 0 1" "un solo file"
+cmp $A/Lang/it.json $S/Lang/it.json && [ ! -e $S/System/update-pending ] && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema non toccato"
+stop
+
+echo "--- firma con un'altra chiave"
+card; before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum); serve altra.pem
+expect "$(./t $W/sd install 2>/dev/null)" "10 2 0" "firma rifiutata"
+[ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "scheda intatta"
+stop
+
+mk_static() {  # $1 cartella con update.txt e files/: firma con la chiave giusta
+    openssl dgst -sha256 -sign key.pem -out $1/update.sig $1/update.txt
+    python3 -m http.server --directory $1 8765 >/dev/null 2>&1 & SRV=$!
+    for i in $(seq 50); do nc -z 127.0.0.1 8765 2>/dev/null && break; sleep 0.1; done
+}
+echo "--- file alterato dopo la firma (server statico, indirizzo da update-url.txt)"
+card; echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
+before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum)
+X=$W/st; rm -rf $X; mkdir -p $X; echo buono > $X/buono; h=$(sha256sum $X/buono | cut -d' ' -f1)
+printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 Lang/it.json\n' $h > $X/update.txt
+echo cattivo > $X/file-0; mk_static $X
+expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 5 1" "impronta sbagliata rifiutata"
+[ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "scheda intatta"
+stop
+
+echo "--- elenco firmato che punta fuori dalle cartelle del sistema"
+for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x; do
+    printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 %s\n' $h "$bad" > $X/update.txt; mk_static $X
+    expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 3 0" "$bad"
+    stop
+done
+
+echo "--- file pubblicati online: statici, dietro un reindirizzamento come GitHub"
+card; export ARCADE_VERSION_FILE=$W/old.txt
+python3 /trimui/toolchain/update-server.py --dist $D --key key.pem --out $W/pub >/dev/null
+python3 -m http.server --directory $W/pub 8770 >/dev/null 2>&1 & SRV2=$!
+cat > $W/redir.py <<'PY'
+import http.server
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(302); self.send_header("Location", "http://127.0.0.1:8770" + self.path); self.end_headers()
+    def log_message(self, *a): pass
+http.server.ThreadingHTTPServer(("", 8765), H).serve_forever()
+PY
+python3 $W/redir.py & SRV=$!
+for p in 8765 8770; do for i in $(seq 50); do nc -z 127.0.0.1 $p 2>/dev/null && break; sleep 0.1; done; done
+echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
+expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "9 0 6" "installata da file statici"
+cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && cmp $A/Cores/a.so $S/Cores/a.so && ok "file identici"
+stop; kill $SRV2 2>/dev/null; wait $SRV2 2>/dev/null || true
+rm -f $S/System/update-url.txt
+
+echo "--- nessun server"
+rm -f $S/System/update-url.txt
+expect "$(./t $W/sd install 2>/dev/null)" "3 0 0" "nessun server"
+echo TUTTO OK

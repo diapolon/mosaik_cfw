@@ -68,6 +68,7 @@
     "duplicates": "Giochi doppi",
     "scrape": "Scarica immagini",
     "clean_media": "Pulisci immagini",
+    "update": "Aggiorna sistema",
     "log_level": "Registro diagnostico",
     "bezel": "Cornici dei giochi",
     "missing": "Giochi senza ROM",
@@ -99,6 +100,7 @@
     "duplicates": "Gioco presente sia in FinalBurn Neo sia in MAME 2003+: mostra entrambi o solo uno.",
     "scrape": "Scarica schermate, titoli e marquee dei giochi da ArcadeDB e dalle miniature libretro. Serve il Wi-Fi.",
     "clean_media": "Elimina le immagini scaricate di giochi che non sono più sulla scheda.",
+    "update": "Scarica la versione nuova via Wi-Fi. ROM, salvataggi e impostazioni non si toccano.",
     "log_level": "Cosa scrivere in Arcade/Logs. Essenziale: avvii ed errori. Prestazioni: anche tempi dell'avvio e velocità dei giochi. Completo: anche tasti premuti e istantanee.",
     "bezel": "Una cornice (bezel) attorno al gioco: quella del gioco se c'è in Bezels/, altrimenti quella predefinita.",
     "missing": "Mostra anche i giochi del catalogo degli emulatori che non hai (solo le versioni principali, non i cloni).",
@@ -356,7 +358,7 @@
     "saves": "Salvataggi",
     "music": "Musica",
     "system": "Sistema e impostazioni",
-    "footer": "Arcade 0.1 · %s",
+    "footer": "Arcade %s · %s",
     "one_game": "1 gioco"
   },
   "wifi": {
@@ -428,5 +430,30 @@
     "essential": "Essenziale",
     "perf": "Prestazioni",
     "full": "Completo"
+  },
+  "update": {
+    "title": "Aggiorna sistema",
+    "no_wifi": "Serve il Wi-Fi collegato",
+    "searching": "Cerco un aggiornamento…",
+    "checking": "Controllo i file sulla scheda…",
+    "none": "Nessun aggiornamento trovato",
+    "none_hint": "Controlla la connessione a internet, o avvia il server di aggiornamento sul Mac.",
+    "current": "Il sistema è aggiornato",
+    "available": "Disponibile: %s",
+    "details": "In uso: %s · %d file da scaricare, %s. Alla fine la console si riavvia.",
+    "install": "Installa",
+    "downloading": "Scarico e controllo i file…",
+    "installing": "Installo…",
+    "done": "Aggiornamento installato",
+    "restart": "Riavvia",
+    "restarting": "Riavvio…",
+    "err1": "Connessione non riuscita",
+    "err2": "Firma non valida: aggiornamento rifiutato",
+    "err3": "Elenco dei file non valido",
+    "err4": "Spazio insufficiente sulla scheda",
+    "err5": "File diverso dall'originale dopo la scrittura",
+    "err6": "Scrittura sulla scheda non riuscita",
+    "err7": "Aggiornamento annullato",
+    "err_safe": "Il sistema in uso non è stato toccato."
   }
 }

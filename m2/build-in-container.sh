@@ -44,6 +44,9 @@ printf "#!/bin/sh\nexit 0\n" > $R/usr/bin/setterm
 F0=/build/fw/tg4040b/root
 cp $F0/etc/passwd $F0/etc/group $R/etc/
 echo arcade > $R/etc/hostname
+# versione: numero (file VERSION) e data di compilazione; l'aggiornamento via Wi-Fi le confronta
+echo "$(cat $T/VERSION) $(date -u +%Y%m%d.%H%M)" > $R/etc/arcade-version
+cp $R/etc/arcade-version $T/dist/arcade-version.txt
 cp $F0/lib/firmware/rgx.* $R/lib/firmware/
 # firmware del chip Wi-Fi/Bluetooth XR829 (uguale nei due modelli)
 cp $F0/lib/firmware/*xr829* $R/lib/firmware/

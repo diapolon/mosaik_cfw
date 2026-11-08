@@ -5,7 +5,7 @@
 CC      ?= cc
 PKGS    := sdl2 SDL2_ttf SDL2_image
 CFLAGS  += -std=c11 -O2 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers \
-           -D_DEFAULT_SOURCE $(shell pkg-config --cflags $(PKGS) SDL2_mixer)
+           -D_DEFAULT_SOURCE -DARCADE_VERSION='"$(shell cat ../VERSION)"' -DUPDATE_DEFAULT_URL='"$(shell cat ../UPDATE_URL 2>/dev/null)"' $(shell pkg-config --cflags $(PKGS) SDL2_mixer)
 LDLIBS  += $(shell pkg-config --libs $(PKGS)) -lm
 
 BUILD   := build
@@ -13,7 +13,7 @@ COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/la
 
 all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu
 
-LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c
 
 $(BUILD)/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDLIBS) $(shell pkg-config --libs SDL2_mixer) -lcurl

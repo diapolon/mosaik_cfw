@@ -68,6 +68,7 @@
     "duplicates": "Jeux en double",
     "scrape": "Télécharger les images",
     "clean_media": "Nettoyer les images",
+    "update": "Mettre à jour",
     "log_level": "Journal de diagnostic",
     "bezel": "Cadres des jeux",
     "missing": "Jeux sans ROM",
@@ -99,6 +100,7 @@
     "duplicates": "Jeu présent dans FinalBurn Neo et MAME 2003+ : afficher les deux ou un seul.",
     "scrape": "Télécharge captures, écrans titres et marquees depuis ArcadeDB et les vignettes libretro. Wi-Fi requis.",
     "clean_media": "Supprime les images téléchargées des jeux qui ne sont plus sur la carte.",
+    "update": "Télécharge la nouvelle version en Wi-Fi. ROM, sauvegardes et réglages ne sont pas touchés.",
     "log_level": "Ce qui est écrit dans Arcade/Logs. Essentiel : démarrages et erreurs. Performances : aussi temps de démarrage et vitesse des jeux. Complet : aussi boutons et captures.",
     "bezel": "Un cadre (bezel) autour du jeu : celui du jeu dans Bezels/ s'il existe, sinon celui par défaut.",
     "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
@@ -356,7 +358,7 @@
     "saves": "Sauvegardes",
     "music": "Musique",
     "system": "Système et réglages",
-    "footer": "Arcade 0.1 · %s",
+    "footer": "Arcade %s · %s",
     "one_game": "1 jeu"
   },
   "wifi": {
@@ -428,5 +430,30 @@
     "essential": "Essentiel",
     "perf": "Performances",
     "full": "Complet"
+  },
+  "update": {
+    "title": "Mise à jour du système",
+    "no_wifi": "Le Wi-Fi doit être connecté",
+    "searching": "Recherche d'une mise à jour…",
+    "checking": "Vérification des fichiers de la carte…",
+    "none": "Aucune mise à jour trouvée",
+    "none_hint": "Vérifie la connexion internet ou lance le serveur de mise à jour sur le Mac.",
+    "current": "Le système est à jour",
+    "available": "Disponible : %s",
+    "details": "Installée : %s · %d fichiers à télécharger, %s. La console redémarre à la fin.",
+    "install": "Installer",
+    "downloading": "Téléchargement et vérification…",
+    "installing": "Installation…",
+    "done": "Mise à jour installée",
+    "restart": "Redémarrer",
+    "restarting": "Redémarrage…",
+    "err1": "Échec de la connexion",
+    "err2": "Signature non valide : mise à jour refusée",
+    "err3": "Liste de fichiers non valide",
+    "err4": "Espace insuffisant sur la carte",
+    "err5": "Fichier différent de l'original après écriture",
+    "err6": "Échec de l'écriture sur la carte",
+    "err7": "Mise à jour annulée",
+    "err_safe": "Le système en service n'a pas été touché."
   }
 }

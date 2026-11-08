@@ -68,6 +68,7 @@
     "duplicates": "Duplicate games",
     "scrape": "Download images",
     "clean_media": "Clean up images",
+    "update": "Update system",
     "log_level": "Diagnostic log",
     "bezel": "Game bezels",
     "missing": "Games without ROM",
@@ -99,6 +100,7 @@
     "duplicates": "Game present in both FinalBurn Neo and MAME 2003+: show both or only one.",
     "scrape": "Downloads game screenshots, titles and marquees from ArcadeDB and libretro thumbnails. Needs Wi-Fi.",
     "clean_media": "Deletes downloaded images of games that are no longer on the card.",
+    "update": "Downloads the new version over Wi-Fi. ROMs, saves and settings are left alone.",
     "log_level": "What to write in Arcade/Logs. Essential: starts and errors. Performance: also boot times and game speed. Full: also button presses and snapshots.",
     "bezel": "A bezel around the game: the game's own from Bezels/ if present, otherwise the default one.",
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
@@ -356,7 +358,7 @@
     "saves": "Saves",
     "music": "Music",
     "system": "System and settings",
-    "footer": "Arcade 0.1 · %s",
+    "footer": "Arcade %s · %s",
     "one_game": "1 game"
   },
   "wifi": {
@@ -428,5 +430,30 @@
     "essential": "Essential",
     "perf": "Performance",
     "full": "Full"
+  },
+  "update": {
+    "title": "Update system",
+    "no_wifi": "Wi-Fi must be connected",
+    "searching": "Looking for an update…",
+    "checking": "Checking the files on the card…",
+    "none": "No update found",
+    "none_hint": "Check the internet connection, or start the update server on the Mac.",
+    "current": "The system is up to date",
+    "available": "Available: %s",
+    "details": "In use: %s · %d files to download, %s. The console restarts at the end.",
+    "install": "Install",
+    "downloading": "Downloading and checking files…",
+    "installing": "Installing…",
+    "done": "Update installed",
+    "restart": "Restart",
+    "restarting": "Restarting…",
+    "err1": "Connection failed",
+    "err2": "Invalid signature: update refused",
+    "err3": "Invalid file list",
+    "err4": "Not enough space on the card",
+    "err5": "File differs from the original after writing",
+    "err6": "Writing to the card failed",
+    "err7": "Update cancelled",
+    "err_safe": "The system in use was not touched."
   }
 }

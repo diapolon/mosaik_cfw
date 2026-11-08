@@ -12,7 +12,7 @@ TCLIBC  := /opt/aarch64-linux-gnu-7.5.0-linaro/aarch64-linux-gnu/libc
 OUT     ?= /build/out
 
 CFLAGS  := -std=c11 -O2 -mcpu=cortex-a53 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation \
-           -D_DEFAULT_SOURCE -D_GNU_SOURCE -DTRIMUI_DEVICE -D_REENTRANT \
+           -D_DEFAULT_SOURCE -D_GNU_SOURCE -DTRIMUI_DEVICE -D_REENTRANT -DARCADE_VERSION='"$(shell cat ../VERSION)"' -DUPDATE_DEFAULT_URL='"$(shell cat ../UPDATE_URL 2>/dev/null)"' \
            -I$(PREFIX)/include -I$(PREFIX)/include/SDL2 -I$(SDK)/include -I$(SDK)/include/SDL2
 # glibc del compilatore per il collegamento; le librerie del firmware si cercano a runtime in
 # /usr/lib, quelle del pacchetto in ../lib accanto ai programmi
@@ -21,7 +21,7 @@ LDFLAGS := -L$(PREFIX)/lib -L$(SDK)/lib -Wl,-rpath-link,$(TCLIBC)/lib -Wl,-rpath
 SDLLIBS := -Wl,-Bstatic -lSDL2_ttf -lSDL2_image -Wl,-Bdynamic -lSDL2 -lm -lpthread -ldl
 
 COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
-LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c
 RUNNER   := src/runner/runner.c src/runner/glshader.c
 
 all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu

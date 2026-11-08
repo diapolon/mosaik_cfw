@@ -73,6 +73,20 @@ logo TrimUI; 396x66, 32 bit Smart Pro / 24 bit Brick Pro, da `m2/mklogo.py`) e l
 mostrato da `fbmsg logo` fino al launcher; le schermate a strisce restano per gli errori.
 Tempi del launcher nel log (`tempi: ...`).
 
+**Versione e aggiornamento via Wi-Fi (8 novembre).** Il numero sta nel file `VERSION`; la build
+aggiunge la data di compilazione (`/etc/arcade-version`, per esempio `0.9.0 20261108.1010`) e la
+console accetta solo versioni più recenti. In Impostazioni > Strumenti > Aggiorna sistema la
+console cerca: un Mac in rete locale (`python3 toolchain/update-server.py`, broadcast UDP 8766),
+poi `System/update-url.txt`, poi l'indirizzo online (file `UPDATE_URL`, compilato nel launcher).
+Bastano file statici: `update.txt`, `update.sig`, `file-0`, `file-1`...
+(`update-server.py --out CARTELLA`). L'elenco è firmato ECDSA P-256 con la chiave privata in
+`~/.config/arcade-update/update-key.pem`, **da conservare**: senza, le console già in giro non
+accettano aggiornamenti; la pubblica è in `frontend/src/launcher/update_pubkey.h`. I file si
+scaricano come `.nuovo`, si rileggono dalla SD e si controlla lo SHA-256; poi si sostituiscono,
+il sistema per ultimo. Passano solo i file del sistema (mai ROM, salvataggi, impostazioni).
+Il sistema precedente resta come `.prec`: se il nuovo non arriva alla prima schermata del
+launcher per 3 avvii, `system-init` lo rimette. Prove: `m2/test-update.sh`.
+
 ## Com'è fatta la scheda (`dist/m2-brickpro.img`, 2,3 GB)
 
 | Parte | Contenuto |

@@ -211,8 +211,9 @@ LOGLEVEL=$(sed -n 's/.*"log_level": *\([0-9]\).*/\1/p' "$ROOT/System/settings.js
     wpa_cli -p /run/wpa -i wlan0 status 2>/dev/null; ip route; cat /run/resolv.conf 2>/dev/null
     echo; ls -l /dev/pvr* /dev/dri 2>/dev/null; echo; dmesg | tail -80; } > "$ROOT/Logs/sistema.txt" 2>&1; sync ) &
 
+# finish: chiude tutto e spegne; "finish reboot" riavvia (dopo un aggiornamento)
 finish() {
-    step "spegnimento"
+    step "${1:-spegnimento}"
     sync
     # SD smontata o in sola lettura: il kernel toglie il segno "in uso" dal FAT e al prossimo
     # avvio il controllo non serve (vedi initramfs-init). Prima si fermano i programmi che
@@ -239,7 +240,7 @@ finish() {
           ls -l /proc/[0-9]*/fd 2>/dev/null | grep /mnt/SDCARD; } >> "$STEPS"
         sync
     fi
-    poweroff -f
+    ${1:-poweroff} -f
     while :; do sleep 60; done
 }
 
@@ -272,6 +273,26 @@ run_app() {
     fi
 }
 
+# Aggiornamento via Wi-Fi: il launcher toglie System/update-pending alla prima schermata. Se il
+# sistema nuovo non ci arriva per 3 avvii di fila (o il launcher cade di continuo), si rimette
+# il sistema precedente, tenuto come arcade-system.squashfs.prec.
+SYSF="$ROOT/System/arcade-system.squashfs"
+PENDING="$ROOT/System/update-pending"
+rollback() {
+    [ -f "$SYSF.prec" ] || return 1
+    step "aggiornamento non riuscito: torno al sistema precedente"
+    mv -f "$SYSF" "$SYSF.guasto" && mv -f "$SYSF.prec" "$SYSF"
+    rm -f "$PENDING"
+    sync
+    finish reboot
+}
+if [ -f "$PENDING" ]; then
+    n=$(cat "$PENDING" 2>/dev/null)
+    n=$(( ${n:-0} + 1 ))
+    echo "$n" > "$PENDING"
+    step "sistema appena aggiornato: avvio di prova $n"
+    [ "$n" -gt 2 ] && rollback
+fi
 sync
 fails=0
 while :; do
@@ -281,9 +302,13 @@ while :; do
     case $rc in
     10) fails=0 ;;
     20) finish ;;
+    21) finish reboot ;;
     *)  # nessun menu a cui tornare: si riavvia il launcher; se cade subito di continuo, errore
         fails=$((fails + 1))
-        [ $fails -ge 5 ] && halt_with "IL LAUNCHER NON PARTE" "VEDI ARCADE/LOGS/ARCADE.LOG"
+        if [ $fails -ge 5 ]; then
+            [ -f "$PENDING" ] && rollback
+            halt_with "IL LAUNCHER NON PARTE" "VEDI ARCADE/LOGS/ARCADE.LOG"
+        fi
         sleep 1; continue ;;
     esac
     IFS="$(printf '\t')" read -r kind core rom title resume < "$ROOT/System/next.txt"

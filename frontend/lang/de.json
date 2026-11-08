@@ -68,6 +68,7 @@
     "duplicates": "Doppelte Spiele",
     "scrape": "Bilder herunterladen",
     "clean_media": "Bilder aufräumen",
+    "update": "System aktualisieren",
     "log_level": "Diagnoseprotokoll",
     "bezel": "Spielrahmen",
     "missing": "Spiele ohne ROM",
@@ -99,6 +100,7 @@
     "duplicates": "Spiel in FinalBurn Neo und MAME 2003+ vorhanden: beide oder nur eines anzeigen.",
     "scrape": "Lädt Screenshots, Titelbilder und Marquees von ArcadeDB und den libretro-Thumbnails. WLAN nötig.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
+    "update": "Lädt die neue Version über WLAN. ROMs, Spielstände und Einstellungen bleiben unberührt.",
     "log_level": "Was in Arcade/Logs geschrieben wird. Wesentlich: Starts und Fehler. Leistung: auch Startzeiten und Spielgeschwindigkeit. Vollständig: auch Tasten und Schnappschüsse.",
     "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
@@ -356,7 +358,7 @@
     "saves": "Spielstände",
     "music": "Musik",
     "system": "System und Einstellungen",
-    "footer": "Arcade 0.1 · %s",
+    "footer": "Arcade %s · %s",
     "one_game": "1 Spiel"
   },
   "wifi": {
@@ -428,5 +430,30 @@
     "essential": "Wesentlich",
     "perf": "Leistung",
     "full": "Vollständig"
+  },
+  "update": {
+    "title": "System aktualisieren",
+    "no_wifi": "WLAN muss verbunden sein",
+    "searching": "Suche nach Update…",
+    "checking": "Prüfe die Dateien auf der Karte…",
+    "none": "Kein Update gefunden",
+    "none_hint": "Internetverbindung prüfen oder den Update-Server auf dem Mac starten.",
+    "current": "Das System ist aktuell",
+    "available": "Verfügbar: %s",
+    "details": "Aktuell: %s · %d Dateien herunterzuladen, %s. Am Ende startet die Konsole neu.",
+    "install": "Installieren",
+    "downloading": "Lade und prüfe Dateien…",
+    "installing": "Installiere…",
+    "done": "Update installiert",
+    "restart": "Neu starten",
+    "restarting": "Neustart…",
+    "err1": "Verbindung fehlgeschlagen",
+    "err2": "Ungültige Signatur: Update abgelehnt",
+    "err3": "Ungültige Dateiliste",
+    "err4": "Nicht genug Platz auf der Karte",
+    "err5": "Datei weicht nach dem Schreiben vom Original ab",
+    "err6": "Schreiben auf die Karte fehlgeschlagen",
+    "err7": "Update abgebrochen",
+    "err_safe": "Das laufende System wurde nicht verändert."
   }
 }

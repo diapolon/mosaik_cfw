@@ -9,6 +9,7 @@
 #include "music.h"
 #include "../common/platform.h"
 #include "../common/wifi.h"
+#include "update.h"
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
@@ -28,7 +29,7 @@
 #define CORE_EXT "so"
 #endif
 
-enum { EXIT_QUIT = 0, EXIT_LAUNCH = 10, EXIT_POWEROFF = 20 };
+enum { EXIT_QUIT = 0, EXIT_LAUNCH = 10, EXIT_POWEROFF = 20, EXIT_REBOOT = 21 };
 enum { SCR_HOME, SCR_LIBRARY, SCR_SETTINGS, SCR_DETAIL };
 static int detail_idx = -1;   /* gioco mostrato nella scheda */
 static void open_detail(int idx);
@@ -1138,12 +1139,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "aspect", "filter", "bezel", "duplicates", "missing",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "log_level", "info", "power",
+    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "log_level", "info", "power",
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
@@ -1153,7 +1154,7 @@ static const int cat_items[SC_COUNT][10] = {
     { S_THEME, S_VARIANT, S_LANG, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_RESUME, -1 },
     { S_WIFI, S_CLOCK, S_TZ, S_SLEEP, S_DEVICE, -1 },
-    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_LOGLEVEL, S_INFO, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
 
@@ -1168,6 +1169,7 @@ static int page_rows(int *rows) {
     for (int k = 0; k < 10 && cat_items[set_page][k] >= 0; k++) {
         int it = cat_items[set_page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
+        if (it == S_UPDATE && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
         rows[n++] = it;
     }
     return n;
@@ -1248,6 +1250,7 @@ static void set_value(int item, char *buf, size_t n) {
     }
     case S_LEDCOLOR: snprintf(buf, n, "%s", T(LED_COLORS[s->led_color % NLED_COLORS].key)); break;
     case S_LEDBRIGHT: snprintf(buf, n, "%d", s->led_bright); break;
+    case S_UPDATE: snprintf(buf, n, "%s", update_current()); break;
     case S_LOGLEVEL: {
         static const char *k[3] = { "loglvl.essential", "loglvl.perf", "loglvl.full" };
         snprintf(buf, n, "%s", T(k[s->log_level % 3]));
@@ -1754,7 +1757,7 @@ static void sdinfo_draw(void) {
         cy += rh;
     }
     const char *model = plat_model();
-    snprintf(line, sizeof line, T("sdinfo.footer"),
+    snprintf(line, sizeof line, T("sdinfo.footer"), update_current(),
              model ? (!strcmp(model, "brickpro") ? "TrimUI Brick Pro" : "TrimUI Smart Pro") : device_label(UI.set.device));
     ui_text(fs, line, lx, y + h - pad - sh, t->text_dim, ALIGN_LEFT);
     const char *hint[] = { "B", T("common.back") };
@@ -1863,6 +1866,103 @@ static void clean_draw(void) {
     ui_hints(hint, 6);
 }
 
+/* Aggiorna sistema: cerca, chiede conferma, scarica, verifica, installa e riavvia */
+static bool upd_open;
+
+static bool upd_busy(void) {
+    int p = update_status()->phase;
+    return upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL);
+}
+
+static void upd_start(void) {
+    if (wifi_status(true)->state != WIFI_CONNECTED) { ui_toast(T("update.no_wifi")); ui_sound(SND_ERROR); return; }
+    update_check(UI.root);
+    upd_open = true;
+    ui_sound(SND_OK);
+}
+
+static void upd_reboot(void) {
+    settings_save(&UI.set, UI.root);
+    ui_busy(T("update.restarting"), 0.5);
+    music_quit();
+    ui_shutdown_code(EXIT_REBOOT);
+    exit(EXIT_REBOOT);
+}
+
+static void upd_input(void) {
+    input_t *in = &UI.in;
+    const update_status_t *s = update_status();
+    last_input = UI.t;   /* niente salvaschermo o spegnimento automatico durante l'aggiornamento */
+    if (upd_busy()) {
+        if (in->pressed[BTN_B] && s->phase != UPD_INSTALL) { update_cancel(); ui_sound(SND_BACK); }
+        return;
+    }
+    if (s->phase == UPD_AVAILABLE && in->pressed[BTN_A]) { update_install(); ui_sound(SND_OK); return; }
+    if (s->phase == UPD_DONE) { if (in->pressed[BTN_A]) { update_join(); upd_reboot(); } return; }
+    if (in->pressed[BTN_A] || in->pressed[BTN_B]) { update_join(); upd_open = false; ui_sound(SND_BACK); }
+}
+
+static void upd_draw(void) {
+    theme_t *t = &UI.th;
+    const update_status_t *s = update_status();
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    int w = M(0.95f), h = M(0.42f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
+    int pad = M(0.05f), ty = y + pad, bw = w - 2 * pad;
+    ui_text(UI.f_title, T("update.title"), x + pad, ty, t->text, ALIGN_LEFT);
+    ty += TTF_FontHeight(UI.f_title) + M(0.03f);
+    char line[200], key[32], size[32], sub[200] = "";
+    switch (s->phase) {
+    case UPD_SEARCH: snprintf(line, sizeof line, "%s", T("update.searching")); break;
+    case UPD_CHECK: snprintf(line, sizeof line, "%s", T("update.checking")); break;
+    case UPD_NO_SERVER: snprintf(line, sizeof line, "%s", T("update.none")); snprintf(sub, sizeof sub, "%s", T("update.none_hint")); break;
+    case UPD_CURRENT: snprintf(line, sizeof line, "%s", T("update.current")); snprintf(sub, sizeof sub, "%s", update_current()); break;
+    case UPD_AVAILABLE:
+        fmt_bytes(s->total, size, sizeof size);
+        snprintf(line, sizeof line, T("update.available"), s->version);
+        snprintf(sub, sizeof sub, T("update.details"), update_current(), s->files, size);
+        break;
+    case UPD_DOWNLOAD: case UPD_VERIFY: snprintf(line, sizeof line, "%s", T("update.downloading")); break;
+    case UPD_INSTALL: snprintf(line, sizeof line, "%s", T("update.installing")); break;
+    case UPD_DONE: snprintf(line, sizeof line, "%s", T("update.done")); snprintf(sub, sizeof sub, "%s", s->version); break;
+    default:
+        snprintf(key, sizeof key, "update.err%d", s->error);
+        snprintf(line, sizeof line, "%s", T(key));
+        snprintf(sub, sizeof sub, "%s", T("update.err_safe"));
+    }
+    ui_text(UI.f_normal, line, x + pad, ty, s->phase == UPD_FAILED ? rgba(220, 70, 70, 255) : t->text, ALIGN_LEFT);
+    ty += TTF_FontHeight(UI.f_normal) + M(0.03f);
+    if (s->phase == UPD_CHECK || s->phase == UPD_DOWNLOAD || s->phase == UPD_VERIFY || s->phase == UPD_INSTALL) {
+        int bh = M(0.02f);
+        float frac = s->total ? (float)s->done / (float)s->total : 0.f;
+        if (s->phase == UPD_INSTALL) frac = 1.f;
+        if (frac > 1) frac = 1;
+        ui_rrect(x + pad, ty, bw, bh, bh / 2, with_alpha(t->text_dim, 70));
+        if (frac > 0) ui_rrect(x + pad, ty, (int)(bw * frac), bh, bh / 2, t->accent);
+        ty += bh + M(0.03f);
+        if (s->total) {
+            char a[32], b[32];
+            fmt_bytes(s->done, a, sizeof a);
+            fmt_bytes(s->total, b, sizeof b);
+            snprintf(sub, sizeof sub, "%s / %s", a, b);
+        }
+    }
+    if (sub[0]) {
+        char lines[2][160];
+        int n = ui_wrap(UI.f_small, sub, bw, lines, 2);
+        for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
+    }
+    int hb = M(t->hintbar_h);
+    ui_rect(0, UI.h - hb, UI.w, hb, t->bg);
+    if (s->phase == UPD_AVAILABLE) { const char *h2[] = { "B", T("common.cancel"), "A", T("update.install") }; ui_hints(h2, 4); }
+    else if (s->phase == UPD_DONE) { const char *h2[] = { "A", T("update.restart") }; ui_hints(h2, 2); }
+    else if (s->phase == UPD_INSTALL) {}
+    else if (upd_busy()) { const char *h2[] = { "B", T("common.cancel") }; ui_hints(h2, 2); }
+    else { const char *h2[] = { "A", T("common.ok") }; ui_hints(h2, 2); }
+}
+
 static void settings_input(void) {
     input_t *in = &UI.in;
     int rows[16], n = page_rows(rows);
@@ -1886,6 +1986,7 @@ static void settings_input(void) {
         if (set_sel == S_POWER) { dlg_open = true; dlg_sel = 0; ui_sound(SND_OK); }
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
         else if (set_sel == S_CLEANMEDIA) clean_start();
+        else if (set_sel == S_UPDATE) upd_start();
         else if (set_sel == S_WIFI && wifi_supported()) {
             if (!UI.set.wifi) set_change(S_WIFI, +1);
             wpanel_start();
@@ -1993,7 +2094,7 @@ static void settings_draw(void) {
             }
         } else {
             color_t vc = sel ? t->accent : t->text_dim;
-            bool arrows = sel && i != S_INFO && i != S_CLOCK;
+            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE;
             int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
             if (i == S_LEDCOLOR) {
                 /* pallino del colore (per "tema": il colore principale del tema) */
@@ -2905,10 +3006,10 @@ int main(int argc, char **argv) {
         }
         /* tasto di accensione (sistema su SD): finestra per spegnere */
         /* tasto di accensione (sistema su SD): breve sospende, tenuto premuto chiede se spegnere */
-        if (UI.in.power) { ui_suspend(); last_input = UI.t; }
-        if (UI.in.power_long && !dlg_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
+        if (UI.in.power && !upd_busy()) { ui_suspend(); last_input = UI.t; }
+        if (UI.in.power_long && !dlg_open && !upd_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
-        if (UI.in.home && !romcheck_open && !scrape_open) {
+        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open) {
             kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
@@ -2918,6 +3019,7 @@ int main(int argc, char **argv) {
 
         if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
+        else if (upd_open) upd_input();
         else if (kb_open) keyboard_input();
         else if (gopt_open && screen == SCR_DETAIL) gopt_input();
         else if (fpanel_open) fpanel_input();
@@ -2949,9 +3051,10 @@ int main(int argc, char **argv) {
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
         if (kb_open) keyboard_draw();
         if (scrape_open) scrape_draw();
+        if (upd_open) upd_draw();
         if (romcheck_open) romcheck_draw();
         battery_check();
-        if (first_frame) { first_frame = false; ui_mark("prima schermata"); }
+        if (first_frame) { first_frame = false; ui_mark("prima schermata"); update_confirm_boot(UI.root); }
         if (saver_on) saver_draw();
         float fade = screen_t0 < 0 ? 0 : 1 - (float)((UI.t - screen_t0) / 0.18);
         if (fade > 0) ui_rect(0, 0, UI.w, UI.h, with_alpha(UI.th.bg, (int)(255 * fade)));

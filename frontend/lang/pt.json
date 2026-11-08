@@ -68,6 +68,7 @@
     "duplicates": "Jogos duplicados",
     "scrape": "Transferir imagens",
     "clean_media": "Limpar imagens",
+    "update": "Atualizar sistema",
     "log_level": "Registo de diagnóstico",
     "bezel": "Molduras dos jogos",
     "missing": "Jogos sem ROM",
@@ -99,6 +100,7 @@
     "duplicates": "Jogo presente no FinalBurn Neo e no MAME 2003+: mostrar ambos ou só um.",
     "scrape": "Transfere capturas, ecrãs de título e marquees do ArcadeDB e das miniaturas libretro. Requer Wi-Fi.",
     "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
+    "update": "Transfere a versão nova por Wi-Fi. ROM, gravações e definições não são tocadas.",
     "log_level": "O que se escreve em Arcade/Logs. Essencial: arranques e erros. Desempenho: também tempos de arranque e velocidade dos jogos. Completo: também botões e capturas.",
     "bezel": "Uma moldura (bezel) à volta do jogo: a do jogo em Bezels/ se existir, senão a predefinida.",
     "missing": "Mostra também os jogos do catálogo que não tem (só versões principais).",
@@ -356,7 +358,7 @@
     "saves": "Jogos guardados",
     "music": "Música",
     "system": "Sistema e definições",
-    "footer": "Arcade 0.1 · %s",
+    "footer": "Arcade %s · %s",
     "one_game": "1 jogo"
   },
   "wifi": {
@@ -428,5 +430,30 @@
     "essential": "Essencial",
     "perf": "Desempenho",
     "full": "Completo"
+  },
+  "update": {
+    "title": "Atualizar sistema",
+    "no_wifi": "O Wi-Fi tem de estar ligado",
+    "searching": "A procurar uma atualização…",
+    "checking": "A verificar os ficheiros do cartão…",
+    "none": "Nenhuma atualização encontrada",
+    "none_hint": "Verifica a ligação à internet ou inicia o servidor de atualização no Mac.",
+    "current": "O sistema está atualizado",
+    "available": "Disponível: %s",
+    "details": "Em uso: %s · %d ficheiros a transferir, %s. No fim a consola reinicia.",
+    "install": "Instalar",
+    "downloading": "A transferir e verificar ficheiros…",
+    "installing": "A instalar…",
+    "done": "Atualização instalada",
+    "restart": "Reiniciar",
+    "restarting": "A reiniciar…",
+    "err1": "Falha na ligação",
+    "err2": "Assinatura inválida: atualização recusada",
+    "err3": "Lista de ficheiros inválida",
+    "err4": "Espaço insuficiente no cartão",
+    "err5": "Ficheiro diferente do original após a escrita",
+    "err6": "Falha ao escrever no cartão",
+    "err7": "Atualização cancelada",
+    "err_safe": "O sistema em uso não foi tocado."
   }
 }
