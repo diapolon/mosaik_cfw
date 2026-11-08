@@ -17,5 +17,4 @@
 ## Project
 
 - [ ] Website on mosaikcfw.org
-- [ ] Contact TrimUI about the kernel sources and the firmware components included in the images
 - [ ] English version of the build documentation (`m2/README.md`)
