@@ -258,15 +258,57 @@ static void layer_show(SDL_Surface *s, int x0, int y0, int w, int h) { (void)s; 
 static void layer_close(void) {}
 #endif
 
+/* Barra del volume sopra un gioco Linux, che intanto continua: la lancia gamewatch alla prima
+   pressione dei tasti del volume; poi legge da sola i tasti seguenti e si chiude quando
+   per 1,4 secondi non ne arrivano altri. */
+static int volume_osd(int delta) {
+    if (!layer_open()) { layer_close(); return RC_UNAVAILABLE; }
+    Uint32 last = SDL_GetTicks();
+    bool redraw = true;
+    plat_keys_t pk;
+    plat_poll(&pk);   /* apre i dispositivi: la pressione che ci ha avviati è già contata */
+    while (SDL_GetTicks() - last < 1400) {
+        plat_poll(&pk);
+        int d = delta + pk.vol;
+        delta = 0;
+        if (d) {
+            int v = UI.set.volume + d;
+            UI.set.volume = v < 0 ? 0 : v > 20 ? 20 : v;
+            settings_save(&UI.set, UI.root);
+            last = SDL_GetTicks();
+            redraw = true;
+        }
+        plat_apply(&UI.set);
+        if (redraw) {
+            theme_t *t = &UI.th;
+            int w = M(0.62f), h = M(0.1f), x = (UI.w - w) / 2, y = M(0.05f), pad = M(0.03f);
+            ui_overlay_begin(true);
+            ui_rrect(x, y, w, h, h / 2, rgba(0, 0, 0, 180));
+            int lw = ui_text(UI.f_small, T("settings.volume"), x + pad, y + (h - TTF_FontHeight(UI.f_small)) / 2, rgba(255, 255, 255, 255), ALIGN_LEFT);
+            int bx = x + pad + lw + M(0.03f), bw = x + w - pad - bx, bh = M(0.014f);
+            ui_rrect(bx, y + (h - bh) / 2, bw, bh, bh / 2, rgba(255, 255, 255, 70));
+            ui_rrect(bx, y + (h - bh) / 2, bw * UI.set.volume / 20, bh, bh / 2, t->accent);
+            layer_show(ui_overlay_end(), x, y, w, h);
+            redraw = false;
+        }
+        SDL_Delay(16);
+    }
+    layer_close();
+    return RC_RESUME;
+}
+
 int main(int argc, char **argv) {
     const char *root = getenv("ROOT") ? getenv("ROOT") : "/mnt/SDCARD/Arcade", *shot = NULL;
     const char *title = getenv("ARCADE_TITLE");
+    int volume = 0;
     for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--volume") && i + 1 < argc) { volume = atoi(argv[++i]); continue; }
         if (!strcmp(argv[i], "--root") && i + 1 < argc) root = argv[++i];
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--title") && i + 1 < argc) title = argv[++i];
     }
     if (!ui_init_offscreen("Arcade", root)) return RC_UNAVAILABLE;
+    if (volume) return volume_osd(volume);
     if (!title || !*title) title = T("game.linux_game");
     if (shot) {   /* prova sul Mac: menu già aperto, seconda voce scelta */
         sel = 1;

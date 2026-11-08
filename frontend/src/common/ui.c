@@ -54,6 +54,7 @@ static Uint32 frame_no;
 /* ------------------------------------------------------------------ log */
 
 static void audio_open(void);
+static double vol_save_at;   /* quando salvare il volume cambiato con i tasti, 0 = niente */
 
 void ui_busy(const char *msg, double seconds) {
     if (!UI.ren) return;
@@ -1309,12 +1310,17 @@ void ui_poll(void) {
     if (pk.fn_changed) ui_toast(T(pk.fn == 1 ? "fn.on" : "fn.off"));
     /* volume dai tasti laterali: sul firmware originale li gestisce keymon, nel sistema
        su SD li gestiamo noi */
+    UI.in.vol_changed = false;
+    /* volume dai tasti: si salva un secondo dopo l'ultima pressione, non a ogni passo */
+    if (vol_save_at > 0 && UI.t > vol_save_at) { vol_save_at = 0; settings_save(&UI.set, UI.root); }
     if (pk.vol && plat_standalone()) {
         int v = UI.set.volume + pk.vol;
         UI.set.volume = v < 0 ? 0 : v > 20 ? 20 : v;
         char m[64];
         snprintf(m, sizeof m, "%s %d", T("settings.volume"), UI.set.volume);
-        ui_toast(m);
+        if (!UI.vol_bar) ui_toast(m);
+        UI.in.vol_changed = true;
+        vol_save_at = UI.t + 1.0;
         UI.in.any = true;
     }
     /* ripetizione automatica sulle direzioni tenute premute */
@@ -1557,6 +1563,7 @@ static void shut_step(const char *what) {
 }
 
 void ui_shutdown_code(int code) {
+    if (vol_save_at > 0) { vol_save_at = 0; settings_save(&UI.set, UI.root); }
     /* System/exit.txt: chi ci ha avviati sa già come siamo usciti, anche se la chiusura
        dovesse bloccarsi (sul sistema su SD lo script ci chiude dopo qualche secondo) */
     if (code >= 0) {

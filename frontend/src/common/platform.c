@@ -171,7 +171,7 @@ void plat_apply(const settings_t *s) {
 }
 
 /* gamepad di trimui_inputd: si cerca per nome, riprovando ogni tanto se non c'è ancora */
-static int keys_fd = -1, power_fd = -1;
+static int keys_fd = -1, power_fd = -1, vol_fd = -1;
 static unsigned scan_tick;
 
 static void keys_open(void) {
@@ -186,6 +186,7 @@ static void keys_open(void) {
         ioctl(fd, EVIOCGNAME(sizeof name), name);
         if (strstr(name, "TRIMUI Player1") && keys_fd < 0) { keys_fd = fd; continue; }
         if (strstr(name, "axp2202-pek") && power_fd < 0) { power_fd = fd; continue; }
+        if (strstr(name, "sunxi-keyboard") && vol_fd < 0) { vol_fd = fd; continue; }
         close(fd);
     }
     if (d) closedir(d);
@@ -197,9 +198,22 @@ static int fn_gpio(void) {
     return get_int("/sys/class/gpio/gpio243/value");
 }
 
+/* Tasti del volume: secondo il modello arrivano dal gamepad di trimui_inputd o dal dispositivo
+   del kernel sunxi-keyboard, a volte da entrambi. Vale il primo che parla: mai due passi per una
+   pressione. Anche tenuti premuti (valore 2 = ripetizione del kernel). */
+static void vol_event(const struct input_event *ev, int source, plat_keys_t *k) {
+    static int vol_source;
+    if (ev->type != EV_KEY || ev->value < 1 || (ev->code != KEY_VOLUMEUP && ev->code != KEY_VOLUMEDOWN)) return;
+    if (!vol_source) {
+        vol_source = source;
+        ui_log("tasti del volume: letti da %s", source == 1 ? "TRIMUI Player1" : "sunxi-keyboard");
+    }
+    if (source == vol_source) k->vol += ev->code == KEY_VOLUMEUP ? 1 : -1;
+}
+
 void plat_poll(plat_keys_t *k) {
     memset(k, 0, sizeof *k);
-    if ((keys_fd < 0 || power_fd < 0) && scan_tick++ % 180 == 0) keys_open();
+    if ((keys_fd < 0 || power_fd < 0 || vol_fd < 0) && scan_tick++ % 180 == 0) keys_open();
     /* tasto di accensione: breve = sospensione, tenuto premuto = spegnimento. Se il driver
        non segnalasse il rilascio, dopo 1,2 s vale comunque come pressione lunga. */
     static double power_t0 = -1;
@@ -225,12 +239,9 @@ void plat_poll(plat_keys_t *k) {
             if (ev.code == KEY_F1) k->f1 = true;
             if (ev.code == KEY_F2) k->f2 = true;
         }
-        /* volume: anche tenuto premuto (valore 2 = ripetizione del kernel) */
-        if (ev.type == EV_KEY && ev.value >= 1) {
-            if (ev.code == KEY_VOLUMEUP) k->vol++;
-            if (ev.code == KEY_VOLUMEDOWN) k->vol--;
-        }
+        vol_event(&ev, 1, k);
     }
+    while (vol_fd >= 0 && read(vol_fd, &ev, sizeof ev) == (ssize_t)sizeof ev) vol_event(&ev, 2, k);
     /* FN: il GPIO 243 ogni mezzo secondo circa (a 60 fotogrammi al secondo) */
     static unsigned tick;
     if (tick++ % 30 == 0) {

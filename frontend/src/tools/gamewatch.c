@@ -213,6 +213,7 @@ int main(int argc, char **argv) {
     double power_at = 0;
     double pressed_at = 0;
     bool open_menu = false;
+    pid_t osd_pid = 0;   /* barra del volume in corso */
     for (;;) {
         int status;
         pid_t r = waitpid(pid, &status, WNOHANG);
@@ -224,6 +225,17 @@ int main(int argc, char **argv) {
             for (int i = 0; i < nfds; i++) {
                 struct input_event ev;
                 while (read(fds[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
+                    /* tasti del volume: barra sopra il gioco, che non si ferma */
+                    if (standalone && ev.type == EV_KEY && ev.value == 1 && (ev.code == KEY_VOLUMEUP || ev.code == KEY_VOLUMEDOWN)) {
+                        if (osd_pid > 0 && waitpid(osd_pid, NULL, WNOHANG) == osd_pid) osd_pid = 0;
+                        if (osd_pid <= 0) {
+                            osd_pid = fork();
+                            if (osd_pid == 0) {
+                                execlp("gamemenu", "gamemenu", "--volume", ev.code == KEY_VOLUMEUP ? "1" : "-1", (char *)NULL);
+                                _exit(3);
+                            }
+                        }
+                    }
                     if (standalone && ev.type == EV_KEY && ev.code == KEY_POWER) {
                         if (ev.value == 1) power_at = now();
                         else if (ev.value == 0 && power_at) {
@@ -298,6 +310,7 @@ int main(int argc, char **argv) {
         }
         if (open_menu) {
             open_menu = false;
+            if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }   /* un livello alla volta */
             kill(-pid, SIGSTOP);
             int m = run_menu();
             fprintf(stderr, "gamewatch: menu chiuso (%d)\n", m);

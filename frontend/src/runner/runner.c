@@ -1263,9 +1263,11 @@ int main(int argc, char **argv) {
     double fps = av.timing.fps > 0 ? av.timing.fps : 60;
     Uint32 frame_bytes = (Uint32)(av.timing.sample_rate / fps) * 4;
     rate_target = frame_bytes * 2.5;
+    UI.vol_bar = true;
     Uint64 freq = SDL_GetPerformanceFrequency(), next = SDL_GetPerformanceCounter();
     while (exit_code < 0) {
         ui_poll();
+        if (UI.in.vol_changed) { osd_kind = OSD_VOLUME; osd_until = UI.t + 1.4; }
         if (UI.in.quit) { power_off_from_game(); break; }   /* chiusura finestra = tasto di accensione */
         /* tasti extra della Brick Pro: HOME torna al launcher, F1 salva, F2 carica */
         if (UI.in.home) { exit_code = EXIT_MENU; break; }
@@ -1306,7 +1308,7 @@ int main(int argc, char **argv) {
         ui_begin();
         draw_game();
         if (menu_open) menu_draw();
-        else osd_draw();
+        osd_draw();
         ui_end();
         if (!menu_open && !fast_forward) perf_frame(pf0, pf1, SDL_GetPerformanceCounter(), audio_on ? SDL_GetQueuedAudioSize(UI.audio) : 0, frame_bytes, fps);
 

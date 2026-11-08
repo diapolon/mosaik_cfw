@@ -25,6 +25,7 @@ typedef struct {
     bool quit;
     bool any;
     bool home, f1, f2;   /* tasti extra della Brick Pro (HOME laterale, barrette F1/F2) */
+    bool vol_changed;    /* il volume è appena cambiato con i tasti laterali */
     bool power;          /* tasto di accensione, pressione breve (solo nel sistema su SD) */
     bool power_long;     /* tasto di accensione tenuto premuto */
     int fn;              /* interruttore FN: -1 ignoto, 0 o 1 */
@@ -66,6 +67,7 @@ typedef struct {
     SDL_AudioDeviceID audio;
     int audio_rate;
     bool automation;
+    bool vol_bar;        /* chi disegna una barra del volume sua (runner): niente avviso a schermo */
 } ui_t;
 
 extern ui_t UI;
