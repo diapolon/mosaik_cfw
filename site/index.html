@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcade per TrimUI</title>
+<meta name="description" content="Sistema arcade su microSD per TrimUI Smart Pro e Brick Pro: FinalBurn Neo, MAME 2003-Plus e giochi Linux.">
+<style>
+@font-face { font-family: Nunito; src: url(assets/Nunito.ttf); font-weight: 200 1000; font-display: swap; }
+:root { --bg: #0b0e13; --surface: #151a22; --line: #262e3a; --text: #eef2f6; --dim: #9aa6b2; --accent: #0fb1d4; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 Nunito, system-ui, sans-serif; }
+main, header, footer { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+header { padding-top: 56px; }
+.logo { display: flex; align-items: center; gap: 14px; font-weight: 900; font-size: 44px; line-height: 1; letter-spacing: .5px; }
+.tiles { display: grid; grid-template-columns: 18px 18px; gap: 5px; }
+.tiles i { width: 18px; height: 18px; border-radius: 5px; background: var(--accent); }
+.tiles i:last-child { background: #fff; }
+h1 { font-size: clamp(30px, 5.5vw, 44px); line-height: 1.15; font-weight: 800; margin: 36px 0 12px; }
+.lead { color: var(--dim); font-size: 20px; margin: 0 0 18px; max-width: 34em; }
+.version { display: inline-block; border: 1px solid var(--line); border-radius: 99px; padding: 3px 14px; color: var(--dim); font-size: 15px; }
+.version b { color: var(--accent); font-weight: 800; }
+h2 { font-size: 26px; font-weight: 800; margin: 56px 0 16px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.card h3 { margin: 0 0 4px; font-size: 21px; font-weight: 800; }
+.card p { margin: 0 0 16px; color: var(--dim); font-size: 15px; }
+.btn { display: block; text-align: center; background: var(--accent); color: #04222a; font-weight: 800; border-radius: 10px; padding: 11px 16px; text-decoration: none; }
+.btn:hover, .btn:focus-visible { background: #35c6e6; }
+details { margin-top: 12px; color: var(--dim); font-size: 13px; }
+summary { cursor: pointer; }
+code { font-family: ui-monospace, Menlo, monospace; font-size: .92em; word-break: break-all; }
+ol { padding-left: 1.3em; margin: 0; }
+li { margin: 0 0 10px; }
+li b { font-weight: 800; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: center; }
+.split img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.features { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; }
+.features li { margin: 0; padding-left: 16px; border-left: 3px solid var(--accent); }
+.note { background: var(--surface); border-radius: 12px; padding: 16px 20px; color: var(--dim); font-size: 15px; margin-top: 16px; }
+.note b { color: var(--text); }
+a { color: var(--accent); }
+footer { margin-top: 64px; padding-top: 20px; padding-bottom: 40px; border-top: 1px solid var(--line); color: var(--dim); font-size: 14px; }
+@media (max-width: 640px) { .split { grid-template-columns: 1fr; } header { padding-top: 32px; } .logo { font-size: 36px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="tiles"><i></i><i></i><i></i><i></i></span>ARCADE</div>
+  <h1>Il tuo cabinato, in tasca.</h1>
+  <p class="lead">Un sistema dedicato ai giochi arcade per TrimUI Smart Pro e Brick Pro. Parte dalla microSD e non tocca la memoria interna della console: togli la scheda e torna tutto come prima.</p>
+  <span class="version">Versione <b>{{VERSION}}</b> · {{DATE}}</span>
+</header>
+<main>
+  <h2>Scarica</h2>
+  <div class="cards">
+    <section class="card">
+      <h3>TrimUI Smart Pro</h3>
+      <p>Immagine per microSD da 4 GB o più · {{SMART_SIZE}}</p>
+      <a class="btn" href="download/{{SMART_FILE}}">Scarica per Smart Pro</a>
+      <details><summary>Impronta SHA-256</summary><code>{{SMART_SHA}}</code></details>
+    </section>
+    <section class="card">
+      <h3>TrimUI Brick Pro</h3>
+      <p>Immagine per microSD da 4 GB o più · {{BRICK_SIZE}}</p>
+      <a class="btn" href="download/{{BRICK_FILE}}">Scarica per Brick Pro</a>
+      <details><summary>Impronta SHA-256</summary><code>{{BRICK_SHA}}</code></details>
+    </section>
+  </div>
+
+  <h2>Installazione</h2>
+  <ol>
+    <li><b>Scrivi l'immagine sulla microSD</b> con <a href="https://etcher.balena.io/">balenaEtcher</a>. Tutto ciò che c'è sulla scheda viene cancellato.</li>
+    <li><b>Metti la scheda nella console e accendi.</b> Alla prima accensione la partizione si allarga da sola a tutta la scheda.</li>
+    <li><b>Spegni e collega la scheda al computer.</b> Copia le ROM in <code>Arcade/Roms/FBNEO</code> o <code>Arcade/Roms/MAME2003P</code> e i BIOS (per esempio <code>neogeo.zip</code>) in <code>Arcade/Bios</code>.</li>
+    <li><b>Gioca.</b> Per copertine e informazioni: Impostazioni → Strumenti → Scarica immagini, con il Wi-Fi collegato.</li>
+  </ol>
+  <p class="note"><b>ROM e BIOS non sono inclusi.</b> Usa solo copie di giochi di cui hai diritto.</p>
+
+  <h2>Aggiornamento</h2>
+  <div class="split">
+    <ol>
+      <li>Collega la console al Wi-Fi: Impostazioni → Sistema → Wi-Fi.</li>
+      <li>Apri Impostazioni → Strumenti → <b>Aggiorna sistema</b>.</li>
+      <li>Conferma con A. Alla fine la console si riavvia.</li>
+    </ol>
+    <img src="assets/impostazioni.png" width="1024" height="768" alt="Le impostazioni del launcher Arcade, divise in categorie">
+  </div>
+  <p class="note">ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se il sistema nuovo non parte la console torna da sola a quello precedente.</p>
+
+  <h2>Cosa c'è dentro</h2>
+  <ul class="features">
+    <li><b>FinalBurn Neo e MAME 2003-Plus</b>: Neo Geo, CPS1, CPS2 e gran parte dei classici arcade.</li>
+    <li><b>Giochi Linux</b>, con menu sopra al gioco e sospensione.</li>
+    <li><b>Avvio in circa 5 secondi</b>, sospensione con il tasto di accensione.</li>
+    <li><b>Wi-Fi integrato</b> per copertine, storia dei giochi, ora e aggiornamenti.</li>
+    <li><b>Temi, lingue, LED e filtri video</b> configurabili.</li>
+    <li><b>Due giocatori</b> con un controller esterno.</li>
+  </ul>
+</main>
+<footer>
+  Progetto indipendente, non affiliato a TrimUI. Include FinalBurn Neo e MAME 2003-Plus, distribuiti secondo le loro licenze per uso non commerciale. Carattere Nunito, licenza <a href="assets/OFL-Nunito.txt">SIL OFL</a>.
+</footer>
+</body>
+</html>
