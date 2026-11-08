@@ -42,6 +42,7 @@ static int get_int(const char *path) {
 #define DISP_LCD_GET_BRIGHTNESS 0x103
 void ui_log(const char *fmt, ...);   /* da ui.c (ui.h qui non si può includere: vedi linux/input.h) */
 
+#define BRIGHT_OFF (-2)   /* retroilluminazione spenta (salvaschermo "schermo spento") */
 static void set_brightness(int level) {
     static const int raw[11] = { 4, 6, 10, 16, 32, 48, 64, 96, 128, 192, 255 };
     static int logged;
@@ -50,7 +51,7 @@ static void set_brightness(int level) {
         if (!logged++) ui_log("luminosità: /dev/disp non disponibile");
         return;
     }
-    unsigned long param[4] = { 0, (unsigned long)raw[level < 0 ? 0 : level > 10 ? 10 : level], 0, 0 };
+    unsigned long param[4] = { 0, level == BRIGHT_OFF ? 0ul : (unsigned long)raw[level < 0 ? 0 : level > 10 ? 10 : level], 0, 0 };
     int r = ioctl(fd, DISP_LCD_SET_BRIGHTNESS, &param);
     unsigned long q[4] = { 0, 0, 0, 0 };
     int now = ioctl(fd, DISP_LCD_GET_BRIGHTNESS, &q);
@@ -76,6 +77,7 @@ static void set_cpu(int khz) {
 }
 
 static int cpu_fixed;   /* kHz chiesti dal launcher; 0 = profilo scelto nelle impostazioni */
+static bool screen_off;
 
 bool plat_device_name(const char *path, char *out, int n) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -172,7 +174,8 @@ void plat_apply(const settings_t *s) {
             apply_leds(s, low);
         }
     }
-    if (s->brightness != bright) { bright = s->brightness; set_brightness(bright); }
+    int want_bright = screen_off ? BRIGHT_OFF : s->brightness;
+    if (want_bright != bright) { bright = want_bright; set_brightness(bright); }
     if (s->volume != vol) { vol = s->volume; set_volume(vol); }
     /* FN attivo: prestazioni massime, qualunque sia il profilo scelto */
     int want = cpu_fixed ? cpu_fixed : profile_khz(s);
@@ -180,6 +183,7 @@ void plat_apply(const settings_t *s) {
 }
 
 void plat_cpu_fixed(int khz) { cpu_fixed = khz; }
+void plat_screen_off(bool off) { screen_off = off; }
 
 void plat_cpu_release(const settings_t *s) {
     if (!cpu_fixed) return;
@@ -305,6 +309,7 @@ bool plat_is_device(void) { return false; }
 const char *plat_model(void) { return NULL; }
 void plat_apply(const settings_t *s) { (void)s; }
 void plat_cpu_fixed(int khz) { (void)khz; }
+void plat_screen_off(bool off) { (void)off; }
 void plat_cpu_release(const settings_t *s) { (void)s; }
 void plat_cpu_status(int *mhz, int *temp) { *mhz = *temp = 0; }
 int plat_battery(bool *charging) { *charging = false; return -1; }

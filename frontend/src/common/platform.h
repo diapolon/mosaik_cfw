@@ -13,6 +13,8 @@ const char *plat_model(void);
 void plat_apply(const settings_t *s);
 /* frequenza decisa dal launcher (kHz), al posto del profilo: i profili valgono per i giochi */
 void plat_cpu_fixed(int khz);
+/* retroilluminazione spenta finché dura (la luminosità scelta non cambia) */
+void plat_screen_off(bool off);
 /* si esce dal launcher: torna subito il profilo, che i giochi Linux non impostano da soli */
 void plat_cpu_release(const settings_t *s);
 /* frequenza attuale e temperatura, per il registro */

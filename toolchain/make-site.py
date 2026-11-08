@@ -35,7 +35,7 @@ def human(n):
 
 values = {"VERSION": version, "DATE": f"{stamp[6:8]}/{stamp[4:6]}/{stamp[:4]}", "DATE_ISO": f"{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}"}
 for key, model in (("SMART", "smartpro"), ("BRICK", "brickpro")):
-    name = f"arcade-{version}-{model}.img.gz"
+    name = f"mosaik-{version}-{model}.img.gz"
     path = os.path.join(out, "download", name)
     # mtime=0: stesso contenuto, stesso file compresso
     with open(os.path.join(dist, f"m2-{model}.img"), "rb") as f, open(path, "wb") as raw, \

@@ -14,6 +14,7 @@ typedef struct {
     int volume;          /* 0..20 */
     int cpu_profile;
     int autosleep_min;   /* 0 = mai */
+    int autosuspend_min; /* sospensione nel launcher, 0 = mai */
     int saver;           /* salvaschermo: 0 no, 1-2 schermate dopo 2/5 min, 3-4 schermo spento dopo 2/5 min */
     int aspect;
     char filter[32];     /* cartella Filters/<filter> */

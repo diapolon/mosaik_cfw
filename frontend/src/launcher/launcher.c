@@ -1159,12 +1159,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "log_level", "info", "power",
+    "cpu", "pads", "wifi", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "log_level", "info", "power",
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
@@ -1173,7 +1173,7 @@ static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_RESUME, -1 },
-    { S_WIFI, S_CLOCK, S_TZ, S_SLEEP, S_DEVICE, -1 },
+    { S_WIFI, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
@@ -1232,6 +1232,7 @@ static int lang_index(void) {
     return 0;
 }
 static const int sleep_vals[] = { 0, 5, 10, 30 };
+static const int suspend_vals[] = { 0, 2, 5, 10, 30 };
 
 static int theme_index(void) {
     for (int i = 0; i < nthemes; i++)
@@ -1307,6 +1308,10 @@ static void set_value(int item, char *buf, size_t n) {
     }
     case S_SLEEP:
         if (s->autosleep_min) snprintf(buf, n, T("common.minutes"), s->autosleep_min);
+        else snprintf(buf, n, "%s", T("common.never"));
+        break;
+    case S_SUSPEND:
+        if (s->autosuspend_min) snprintf(buf, n, T("common.minutes"), s->autosuspend_min);
         else snprintf(buf, n, "%s", T("common.never"));
         break;
     case S_RESUME: snprintf(buf, n, "%s", T(s->resume_last ? "common.yes" : "common.no")); break;
@@ -1398,6 +1403,12 @@ static void set_change(int item, int dir) {
         int i = 0;
         while (i < 3 && sleep_vals[i] != s->autosleep_min) i++;
         s->autosleep_min = sleep_vals[(i + dir + 4) % 4];
+        break;
+    }
+    case S_SUSPEND: {
+        int i = 0;
+        while (i < 4 && suspend_vals[i] != s->autosuspend_min) i++;
+        s->autosuspend_min = suspend_vals[(i + dir + 5) % 5];
         break;
     }
     case S_RESUME: s->resume_last = !s->resume_last; break;
@@ -3254,7 +3265,7 @@ int main(int argc, char **argv) {
         }
         /* tasto di accensione (sistema su SD): finestra per spegnere */
         /* tasto di accensione (sistema su SD): breve sospende, tenuto premuto chiede se spegnere */
-        if (UI.in.power && !upd_busy()) { ui_suspend(); last_input = UI.t; }
+        if (UI.in.power && !upd_busy()) { ui_suspend(); last_input = UI.t; saver_on = false; }
         if (UI.in.power_long && !dlg_open && !upd_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open && !upd_open) {
@@ -3297,6 +3308,14 @@ int main(int argc, char **argv) {
             plat_cpu_status(&mhz, &temp);
             ui_log("fermo da 2 minuti: CPU %d MHz, %d °C", mhz, temp);
         }
+        if (idle && UI.set.autosuspend_min && plat_standalone() && UI.t - last_input > UI.set.autosuspend_min * 60.0) {
+            ui_log("sospensione automatica");
+            ui_suspend();
+            last_input = UI.t;
+            saver_on = false;
+            continue;
+        }
+        plat_screen_off(saver_on && UI.set.saver >= 3);
         /* il salvaschermo con le immagini resta fluido; a schermo spento non serve disegnare */
         if (idle && (!saver_on || UI.set.saver >= 3) && ++idle_skip % 3) {
             SDL_Delay(16);

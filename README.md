@@ -169,6 +169,6 @@ The build uses Docker and needs components extracted from the official TrimUI fi
 
 The code written for Mosaik is under the [GNU LGPL v3](COPYING.LESSER). It does not cover third-party components, which keep their own licenses: see the [`licenses`](licenses) folder.
 
-FinalBurn Neo and MAME 2003-Plus are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners.
+FinalBurn Neo and MAME 2003-Plus are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases).
 
 Independent project, not affiliated with TrimUI.

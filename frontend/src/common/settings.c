@@ -52,6 +52,7 @@ void settings_defaults(settings_t *s) {
     s->volume = 12;
     s->cpu_profile = CPU_BALANCED;
     s->autosleep_min = 0;
+    s->autosuspend_min = 5;
     s->aspect = ASPECT_ORIGINAL;
     strcpy(s->filter, "nitido");
     s->bezel = false;
@@ -84,6 +85,7 @@ bool settings_load(settings_t *s, const char *root) {
     s->volume = (int)json_num(j, "volume", s->volume);
     s->cpu_profile = (int)json_num(j, "cpu_profile", s->cpu_profile);
     s->autosleep_min = (int)json_num(j, "autosleep_min", s->autosleep_min);
+    s->autosuspend_min = (int)json_num(j, "autosuspend_min", s->autosuspend_min);
     s->saver = (int)json_num(j, "screensaver", s->saver) % 5;
     s->aspect = (int)json_num(j, "aspect", s->aspect);
     /* il filtro era un numero (0 nitido, 1 morbido, 2 scanline): resta leggibile */
@@ -131,6 +133,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"volume\": %d,\n"
             "  \"cpu_profile\": %d,\n"
             "  \"autosleep_min\": %d,\n"
+            "  \"autosuspend_min\": %d,\n"
             "  \"screensaver\": %d,\n"
             "  \"aspect\": %d,\n"
             "  \"filter\": \"%s\",\n"
@@ -151,7 +154,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"log_level\": %d\n"
             "}\n",
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
-            s->autosleep_min, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
+            s->autosleep_min, s->autosuspend_min, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
     fclose(f);
     /* scrittura atomica: su SD uno spegnimento a metà non lascia file corrotti */
