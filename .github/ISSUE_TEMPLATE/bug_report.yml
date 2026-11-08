@@ -1,0 +1,64 @@
+name: Bug report
+description: Something doesn't work on the console
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! You can write in English or Italian.
+
+        **Do not post ROMs, BIOS files or links to them.**
+  - type: dropdown
+    id: console
+    attributes:
+      label: Console
+      options:
+        - TrimUI Smart Pro
+        - TrimUI Brick Pro
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Mosaik version
+      description: Shown in Settings → Tools → Update system.
+      placeholder: "0.9.1"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      placeholder: |
+        1. Open Settings
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game and emulator
+      description: Only if the problem happens with a specific game.
+      placeholder: "Game name, FinalBurn Neo / MAME 2003-Plus / Linux"
+  - type: input
+    id: card
+    attributes:
+      label: microSD card
+      description: Brand and size. Useful for problems at startup or damaged files.
+      placeholder: "SanDisk 64 GB"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        With the console off, connect the card to your computer and look in `Arcade/Logs`. `Arcade.log` and `avvio.log` are usually the most useful.
+        **Check the files before posting:** `wifi.log` can contain the name of your Wi-Fi network.
+      render: text
