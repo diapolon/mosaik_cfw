@@ -29,6 +29,7 @@ typedef struct {
     bool power;          /* tasto di accensione, pressione breve (solo nel sistema su SD) */
     bool power_long;     /* tasto di accensione tenuto premuto */
     int fn;              /* interruttore FN: -1 ignoto, 0 o 1 */
+    int axis[4];         /* levette, dall'ultimo controller mosso: sinistra x y, destra x y */
 } input_t;
 
 typedef struct {
@@ -93,6 +94,7 @@ SDL_Surface *ui_overlay_end(void);
 void ui_apply_device(void);          /* ridimensiona finestra e canvas secondo il modello */
 void ui_poll(void);
 /* controller collegati: nome e giocatore assegnato (0 = giocatore 1) */
+int ui_pads_external(void);   /* controller collegati, senza contare i comandi della console */
 int ui_pads(char names[][64], int *ports, int max);
 void ui_begin(void);                 /* disegno sul canvas con lo sfondo del tema */
 void ui_end(void);                   /* presentazione, luminosità, screenshot automatici */
@@ -119,6 +121,8 @@ void ui_circle(int cx, int cy, int rad, color_t c);
 void ui_ring(int cx, int cy, int rad, int thick, color_t c);
 void ui_star(int cx, int cy, int rad, color_t c);
 void ui_vgradient(int x, int y, int w, int h, color_t top, color_t bottom);
+/* icona Wi-Fi a ventaglio: level 0..3 archi accesi (-1 come 0: i colori li sceglie chi chiama) */
+void ui_wifi_icon(int x, int y, int h, int level, color_t on, color_t off);
 void ui_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c);
 void ui_gear(int cx, int cy, int rad, color_t c);
 

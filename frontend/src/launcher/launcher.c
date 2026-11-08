@@ -66,7 +66,7 @@ static int set_page = -1;        /* -1: elenco delle categorie; altrimenti la ca
 static int set_row;              /* riga scelta nella pagina */
 static float set_scroll, set_hl;
 static void settings_open(int page, int row);
-enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_SYSTEM, SC_TOOLS, SC_COUNT };
+enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_CONTROLS, SC_SYSTEM, SC_TOOLS, SC_COUNT };
 static char theme_ids[16][64], theme_names[16][64];
 static int nthemes;
 
@@ -360,6 +360,31 @@ static void write_linux_env(const game_t *g) {
     json_free(j);
 }
 
+static bool have_games(void) {
+    for (int i = 0; i < ngames; i++)
+        if (!games[i].missing) return true;
+    return false;
+}
+
+/* scheda senza giochi: dove copiarli, con le cartelle vere degli emulatori presenti */
+static void empty_guide(int x, int y, int w) {
+    theme_t *t = &UI.th;
+    char dirs[400] = "", step2[600], lines[3][160];
+    for (int e = 0; e < NEMUS && e < 3; e++) {
+        size_t len = strlen(dirs);
+        snprintf(dirs + len, sizeof dirs - len, "%sArcade/%s", e ? ", " : "", EMUS[e].roms);
+    }
+    snprintf(step2, sizeof step2, T("empty.step2"), dirs);
+    const char *steps[3] = { T("empty.step1"), step2, T("empty.step3") };
+    ui_text(UI.f_normal, T("empty.title"), x, y, t->accent, ALIGN_LEFT);
+    y += TTF_FontHeight(UI.f_normal) + M(0.012f);
+    for (int s = 0; s < 3; s++) {
+        int n = ui_wrap(UI.f_small, steps[s], w, lines, 3);
+        for (int i = 0; i < n; i++, y += TTF_FontHeight(UI.f_small)) ui_text(UI.f_small, lines[i], x, y, t->text, ALIGN_LEFT);
+        y += M(0.01f);
+    }
+}
+
 static void launch(game_t *g) {
     char path[1100], core[1100];
     if (g->missing) {
@@ -610,8 +635,8 @@ static void home_draw(void) {
         else draw_all_tile(x, y, SW, S, r);
     }
     if (ncarousel == 0) {
-        ui_text(UI.f_normal, T("home.no_games"),
-                mx + SW + gap * 2, y + S / 2 - label_h / 2, t->text_dim, ALIGN_LEFT);
+        if (!have_games()) empty_guide(mx + SW + gap * 2, y, UI.w - (mx + SW + gap * 2) - mx);
+        else ui_text(UI.f_normal, T("home.no_games"), mx + SW + gap * 2, y + S / 2 - label_h / 2, t->text_dim, ALIGN_LEFT);
     }
 
     /* icone */
@@ -848,7 +873,8 @@ static void bar_draw(void) {
     if (cats[cat_sel].kind == CAT_SETTINGS) {
         ui_text(UI.f_normal, T("bar.open_settings"), list_x, list_y, t->text, ALIGN_LEFT);
     } else if (!nbar) {
-        ui_text(UI.f_normal, T("library.empty"), list_x, list_y, t->text_dim, ALIGN_LEFT);
+        if (!have_games()) empty_guide(list_x, list_y, UI.w - list_x - M(t->margin));
+        else ui_text(UI.f_normal, T("library.empty"), list_x, list_y, t->text_dim, ALIGN_LEFT);
     }
     int bottom = UI.h - M(t->hintbar_h);
     ui_clip_push(0, list_y - M(0.01f), UI.w, bottom - list_y);
@@ -1068,8 +1094,9 @@ static void library_grid_draw(void) {
     }
     ui_clip_pop();
     if (!nview) {
-        ui_text(UI.f_normal, T(tabs[tab_sel] == TAB_FAV ? "library.empty_fav" : "library.empty"),
-                UI.w / 2, area_y + area_h / 2, t->text_dim, ALIGN_CENTER);
+        if (!have_games()) empty_guide(M(t->margin) * 2, area_y + area_h / 5, UI.w - M(t->margin) * 4);
+        else ui_text(UI.f_normal, T(tabs[tab_sel] == TAB_FAV ? "library.empty_fav" : "library.empty"),
+                     UI.w / 2, area_y + area_h / 2, t->text_dim, ALIGN_CENTER);
     } else {
         lib_footer(&games[view[lib_sel]], UI.h - M(t->hintbar_h) - footer_h);
     }
@@ -1151,7 +1178,8 @@ static void library_list_draw(void) {
         snprintf(info, sizeof info, "%s%s%s", games_core_label(g->core), g->vertical ? " · " : "", g->vertical ? T("info.vertical") : "");
         ui_text(UI.f_small, info, px, y + M(0.01f) + TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
     } else {
-        ui_text(UI.f_normal, T("library.empty"), px, area_y, t->text_dim, ALIGN_LEFT);
+        if (!have_games()) empty_guide(px, area_y, UI.w - px - M(t->margin));
+        else ui_text(UI.f_normal, T("library.empty"), px, area_y, t->text_dim, ALIGN_LEFT);
     }
     const char *h[] = { "SELECT", genre_hint(), "X", T("detail.hint"), "Y", T("common.favorite"), "START", T("common.settings"), "A", T("common.play") };
     ui_hints(h, 10);
@@ -1159,24 +1187,31 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
+    "cpu", "pads", "pad_test", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
-static const char *cat_key[SC_COUNT] = { "display", "look", "games", "system", "tools" };
+static const char *cat_key[SC_COUNT] = { "display", "look", "games", "controls", "system", "tools" };
 static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
-    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_RESUME, -1 },
-    { S_WIFI, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
+    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_RESUME, -1 },
+    { S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
+    { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
+
+/* HOME laterale, F1 e F2 ci sono solo sulla Brick Pro (sul Mac si mostrano per le prove) */
+static bool has_extra_keys(void) {
+    const char *m = plat_model();
+    return !plat_is_device() || (m && !strcmp(m, "brickpro"));
+}
 
 /* righe della pagina corrente: voci S_* oppure ROW_CAT + categoria */
 static int page_rows(int *rows) {
@@ -1189,6 +1224,8 @@ static int page_rows(int *rows) {
     for (int k = 0; k < 10 && cat_items[set_page][k] >= 0; k++) {
         int it = cat_items[set_page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
+        if (it == S_WIFINETS && !wifi_supported()) continue;
+        if ((it == S_KEYF1 || it == S_KEYF2 || it == S_KEYHOME) && !has_extra_keys()) continue;
         if ((it == S_UPDATE || it == S_CHANNEL || it == S_UPDNOTIFY) && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
         rows[n++] = it;
     }
@@ -1198,7 +1235,7 @@ static int page_rows(int *rows) {
 /* voci che in questo momento non possono fare nulla: in grigio, con la descrizione che resta leggibile */
 static bool set_disabled(int i) {
     switch (i) {
-    case S_SCRAPE: case S_UPDATE: return !UI.set.wifi;
+    case S_SCRAPE: case S_UPDATE: case S_WIFINETS: return !UI.set.wifi;
     case S_MUSIC: return !music_count();
     case S_LEDCOLOR: case S_LEDBRIGHT: return !UI.set.led_mode;
     case S_VARIANT: return UI.th.nvariants < 2;
@@ -1296,6 +1333,17 @@ static void set_value(int item, char *buf, size_t n) {
     case S_CHANNEL: snprintf(buf, n, "%s", T(s->update_channel ? "update.channel_dev" : "update.channel_stable")); break;
     case S_UPDNOTIFY: snprintf(buf, n, "%s", T(s->update_notify ? "common.on" : "common.off")); break;
     case S_GENRES: snprintf(buf, n, "%d", ngenres); break;
+    case S_PADTEST: buf[0] = 0; break;
+    case S_KEYF1: case S_KEYF2: {
+        static const char *acts[4] = { "keyact.none", "keyact.save", "keyact.load", "keyact.shot" };
+        snprintf(buf, n, "%s", T(acts[item == S_KEYF1 ? s->key_f1 : s->key_f2]));
+        break;
+    }
+    case S_KEYHOME: {
+        static const char *acts[3] = { "keyhome.launcher", "keyhome.menu", "keyhome.none" };
+        snprintf(buf, n, "%s", T(acts[s->key_home]));
+        break;
+    }
     case S_LOGLEVEL: {
         static const char *k[4] = { "loglvl.off", "loglvl.essential", "loglvl.perf", "loglvl.full" };
         snprintf(buf, n, "%s", T(k[s->log_level % 4]));
@@ -1313,11 +1361,22 @@ static void set_value(int item, char *buf, size_t n) {
         break;
     case S_MISSING: snprintf(buf, n, "%s", T(s->show_missing ? "missing.shown" : "missing.hidden")); break;
     case S_WIFI: snprintf(buf, n, "%s", T(s->wifi ? "common.on" : "common.off")); break;
+    case S_WIFINETS: {
+        const wifi_status_t *ws = wifi_status(false);
+        if (!s->wifi) snprintf(buf, n, "%s", T("common.off"));
+        else if (ws->state == WIFI_CONNECTED) snprintf(buf, n, "%s", ws->ssid);
+        else if (ws->state == WIFI_CONNECTING) snprintf(buf, n, "%s…", ws->ssid);
+        else snprintf(buf, n, "%s", T("wifi.disconnected"));
+        break;
+    }
     case S_SAVER: snprintf(buf, n, "%s", T(saver_keys[s->saver % 5])); break;
     case S_PADS: {
-        char names[4][64];
-        int ports[4], np = ui_pads(names, ports, 4);
-        snprintf(buf, n, T(s->ext_p1 ? "pad.ext_p1" : "pad.ext_p2"), np);
+        int np = ui_pads_external();
+        char count[48];
+        if (np == 0) snprintf(count, sizeof count, "%s", T("pad.count_none"));
+        else if (np == 1) snprintf(count, sizeof count, "%s", T("pad.count_one"));
+        else snprintf(count, sizeof count, T("pad.count_many"), np);
+        snprintf(buf, n, T(s->ext_p1 ? "pad.ext_p1" : "pad.ext_p2"), count);
         break;
     }
     case S_SLEEP:
@@ -1393,6 +1452,9 @@ static void set_change(int item, int dir) {
         break;
     case S_BEZEL: s->bezel = !s->bezel; break;
     case S_CPU: s->cpu_profile = (s->cpu_profile + dir + 3) % 3; break;
+    case S_KEYF1: s->key_f1 = (s->key_f1 + dir + 4) % 4; break;
+    case S_KEYF2: s->key_f2 = (s->key_f2 + dir + 4) % 4; break;
+    case S_KEYHOME: s->key_home = (s->key_home + dir + 3) % 3; break;
     case S_DUP:
         s->dup_mode = (s->dup_mode + dir + NEMUS + 1) % (NEMUS + 1);
         mark_duplicates();
@@ -1464,12 +1526,39 @@ static void set_change(int item, int dir) {
 
 /* Reti Wi-Fi: elenco con segnale, lucchetto e stato; A collega (password con la tastiera
    se serve), X dimentica una rete salvata, Y cerca di nuovo. */
+/* ricerca ed elenco chiamano wpa_cli più volte: in un thread, così il menu non si ferma */
+static wifi_net_t wnets_new[32];
+static int wnets_new_n = -1;
+static bool wfetching;
+
+static int wfetch_worker(void *scan) {
+    if (scan) wifi_scan();
+    int n = wifi_networks(wnets_new, 32);
+    __atomic_store_n(&wnets_new_n, n, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&wfetching, false, __ATOMIC_SEQ_CST);
+    return 0;
+}
+
 static void wpanel_refresh(bool scan) {
-    if (scan) { wifi_scan(); wscan_t = UI.t; }
+    if (__atomic_load_n(&wfetching, __ATOMIC_SEQ_CST)) return;
+    if (scan) wscan_t = UI.t;
+    wlist_t = UI.t;
+    __atomic_store_n(&wfetching, true, __ATOMIC_SEQ_CST);
+    SDL_Thread *th = SDL_CreateThread(wfetch_worker, "wifi", scan ? (void *)1 : NULL);
+    if (th) SDL_DetachThread(th);
+    else __atomic_store_n(&wfetching, false, __ATOMIC_SEQ_CST);
+}
+
+/* quando il thread ha finito: la selezione resta sulla stessa rete anche se l'ordine cambia */
+static void wpanel_collect(void) {
+    if (__atomic_load_n(&wfetching, __ATOMIC_SEQ_CST)) return;
+    int n = __atomic_load_n(&wnets_new_n, __ATOMIC_SEQ_CST);
+    if (n < 0) return;
+    __atomic_store_n(&wnets_new_n, -1, __ATOMIC_SEQ_CST);
     char cur[33];
     snprintf(cur, sizeof cur, "%s", wsel < nwnets ? wnets[wsel].ssid : "");
-    nwnets = wifi_networks(wnets, 32);
-    wlist_t = UI.t;
+    memcpy(wnets, wnets_new, sizeof(wifi_net_t) * (size_t)n);
+    nwnets = n;
     /* la selezione resta sulla stessa rete anche se l'ordine cambia */
     for (int i = 0; i < nwnets; i++) if (!strcmp(wnets[i].ssid, cur)) wsel = i;
     if (wsel >= nwnets) wsel = nwnets ? nwnets - 1 : 0;
@@ -1479,7 +1568,7 @@ static void wpanel_start(void) {
     wpanel_open = true;
     wsel = 0;
     wscroll = 0;
-    wifi_status(true);
+    wifi_status(false);
     wpanel_refresh(true);
 }
 
@@ -1494,6 +1583,7 @@ static void wifi_join(const char *ssid, const char *psk) {
 
 static void wpanel_input(void) {
     input_t *in = &UI.in;
+    wpanel_collect();
     /* ricerca ogni 10 s, elenco e stato ogni 2 s */
     if (UI.t - wscan_t > 10) wpanel_refresh(true);
     else if (UI.t - wlist_t > 2) wpanel_refresh(false);
@@ -1525,14 +1615,6 @@ static void wpanel_input(void) {
     }
 }
 
-static void wifi_bars(int x, int y, int h, int bars, color_t on, color_t off) {
-    int bw = h / 4, gap = h / 8;
-    for (int i = 0; i < 3; i++) {
-        int bh = h * (i + 1) / 3;
-        ui_rrect(x + i * (bw + gap), y + h - bh, bw, bh, bw / 3, i < bars ? on : off);
-    }
-}
-
 static void lock_icon(int x, int y, int h, color_t c) {
     int w = h * 3 / 4, bh = h * 6 / 10, t = h > 16 ? 2 : 1;
     ui_rborder(x + w / 5, y, w * 3 / 5, h - bh + w / 5, w / 4, t, c);   /* archetto */
@@ -1560,7 +1642,7 @@ static void wpanel_draw(void) {
     cy += sh + M(0.03f);
     int top = cy, area = rows * rh;
     if (!nwnets) {
-        ui_text(f, T(ws->state == WIFI_OFF ? "wifi.starting" : "wifi.none"), x + w / 2, top + area / 2 - fh / 2, t->text_dim, ALIGN_CENTER);
+        ui_text(f, T(ws->state == WIFI_OFF ? "wifi.starting" : wfetching ? "wifi.searching" : "wifi.none"), x + w / 2, top + area / 2 - fh / 2, t->text_dim, ALIGN_CENTER);
     } else {
         float target = wscroll;
         if (wsel * rh - target > area - rh) target = wsel * rh - (area - rh);
@@ -1578,7 +1660,7 @@ static void wpanel_draw(void) {
             }
             color_t tc = sel ? t->accent_text : t->text, dc = sel ? with_alpha(t->accent_text, 200) : t->text_dim;
             int ty = ry + (rh - M(0.008f) - fh) / 2, ih = M(0.03f), iy = ry + (rh - M(0.008f) - ih) / 2;
-            wifi_bars(lx + M(0.01f), iy, ih, n->bars ? n->bars : 1, tc, with_alpha(tc, 60));
+            ui_wifi_icon(lx + M(0.01f), iy, ih, n->bars ? n->bars : 1, tc, with_alpha(tc, 60));
             int nx = lx + M(0.01f) + ih + M(0.03f);
             const char *tag = n->current ? T("wifi.current") : n->failed ? T("wifi.failed") : n->saved ? T("wifi.saved") : "";
             int tagw = tag[0] ? ui_text_w(fs, tag) + M(0.02f) : 0;
@@ -1733,6 +1815,7 @@ static void sdrow_add(const char *label, int count, long long bytes) {
 }
 
 static void sdinfo_start(void) {
+    plat_audio_mute();   /* il conteggio dello spazio legge tutta la scheda */
     struct statvfs vs;
     sd_total = sd_free = -1;
     if (statvfs(UI.root, &vs) == 0) {
@@ -1940,10 +2023,25 @@ static void clean_draw(void) {
 
 /* Aggiorna sistema: cerca, chiede conferma, scarica, verifica, installa e riavvia */
 static bool upd_open;
+static bool ptest_open;      /* prova dei comandi */
+static double ptest_hold;
 
 static bool upd_busy(void) {
     int p = update_status()->phase;
     return upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL);
+}
+
+/* Wi-Fi e SD al massimo fanno ronzare l'altoparlante: aggiornamento, verifica ROM, immagini, pulizia, reti: si spegne e si
+   riaccende se l'operazione si interrompe. A installazione finita resta spento: segue il riavvio. */
+static void upd_audio(void) {
+    static bool muted;
+    int p = update_status()->phase;
+    bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
+                || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open;
+    if (want == muted) return;
+    muted = want;
+    ui_log("altoparlante %s (lavoro su SD o Wi-Fi)", want ? "spento" : "riacceso");
+    if (want) plat_audio_mute(); else plat_audio_unmute();
 }
 
 static void upd_start(void) {
@@ -2271,10 +2369,11 @@ static void settings_input(void) {
         else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_UPDATE) upd_start();
         else if (set_sel == S_GENRES) gp_show(GP_MANAGE);
-        else if (set_sel == S_WIFI && wifi_supported()) {
-            if (!UI.set.wifi) set_change(S_WIFI, +1);
-            wpanel_start();
-            ui_sound(SND_OK);
+        else if (set_sel == S_PADTEST) { ptest_open = true; ptest_hold = 0; ui_sound(SND_OK); }
+        else if (set_sel == S_WIFI) { set_change(S_WIFI, +1); ui_sound(SND_OK); }
+        else if (set_sel == S_WIFINETS) {
+            if (UI.set.wifi) { wpanel_start(); ui_sound(SND_OK); }
+            else ui_sound(SND_ERROR);
         }
         else if (set_sel == S_ROMCHECK) {
             if (romcheck_start(UI.root, games, ngames)) { romcheck_open = true; ui_sound(SND_OK); }
@@ -2372,23 +2471,9 @@ static void settings_draw(void) {
             bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : UI.set.resume_last;
             int sh = M(0.04f);
             draw_switch(vx - sh * 9 / 5, cy - sh / 2, sh, on);
-            /* Wi-Fi: rete collegata accanto all'interruttore */
-            if (i == S_WIFI && on && wifi_supported()) {
-                const wifi_status_t *ws = wifi_status(false);
-                char wl[96];
-                wl[0] = 0;
-                if (ws->state == WIFI_CONNECTED) snprintf(wl, sizeof wl, "%s", ws->ssid);
-                else if (ws->state == WIFI_CONNECTING) snprintf(wl, sizeof wl, "%s…", ws->ssid);
-                else if (ws->state == WIFI_DISCONNECTED) snprintf(wl, sizeof wl, "%s", T("wifi.disconnected"));
-                if (wl[0]) {
-                    char fit[96];
-                    ui_text_fit(UI.f_small, wl, M(0.4f), fit, sizeof fit);
-                    ui_text(UI.f_small, fit, vx - sh * 9 / 5 - M(0.03f), cy - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_RIGHT);
-                }
-            }
         } else {
             color_t vc = sel ? t->accent : t->text_dim;
-            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES;
+            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_PADTEST && i != S_WIFINETS;
             int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
             if (i == S_LEDCOLOR) {
                 /* pallino del colore (per "tema": il colore principale del tema) */
@@ -2585,6 +2670,137 @@ static void detail_input(void) {
     if (in->pressed[BTN_B]) { go(back_screen == SCR_DETAIL ? SCR_HOME : back_screen); ui_sound(SND_BACK); }
 }
 
+/* ------------------------------------------------- primo avvio guidato */
+/* Solo su una scheda nuova: lingua, poi Wi-Fi facoltativo. I giochi li spiega la libreria vuota. */
+
+static int setup_step;   /* 0 finito, 1 lingua, 2 Wi-Fi */
+
+static void setup_finish(bool wifi) {
+    setup_step = 0;
+    UI.set.setup_done = true;
+    settings_save(&UI.set, UI.root);
+    if (wifi) {
+        if (!UI.set.wifi) set_change(S_WIFI, +1);
+        wpanel_start();
+    }
+}
+
+static void setup_input(void) {
+    input_t *in = &UI.in;
+    if (setup_step == 1) {
+        if (in->pressed[BTN_UP]) { set_change(S_LANG, -1); ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_DOWN]) { set_change(S_LANG, +1); ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_A]) {
+            ui_sound(SND_OK);
+            if (wifi_supported()) setup_step = 2;
+            else setup_finish(false);
+        }
+    } else {
+        if (in->pressed[BTN_A]) { ui_sound(SND_OK); setup_finish(true); }
+        else if (in->pressed[BTN_B]) { ui_sound(SND_BACK); setup_finish(false); }
+    }
+}
+
+static void setup_draw(void) {
+    theme_t *t = &UI.th;
+    int pad = M(0.05f), w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin), tw = w - 2 * pad;
+    int fn = TTF_FontHeight(UI.f_normal), ft = TTF_FontHeight(UI.f_title), fs = TTF_FontHeight(UI.f_small), rh = fn + M(0.022f), x, y;
+    if (setup_step == 1) {
+        int sel = lang_index(), vis = nlangs < 6 ? nlangs : 6, first = sel - vis + 1 > 0 ? sel - vis + 1 : 0;
+        panel_box(w, pad * 2 + ft + M(0.01f) + fs + M(0.025f) + rh * vis, &x, &y);
+        int ty = y + pad;
+        ui_text(UI.f_title, T("setup.welcome"), x + pad, ty, t->text, ALIGN_LEFT);
+        ty += ft + M(0.01f);
+        ui_text(UI.f_small, T("setup.language"), x + pad, ty, t->text_dim, ALIGN_LEFT);
+        ty += fs + M(0.025f);
+        for (int i = first; i < first + vis && i < nlangs; i++, ty += rh) {
+            if (i == sel) ui_rrect(x + M(0.03f), ty, w - M(0.06f), rh - M(0.006f), M(t->panel_radius), t->accent);
+            ui_text(UI.f_normal, lang_names[i], x + pad, ty + (rh - M(0.006f) - fn) / 2, i == sel ? t->accent_text : t->text, ALIGN_LEFT);
+        }
+        const char *hint[] = { "^v", T("common.change"), "A", T("common.ok") };
+        ui_hints(hint, 4);
+    } else {
+        char lines[4][160];
+        int n = ui_wrap(UI.f_normal, T("setup.wifi_body"), tw, lines, 4);
+        panel_box(w, pad * 2 + ft + M(0.03f) + fn * n, &x, &y);
+        int ty = y + pad;
+        ui_text(UI.f_title, T("setup.wifi_title"), x + pad, ty, t->text, ALIGN_LEFT);
+        ty += ft + M(0.03f);
+        for (int i = 0; i < n; i++, ty += fn) ui_text(UI.f_normal, lines[i], x + pad, ty, t->text, ALIGN_LEFT);
+        const char *hint[] = { "B", T("setup.later"), "A", T("setup.connect") };
+        ui_hints(hint, 4);
+    }
+}
+
+/* ------------------------------------------------- prova dei comandi */
+/* Mostra ogni tasto e la posizione delle levette. B è un tasto da provare come gli altri:
+   per uscire si tiene premuto. */
+
+static double ptest_flash[3];   /* HOME, F1, F2 arrivano come impulsi: restano accesi un momento */
+
+static void ptest_input(void) {
+    last_input = UI.t;
+    if (UI.in.home) ptest_flash[0] = UI.t;
+    if (UI.in.f1) ptest_flash[1] = UI.t;
+    if (UI.in.f2) ptest_flash[2] = UI.t;
+    if (!UI.in.down[BTN_B]) { ptest_hold = 0; return; }
+    ptest_hold += UI.dt;
+    if (ptest_hold >= 1.0) { ptest_open = false; ui_sound(SND_BACK); }
+}
+
+static void ptest_stick(int cx, int cy, int r, int ax, int ay, const char *label) {
+    theme_t *t = &UI.th;
+    char val[32];
+    int dot = r / 5;
+    ui_circle(cx, cy, r, with_alpha(t->text, 26));
+    ui_rect(cx - r, cy, 2 * r, 1, t->line);
+    ui_rect(cx, cy - r, 1, 2 * r, t->line);
+    ui_circle(cx + ax * (r - dot) / 32767, cy + ay * (r - dot) / 32767, dot, t->accent);
+    ui_text(UI.f_small, label, cx, cy - r - TTF_FontHeight(UI.f_small) - M(0.008f), t->text_dim, ALIGN_CENTER);
+    snprintf(val, sizeof val, "%+d  %+d", ax * 100 / 32767, ay * 100 / 32767);
+    ui_text(UI.f_small, val, cx, cy + r + M(0.008f), t->text, ALIGN_CENTER);
+}
+
+static void ptest_draw(void) {
+    static const struct { const char *name; int b; } keys[] = {
+        { "UP", BTN_UP }, { "DOWN", BTN_DOWN }, { "LEFT", BTN_LEFT }, { "RIGHT", BTN_RIGHT }, { "A", BTN_A },
+        { "B", BTN_B }, { "X", BTN_X }, { "Y", BTN_Y }, { "L", BTN_L }, { "R", BTN_R },
+        { "L2", BTN_L2 }, { "R2", BTN_R2 }, { "SELECT", BTN_SELECT }, { "START", BTN_START }, { "MENU", BTN_MENU },
+    };
+    theme_t *t = &UI.th;
+    int pad = M(0.04f), w = UI.w - 2 * M(t->margin), h = UI.h - M(t->hintbar_h) - 2 * M(0.03f), x, y;
+    panel_box(w, h, &x, &y);
+    ui_text(UI.f_title, T("ptest.title"), x + pad, y + pad, t->text, ALIGN_LEFT);
+    int top = y + pad + TTF_FontHeight(UI.f_title) + M(0.04f), bottom = y + h - pad;
+    int r = (bottom - top - 2 * TTF_FontHeight(UI.f_small) - M(0.04f)) / 2;
+    if (r > M(0.13f)) r = M(0.13f);
+    int cy = (top + bottom) / 2;
+    ptest_stick(x + pad + r, cy, r, UI.in.axis[0], UI.in.axis[1], T("ptest.left"));
+    ptest_stick(x + w - pad - r, cy, r, UI.in.axis[2], UI.in.axis[3], T("ptest.right"));
+    int ax = x + pad + 2 * r + pad, aw = w - 2 * (2 * pad + 2 * r), gap = M(0.012f), cols = 3;
+    int nk = (int)(sizeof keys / sizeof keys[0]), cw = (aw - gap * (cols - 1)) / cols, ch = TTF_FontHeight(UI.f_small) + M(0.012f);
+    bool extra = has_extra_keys();
+    int rows = (nk + (extra ? 4 : 1) + cols - 1) / cols;
+    int gy = cy - (rows * ch + (rows - 1) * gap) / 2;
+    for (int i = 0; i < nk + 4; i++) {
+        const char *name;
+        bool on;
+        if (i < nk) { name = keys[i].name; on = UI.in.down[keys[i].b]; }
+        else if (i == nk) { name = "FN"; on = UI.in.fn == 1; }
+        else {
+            if (!extra) break;
+            static const char *en[3] = { "HOME", "F1", "F2" };
+            name = en[i - nk - 1];
+            on = UI.t - ptest_flash[i - nk - 1] < 0.25 && ptest_flash[i - nk - 1] > 0;
+        }
+        int cx = ax + (i % cols) * (cw + gap), yy = gy + (i / cols) * (ch + gap);
+        ui_rrect(cx, yy, cw, ch, ch / 3, on ? t->accent : with_alpha(t->text, 20));
+        ui_text(UI.f_small, name, cx + cw / 2, yy + (ch - TTF_FontHeight(UI.f_small)) / 2, on ? t->accent_text : t->text, ALIGN_CENTER);
+    }
+    const char *hint[] = { "B", T("ptest.exit") };
+    ui_hints(hint, 2);
+}
+
 /* ------------------------------------------------- diagnosi del gioco */
 /* Spiega cosa impedisce di avviare un gioco e quale file serve. Si apre dalle opzioni del
    gioco e, da sola, quando il runner non riesce ad avviarlo (System/last-failure.txt). */
@@ -2600,7 +2816,9 @@ static void diag_show(const game_t *g, bool failed, bool core_failed, const char
     const emulator_t *emu = emulator_find(g->core);
     char core[1100];
     snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
+    plat_audio_mute();
     romcheck_diagnose(UI.root, g, core, core_failed, &diag);
+    plat_audio_unmute();
     snprintf(diag_title, sizeof diag_title, "%s", g->title);
     snprintf(diag_msg, sizeof diag_msg, "%s", msg ? msg : "");
     diag_failed = failed;
@@ -3380,6 +3598,7 @@ int main(int argc, char **argv) {
     ui_busy(T("common.loading"), 0);   /* subito qualcosa a schermo mentre si caricano i giochi */
     if (!auto_script && consume_resume()) {
         ui_log("riprendo l'ultima partita");
+        plat_audio_release();
         ui_shutdown_code(EXIT_LAUNCH);
         return EXIT_LAUNCH;
     }
@@ -3394,6 +3613,7 @@ int main(int argc, char **argv) {
     screen = is_list_layout() ? SCR_LIBRARY : SCR_HOME;
     screen_t0 = -1;
     diag_check_failure();
+    if (!UI.set.setup_done) setup_step = 1;
     bool first_frame = true, idle_logged = false;
     unsigned idle_skip = 0;
 
@@ -3423,7 +3643,7 @@ int main(int argc, char **argv) {
         }
         if (UI.in.power_long && (!dlg_open || dlg_suspend) && !upd_open) { dlg_open = true; dlg_suspend = false; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
-        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open) {
+        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open) {
             dlg_suspend = false;
             diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
@@ -3443,6 +3663,8 @@ int main(int argc, char **argv) {
             if (r >= 0) dlg_open = dlg_suspend = false;
             if (r == 1) { ui_suspend(); last_input = UI.t; }
         }
+        else if (setup_step) setup_input();
+        else if (ptest_open) ptest_input();
         else if (diag_open) diag_input();
         else if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
@@ -3467,6 +3689,9 @@ int main(int argc, char **argv) {
         bool held = false;
         for (int b = 0; b < BTN_COUNT; b++) held = held || UI.in.down[b];
         if (held) last_input = UI.t;
+        upd_audio();
+        /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
+        if (UI.t > 0.4) plat_audio_release();
         bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open;
         bool idle = !working && !UI.automation && UI.t - last_input > IDLE_AFTER_S;
         plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);
@@ -3511,6 +3736,8 @@ int main(int argc, char **argv) {
         if (upd_open) upd_draw();
         if (romcheck_open) romcheck_draw();
         if (diag_open) diag_draw();
+        if (ptest_open) ptest_draw();
+        if (setup_step) setup_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
         if (first_frame) { first_frame = false; ui_mark("prima schermata"); update_confirm_boot(UI.root); }

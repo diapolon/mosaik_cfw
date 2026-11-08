@@ -147,11 +147,11 @@ Arcade/Linux/MyGame/
 | Menu + Up / Down | Volume |
 | Menu + Left / Right | Brightness |
 
-On the Brick Pro, HOME goes back to the launcher, the two bars below the screen save and load the game, and the FN switch turns on maximum performance.
+On the Brick Pro, HOME goes back to the launcher, the two bars below the screen save and load the game, and the FN switch turns on maximum performance. **Settings → Controls** has a button and stick test and lets you choose what HOME and the two bars do.
 
 ## Wi-Fi and updates
 
-Open **Settings → System → Wi-Fi**: left and right turn it on and off, A shows the networks. On the on-screen keyboard, X switches between uppercase, lowercase and symbols.
+Open **Settings → System**: **Wi-Fi** turns it on and off, **Wi-Fi networks** shows the networks to connect to. On the on-screen keyboard, X switches between uppercase, lowercase and symbols.
 
 To update, open **Settings → Tools → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if a new system fails to start, the console tries to go back to the previous one by itself. This does not cover every failure: in the worst case, write the image to the card again.
 

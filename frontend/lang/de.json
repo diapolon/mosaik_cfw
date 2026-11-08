@@ -48,6 +48,10 @@
     "about": "%d Spiele · Prototyp 0.1 · %s"
   },
   "settings": {
+    "pad_test": "Tastentest",
+    "key_f1": "F1-Taste",
+    "key_f2": "F2-Taste",
+    "key_home": "HOME-Taste",
     "title": "Einstellungen",
     "brightness": "Helligkeit",
     "volume": "Lautstärke",
@@ -60,6 +64,7 @@
     "filter": "Videofilter",
     "cpu": "Leistungsprofil",
     "wifi": "WLAN",
+    "wifi_nets": "WLAN-Netze",
     "sleep": "Automatisch ausschalten",
     "suspend": "Automatischer Ruhezustand",
     "resume": "Letztes Spiel beim Einschalten fortsetzen",
@@ -87,6 +92,10 @@
     "led_brightness": "LED-Helligkeit"
   },
   "settings_desc": {
+    "pad_test": "Zeigt jede gedrückte Taste und die Position der Sticks: nützlich, um ihre Funktion zu prüfen.",
+    "key_f1": "Was die F1-Leiste in FBNeo- und MAME-Spielen macht.",
+    "key_f2": "Was die F2-Leiste in FBNeo- und MAME-Spielen macht.",
+    "key_home": "Was die seitliche HOME-Taste in FBNeo- und MAME-Spielen macht.",
     "brightness": "Bildschirmhelligkeit. Auf der Konsole steuert sie die Hintergrundbeleuchtung.",
     "volume": "Systemlautstärke, gilt auch in Spielen.",
     "theme": "Aussehen des Launchers und des Spielmenüs.",
@@ -97,7 +106,8 @@
     "aspect": "Original: Proportionen des Automaten. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus.",
     "filter": "Filter sind Ordner in Filters/: Masken, Vignette und später Shader.",
     "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3).",
-    "wifi": "Links/rechts schalten das WLAN ein und aus; A zeigt die Netze zum Verbinden.",
+    "wifi": "Schaltet das WLAN ein oder aus.",
+    "wifi_nets": "Zeigt die verfügbaren Netze zum Verbinden.",
     "sleep": "Schaltet die Konsole nach einer Weile ohne Eingabe im Launcher aus.",
     "suspend": "Versetzt die Konsole nach einer Weile ohne Eingabe im Launcher in den Ruhezustand. Die Ein/Aus-Taste weckt sie auf.",
     "resume": "Wird die Konsole während eines Spiels ausgeschaltet, geht es dort weiter.",
@@ -334,8 +344,11 @@
   "pad": {
     "connected": "Controller verbunden: %s · Spieler %d",
     "removed": "Controller getrennt: %s",
-    "ext_p2": "Extern = Spieler 2 (%d verbunden)",
-    "ext_p1": "Extern = Spieler 1 (%d verbunden)"
+    "ext_p2": "Extern = Spieler 2 (%s)",
+    "count_none": "keiner verbunden",
+    "count_one": "1 verbunden",
+    "count_many": "%d verbunden",
+    "ext_p1": "Extern = Spieler 1 (%s)"
   },
   "coll": {
     "filter": "Sammlung",
@@ -424,6 +437,7 @@
     "none": "Keine Bilder zu löschen"
   },
   "settings_cat": {
+    "controls": "Steuerung",
     "display": "Bild und Ton",
     "look": "Aussehen",
     "games": "Spiele",
@@ -431,16 +445,18 @@
     "tools": "Werkzeuge"
   },
   "settings_cat_sum": {
+    "controls": "Controller, Tasten- und Sticktest",
     "display": "Helligkeit, Lautstärke, Musik, LEDs",
     "look": "Thema, Sprache, Bildschirmschoner",
-    "games": "Bild, Filter, Controller",
+    "games": "Bild, Filter",
     "system": "WLAN, Datum und Uhrzeit, Ausschalten",
     "tools": "ROMs, Bilder, Infos"
   },
   "settings_cat_desc": {
+    "controls": "Externe Controller, Test von Tasten und Sticks und auf der Brick Pro die Funktion der Zusatztasten.",
     "display": "Bildschirmhelligkeit, Lautstärke, Hintergrundmusik und Konsolenlichter.",
     "look": "Launcher-Thema, Variante, Sprache und Bildschirmschoner.",
-    "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung, Controller.",
+    "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung.",
     "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
     "tools": "ROM-Prüfung, Bilder herunterladen und aufräumen, Speicherplatz."
   },
@@ -532,5 +548,36 @@
     "body9": "%s ist nicht im Katalog von %s. Die Datei wurde vielleicht umbenannt oder gehört zu einem anderen Emulator.",
     "head10": "Prüfung nicht verfügbar",
     "body10": "Diese Datei kann nicht geprüft werden: Sie ist im 7z-Format, oder für diesen Emulator gibt es keine Dateiliste."
+  },
+  "setup": {
+    "welcome": "Willkommen bei Mosaik",
+    "language": "Wähle die Sprache",
+    "wifi_title": "Mit dem WLAN verbinden?",
+    "wifi_body": "Es wird für Uhrzeit, Cover und Updates gebraucht. Du kannst das auch später in den Einstellungen tun.",
+    "connect": "Verbinden",
+    "later": "Später"
+  },
+  "empty": {
+    "title": "Noch keine Spiele",
+    "step1": "1. Schalte die Konsole aus und verbinde die Karte mit dem Computer.",
+    "step2": "2. Kopiere die ROMs nach: %s.",
+    "step3": "3. BIOS-Dateien wie neogeo.zip gehören nach Arcade/Bios. Stecke die Karte dann wieder ein und schalte die Konsole ein."
+  },
+  "ptest": {
+    "title": "Tastentest",
+    "left": "Linker Stick",
+    "right": "Rechter Stick",
+    "exit": "Zum Beenden gedrückt halten"
+  },
+  "keyact": {
+    "none": "Keine Aktion",
+    "save": "Spielstand speichern",
+    "load": "Spielstand laden",
+    "shot": "Screenshot"
+  },
+  "keyhome": {
+    "launcher": "Zurück zum Launcher",
+    "menu": "Öffnet das Menü",
+    "none": "Keine Aktion"
   }
 }

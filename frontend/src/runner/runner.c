@@ -1263,6 +1263,16 @@ static void battery_watch(void) {
     }
 }
 
+/* tasti F1 e F2 della Brick Pro: l'azione si sceglie in Impostazioni > Comandi */
+static void extra_key(int action) {
+    switch (action) {
+    case XK_SAVE: ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed")); break;
+    case XK_LOAD: ui_toast(T(state_load(false) ? "game.state_loaded" : "game.no_state")); break;
+    case XK_SHOT: screenshot(); ui_toast(T("hotkey.screenshot")); break;
+    default: break;
+    }
+}
+
 /* ------------------------------------------------------------ main */
 
 static void show_error(const char *msg) {
@@ -1362,7 +1372,7 @@ int main(int argc, char **argv) {
         if (UI.in.vol_changed) { osd_kind = OSD_VOLUME; osd_until = UI.t + 1.4; }
         if (UI.in.quit) { power_off_from_game(); break; }   /* chiusura finestra = tasto di accensione */
         /* tasti extra della Brick Pro: HOME torna al launcher, F1 salva, F2 carica */
-        if (UI.in.home) { exit_code = EXIT_MENU; break; }
+        if (UI.in.home && UI.set.key_home == XH_LAUNCHER) { exit_code = EXIT_MENU; break; }
         /* tasto di accensione (sistema su SD): breve chiede se sospendere (il gioco riprende da
            dove era), tenuto premuto salva la partita e spegne */
         if (UI.in.power_long) { power_off_from_game(); break; }
@@ -1376,11 +1386,11 @@ int main(int argc, char **argv) {
             if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
             ui_sound(SND_OK);
         }
-        if (UI.in.f1 && !menu_open && !suspend_ask) ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed"));
-        if (UI.in.f2 && !menu_open && !suspend_ask) ui_toast(T(state_load(false) ? "game.state_loaded" : "game.no_state"));
+        if (UI.in.f1 && !menu_open && !suspend_ask) extra_key(UI.set.key_f1);
+        if (UI.in.f2 && !menu_open && !suspend_ask) extra_key(UI.set.key_f2);
         if (suspend_ask) {
             /* il gioco resta fermo finché non si risponde */
-        } else if (!menu_open && hotkeys()) {
+        } else if (!menu_open && ((UI.in.home && UI.set.key_home == XH_MENU) || hotkeys())) {
             menu_open = true;
             menu_anim = 0;
             page = PAGE_MAIN;

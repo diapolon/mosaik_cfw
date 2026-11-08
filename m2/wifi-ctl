@@ -9,7 +9,18 @@ ROOT=${ROOT:-/mnt/SDCARD/Arcade}
 CONF=$ROOT/System/wifi.conf
 LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/wifi.log
 CTRL=/run/wpa
+EVPID=/run/wifi-event.pid
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
+
+# un comando alla volta: spegnere e riaccendere in fretta dal menu non deve sovrapporsi
+LOCK=/run/wifi-ctl.lock
+i=0
+while ! mkdir "$LOCK" 2> /dev/null; do
+    i=$((i + 1))
+    [ $i -ge 100 ] && break   # 10 secondi: blocco rimasto da un comando interrotto
+    sleep 0.1
+done
+trap 'rmdir "$LOCK" 2> /dev/null' EXIT
 
 case "$1" in
 on)
@@ -33,13 +44,20 @@ on)
         # stdout e stderr non sulla SD: allo spegnimento la SD non deve avere file aperti
         wpa_supplicant -B -i wlan0 -D nl80211 -c "$CONF" -C "$CTRL" > /dev/null 2>&1 || { log "wpa_supplicant: errore"; exit 1; }
     fi
-    pidof wpa_cli >/dev/null || wpa_cli -B -p "$CTRL" -i wlan0 -a /usr/arcade/bin/wifi-event > /dev/null 2>&1
+    # non "pidof wpa_cli": troverebbe anche i wpa_cli brevi con cui il launcher legge lo stato,
+    # e senza questo processo nessuno chiederebbe l'indirizzo alla rete
+    if ! { [ -f "$EVPID" ] && kill -0 "$(cat "$EVPID")" 2> /dev/null; }; then
+        wpa_cli -B -P "$EVPID" -p "$CTRL" -i wlan0 -a /usr/arcade/bin/wifi-event > /dev/null 2>&1
+    fi
     log "Wi-Fi acceso"
     ;;
 off)
     killall wpa_cli wpa_supplicant udhcpc 2>/dev/null
+    for i in $(seq 25); do pidof wpa_supplicant > /dev/null || break; sleep 0.2; done
+    # senza togliere l'indirizzo, alla riaccensione la console sembrerebbe già collegata
+    ifconfig wlan0 0.0.0.0 2>/dev/null
     ifconfig wlan0 down 2>/dev/null
-    rm -f /run/resolv.conf
+    rm -f /run/resolv.conf "$EVPID"
     log "Wi-Fi spento"
     ;;
 *)

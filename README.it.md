@@ -147,11 +147,11 @@ Arcade/Linux/MioGioco/
 | Menu + Su / Giù | Volume |
 | Menu + Sinistra / Destra | Luminosità |
 
-Sulla Brick Pro, HOME torna al launcher, le due barrette sotto lo schermo salvano e caricano la partita e l'interruttore FN attiva le prestazioni massime.
+Sulla Brick Pro, HOME torna al launcher, le due barrette sotto lo schermo salvano e caricano la partita e l'interruttore FN attiva le prestazioni massime. In **Impostazioni → Comandi** trovi la prova di tasti e levette e puoi scegliere cosa fanno HOME e le due barrette.
 
 ## Wi-Fi e aggiornamenti
 
-Apri **Impostazioni → Sistema → Wi-Fi**: sinistra e destra accendono e spengono, A mostra le reti. Sulla tastiera a schermo, X passa tra maiuscole, minuscole e simboli.
+Apri **Impostazioni → Sistema**: **Wi-Fi** accende e spegne, **Reti Wi-Fi** mostra le reti a cui collegarsi. Sulla tastiera a schermo, X passa tra maiuscole, minuscole e simboli.
 
 Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se un sistema nuovo non parte la console prova a tornare da sola a quello precedente. Non copre ogni guasto: nel caso peggiore, riscrivi l'immagine sulla scheda.
 

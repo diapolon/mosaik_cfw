@@ -27,6 +27,7 @@ static double st_time = -10;
 #ifdef TRIMUI_DEVICE
 /* ------------------------------------------------------------ console: wpa_cli */
 #include <fcntl.h>
+#include <pthread.h>
 #include <spawn.h>
 #include <stdarg.h>
 #include <sys/wait.h>
@@ -148,29 +149,63 @@ static int saved_list(saved_t *out, int max) {
 
 static bool pending;   /* rete scelta da poco: a connessione riuscita si salva la configurazione */
 
-const wifi_status_t *wifi_status(bool refresh) {
-    double t = now_s();
-    if (!refresh && t - st_time < 2.0) return &st;
-    st_time = t;
+/* legge lo stato da wpa_cli: può metterci decine di millisecondi, di più se il driver è occupato */
+static void status_read(wifi_status_t *o) {
     char buf[2048], v[64];
-    memset(&st, 0, sizeof st);
-    if (!wpa(buf, sizeof buf, "status", NULL) || !field(buf, "wpa_state", v, sizeof v)) { st.state = WIFI_OFF; return &st; }
+    memset(o, 0, sizeof *o);
+    if (!wpa(buf, sizeof buf, "status", NULL) || !field(buf, "wpa_state", v, sizeof v)) { o->state = WIFI_OFF; return; }
     char raw[160];
-    if (field(buf, "ssid", raw, sizeof raw)) ssid_decode(raw, st.ssid, sizeof st.ssid);
-    field(buf, "ip_address", st.ip, sizeof st.ip);
-    if (!strcmp(v, "COMPLETED")) st.state = st.ip[0] ? WIFI_CONNECTED : WIFI_CONNECTING;
-    else if (strstr(v, "ASSOC") || strstr(v, "AUTH") || strstr(v, "HANDSHAKE")) st.state = WIFI_CONNECTING;
-    else st.state = WIFI_DISCONNECTED;
-    if (st.state == WIFI_CONNECTED) {
-        if (wpa(buf, sizeof buf, "signal_poll", NULL) && field(buf, "RSSI", v, sizeof v)) st.bars = bars_from_dbm(atoi(v));
-        if (pending) {
+    if (field(buf, "ssid", raw, sizeof raw)) ssid_decode(raw, o->ssid, sizeof o->ssid);
+    field(buf, "ip_address", o->ip, sizeof o->ip);
+    if (!strcmp(v, "COMPLETED")) o->state = o->ip[0] ? WIFI_CONNECTED : WIFI_CONNECTING;
+    else if (strstr(v, "ASSOC") || strstr(v, "AUTH") || strstr(v, "HANDSHAKE")) o->state = WIFI_CONNECTING;
+    else o->state = WIFI_DISCONNECTED;
+    if (o->state == WIFI_CONNECTED) {
+        if (wpa(buf, sizeof buf, "signal_poll", NULL) && field(buf, "RSSI", v, sizeof v)) o->bars = bars_from_dbm(atoi(v));
+        if (__atomic_exchange_n(&pending, false, __ATOMIC_SEQ_CST)) {
             /* select_network disattiva le altre reti salvate: si riattivano e si salva */
-            pending = false;
             wpa(buf, sizeof buf, "enable_network", "all", NULL);
             wpa(buf, sizeof buf, "save_config", NULL);
         }
     }
-    return &st;
+}
+
+static pthread_mutex_t st_lock = PTHREAD_MUTEX_INITIALIZER;
+static bool st_busy;
+
+static void *status_worker(void *arg) {
+    (void)arg;
+    wifi_status_t t;
+    status_read(&t);
+    pthread_mutex_lock(&st_lock);
+    st = t;
+    pthread_mutex_unlock(&st_lock);
+    __atomic_store_n(&st_busy, false, __ATOMIC_SEQ_CST);
+    return NULL;
+}
+
+/* Senza refresh non blocca mai: restituisce l'ultimo stato e lo aggiorna in un thread. */
+const wifi_status_t *wifi_status(bool refresh) {
+    static wifi_status_t view;
+    double t = now_s();
+    if (refresh) {
+        wifi_status_t r;
+        status_read(&r);
+        st_time = t;
+        pthread_mutex_lock(&st_lock);
+        st = r;
+        pthread_mutex_unlock(&st_lock);
+    } else if (t - st_time >= 2.0 && !__atomic_load_n(&st_busy, __ATOMIC_SEQ_CST)) {
+        st_time = t;
+        __atomic_store_n(&st_busy, true, __ATOMIC_SEQ_CST);
+        pthread_t th;
+        if (pthread_create(&th, NULL, status_worker, NULL) == 0) pthread_detach(th);
+        else __atomic_store_n(&st_busy, false, __ATOMIC_SEQ_CST);
+    }
+    pthread_mutex_lock(&st_lock);
+    view = st;
+    pthread_mutex_unlock(&st_lock);
+    return &view;
 }
 
 void wifi_scan(void) { char b[64]; wpa(b, sizeof b, "scan", NULL); }

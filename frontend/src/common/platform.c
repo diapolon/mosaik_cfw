@@ -292,6 +292,14 @@ bool plat_suspend(void) {
     return r == 0;
 }
 
+void plat_audio_release(void) {
+    if (unlink("/run/arcade-audio-held") == 0) plat_audio_unmute();
+}
+
+void plat_audio_mute(void) {
+    if (system("arcade-suspend mute") != 0) ui_log("audio: spegnimento non riuscito");
+}
+
 void plat_audio_unmute(void) {
     if (system("arcade-suspend unmute") != 0) ui_log("audio: riattivazione non riuscita");
 }
@@ -326,6 +334,8 @@ bool plat_device_name(const char *path, char *out, int n) { (void)path; if (n) o
 bool plat_set_time(time_t t) { (void)t; return false; }
 void plat_led_theme(unsigned rgb) { (void)rgb; }
 bool plat_suspend(void) { return false; }
+void plat_audio_release(void) {}
+void plat_audio_mute(void) {}
 void plat_audio_unmute(void) {}
 
 #endif

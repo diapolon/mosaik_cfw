@@ -309,12 +309,55 @@ static void fan(float cx, float cy, const float *xs, const float *ys, int n, SDL
     SDL_RenderGeometry(UI.ren, NULL, v, n + 1, idx, k);
 }
 
-enum { GLYPH_STAR, GLYPH_GEAR };
+enum { GLYPH_STAR, GLYPH_GEAR, GLYPH_WIFI_DOT, GLYPH_WIFI_1, GLYPH_WIFI_2, GLYPH_WIFI_3 };
+
+/* arco spesso con le estremità arrotondate, centrato in (cx, cy) */
+static void arc_paint(float cx, float cy, float rad, float thick, float half, SDL_Color col) {
+    enum { STEPS = 28 };
+    SDL_Vertex v[(STEPS + 1) * 2];
+    int idx[STEPS * 6], k = 0;
+    float xs[24], ys[24];
+    for (int i = 0; i <= STEPS; i++) {
+        float a = -(float)M_PI / 2 - half + 2 * half * i / STEPS, ca = cosf(a), sa = sinf(a);
+        v[i * 2] = (SDL_Vertex){ { cx + ca * (rad - thick / 2), cy + sa * (rad - thick / 2) }, col, { 0, 0 } };
+        v[i * 2 + 1] = (SDL_Vertex){ { cx + ca * (rad + thick / 2), cy + sa * (rad + thick / 2) }, col, { 0, 0 } };
+    }
+    for (int i = 0; i < STEPS; i++) {
+        int b = i * 2;
+        idx[k++] = b; idx[k++] = b + 1; idx[k++] = b + 2;
+        idx[k++] = b + 1; idx[k++] = b + 3; idx[k++] = b + 2;
+    }
+    SDL_RenderGeometry(UI.ren, NULL, v, (STEPS + 1) * 2, idx, k);
+    for (int e = -1; e <= 1; e += 2) {
+        float a = -(float)M_PI / 2 + e * half, ex = cx + cosf(a) * rad, ey = cy + sinf(a) * rad;
+        for (int i = 0; i < 24; i++) {
+            float b = 2 * (float)M_PI * i / 24;
+            xs[i] = ex + cosf(b) * thick / 2;
+            ys[i] = ey + sinf(b) * thick / 2;
+        }
+        fan(ex, ey, xs, ys, 24, col);
+    }
+}
 
 static void glyph_paint(int kind, float o, float r) {
     SDL_Color white = { 255, 255, 255, 255 }, clear = { 0, 0, 0, 0 };
     float xs[128], ys[128];
     int n = 0;
+    if (kind >= GLYPH_WIFI_DOT) {
+        /* ventaglio del Wi-Fi: punto in basso e tre archi concentrici */
+        float ax = o, ay = o + r * 0.78f, half = 40 * (float)M_PI / 180;
+        if (kind == GLYPH_WIFI_DOT) {
+            for (int i = 0; i < 32; i++) {
+                float a = 2 * (float)M_PI * i / 32;
+                xs[i] = ax + cosf(a) * r * 0.17f;
+                ys[i] = ay + sinf(a) * r * 0.17f;
+            }
+            fan(ax, ay, xs, ys, 32, white);
+        } else {
+            arc_paint(ax, ay, r * (0.60f + 0.40f * (kind - GLYPH_WIFI_1)), r * 0.25f, half, white);
+        }
+        return;
+    }
     if (kind == GLYPH_STAR) {
         /* il centro della stella è un punto valido per il ventaglio di triangoli */
         for (int i = 0; i < 10; i++) {
@@ -391,6 +434,12 @@ static void glyph_draw(int kind, int cx, int cy, int rad, color_t c) {
 
 void ui_star(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_STAR, cx, cy, rad, c); }
 void ui_gear(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_GEAR, cx, cy, rad, c); }
+
+void ui_wifi_icon(int x, int y, int h, int level, color_t on, color_t off) {
+    int cx = x + h / 2, cy = y + h / 2, rad = h * 6 / 10;
+    glyph_draw(GLYPH_WIFI_DOT, cx, cy, rad, level > 0 ? on : off);
+    for (int i = 0; i < 3; i++) glyph_draw(GLYPH_WIFI_1 + i, cx, cy, rad, i < level ? on : off);
+}
 
 void ui_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c) {
     SDL_Color col = { c.r, c.g, c.b, c.a };
@@ -1062,6 +1111,12 @@ static int joy_to_btn(int jb) {
     return -1;
 }
 
+int ui_pads_external(void) {
+    int n = 0;
+    for (int i = 0; i < npads; i++) n += !pads[i].builtin;
+    return n;
+}
+
 int ui_pads(char names[][64], int *ports, int max) {
     int n = 0;
     for (int i = 0; i < npads && n < max; i++, n++) {
@@ -1300,6 +1355,8 @@ void ui_poll(void) {
             pad_t *pd = pad_by_id(ev.jaxis.which);
             if (!pd || !pd->js) break;
             int a = ev.jaxis.axis, v = ev.jaxis.value;
+            if (a == 0 || a == 1) UI.in.axis[a] = v;
+            else if (a == 3 || a == 4) UI.in.axis[a - 1] = v;
             if (a == joy_axis_l2 || a == joy_axis_r2) {
                 int b = a == joy_axis_l2 ? BTN_L2 : BTN_R2;
                 if ((v > 16000) != pd->down[b]) source_set(pd->down, b, v > 16000);
@@ -1335,6 +1392,7 @@ void ui_poll(void) {
             pad_t *pd = pad_by_id(ev.caxis.which);
             if (!pd) break;
             int a = ev.caxis.axis, v = ev.caxis.value;
+            if (a >= SDL_CONTROLLER_AXIS_LEFTX && a <= SDL_CONTROLLER_AXIS_RIGHTY) UI.in.axis[a] = v;
             if ((getenv("TRIMUI_JOYDEBUG") || ui_debug_on(2)) && (v > 16000 || v < -16000)) ui_log("controller: asse SDL %d = %d", a, v);
             if (a == SDL_CONTROLLER_AXIS_TRIGGERLEFT || a == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
                 int b = a == SDL_CONTROLLER_AXIS_TRIGGERLEFT ? BTN_L2 : BTN_R2;
@@ -1423,12 +1481,7 @@ static void battery_icon(int x, int y, int w, int h, int pct, bool charging, col
 
 /* level: -1 spento, 0 acceso ma non collegato, 1..3 tacche di segnale */
 static void wifi_icon(int x, int y, int h, int level, color_t c) {
-    int bw = h / 4, gap = h / 8;
-    for (int i = 0; i < 3; i++) {
-        int bh = h * (i + 1) / 3;
-        int a = level < 0 ? 45 : i < level ? 255 : 90;
-        ui_rrect(x + i * (bw + gap), y + h - bh, bw, bh, bw / 3, with_alpha(c, a));
-    }
+    ui_wifi_icon(x, y, h, level, with_alpha(c, level < 0 ? 45 : 255), with_alpha(c, level < 0 ? 45 : 90));
 }
 
 void ui_topbar(const char *title) {

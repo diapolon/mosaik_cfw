@@ -55,6 +55,8 @@ void settings_defaults(settings_t *s) {
     s->autosleep_min = 0;
     s->autosuspend_min = 5;
     s->update_notify = true;
+    s->key_f1 = XK_SAVE;
+    s->key_f2 = XK_LOAD;
     s->aspect = ASPECT_ORIGINAL;
     strcpy(s->filter, "nitido");
     s->bezel = false;
@@ -92,6 +94,11 @@ bool settings_load(settings_t *s, const char *root) {
     s->autosuspend_min = json_int(j, "autosuspend_min", s->autosuspend_min);
     s->update_channel = json_int(j, "update_channel", 0) ? 1 : 0;
     s->update_notify = json_bool(j, "update_notify", s->update_notify);
+    /* le schede già in uso non hanno la voce: per loro il primo avvio è passato */
+    s->setup_done = json_bool(j, "setup_done", true);
+    s->key_f1 = json_int(j, "key_f1", s->key_f1);
+    s->key_f2 = json_int(j, "key_f2", s->key_f2);
+    s->key_home = json_int(j, "key_home", s->key_home);
     s->saver = json_int(j, "screensaver", s->saver) % 5;
     s->aspect = json_int(j, "aspect", s->aspect);
     /* il filtro era un numero (0 nitido, 1 morbido, 2 scanline): resta leggibile */
@@ -121,6 +128,9 @@ bool settings_load(settings_t *s, const char *root) {
     if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 5;
     /* file modificato a mano o rovinato: questi valori fanno da indici nei menu */
     IN_RANGE(brightness, 1, 10, 8);
+    IN_RANGE(key_f1, 0, 3, XK_SAVE);
+    IN_RANGE(key_f2, 0, 3, XK_LOAD);
+    IN_RANGE(key_home, 0, 2, XH_LAUNCHER);
     IN_RANGE(volume, 0, 20, 12);
     IN_RANGE(cpu_profile, 0, 2, CPU_BALANCED);
     IN_RANGE(sort_mode, 0, 3, 0);
@@ -152,6 +162,10 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"autosuspend_min\": %d,\n"
             "  \"update_channel\": %d,\n"
             "  \"update_notify\": %s,\n"
+            "  \"setup_done\": %s,\n"
+            "  \"key_f1\": %d,\n"
+            "  \"key_f2\": %d,\n"
+            "  \"key_home\": %d,\n"
             "  \"screensaver\": %d,\n"
             "  \"aspect\": %d,\n"
             "  \"filter\": \"%s\",\n"
@@ -172,7 +186,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"debug_level\": %d\n"
             "}\n",
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
-            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
+            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
     bool ok = written > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;

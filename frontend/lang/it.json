@@ -48,6 +48,10 @@
     "about": "%d giochi · prototipo 0.1 · %s"
   },
   "settings": {
+    "pad_test": "Prova dei comandi",
+    "key_f1": "Tasto F1",
+    "key_f2": "Tasto F2",
+    "key_home": "Tasto HOME",
     "title": "Impostazioni",
     "brightness": "Luminosità",
     "volume": "Volume",
@@ -60,6 +64,7 @@
     "filter": "Filtro video",
     "cpu": "Profilo prestazioni",
     "wifi": "Wi-Fi",
+    "wifi_nets": "Reti Wi-Fi",
     "sleep": "Spegnimento automatico",
     "suspend": "Sospensione automatica",
     "resume": "Riprendi l'ultimo gioco all'accensione",
@@ -87,6 +92,10 @@
     "led_brightness": "Luminosità dei LED"
   },
   "settings_desc": {
+    "pad_test": "Mostra ogni tasto premuto e la posizione delle levette: utile per controllare che funzionino.",
+    "key_f1": "Cosa fa la barretta F1 durante i giochi FBNeo e MAME.",
+    "key_f2": "Cosa fa la barretta F2 durante i giochi FBNeo e MAME.",
+    "key_home": "Cosa fa il tasto laterale HOME durante i giochi FBNeo e MAME.",
     "brightness": "Luminosità dello schermo. Sulla console agirà sulla retroilluminazione.",
     "volume": "Volume di sistema, valido anche nei giochi.",
     "theme": "Aspetto del launcher e del menu in gioco.",
@@ -97,7 +106,8 @@
     "aspect": "Originale: proporzioni del cabinato. Pixel interi: immagine nitida. Schermo intero: riempie tutto.",
     "filter": "I filtri sono cartelle in Filters/: maschere sull'immagine, vignettatura e, in futuro, shader.",
     "cpu": "Risparmio allunga la batteria, Prestazioni aiuta i giochi più pesanti (CPS3).",
-    "wifi": "Sinistra/destra accendono e spengono il Wi-Fi; A mostra le reti per collegarsi.",
+    "wifi": "Accende o spegne il Wi-Fi.",
+    "wifi_nets": "Mostra le reti disponibili per collegarsi.",
     "sleep": "Spegne la console dopo un periodo senza usare i tasti, nel launcher.",
     "suspend": "Mette in sospensione la console dopo un periodo senza usare i tasti, nel launcher. Il tasto di accensione la risveglia.",
     "resume": "Se la console viene spenta durante una partita, alla riaccensione riparte da lì.",
@@ -334,8 +344,11 @@
   "pad": {
     "connected": "Controller collegato: %s · giocatore %d",
     "removed": "Controller scollegato: %s",
-    "ext_p2": "Esterno = giocatore 2 (%d collegati)",
-    "ext_p1": "Esterno = giocatore 1 (%d collegati)"
+    "ext_p2": "Esterno = giocatore 2 (%s)",
+    "count_none": "nessuno collegato",
+    "count_one": "1 collegato",
+    "count_many": "%d collegati",
+    "ext_p1": "Esterno = giocatore 1 (%s)"
   },
   "coll": {
     "filter": "Collezione",
@@ -424,6 +437,7 @@
     "none": "Nessuna immagine da eliminare"
   },
   "settings_cat": {
+    "controls": "Comandi",
     "display": "Schermo e suono",
     "look": "Aspetto",
     "games": "Giochi",
@@ -431,16 +445,18 @@
     "tools": "Strumenti"
   },
   "settings_cat_sum": {
+    "controls": "Controller, prova tasti e levette",
     "display": "Luminosità, volume, musica, LED",
     "look": "Tema, lingua, salvaschermo",
-    "games": "Immagine, filtri, controller",
+    "games": "Immagine, filtri",
     "system": "Wi-Fi, data e ora, spegnimento",
     "tools": "ROM, immagini, informazioni"
   },
   "settings_cat_desc": {
+    "controls": "Controller esterni, prova di tasti e levette e, sulla Brick Pro, funzione dei tasti extra.",
     "display": "Luminosità dello schermo, volume, musica di sottofondo e luci della console.",
     "look": "Tema del launcher, sua variante, lingua e salvaschermo.",
-    "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni, controller.",
+    "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni.",
     "system": "Wi-Fi, data, ora e fuso orario, spegnimento automatico.",
     "tools": "Verifica delle ROM, scaricamento e pulizia delle immagini, spazio sulla scheda."
   },
@@ -532,5 +548,36 @@
     "body9": "%s non è nel catalogo di %s. Il file può essere stato rinominato o appartenere a un altro emulatore.",
     "head10": "Controllo non disponibile",
     "body10": "Non posso controllare questo file: è in formato 7z, oppure per questo emulatore manca l'elenco dei file."
+  },
+  "setup": {
+    "welcome": "Benvenuto in Mosaik",
+    "language": "Scegli la lingua",
+    "wifi_title": "Vuoi collegare il Wi-Fi?",
+    "wifi_body": "Serve per l'ora, le copertine e gli aggiornamenti. Puoi farlo anche dopo in Impostazioni.",
+    "connect": "Collega",
+    "later": "Più tardi"
+  },
+  "empty": {
+    "title": "Non ci sono ancora giochi",
+    "step1": "1. Spegni la console e collega la scheda al computer.",
+    "step2": "2. Copia le ROM in: %s.",
+    "step3": "3. I BIOS, come neogeo.zip, vanno in Arcade/Bios. Poi rimetti la scheda e riaccendi."
+  },
+  "ptest": {
+    "title": "Prova dei comandi",
+    "left": "Levetta sinistra",
+    "right": "Levetta destra",
+    "exit": "Tieni premuto per uscire"
+  },
+  "keyact": {
+    "none": "Nessuna azione",
+    "save": "Salva la partita",
+    "load": "Carica la partita",
+    "shot": "Screenshot"
+  },
+  "keyhome": {
+    "launcher": "Torna al launcher",
+    "menu": "Apre il menu",
+    "none": "Nessuna azione"
   }
 }

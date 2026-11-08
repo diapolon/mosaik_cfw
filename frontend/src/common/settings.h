@@ -4,6 +4,8 @@
 
 enum { CPU_SAVE, CPU_BALANCED, CPU_PERF };
 enum { ASPECT_ORIGINAL, ASPECT_INTEGER, ASPECT_FULL };
+enum { XK_NONE, XK_SAVE, XK_LOAD, XK_SHOT };        /* tasti F1 e F2 durante il gioco */
+enum { XH_LAUNCHER, XH_MENU, XH_NONE };             /* tasto HOME laterale durante il gioco */
 
 typedef struct {
     char theme[64];
@@ -17,6 +19,9 @@ typedef struct {
     int autosuspend_min; /* sospensione nel launcher, 0 = mai */
     int update_channel;  /* aggiornamenti: 0 stabile, 1 sviluppo */
     bool update_notify;  /* controllo automatico una volta al giorno, con avviso in home */
+    bool setup_done;     /* primo avvio guidato già fatto */
+    int key_f1, key_f2;  /* XK_* */
+    int key_home;        /* XH_* */
     int saver;           /* salvaschermo: 0 no, 1-2 schermate dopo 2/5 min, 3-4 schermo spento dopo 2/5 min */
     int aspect;
     char filter[32];     /* cartella Filters/<filter> */

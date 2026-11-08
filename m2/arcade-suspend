@@ -9,6 +9,10 @@ LOGDIR=${ARCADE_LOG_DIR:-$ROOT/Logs}
 STEPS=$LOGDIR/passi.txt
 step() { echo "$(cut -d' ' -f1 /proc/uptime)s sospensione: $1" >> "$STEPS"; }
 
+mute() {
+    [ -w /sys/class/speaker/mute ] && echo 1 > /sys/class/speaker/mute
+    for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" off 2> /dev/null; done
+}
 unmute() {
     for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" on 2> /dev/null; done
     [ -w /sys/class/speaker/mute ] && echo 0 > /sys/class/speaker/mute
@@ -16,6 +20,8 @@ unmute() {
 # "arcade-suspend unmute": launcher e runner riaprono l'uscita audio dopo il risveglio e solo
 # allora riattivano l'amplificatore (con ARCADE_KEEP_MUTE=1 lo script lascia l'audio muto)
 if [ "$1" = unmute ]; then unmute; exit 0; fi
+# "arcade-suspend mute": il launcher spegne l'altoparlante mentre scarica e installa un aggiornamento
+if [ "$1" = mute ]; then mute; exit 0; fi
 
 wifi=0
 pidof wpa_supplicant > /dev/null && wifi=1
@@ -31,8 +37,7 @@ for k in /sys/class/rfkill/rfkill*; do
 done
 echo 0 > /sys/class/led_anim/enable 2> /dev/null
 # audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
-[ -w /sys/class/speaker/mute ] && echo 1 > /sys/class/speaker/mute
-for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" off 2> /dev/null; done
+mute
 touch /tmp/system_suspend
 sync
 

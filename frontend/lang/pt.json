@@ -48,6 +48,10 @@
     "about": "%d jogos · protótipo 0.1 · %s"
   },
   "settings": {
+    "pad_test": "Teste dos comandos",
+    "key_f1": "Botão F1",
+    "key_f2": "Botão F2",
+    "key_home": "Botão HOME",
     "title": "Definições",
     "brightness": "Brilho",
     "volume": "Volume",
@@ -60,6 +64,7 @@
     "filter": "Filtro de vídeo",
     "cpu": "Perfil de desempenho",
     "wifi": "Wi-Fi",
+    "wifi_nets": "Redes Wi-Fi",
     "sleep": "Desligar automático",
     "suspend": "Suspensão automática",
     "resume": "Retomar o último jogo ao ligar",
@@ -87,6 +92,10 @@
     "led_brightness": "Brilho dos LED"
   },
   "settings_desc": {
+    "pad_test": "Mostra cada botão premido e a posição dos analógicos: útil para verificar se funcionam.",
+    "key_f1": "O que a barra F1 faz durante os jogos FBNeo e MAME.",
+    "key_f2": "O que a barra F2 faz durante os jogos FBNeo e MAME.",
+    "key_home": "O que o botão lateral HOME faz durante os jogos FBNeo e MAME.",
     "brightness": "Brilho do ecrã. Na consola controlará a retroiluminação.",
     "volume": "Volume do sistema, também usado nos jogos.",
     "theme": "Aspeto do launcher e do menu no jogo.",
@@ -97,7 +106,8 @@
     "aspect": "Original: proporções da máquina. Píxeis inteiros: imagem nítida. Ecrã inteiro: preenche tudo.",
     "filter": "Os filtros são pastas em Filters/: máscaras, vinheta e, no futuro, shaders.",
     "cpu": "Poupança prolonga a bateria, Desempenho ajuda os jogos pesados (CPS3).",
-    "wifi": "Esquerda/direita ligam e desligam o Wi-Fi; A mostra as redes para ligar.",
+    "wifi": "Liga ou desliga o Wi-Fi.",
+    "wifi_nets": "Mostra as redes disponíveis para ligar.",
     "sleep": "Desliga a consola após algum tempo sem usar os botões, no launcher.",
     "suspend": "Suspende a consola após algum tempo sem usar os botões, no launcher. O botão de ligar volta a ativá-la.",
     "resume": "Se a consola for desligada durante um jogo, retoma a partir daí.",
@@ -334,8 +344,11 @@
   "pad": {
     "connected": "Comando ligado: %s · jogador %d",
     "removed": "Comando desligado: %s",
-    "ext_p2": "Externo = jogador 2 (%d ligados)",
-    "ext_p1": "Externo = jogador 1 (%d ligados)"
+    "ext_p2": "Externo = jogador 2 (%s)",
+    "count_none": "nenhum ligado",
+    "count_one": "1 ligado",
+    "count_many": "%d ligados",
+    "ext_p1": "Externo = jogador 1 (%s)"
   },
   "coll": {
     "filter": "Coleção",
@@ -424,6 +437,7 @@
     "none": "Nenhuma imagem para apagar"
   },
   "settings_cat": {
+    "controls": "Comandos",
     "display": "Ecrã e som",
     "look": "Aspeto",
     "games": "Jogos",
@@ -431,16 +445,18 @@
     "tools": "Ferramentas"
   },
   "settings_cat_sum": {
+    "controls": "Comandos, teste de botões e analógicos",
     "display": "Brilho, volume, música, LED",
     "look": "Tema, idioma, proteção de ecrã",
-    "games": "Imagem, filtros, comandos",
+    "games": "Imagem, filtros",
     "system": "Wi-Fi, data e hora, desligar",
     "tools": "ROM, imagens, informações"
   },
   "settings_cat_desc": {
+    "controls": "Comandos externos, teste de botões e analógicos e, na Brick Pro, função dos botões extra.",
     "display": "Brilho do ecrã, volume, música de fundo e luzes da consola.",
     "look": "Tema do launcher, variante, idioma e proteção de ecrã.",
-    "games": "Como os jogos se veem e jogam: proporção, filtros, molduras, duplicados, desempenho, comandos.",
+    "games": "Como os jogos se veem e jogam: proporção, filtros, molduras, duplicados, desempenho.",
     "system": "Wi-Fi, data, hora e fuso horário, desligar automático.",
     "tools": "Verificação de ROM, transferência e limpeza de imagens, espaço do cartão."
   },
@@ -532,5 +548,36 @@
     "body9": "%s não está no catálogo de %s. O ficheiro pode ter sido renomeado ou pertencer a outro emulador.",
     "head10": "Verificação indisponível",
     "body10": "Não posso verificar este ficheiro: está em formato 7z, ou este emulador não tem lista de ficheiros."
+  },
+  "setup": {
+    "welcome": "Bem-vindo ao Mosaik",
+    "language": "Escolhe o idioma",
+    "wifi_title": "Ligar o Wi-Fi?",
+    "wifi_body": "Serve para a hora, as capas e as atualizações. Também podes fazê-lo mais tarde nas Definições.",
+    "connect": "Ligar",
+    "later": "Mais tarde"
+  },
+  "empty": {
+    "title": "Ainda não há jogos",
+    "step1": "1. Desliga a consola e liga o cartão ao computador.",
+    "step2": "2. Copia as ROM para: %s.",
+    "step3": "3. As BIOS, como neogeo.zip, vão para Arcade/Bios. Depois volta a colocar o cartão e liga a consola."
+  },
+  "ptest": {
+    "title": "Teste dos comandos",
+    "left": "Analógico esquerdo",
+    "right": "Analógico direito",
+    "exit": "Mantém premido para sair"
+  },
+  "keyact": {
+    "none": "Nenhuma ação",
+    "save": "Guardar jogo",
+    "load": "Carregar jogo",
+    "shot": "Captura"
+  },
+  "keyhome": {
+    "launcher": "Voltar ao launcher",
+    "menu": "Abre o menu",
+    "none": "Nenhuma ação"
   }
 }

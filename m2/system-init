@@ -146,7 +146,9 @@ AUDIO="$LOGDIR/audio.txt"
 audio_test() { timeout -s KILL 3 aplay -q -D hw:0,0 -f S16_LE -r 48000 -c 2 -d 1 /dev/zero >/dev/null 2>&1; }
 setc() { amixer -q cset name="$1" "$2" >> "$AUDIO" 2>&1 || echo "  (non riuscito: $1 = $2)" >> "$AUDIO"; }
 { echo "=== $(date)"; cat /proc/asound/cards; } > "$AUDIO" 2>&1
-[ -w /sys/class/speaker/mute ] && echo 0 > /sys/class/speaker/mute
+# altoparlante muto finché il launcher non ha aperto l'uscita audio: configurare il codec con
+# l'amplificatore acceso fa rumore
+[ -w /sys/class/speaker/mute ] && echo 1 > /sys/class/speaker/mute
 step "9b AUDIO"
 # configurazioni provate in ordine; quella che funziona si ricorda in System/audio.conf e
 # agli avvii successivi si applica subito (una sola prova invece di quattro)
@@ -209,6 +211,8 @@ fi
 # uscite accese (nella prova; con la configurazione ricordata sono già nella chiamata unica)
 [ -n "${PROBED:-}" ] && echo "$OUTPUTS" | amixer -q -s >> "$AUDIO" 2>&1
 [ -n "${PROBED:-}" ] && { echo "--- controlli dopo la preparazione"; amixer contents; } >> "$AUDIO" 2>&1
+arcade-suspend mute 2> /dev/null
+: > /run/arcade-audio-held
 
 # Wi-Fi: se acceso nelle impostazioni, si avvia in sottofondo (il launcher lo accende e spegne)
 if grep -q '"wifi": *true' "$ROOT/System/settings.json" 2>/dev/null || [ ! -f "$ROOT/System/settings.json" ]; then
@@ -232,6 +236,8 @@ fi
 # finish: chiude tutto e spegne; "finish reboot" riavvia (dopo un aggiornamento)
 finish() {
     step "${1:-spegnimento}"
+    # Wi-Fi e SD lavorano fino all'ultimo: con l'altoparlante acceso si sentirebbe un ronzio
+    arcade-suspend mute 2> /dev/null
     sync
     # SD smontata o in sola lettura: il kernel toglie il segno "in uso" dal FAT e al prossimo
     # avvio il controllo non serve (vedi initramfs-init). Prima si fermano i programmi che

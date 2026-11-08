@@ -146,6 +146,7 @@ static bool get_mem(const char *name, mem_t *m) {
     curl_easy_setopt(c, CURLOPT_WRITEDATA, m);
     CURLcode rc = curl_easy_perform(c);
     curl_easy_cleanup(c);
+    if (rc != CURLE_OK) ui_log("aggiornamento: %s: %s", name, curl_easy_strerror(rc));
     return rc == CURLE_OK;
 }
 
