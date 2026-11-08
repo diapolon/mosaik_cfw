@@ -1,7 +1,7 @@
 #!/bin/sh
 # Chiamato da wpa_cli (-a) a ogni cambio di stato: wifi-event wlan0 CONNECTED|DISCONNECTED
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
-LOG=$ROOT/Logs/wifi.log
+LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/wifi.log
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 
 case "$2" in

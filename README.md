@@ -150,7 +150,7 @@ On the Brick Pro, HOME goes back to the launcher, the two bars below the screen 
 
 Open **Settings → System → Wi-Fi**: left and right turn it on and off, A shows the networks. On the on-screen keyboard, X switches between uppercase, lowercase and symbols.
 
-To update, open **Settings → Tools → Update system** and confirm with A. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if the new system fails to start, the console goes back to the previous one by itself.
+To update, open **Settings → Tools → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if the new system fails to start, the console goes back to the previous one by itself.
 
 ## Troubleshooting
 
@@ -159,7 +159,7 @@ To update, open **Settings → Tools → Update system** and confirm with A. ROM
 - **Neo Geo games won't start:** they need `neogeo.zip` in `Arcade/Bios`.
 - **A game is slow or the audio crackles:** try the Performance profile in Settings → Games. Some 3D arcade games are too heavy or aren't supported.
 - **Damaged files after copying:** cheap cards and readers can damage files without reporting errors. Try another reader or card.
-- **Need more detail:** raise **Settings → Tools → Diagnostic log**, reproduce the problem and check `Arcade/Logs`.
+- **Need more detail:** logs are off by default. Turn them on in **Settings → Tools → Diagnostic log**, restart the console, reproduce the problem and check `Arcade/Logs`.
 
 ## Building
 

@@ -108,7 +108,7 @@
     "scrape": "Descarga capturas, pantallas de título y marquees de ArcadeDB y las miniaturas de libretro. Requiere Wi-Fi.",
     "clean_media": "Borra las imágenes descargadas de juegos que ya no están en la tarjeta.",
     "update": "Descarga la versión nueva por Wi-Fi. ROM, partidas y ajustes no se tocan.",
-    "log_level": "Qué se escribe en Arcade/Logs. Esencial: arranques y errores. Rendimiento: también tiempos de arranque y velocidad de los juegos. Completo: también botones pulsados e instantáneas.",
+    "log_level": "Qué escribir en Arcade/Logs: nada, inicios y errores, también tiempos y velocidad, o todo. Se aplica por completo en el próximo inicio.",
     "bezel": "Un marco (bezel) alrededor del juego: el del juego en Bezels/ si existe, si no el predeterminado.",
     "missing": "Muestra también los juegos del catálogo que no tienes (solo versiones principales).",
     "genres": "Renombra los géneros, combínalos o vuelve a los originales. El género de un juego se cambia desde su ficha (X y luego X).",
@@ -435,6 +435,7 @@
     "tools": "Verificación de ROM, descarga y limpieza de imágenes, espacio de la tarjeta."
   },
   "loglvl": {
+    "off": "Apagado",
     "essential": "Esencial",
     "perf": "Rendimiento",
     "full": "Completo"
@@ -448,9 +449,12 @@
     "none_hint": "Comprueba la conexión a internet o inicia el servidor de actualización en el Mac.",
     "current": "El sistema está actualizado",
     "available": "Disponible: %s",
-    "details": "En uso: %s · %d archivos por descargar, %s. Al final la consola se reinicia.",
+    "details": "En uso: %s · %d archivos por descargar, %s.",
+    "download": "Descargar",
     "install": "Instalar",
     "downloading": "Descargando y comprobando archivos…",
+    "ready": "Descargado y comprobado",
+    "ready_hint": "¿Instalar ahora la versión %s? Al terminar, la consola se reinicia.",
     "installing": "Instalando…",
     "done": "Actualización instalada",
     "restart": "Reiniciar",

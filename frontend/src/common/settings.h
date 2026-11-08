@@ -31,7 +31,7 @@ typedef struct {
     int led_bright;      /* 1..10 */
     int grid_columns;    /* miniature per riga in libreria: 0 = quelle del tema, altrimenti 3..7 */
     int home_size;       /* copertine in home: 0 piccole, 1 normali, 2 grandi */
-    int log_level;       /* registro diagnostico: 0 essenziale, 1 prestazioni, 2 completo */
+    int log_level;       /* registro diagnostico: 0 spento, 1 essenziale, 2 prestazioni, 3 completo */
     char tz[40];         /* fuso orario, nome come "Europe/Rome" (vedi TIMEZONES in settings.c) */
 } settings_t;
 

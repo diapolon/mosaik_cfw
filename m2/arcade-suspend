@@ -5,7 +5,8 @@
 # risveglia la console: lo script riprende da "echo mem" e rimette le cose com'erano.
 # Lo chiama il launcher o il runner (plat_suspend), che restano fermi finché non torna.
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
-STEPS=$ROOT/Logs/passi.txt
+LOGDIR=${ARCADE_LOG_DIR:-$ROOT/Logs}
+STEPS=$LOGDIR/passi.txt
 step() { echo "$(cut -d' ' -f1 /proc/uptime)s sospensione: $1" >> "$STEPS"; }
 
 wifi=0
@@ -40,7 +41,7 @@ while [ $tries -lt 5 ] && [ "$r" != riuscita ]; do
     if echo mem > /sys/power/state 2> /dev/null; then
         r=riuscita
     else
-        { echo "=== $(date) tentativo $tries"; dmesg | sed -n "/arcade: sospensione, tentativo $tries/,\$p" | tail -80; } >> "$ROOT/Logs/sospensione.txt"
+        { echo "=== $(date) tentativo $tries"; dmesg | sed -n "/arcade: sospensione, tentativo $tries/,\$p" | tail -80; } >> "$LOGDIR/sospensione.txt"
         sleep 1
     fi
 done

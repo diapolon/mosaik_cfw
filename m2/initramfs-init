@@ -16,6 +16,7 @@ echo 0 > /proc/sys/kernel/panic
 
 P=""
 STEPS=""
+SD_LOGS=""
 # passi nel log (a schermo resta il logo di U-Boot, poi il nostro: le schermate di prova a
 # strisce compaiono solo per gli errori, rosse)
 step() {
@@ -24,7 +25,12 @@ step() {
 }
 fail() {
     step "ERRORE: $1" "$2"
-    [ -n "$STEPS" ] && dmesg > /sd/Arcade/Logs/dmesg-initramfs.txt && sync
+    # registro spento: i passi erano in memoria, ma un errore all'avvio va comunque sulla SD
+    if [ -n "$SD_LOGS" ]; then
+        cat /tmp/passi.txt >> "$SD_LOGS/passi.txt"
+        dmesg > "$SD_LOGS/dmesg-initramfs.txt"
+        sync
+    fi
     fbmsg show rosso 60 "$1" "$2"
     sync
     poweroff -f
@@ -70,9 +76,12 @@ fi
 # flush: i dati vanno sulla scheda appena un file è chiuso, non restano in memoria
 mount -t vfat -o rw,noatime,flush "$P" /sd || fail "SD NON LEGGIBILE" "$P"
 mkdir -p /sd/Arcade/Logs
-STEPS=/sd/Arcade/Logs/passi.txt
-[ -f "$STEPS" ] && [ "$(wc -c < "$STEPS")" -gt 100000 ] && mv -f "$STEPS" "$STEPS.old"
-echo "=== avvio $(date) · $(cat /proc/version)" >> "$STEPS"
+SD_LOGS=/sd/Arcade/Logs
+if grep -q '"debug_level": *[1-9]' /sd/Arcade/System/settings.json 2>/dev/null; then
+    STEPS=$SD_LOGS/passi.txt
+    [ -f "$STEPS" ] && [ "$(wc -c < "$STEPS")" -gt 100000 ] && mv -f "$STEPS" "$STEPS.old"
+    echo "=== avvio $(date) · $(cat /proc/version)" >> "$STEPS"
+fi
 step "2 SD MONTATA" "$P"
 fbmsg logo /sd/bootlogo.bmp 2>/dev/null
 case $FSCK in

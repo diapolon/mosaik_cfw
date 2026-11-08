@@ -17,8 +17,18 @@ export TRIMUI_MODEL="$(cat /run/trimui-model)" ARCADE_STANDALONE=1
 # esempio TRIMUI_JOYDEBUG=1 (tasti nel log) o ARCADE_DEBUG_SHOT=1 (istantanea dei giochi)
 [ -f "$ROOT/System/device-env.sh" ] && . "$ROOT/System/device-env.sh"
 BIN=/usr/arcade/bin
-STEPS="$ROOT/Logs/passi.txt"
-LOG="$ROOT/Logs/avvio.log"
+# Registro diagnostico (Impostazioni > Strumenti): spento di base. Da spento i passi restano in
+# memoria e sulla SD finiscono solo se l'avvio si blocca; le uscite dei programmi non si tengono.
+DEBUG=$(sed -n 's/.*"debug_level": *\([0-9]\).*/\1/p' "$ROOT/System/settings.json" 2>/dev/null)
+DEBUG=${DEBUG:-0}
+if [ "$DEBUG" -ge 1 ]; then
+    LOGDIR="$ROOT/Logs" LOG="$ROOT/Logs/avvio.log" INPUTLOG="$ROOT/Logs/inputd.log" LINUXLOG="$ROOT/Logs/linux-games.log"
+else
+    LOGDIR=/run/logs LOG=/dev/null INPUTLOG=/dev/null LINUXLOG=/dev/null
+    mkdir -p "$LOGDIR"
+fi
+export ARCADE_LOG_DIR="$LOGDIR"
+STEPS="$LOGDIR/passi.txt"
 mkdir -p "$ROOT/Logs" "$ROOT/System" /tmp/trimui_inputd /dev/shm /dev/pts
 mount -t tmpfs tmpfs /dev/shm 2>/dev/null
 mount -t devpts devpts /dev/pts 2>/dev/null
@@ -37,6 +47,7 @@ step_show() {
 # blocco finale: errore a schermo, log salvato, poi spegnimento (mai uscire dallo script)
 halt_with() {
     step "ERRORE: $1"
+    [ "$LOGDIR" = "$ROOT/Logs" ] || cp -f "$LOGDIR"/* "$ROOT/Logs"/ 2>/dev/null
     dmesg > "$ROOT/Logs/dmesg.txt"; sync
     fbmsg show rosso 60 "$1" "$2"
     sync; poweroff -f
@@ -63,7 +74,7 @@ step "5 SISTEMA AVVIATO: $TRIMUI_MODEL ($(readlink /run/fw))"
 # tasti (prima erano in fila); i messaggi del kernel vanno in dmesg-gpu.txt
 ( insmod /run/fw/modules/pvrsrvkm.ko >> "$LOG" 2>&1 || step "pvrsrvkm: errore $?"
   insmod /run/fw/modules/dc_sunxi.ko >> "$LOG" 2>&1 || step "dc_sunxi: errore $?"
-  dmesg | tail -40 > "$ROOT/Logs/dmesg-gpu.txt" ) &
+  dmesg | tail -40 > "$LOGDIR/dmesg-gpu.txt" ) &
 GPU_JOB=$!
 
 # avvio più rapido: il kernel con loglevel=8 scrive ogni messaggio sulla porta seriale.
@@ -108,7 +119,7 @@ step "5b UDEV AVVIATO"
 # tasti e levette: il demone di TrimUI crea il gamepad "TRIMUI Player1" (già provato in M1)
 [ -f "$ROOT/System/joypad.config" ] && cp "$ROOT/System/joypad.config" /mnt/UDISK/
 [ -f "$ROOT/System/joypad_right.config" ] && cp "$ROOT/System/joypad_right.config" /mnt/UDISK/
-trimui_inputd > "$ROOT/Logs/inputd.log" 2>&1 &
+trimui_inputd > "$INPUTLOG" 2>&1 &
 # il gamepad deve comparire prima del launcher; se non arriva si riprova una volta
 pad_ok() { grep -q "TRIMUI Player1" /proc/bus/input/devices; }
 for i in $(seq 30); do pad_ok && break; sleep 0.2; done
@@ -116,9 +127,9 @@ if pad_ok; then
     step "6 TASTI PRONTI"
 else
     step_show "6 GAMEPAD NON COMPARSO: trimui_inputd $(pidof trimui_inputd >/dev/null && echo attivo || echo terminato)" "RIAVVIO I TASTI"
-    { echo "--- ps"; ps; echo "--- input"; cat /proc/bus/input/devices; ls -l /dev/uinput /dev/input; } >> "$ROOT/Logs/inputd.log" 2>&1
+    { echo "--- ps"; ps; echo "--- input"; cat /proc/bus/input/devices; ls -l /dev/uinput /dev/input; } >> "$INPUTLOG" 2>&1
     killall trimui_inputd 2>/dev/null; sleep 0.5
-    trimui_inputd >> "$ROOT/Logs/inputd.log" 2>&1 &
+    trimui_inputd >> "$INPUTLOG" 2>&1 &
     for i in $(seq 50); do pad_ok && break; sleep 0.2; done
     pad_ok && step "6 TASTI PRONTI (secondo tentativo)" || step "6 TASTI ASSENTI"
 fi
@@ -129,7 +140,7 @@ step "9 GPU PRONTA"
 # Senza la preparazione del firmware la riproduzione resta ferma anche sull'hardware
 # (aplay -D hw:0,0 non avanza). Si prova la scheda con un secondo di silenzio e, se non va,
 # si cambia la configurazione dei controlli finché non va; tutto finisce in audio.txt.
-AUDIO="$ROOT/Logs/audio.txt"
+AUDIO="$LOGDIR/audio.txt"
 audio_test() { timeout -s KILL 3 aplay -q -D hw:0,0 -f S16_LE -r 48000 -c 2 -d 1 /dev/zero >/dev/null 2>&1; }
 setc() { amixer -q cset name="$1" "$2" >> "$AUDIO" 2>&1 || echo "  (non riuscito: $1 = $2)" >> "$AUDIO"; }
 { echo "=== $(date)"; cat /proc/asound/cards; } > "$AUDIO" 2>&1
@@ -201,8 +212,7 @@ fi
 
 # rapporto per la diagnosi (Logs/sistema.txt), con il registro diagnostico "Prestazioni" o
 # "Completo" (Impostazioni > Strumenti)
-LOGLEVEL=$(sed -n 's/.*"log_level": *\([0-9]\).*/\1/p' "$ROOT/System/settings.json" 2>/dev/null)
-[ "${LOGLEVEL:-0}" -ge 1 ] && ( sleep 10
+[ "$DEBUG" -ge 2 ] && ( sleep 10
   { echo "=== $(date)"; lsmod; echo; ps; echo
     echo "----- ingressi"; cat /proc/bus/input/devices; ls -l /dev/input
     for e in /dev/input/event*; do echo "--- udev: $e"; udevadm info -q property -n "$e"; done
@@ -308,6 +318,9 @@ while :; do
     21) finish reboot ;;
     *)  # nessun menu a cui tornare: si riavvia il launcher; se cade subito di continuo, errore
         fails=$((fails + 1))
+        # il launcher è caduto: dalle impostazioni non si può più accendere il registro
+        export ARCADE_LOG=1
+        [ "$LOG" = /dev/null ] && LOG="$ROOT/Logs/avvio.log"
         if [ $fails -ge 5 ]; then
             [ -f "$PENDING" ] && rollback
             halt_with "IL LAUNCHER NON PARTE" "VEDI ARCADE/LOGS/ARCADE.LOG"
@@ -324,7 +337,7 @@ while :; do
             # titolo per il menu sopra il gioco (gamemenu)
             export ARCADE_TITLE="$title"
             exec "$BIN/gamewatch" -- sh "./$(basename "$rom")"
-        ) >> "$ROOT/Logs/linux-games.log" 2>&1
+        ) >> "$LINUXLOG" 2>&1
         grc=$?
         rm -f "$ROOT/System/next.env"
         # 120: tasto di accensione tenuto premuto durante il gioco (gamewatch)

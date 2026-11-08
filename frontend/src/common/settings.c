@@ -109,8 +109,8 @@ bool settings_load(settings_t *s, const char *root) {
     if (s->grid_columns != 0 && (s->grid_columns < 3 || s->grid_columns > 7)) s->grid_columns = 0;
     s->home_size = (int)json_num(j, "home_size", s->home_size);
     if (s->home_size < 0 || s->home_size > 2) s->home_size = 1;
-    s->log_level = (int)json_num(j, "log_level", 0);
-    if (s->log_level < 0 || s->log_level > 2) s->log_level = 0;
+    s->log_level = (int)json_num(j, "debug_level", 0);
+    if (s->log_level < 0 || s->log_level > 3) s->log_level = 0;
     if (s->led_bright < 1 || s->led_bright > 10) s->led_bright = 5;
     if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 5;
     json_free(j);
@@ -151,7 +151,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"led_brightness\": %d,\n"
             "  \"grid_columns\": %d,\n"
             "  \"home_size\": %d,\n"
-            "  \"log_level\": %d\n"
+            "  \"debug_level\": %d\n"
             "}\n",
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
             s->autosleep_min, s->autosuspend_min, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",

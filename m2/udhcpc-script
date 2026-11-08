@@ -3,7 +3,7 @@
 # Alla prima connessione dopo l'accensione prende anche l'ora da internet e la scrive
 # nell'orologio della console (in UTC).
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
-LOG=$ROOT/Logs/wifi.log
+LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/wifi.log
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 
 case "$1" in

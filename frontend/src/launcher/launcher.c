@@ -1295,8 +1295,8 @@ static void set_value(int item, char *buf, size_t n) {
     case S_UPDATE: snprintf(buf, n, "%s", update_current()); break;
     case S_GENRES: snprintf(buf, n, "%d", ngenres); break;
     case S_LOGLEVEL: {
-        static const char *k[3] = { "loglvl.essential", "loglvl.perf", "loglvl.full" };
-        snprintf(buf, n, "%s", T(k[s->log_level % 3]));
+        static const char *k[4] = { "loglvl.off", "loglvl.essential", "loglvl.perf", "loglvl.full" };
+        snprintf(buf, n, "%s", T(k[s->log_level % 4]));
         break;
     }
     case S_THEME: snprintf(buf, n, "%s", nthemes ? theme_names[theme_index()] : UI.th.name); break;
@@ -1426,7 +1426,7 @@ static void set_change(int item, int dir) {
     case S_RESUME: s->resume_last = !s->resume_last; break;
     case S_LED: s->led_mode = (s->led_mode + dir + 4) % 4; break;
     case S_LEDCOLOR: s->led_color = (s->led_color + dir + NLED_COLORS) % NLED_COLORS; break;
-    case S_LOGLEVEL: s->log_level = (s->log_level + dir + 3) % 3; break;
+    case S_LOGLEVEL: s->log_level = (s->log_level + dir + 4) % 4; break;
     case S_GRIDCOLS: {   /* 0 (tema), 3, 4, 5, 6, 7 */
         int c = s->grid_columns ? s->grid_columns - 2 : 0;
         c = (c + dir + 6) % 6;
@@ -1963,6 +1963,11 @@ static void upd_input(void) {
         return;
     }
     if (s->phase == UPD_AVAILABLE && in->pressed[BTN_A]) { update_install(); ui_sound(SND_OK); return; }
+    if (s->phase == UPD_READY) {
+        if (in->pressed[BTN_A]) { update_apply(); ui_sound(SND_OK); }
+        else if (in->pressed[BTN_B]) { update_discard(); ui_sound(SND_BACK); }
+        return;
+    }
     if (s->phase == UPD_DONE) { if (in->pressed[BTN_A]) { update_join(); upd_reboot(); } return; }
     if (in->pressed[BTN_A] || in->pressed[BTN_B]) { update_join(); upd_open = false; ui_sound(SND_BACK); }
 }
@@ -1990,6 +1995,10 @@ static void upd_draw(void) {
         snprintf(sub, sizeof sub, T("update.details"), update_current(), s->files, size);
         break;
     case UPD_DOWNLOAD: case UPD_VERIFY: snprintf(line, sizeof line, "%s", T("update.downloading")); break;
+    case UPD_READY:
+        snprintf(line, sizeof line, "%s", T("update.ready"));
+        snprintf(sub, sizeof sub, T("update.ready_hint"), s->version);
+        break;
     case UPD_INSTALL: snprintf(line, sizeof line, "%s", T("update.installing")); break;
     case UPD_DONE: snprintf(line, sizeof line, "%s", T("update.done")); snprintf(sub, sizeof sub, "%s", s->version); break;
     default:
@@ -2021,7 +2030,8 @@ static void upd_draw(void) {
     }
     int hb = M(t->hintbar_h);
     ui_rect(0, UI.h - hb, UI.w, hb, t->bg);
-    if (s->phase == UPD_AVAILABLE) { const char *h2[] = { "B", T("common.cancel"), "A", T("update.install") }; ui_hints(h2, 4); }
+    if (s->phase == UPD_AVAILABLE) { const char *h2[] = { "B", T("common.cancel"), "A", T("update.download") }; ui_hints(h2, 4); }
+    else if (s->phase == UPD_READY) { const char *h2[] = { "B", T("common.cancel"), "A", T("update.install") }; ui_hints(h2, 4); }
     else if (s->phase == UPD_DONE) { const char *h2[] = { "A", T("update.restart") }; ui_hints(h2, 2); }
     else if (s->phase == UPD_INSTALL) {}
     else if (upd_busy()) { const char *h2[] = { "B", T("common.cancel") }; ui_hints(h2, 2); }

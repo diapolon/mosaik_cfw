@@ -150,7 +150,7 @@ Sulla Brick Pro, HOME torna al launcher, le due barrette sotto lo schermo salvan
 
 Apri **Impostazioni → Sistema → Wi-Fi**: sinistra e destra accendono e spengono, A mostra le reti. Sulla tastiera a schermo, X passa tra maiuscole, minuscole e simboli.
 
-Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e conferma con A. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se il sistema nuovo non parte la console torna da sola a quello precedente.
+Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se il sistema nuovo non parte la console torna da sola a quello precedente.
 
 ## Problemi frequenti
 
@@ -159,7 +159,7 @@ Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e confe
 - **I giochi Neo Geo non partono:** serve `neogeo.zip` in `Arcade/Bios`.
 - **Un gioco è lento o l'audio gracchia:** prova il profilo Prestazioni in Impostazioni → Giochi. Alcuni arcade 3D sono troppo pesanti o non supportati.
 - **File rovinati dopo la copia:** schede e lettori economici possono rovinare i file senza dare errori. Prova un altro lettore o un'altra scheda.
-- **Serve più dettaglio:** aumenta **Impostazioni → Strumenti → Registro diagnostico**, riproduci il problema e guarda in `Arcade/Logs`.
+- **Serve più dettaglio:** il registro è spento di base. Accendilo in **Impostazioni → Strumenti → Registro diagnostico**, riavvia la console, riproduci il problema e guarda in `Arcade/Logs`.
 
 ## Compilare
 

@@ -359,8 +359,14 @@ static void *install_worker(void *arg) {
         }
         if (!ok) { ui_log("aggiornamento: %s non riuscito (%d)", it->path, err); remove_tmps(); fail(err); return NULL; }
     }
-    /* tutti i file sono giusti: si sostituiscono, il sistema per ultimo */
-    st.phase = UPD_INSTALL;
+    /* tutti i file sono giusti: si aspetta la conferma, a schermo */
+    st.phase = UPD_READY;
+    return NULL;
+}
+
+/* si sostituiscono i file, il sistema per ultimo */
+static void *apply_worker(void *arg) {
+    (void)arg;
     char tmp[1100], dst[1100];
     item_t *sys = NULL;
     for (int i = 0; i < nitems; i++) {
@@ -420,6 +426,19 @@ void update_install(void) {
     else fail(UPE_WRITE);
 }
 
+void update_apply(void) {
+    update_join();
+    st.phase = UPD_INSTALL;
+    if (pthread_create(&thread, NULL, apply_worker, NULL) == 0) thread_on = true;
+    else { remove_tmps(); fail(UPE_WRITE); }
+}
+
+void update_discard(void) {
+    update_join();
+    remove_tmps();
+    fail(UPE_CANCEL);
+}
+
 #else
 /* ------------------------------------------------------- Mac: percorso simulato */
 #include <time.h>
@@ -436,11 +455,13 @@ void update_check(const char *root) {
     st.phase = UPD_AVAILABLE;
 }
 void update_install(void) { sim_t0 = now_s(); st.phase = UPD_DOWNLOAD; }
+void update_apply(void) { st.phase = UPD_DONE; }
+void update_discard(void) { st.error = UPE_CANCEL; st.phase = UPD_FAILED; }
 static void sim_tick(void) {
     if (st.phase != UPD_DOWNLOAD) return;
     double t = now_s() - sim_t0;
     st.done = (long long)(st.total * (t / 2.0 > 1 ? 1 : t / 2.0));
     if (st.cancel) { st.error = UPE_CANCEL; st.phase = UPD_FAILED; }
-    else if (t > 2.0) st.phase = UPD_DONE;
+    else if (t > 2.0) st.phase = UPD_READY;
 }
 #endif

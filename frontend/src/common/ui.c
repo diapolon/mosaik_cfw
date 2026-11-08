@@ -20,6 +20,7 @@
 ui_t UI;
 
 static FILE *logf_;
+static char log_path[1200];
 
 #if defined(__linux__) && defined(__GLIBC__)
 #include <execinfo.h>
@@ -91,7 +92,18 @@ void ui_suspend(void) {
     UI.in.power = UI.in.power_long = false;
 }
 
-bool ui_debug_on(int level) { return UI.set.log_level >= level; }
+/* Registro diagnostico: 0 spento, 1 essenziale, 2 prestazioni, 3 completo.
+   ui_debug_on(1) = prestazioni, ui_debug_on(2) = completo. */
+bool ui_debug_on(int level) { return UI.set.log_level > level; }
+
+/* spento: nessun file e niente su stderr. Sul Mac sempre acceso; ARCADE_LOG lo accende quando
+   il launcher è caduto, perché a quel punto dalle impostazioni non si può più farlo */
+static bool log_on(void) {
+    static int forced = -1;
+    if (forced < 0) forced = !plat_is_device() || getenv("ARCADE_LOG") != NULL;
+    return forced || UI.set.log_level > 0;
+}
+
 
 void ui_mark(const char *what) {
     if (!ui_debug_on(1)) return;
@@ -101,6 +113,8 @@ void ui_mark(const char *what) {
 }
 
 void ui_log(const char *fmt, ...) {
+    if (!log_on()) return;
+    if (!logf_ && log_path[0]) logf_ = fopen(log_path, "a");
     char msg[1024];
     va_list ap;
     va_start(ap, fmt);
@@ -1494,10 +1508,10 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     snprintf(p, sizeof p, "%s/Logs", root);
     mkdir(p, 0755);
     snprintf(p, sizeof p, "%s/Logs/%s.log", root, app);
-    logf_ = fopen(p, "a");
+    snprintf(log_path, sizeof log_path, "%s", p);
     crash_handlers();
-    ui_log("---- avvio %s", app);
     settings_load(&UI.set, root);
+    ui_log("---- avvio %s", app);
     ui_mark("inizio");
     settings_apply_tz(&UI.set);
     lang_load(root, UI.set.lang);
@@ -1589,6 +1603,7 @@ void ui_shutdown_code(int code) {
     shut_step("fatto");
     if (logf_) fclose(logf_);
     logf_ = NULL;
+    log_path[0] = 0;
 }
 
 void ui_shutdown(void) { ui_shutdown_code(-1); }
@@ -1630,9 +1645,9 @@ bool ui_init_offscreen(const char *app, const char *root) {
     snprintf(UI.root, sizeof UI.root, "%s", root);
     char p[1200];
     snprintf(p, sizeof p, "%s/Logs/%s.log", root, app);
-    logf_ = fopen(p, "a");
-    ui_log("---- avvio %s (fuori schermo)", app);
+    snprintf(log_path, sizeof log_path, "%s", p);
     settings_load(&UI.set, root);
+    ui_log("---- avvio %s (fuori schermo)", app);
     settings_apply_tz(&UI.set);
     lang_load(root, UI.set.lang);
     /* solo tasti: lo schermo e l'audio restano al gioco */

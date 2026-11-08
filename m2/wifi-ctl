@@ -7,7 +7,7 @@
 # anche aggiornando il sistema. Il launcher parla con wpa_supplicant via wpa_cli -p /run/wpa.
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
 CONF=$ROOT/System/wifi.conf
-LOG=$ROOT/Logs/wifi.log
+LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/wifi.log
 CTRL=/run/wpa
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 

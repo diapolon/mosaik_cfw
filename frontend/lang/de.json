@@ -108,7 +108,7 @@
     "scrape": "Lädt Screenshots, Titelbilder und Marquees von ArcadeDB und den libretro-Thumbnails. WLAN nötig.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
     "update": "Lädt die neue Version über WLAN. ROMs, Spielstände und Einstellungen bleiben unberührt.",
-    "log_level": "Was in Arcade/Logs geschrieben wird. Wesentlich: Starts und Fehler. Leistung: auch Startzeiten und Spielgeschwindigkeit. Vollständig: auch Tasten und Schnappschüsse.",
+    "log_level": "Was in Arcade/Logs geschrieben wird: nichts, Starts und Fehler, auch Zeiten und Tempo, oder alles. Gilt vollständig ab dem nächsten Start.",
     "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
     "genres": "Genres umbenennen, zusammenführen oder zurücksetzen. Das Genre eines Spiels ändert man auf seiner Seite (X, dann X).",
@@ -435,6 +435,7 @@
     "tools": "ROM-Prüfung, Bilder herunterladen und aufräumen, Speicherplatz."
   },
   "loglvl": {
+    "off": "Aus",
     "essential": "Wesentlich",
     "perf": "Leistung",
     "full": "Vollständig"
@@ -448,9 +449,12 @@
     "none_hint": "Internetverbindung prüfen oder den Update-Server auf dem Mac starten.",
     "current": "Das System ist aktuell",
     "available": "Verfügbar: %s",
-    "details": "Aktuell: %s · %d Dateien herunterzuladen, %s. Am Ende startet die Konsole neu.",
+    "details": "Aktuell: %s · %d Dateien herunterzuladen, %s.",
+    "download": "Herunterladen",
     "install": "Installieren",
     "downloading": "Lade und prüfe Dateien…",
+    "ready": "Heruntergeladen und geprüft",
+    "ready_hint": "Version %s jetzt installieren? Danach startet die Konsole neu.",
     "installing": "Installiere…",
     "done": "Update installiert",
     "restart": "Neu starten",

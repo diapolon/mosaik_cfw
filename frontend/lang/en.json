@@ -108,7 +108,7 @@
     "scrape": "Downloads game screenshots, titles and marquees from ArcadeDB and libretro thumbnails. Needs Wi-Fi.",
     "clean_media": "Deletes downloaded images of games that are no longer on the card.",
     "update": "Downloads the new version over Wi-Fi. ROMs, saves and settings are left alone.",
-    "log_level": "What to write in Arcade/Logs. Essential: starts and errors. Performance: also boot times and game speed. Full: also button presses and snapshots.",
+    "log_level": "What to write in Arcade/Logs: nothing, startups and errors, timings and speed too, or everything. Fully applies from the next start.",
     "bezel": "A bezel around the game: the game's own from Bezels/ if present, otherwise the default one.",
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
     "genres": "Rename genres, merge them or go back to the originals. A single game's genre is changed from its page (X, then X).",
@@ -435,6 +435,7 @@
     "tools": "ROM check, image download and cleanup, card space."
   },
   "loglvl": {
+    "off": "Off",
     "essential": "Essential",
     "perf": "Performance",
     "full": "Full"
@@ -448,9 +449,12 @@
     "none_hint": "Check the internet connection, or start the update server on the Mac.",
     "current": "The system is up to date",
     "available": "Available: %s",
-    "details": "In use: %s · %d files to download, %s. The console restarts at the end.",
+    "details": "In use: %s · %d files to download, %s.",
+    "download": "Download",
     "install": "Install",
     "downloading": "Downloading and checking files…",
+    "ready": "Downloaded and checked",
+    "ready_hint": "Install version %s now? The console restarts when it's done.",
     "installing": "Installing…",
     "done": "Update installed",
     "restart": "Restart",

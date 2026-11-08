@@ -108,7 +108,7 @@
     "scrape": "Télécharge captures, écrans titres et marquees depuis ArcadeDB et les vignettes libretro. Wi-Fi requis.",
     "clean_media": "Supprime les images téléchargées des jeux qui ne sont plus sur la carte.",
     "update": "Télécharge la nouvelle version en Wi-Fi. ROM, sauvegardes et réglages ne sont pas touchés.",
-    "log_level": "Ce qui est écrit dans Arcade/Logs. Essentiel : démarrages et erreurs. Performances : aussi temps de démarrage et vitesse des jeux. Complet : aussi boutons et captures.",
+    "log_level": "Ce qui est écrit dans Arcade/Logs : rien, démarrages et erreurs, aussi temps et vitesse, ou tout. S'applique entièrement au prochain démarrage.",
     "bezel": "Un cadre (bezel) autour du jeu : celui du jeu dans Bezels/ s'il existe, sinon celui par défaut.",
     "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
     "genres": "Renomme les genres, fusionne-les ou reviens aux originaux. Le genre d'un jeu se change depuis sa fiche (X, puis X).",
@@ -435,6 +435,7 @@
     "tools": "Vérification des ROM, téléchargement et nettoyage des images, espace de la carte."
   },
   "loglvl": {
+    "off": "Désactivé",
     "essential": "Essentiel",
     "perf": "Performances",
     "full": "Complet"
@@ -448,9 +449,12 @@
     "none_hint": "Vérifie la connexion internet ou lance le serveur de mise à jour sur le Mac.",
     "current": "Le système est à jour",
     "available": "Disponible : %s",
-    "details": "Installée : %s · %d fichiers à télécharger, %s. La console redémarre à la fin.",
+    "details": "Installée : %s · %d fichiers à télécharger, %s.",
+    "download": "Télécharger",
     "install": "Installer",
     "downloading": "Téléchargement et vérification…",
+    "ready": "Téléchargé et vérifié",
+    "ready_hint": "Installer la version %s maintenant ? La console redémarre à la fin.",
     "installing": "Installation…",
     "done": "Mise à jour installée",
     "restart": "Redémarrer",

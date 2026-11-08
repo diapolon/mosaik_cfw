@@ -15,12 +15,13 @@ cat > src/t.c <<'C'
 #include "update.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
 int main(int c, char **v) {
     update_check(v[1]); update_join();
     const update_status_t *s = update_status();
-    if (c > 2 && s->phase == UPD_AVAILABLE) { update_install(); update_join(); }
+    if (c > 2 && s->phase == UPD_AVAILABLE) { update_install(); update_join(); if (s->phase == UPD_READY) { if (getenv("TEST_DISCARD")) update_discard(); else update_apply(); update_join(); } }
     printf("%d %d %d\n", s->phase, s->error, s->files);
     return 0;
 }
@@ -50,7 +51,15 @@ expect() { [ "$1" = "$2" ] && ok "$3 ($1)" || ko "$3: atteso $2, ottenuto $1"; }
 echo "--- installazione completa, server trovato col broadcast"
 card; serve key.pem
 export ARCADE_VERSION_FILE=$W/old.txt
-expect "$(./t $W/sd install 2>/dev/null)" "9 0 6" "fine installazione, 6 file"
+cp -a $W/sd $W/sd-prima
+expect "$(TEST_DISCARD=1 ./t $W/sd install 2>/dev/null)" "11 7 6" "annullato alla conferma"
+[ -z "$(find $W/sd -name '*.nuovo')" ] || ko "file provvisori rimasti dopo l'annullamento"
+# le cartelle vuote create per i file provvisori non contano: sulle schede vere esistono già
+sums() { (cd "$1" && find . -type f | sort | xargs sha256sum); }
+[ "$(sums $W/sd)" = "$(sums $W/sd-prima)" ] || { diff -r $W/sd $W/sd-prima; ko "file cambiati dopo l'annullamento"; }
+ok "annullando la scheda resta com'era"
+rm -rf $W/sd-prima
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "fine installazione, 6 file"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nuovo identico"
 cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio conservato"
 cmp $A/Cores/a.so $S/Cores/a.so && cmp $A/Lang/it.json $S/Lang/it.json && cmp $A/Themes/t/theme.json $S/Themes/t/theme.json && ok "dati aggiornati"
@@ -69,13 +78,13 @@ expect "$(./t $W/sd install 2>/dev/null)" "4 0 0" "niente ritorno indietro"
 echo "--- cambia solo una lingua: il sistema non si tocca"
 export ARCADE_VERSION_FILE=$W/old.txt
 rm -f $S/System/update-pending $S/System/arcade-system.squashfs.prec; echo modificata > $S/Lang/it.json
-expect "$(./t $W/sd install 2>/dev/null)" "9 0 1" "un solo file"
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 1" "un solo file"
 cmp $A/Lang/it.json $S/Lang/it.json && [ ! -e $S/System/update-pending ] && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema non toccato"
 stop
 
 echo "--- firma con un'altra chiave"
 card; before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum); serve altra.pem
-expect "$(./t $W/sd install 2>/dev/null)" "10 2 0" "firma rifiutata"
+expect "$(./t $W/sd install 2>/dev/null)" "11 2 0" "firma rifiutata"
 [ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "scheda intatta"
 stop
 
@@ -90,14 +99,14 @@ before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum)
 X=$W/st; rm -rf $X; mkdir -p $X; echo buono > $X/buono; h=$(sha256sum $X/buono | cut -d' ' -f1)
 printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 Lang/it.json\n' $h > $X/update.txt
 echo cattivo > $X/file-0; mk_static $X
-expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 5 1" "impronta sbagliata rifiutata"
+expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "11 5 1" "impronta sbagliata rifiutata"
 [ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "scheda intatta"
 stop
 
 echo "--- elenco firmato che punta fuori dalle cartelle del sistema"
 for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x Dats/arcadedb.tsv Dats/history/a.txt; do
     printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 %s\n' $h "$bad" > $X/update.txt; mk_static $X
-    expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 3 0" "$bad"
+    expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "11 3 0" "$bad"
     stop
 done
 
@@ -116,7 +125,7 @@ PY
 python3 $W/redir.py & SRV=$!
 for p in 8765 8770; do for i in $(seq 50); do nc -z 127.0.0.1 $p 2>/dev/null && break; sleep 0.1; done; done
 echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
-expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "9 0 6" "installata da file statici"
+expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 0 6" "installata da file statici"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && cmp $A/Cores/a.so $S/Cores/a.so && ok "file identici"
 stop; kill $SRV2 2>/dev/null; wait $SRV2 2>/dev/null || true
 rm -f $S/System/update-url.txt

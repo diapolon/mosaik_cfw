@@ -108,7 +108,7 @@
     "scrape": "Transfere capturas, ecrãs de título e marquees do ArcadeDB e das miniaturas libretro. Requer Wi-Fi.",
     "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
     "update": "Transfere a versão nova por Wi-Fi. ROM, gravações e definições não são tocadas.",
-    "log_level": "O que se escreve em Arcade/Logs. Essencial: arranques e erros. Desempenho: também tempos de arranque e velocidade dos jogos. Completo: também botões e capturas.",
+    "log_level": "O que escrever em Arcade/Logs: nada, arranques e erros, também tempos e velocidade, ou tudo. Aplica-se por completo no próximo arranque.",
     "bezel": "Uma moldura (bezel) à volta do jogo: a do jogo em Bezels/ se existir, senão a predefinida.",
     "missing": "Mostra também os jogos do catálogo que não tem (só versões principais).",
     "genres": "Muda o nome dos géneros, junta-os ou volta aos originais. O género de um jogo muda-se na sua ficha (X e depois X).",
@@ -435,6 +435,7 @@
     "tools": "Verificação de ROM, transferência e limpeza de imagens, espaço do cartão."
   },
   "loglvl": {
+    "off": "Desligado",
     "essential": "Essencial",
     "perf": "Desempenho",
     "full": "Completo"
@@ -448,9 +449,12 @@
     "none_hint": "Verifica a ligação à internet ou inicia o servidor de atualização no Mac.",
     "current": "O sistema está atualizado",
     "available": "Disponível: %s",
-    "details": "Em uso: %s · %d ficheiros a transferir, %s. No fim a consola reinicia.",
+    "details": "Em uso: %s · %d ficheiros a transferir, %s.",
+    "download": "Transferir",
     "install": "Instalar",
     "downloading": "A transferir e verificar ficheiros…",
+    "ready": "Transferido e verificado",
+    "ready_hint": "Instalar agora a versão %s? No fim, a consola reinicia.",
     "installing": "A instalar…",
     "done": "Atualização instalada",
     "restart": "Reiniciar",

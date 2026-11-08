@@ -10,7 +10,7 @@
 #include <stdbool.h>
 
 enum { UPD_IDLE, UPD_SEARCH, UPD_CHECK, UPD_NO_SERVER, UPD_CURRENT, UPD_AVAILABLE,
-       UPD_DOWNLOAD, UPD_VERIFY, UPD_INSTALL, UPD_DONE, UPD_FAILED };
+       UPD_DOWNLOAD, UPD_VERIFY, UPD_READY, UPD_INSTALL, UPD_DONE, UPD_FAILED };
 enum { UPE_NONE, UPE_NETWORK, UPE_SIGNATURE, UPE_MANIFEST, UPE_SPACE, UPE_VERIFY, UPE_WRITE, UPE_CANCEL };
 
 typedef struct {
@@ -25,7 +25,9 @@ bool update_supported(void);
 /* versione in uso: "0.9.0 20261108.1030" sulla console, "0.9.0" altrove */
 const char *update_current(void);
 void update_check(const char *root);      /* cerca e controlla, in un thread */
-void update_install(void);                /* dopo UPD_AVAILABLE, in un thread */
+void update_install(void);                /* dopo UPD_AVAILABLE: scarica e controlla, in un thread */
+void update_apply(void);                  /* dopo UPD_READY: installa, in un thread */
+void update_discard(void);                /* dopo UPD_READY: cancella i file scaricati */
 void update_cancel(void);
 const update_status_t *update_status(void);
 void update_join(void);                   /* attende la fine del thread */
