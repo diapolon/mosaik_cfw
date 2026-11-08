@@ -115,7 +115,7 @@
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
     "genres": "Genres umbenennen, zusammenführen oder zurücksetzen. Das Genre eines Spiels ändert man auf seiner Seite (X, dann X).",
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
-    "romcheck": "Prüft, ob jedes Zip die richtigen Dateien für seinen Emulator enthält (Namen, Größen, CRC aus dem DAT).",
+    "romcheck": "Schnelltest: Jedes ZIP muss die richtigen Dateien enthalten (angegebene Namen, Größen, CRCs). Komprimierte Daten werden nicht gelesen.",
     "pads": "Die Konsole ist Spieler 1, ein Bluetooth- oder USB-Controller Spieler 2. Mit „Spieler 1“ spielt man allein mit dem externen Controller.",
     "music": "Hintergrundmusik aus dem Ordner Music der SD-Karte (MP3, OGG, FLAC). A springt zum nächsten Titel.",
     "led": "Lichteffekt der Konsole: aus, dauerhaft, Atmen oder Pulsieren. Bei schwachem Akku blinken sie rot.",

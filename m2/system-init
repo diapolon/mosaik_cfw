@@ -297,12 +297,16 @@ rollback() {
     [ -f "$SYSF.prec" ] || return 1
     step "aggiornamento non riuscito: torno al sistema precedente"
     # il sistema può mancare se la corrente è saltata durante lo scambio dei file
-    { [ ! -f "$SYSF" ] || mv -f "$SYSF" "$SYSF.guasto"; } && mv -f "$SYSF.prec" "$SYSF"
-    rm -f "$PENDING"
+    if { [ ! -f "$SYSF" ] || mv -f "$SYSF" "$SYSF.guasto"; } && mv -f "$SYSF.prec" "$SYSF"; then
+        rm -f "$PENDING"
+    else
+        step "ritorno al sistema precedente non riuscito"
+    fi
     sync
     finish reboot
 }
-if [ -f "$PENDING" ]; then
+# schede con la prima parte dell'avvio più vecchia: il conteggio si fa qui
+if [ -f "$PENDING" ] && [ ! -f /run/boot-counted ]; then
     n=$(cat "$PENDING" 2>/dev/null)
     case $n in ''|*[!0-9]*) n=0 ;; esac   # file rovinato: un errore di calcolo chiuderebbe il processo 1
     n=$((n + 1))

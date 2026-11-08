@@ -357,8 +357,18 @@ static void *apply_worker(void *arg) {
         /* il sistema in uso resta aperto (è montato) anche con un altro nome */
         unlink(prev);
         if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); remove_tmps(); fail(UPE_WRITE); return NULL; }
+        /* senza questo file non si contano gli avvii di prova: non si prosegue */
         FILE *f = fopen(pend, "w");
-        if (f) { fputs("0\n", f); fclose(f); }
+        bool marked = f && fputs("0\n", f) >= 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
+        if (f && fclose(f) != 0) marked = false;
+        if (!marked) {
+            ui_log("aggiornamento: impossibile scrivere update-pending");
+            unlink(pend);
+            rename(prev, dst);
+            remove_tmps();
+            fail(UPE_WRITE);
+            return NULL;
+        }
         if (rename(tmp, dst) != 0) {
             ui_log("aggiornamento: rename del sistema nuovo: %s", strerror(errno));
             rename(prev, dst);

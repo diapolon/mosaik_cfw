@@ -512,9 +512,11 @@ static bool state_load(bool autosave) {
     FILE *f = fopen(p, "rb");
     if (!f) return false;
     fseek(f, 0, SEEK_END);
-    size_t n = (size_t)ftell(f);
+    long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
-    void *buf = malloc(n);
+    size_t n = sz > 0 ? (size_t)sz : 0;
+    void *buf = n && n <= (256u << 20) ? malloc(n) : NULL;
+    if (!buf) { fclose(f); return false; }
     bool ok = fread(buf, 1, n, f) == n && core.unserialize(buf, n);
     fclose(f);
     free(buf);

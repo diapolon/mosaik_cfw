@@ -115,7 +115,7 @@
     "missing": "Muestra también los juegos del catálogo que no tienes (solo versiones principales).",
     "genres": "Renombra los géneros, combínalos o vuelve a los originales. El género de un juego se cambia desde su ficha (X y luego X).",
     "screensaver": "Tras un rato sin usar los botones: capturas de tus juegos o pantalla apagada.",
-    "romcheck": "Comprueba que cada zip contenga los archivos correctos para su emulador (nombres, tamaños, CRC del DAT).",
+    "romcheck": "Comprobación rápida: cada zip debe tener los archivos correctos (nombres, tamaños y CRC declarados). No lee los datos comprimidos.",
     "pads": "Los controles de la consola son el jugador 1, un mando Bluetooth o USB el 2. Con «jugador 1» se juega solo con el mando externo.",
     "music": "Música de fondo desde la carpeta Music de la SD (MP3, OGG, FLAC). A pasa a la siguiente pista.",
     "led": "Efecto de las luces de la consola: apagadas, fijas, respiración o pulso. Con batería baja parpadean en rojo.",

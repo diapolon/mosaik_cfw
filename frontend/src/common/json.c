@@ -131,7 +131,8 @@ jval *json_load(const char *path) {
     fseek(f, 0, SEEK_END);
     long n = ftell(f);
     fseek(f, 0, SEEK_SET);
-    char *buf = malloc((size_t)n + 1);
+    char *buf = n >= 0 && n <= (8L << 20) ? malloc((size_t)n + 1) : NULL;   /* nessun file di configurazione è così grande */
+    if (!buf) { fclose(f); return NULL; }
     size_t got = fread(buf, 1, (size_t)n, f);
     buf[got] = 0;
     fclose(f);

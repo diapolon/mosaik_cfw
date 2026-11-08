@@ -115,7 +115,7 @@
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
     "genres": "Rename genres, merge them or go back to the originals. A single game's genre is changed from its page (X, then X).",
     "screensaver": "After a while without input: your games' screenshots or a blank screen.",
-    "romcheck": "Checks that every zip contains the right files for its emulator (names, sizes, CRCs from the DAT).",
+    "romcheck": "Quick check: every zip must have the right files (declared names, sizes and CRCs). It does not read the compressed data.",
     "pads": "The console controls are player 1, a Bluetooth or USB controller is player 2. With “player 1” you play alone with the external controller.",
     "music": "Background music from the files in the SD card's Music folder (MP3, OGG, FLAC). A skips to the next track.",
     "led": "Console lights effect: off, steady, breathing or pulse. They blink red when the battery is low.",

@@ -32,7 +32,9 @@ static bool zip_list(const char *path, zlist_t *out) {
     if (eocd < 0) { free(buf); fclose(f); return false; }
     unsigned entries = rd16(buf + eocd + 10), cd_size = rd32(buf + eocd + 12), cd_off = rd32(buf + eocd + 16);
     free(buf);
+    if ((long long)cd_off + cd_size > size) { fclose(f); return false; }   /* zip rovinato */
     unsigned char *cd = malloc(cd_size);
+    if (!cd) { fclose(f); return false; }
     fseek(f, (long)cd_off, SEEK_SET);
     ok = fread(cd, 1, cd_size, f) == cd_size;
     fclose(f);
@@ -190,9 +192,9 @@ static bool is_bios(const emu_data_t *d, const char *name) {
     return false;
 }
 
-static bool has_crc(const zlist_t *z, unsigned crc) {
+static bool has_crc(const zlist_t *z, unsigned crc, unsigned size) {
     for (int i = 0; i < z->n; i++)
-        if (z->e[i].crc == crc) return true;
+        if (z->e[i].crc == crc && (!size || z->e[i].size == size)) return true;
     return false;
 }
 
@@ -236,9 +238,10 @@ static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn) {
         *f1 = *f2 = *f3 = 0;
         unsigned crc = (unsigned)strtoul(f2 + 1, NULL, 16);
         bool merged = f3[1] == 'm';
-        if (has_crc(&own, crc)) continue;
+        unsigned fsize = (unsigned)strtoul(f1 + 1, NULL, 10);
+        if (has_crc(&own, crc, fsize)) continue;
         bool in_chain = false;
-        for (int c = 0; c < nchain && !in_chain; c++) in_chain = has_crc(&chain[c], crc);
+        for (int c = 0; c < nchain && !in_chain; c++) in_chain = has_crc(&chain[c], crc, fsize);
         if (in_chain) continue;
         if (has_name(&own, item)) bad++;
         else {

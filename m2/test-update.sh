@@ -59,6 +59,11 @@ sums() { (cd "$1" && find . -type f | sort | xargs sha256sum); }
 [ "$(sums $W/sd)" = "$(sums $W/sd-prima)" ] || { diff -r $W/sd $W/sd-prima; ko "file cambiati dopo l'annullamento"; }
 ok "annullando la scheda resta com'era"
 rm -rf $W/sd-prima
+echo "--- impossibile scrivere il segno degli avvii di prova"
+mkdir $S/System/update-pending
+expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"
+cmp $W/vecchio $S/System/arcade-system.squashfs && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema precedente rimesso a posto"
+card
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "fine installazione, 6 file"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nuovo identico"
 cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio conservato"

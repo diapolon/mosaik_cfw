@@ -49,6 +49,14 @@ static size_t on_data(void *p, size_t sz, size_t n, void *ud) {
     return add;
 }
 
+static long last_code;   /* risposta dell'ultima richiesta: 0 = nessuna risposta */
+
+/* B durante una richiesta lenta: si interrompe subito, senza aspettare il timeout */
+static int on_progress(void *ud, curl_off_t a, curl_off_t b, curl_off_t c, curl_off_t d) {
+    (void)ud; (void)a; (void)b; (void)c; (void)d;
+    return st.cancel ? 1 : 0;
+}
+
 /* una richiesta al secondo: sono servizi gratuiti della comunità */
 static bool http_get(const char *url, buf_t *out, char *ctype, size_t cn) {
     Uint32 now = SDL_GetTicks();
@@ -70,10 +78,15 @@ static bool http_get(const char *url, buf_t *out, char *ctype, size_t cn) {
     struct stat cst;
     snprintf(ca, sizeof ca, "%s/System/cacert.pem", root_dir);
     if (stat(ca, &cst) == 0) curl_easy_setopt(c, CURLOPT_CAINFO, ca);
+    curl_easy_setopt(c, CURLOPT_PROTOCOLS_STR, "http,https");
+    curl_easy_setopt(c, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+    curl_easy_setopt(c, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(c, CURLOPT_XFERINFOFUNCTION, on_progress);
     CURLcode rc = curl_easy_perform(c);
     long code = 0;
     char *ct = NULL;
     curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
+    last_code = code;
     curl_easy_getinfo(c, CURLINFO_CONTENT_TYPE, &ct);
     if (ctype) snprintf(ctype, cn, "%s", ct ? ct : "");
     curl_easy_cleanup(c);
@@ -332,7 +345,7 @@ static int worker(void *arg) {
             else {
                 char key[96];
                 snprintf(key, sizeof key, "%s/%s", TYPES[t], it->name);
-                nf_add(key);
+                if (last_code == 404 || last_code == 200) nf_add(key);   /* non un errore di rete: si riproverà */
                 st.missing++;
             }
         }

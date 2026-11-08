@@ -10,7 +10,7 @@ U-Boot con la configurazione dell'hardware, kernel) è propria di ogni console e
 legge da una posizione fissa: un'immagine unica non è possibile, ma il contenuto (cartella
 `Arcade`, ROM, salvataggi) è lo stesso e si sposta da una scheda all'altra.
 
-- `dist/m2-brickpro.img` per la Brick Pro (provata sulla console)
+- `dist/m2-brickpro.img` per la Brick Pro (provata solo nelle prime versioni, non con quelle attuali)
 - `dist/m2-smartpro.img` per la Smart Pro (provata sulla console)
 
 **Seconda prova**: avvio completo fino al launcher, moduli della GPU caricati (PowerVR
@@ -76,8 +76,9 @@ Tempi del launcher nel log (`tempi: ...`).
 **Versione e aggiornamento via Wi-Fi (8 novembre).** Il numero sta nel file `VERSION`; la build
 aggiunge la data di compilazione (`/etc/arcade-version`, per esempio `0.9.0 20261108.1010`) e la
 console accetta solo versioni più recenti. In Impostazioni > Strumenti > Aggiorna sistema la
-console cerca: un Mac in rete locale (`python3 toolchain/update-server.py`, broadcast UDP 8766),
-poi `System/update-url.txt`, poi l'indirizzo online (file `UPDATE_URL`, compilato nel launcher).
+console usa `System/update-url.txt` se c'è (per le prove con `python3 toolchain/update-server.py`
+sul Mac: `http://INDIRIZZO-DEL-MAC:8765`), altrimenti l'indirizzo online del canale scelto: Stabile
+(file `UPDATE_URL`, compilato nel launcher) o Sviluppo (la Release `testing`).
 Bastano file statici: `update.txt`, `update.sig`, `file-0`, `file-1`...
 (`update-server.py --out CARTELLA`). L'elenco è firmato ECDSA P-256 con la chiave privata in
 `~/.config/arcade-update/update-key.pem`, **da conservare**: senza, le console già in giro non
@@ -127,11 +128,10 @@ della cartella `Arcade`) sulla scheda: non serve riscriverla.
 - Il FAT arriva al massimo a 256 GB. Una scheda scritta con un'immagine di prima del 7
   novembre ha il FAT da 1,9 GB non preparato a crescere: la partizione si allarga, il FAT no.
   Per avere tutto lo spazio va riscritta con l'immagine nuova (prima salva ROM e salvataggi).
-- Niente Bluetooth, sospensione e LED (fase M6).
+- Niente Bluetooth.
 - Calibrazione delle levette: quella di fabbrica è nella memoria interna. Se le levette
   sono imprecise, si può copiare `joypad.config` dal sistema originale in `Arcade/System`.
-- Il nome del modello è fisso ("Trimui Brick Pro"): per le altre console servirà un'immagine
-  con i loro pezzi di avvio.
+- Ogni modello ha la sua immagine, con i suoi pezzi di avvio: per altre console ne servirà una nuova.
 
 ## Ricostruire
 
