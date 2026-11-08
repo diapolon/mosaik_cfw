@@ -33,5 +33,7 @@ esci dal gioco); B o Menu riprendono il gioco.
 Tasti in più della Brick Pro: HOME (laterale) torna al launcher, le due barrette sotto lo
 schermo salvano e caricano la partita, l'interruttore FN attiva le prestazioni massime.
 
+Licenze dei componenti inclusi: cartella Arcade/Licenses.
+
 Se lo schermo resta nero o rosso: tieni premuto il tasto di accensione 10-20 secondi,
 togli la scheda e manda i file della cartella Arcade/Logs.

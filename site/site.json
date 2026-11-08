@@ -1,0 +1,98 @@
+{
+  "it": {
+    "prefix": "",
+    "shots": "assets/",
+    "other": "en",
+    "other_label": "English",
+    "site": "Mosaik per TrimUI",
+    "description": "Mosaik: sistema di gioco su microSD per TrimUI Smart Pro e Brick Pro, con FinalBurn Neo, MAME 2003-Plus e giochi Linux.",
+    "nav": {
+      "index": "Home",
+      "download": "Scarica",
+      "guide": "Guide"
+    },
+    "guide_lead": "Tutto quello che serve per installare Mosaik, caricare i giochi e configurare la console.",
+    "prev": "Precedente",
+    "next": "Successiva",
+    "footer": "Progetto indipendente, non affiliato a TrimUI. <a href=\"licenses.html\">Licenze dei componenti</a>.",
+    "guides": {
+      "install": [
+        "Installazione",
+        "Scrivere l'immagine sulla microSD e fare la prima accensione."
+      ],
+      "games": [
+        "Caricare i giochi",
+        "Dove mettere ROM, BIOS, immagini e musica."
+      ],
+      "controls": [
+        "Comandi",
+        "I tasti nel launcher, nei giochi e nei menu."
+      ],
+      "settings": [
+        "Impostazioni",
+        "Cosa fa ogni voce, categoria per categoria."
+      ],
+      "wifi-update": [
+        "Wi-Fi e aggiornamenti",
+        "Collegare la console e aggiornare il sistema."
+      ],
+      "linux-games": [
+        "Giochi Linux",
+        "Aggiungere giochi nativi con launch.sh e game.json."
+      ],
+      "troubleshooting": [
+        "Problemi frequenti",
+        "Schermo nero, giochi che non partono, rallentamenti."
+      ]
+    },
+    "licenses_title": "Licenze"
+  },
+  "en": {
+    "prefix": "en/",
+    "shots": "assets/en/",
+    "other": "it",
+    "other_label": "Italiano",
+    "site": "Mosaik for TrimUI",
+    "description": "Mosaik: a gaming system on microSD for TrimUI Smart Pro and Brick Pro, with FinalBurn Neo, MAME 2003-Plus and Linux games.",
+    "nav": {
+      "index": "Home",
+      "download": "Download",
+      "guide": "Guides"
+    },
+    "guide_lead": "Everything you need to install Mosaik, load your games and set up the console.",
+    "prev": "Previous",
+    "next": "Next",
+    "footer": "Independent project, not affiliated with TrimUI. <a href=\"licenses.html\">Component licenses</a>.",
+    "guides": {
+      "install": [
+        "Installation",
+        "Write the image to the microSD and boot for the first time."
+      ],
+      "games": [
+        "Loading games",
+        "Where to put ROMs, BIOS files, images and music."
+      ],
+      "controls": [
+        "Controls",
+        "Buttons in the launcher, in games and in menus."
+      ],
+      "settings": [
+        "Settings",
+        "What each option does, category by category."
+      ],
+      "wifi-update": [
+        "Wi-Fi and updates",
+        "Connect the console and update the system."
+      ],
+      "linux-games": [
+        "Linux games",
+        "Add native games with launch.sh and game.json."
+      ],
+      "troubleshooting": [
+        "Troubleshooting",
+        "Black screen, games that won't start, slowdowns."
+      ]
+    },
+    "licenses_title": "Licenses"
+  }
+}

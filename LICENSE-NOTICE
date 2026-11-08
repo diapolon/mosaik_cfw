@@ -1,0 +1,16 @@
+Mosaik
+Copyright (C) 2026 The Mosaik authors
+
+Mosaik is free software: you can redistribute it and/or modify it under the
+terms of the GNU Lesser General Public License as published by the Free
+Software Foundation, version 3 of the License (see COPYING.LESSER and COPYING).
+
+Mosaik is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+
+This license covers only the code and assets written for Mosaik. It does not
+cover third-party components, which keep their own licenses, including the
+emulators, libraries, fonts and license texts, the game indexes derived from
+the emulators' data, and anything taken from the TrimUI firmware. See
+site/assets/licenses and the Licenses page of the website.

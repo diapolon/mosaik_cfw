@@ -1,0 +1,24 @@
+<p class="lead">Mosaik può avviare giochi nativi compilati per la console (Linux ARM a 64 bit). Non tutti funzioneranno: dipende da come è stato preparato il gioco.</p>
+<h2>Come si aggiunge un gioco</h2>
+<p>Crea una cartella in <code>Arcade/Linux</code>, con dentro il gioco e un file <code>launch.sh</code> che lo avvia:</p>
+<pre><code>Arcade/Linux/MioGioco/
+    launch.sh      obbligatorio: avvia il gioco
+    game.json      facoltativo: titolo e opzioni
+    cover.png      facoltativo: copertina</code></pre>
+<h2>Il file game.json</h2>
+<pre><code>{
+  "title": "Il mio gioco",
+  "year": "2024",
+  "author": "Autore",
+  "env": { "NOME_VARIABILE": "valore" },
+  "keys": { "A": "SPACE", "START": "ENTER" }
+}</code></pre>
+<table>
+  <tr><td><code>title</code>, <code>year</code>, <code>author</code></td><td>Compaiono nella libreria e nella scheda del gioco.</td></tr>
+  <tr><td><code>env</code></td><td>Variabili d'ambiente impostate prima di avviare il gioco.</td></tr>
+  <tr><td><code>keys</code></td><td>Per i giochi che non leggono i controller: ogni tasto della console preme il tasto della tastiera indicato.</td></tr>
+</table>
+<h2>Durante il gioco</h2>
+<p>Tieni premuto <b>Menu</b> per 1 secondo per il menu con riprendi, volume, luminosità ed esci. La sospensione con il tasto di accensione funziona anche qui.</p>
+<h2>Se qualcosa non va</h2>
+<p>Quello che il gioco scrive finisce in <code>Arcade/Logs/linux-games.log</code>.</p>

@@ -33,6 +33,10 @@ mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"
 cp "$FE/emulators/"*.json "$DATA/Emulators/"
 cp -RL "$FE/sdcard/Dats/." "$DATA/Dats/"
+# generi e storie dei giochi li scarica lo scraper sulla console: dati di terzi, nell'immagine no
+rm -rf "$DATA/Dats/arcadedb.tsv" "$DATA/Dats/history"
+mkdir -p "$DATA/Licenses"
+cp "$TOP/site/assets/licenses/"* "$DATA/Licenses/"
 [ "$1" = "--media" ] && cp -RL "$FE/sdcard/Media/." "$DATA/Media/"
 
 # certificati per lo scraper (HTTPS), elenco Mozilla distribuito da curl
