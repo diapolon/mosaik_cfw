@@ -13,7 +13,7 @@ Cartelle:
   Arcade/Logs             rapporti per la diagnosi: avvio.log, sistema.txt, Arcade.log
   Arcade/System           impostazioni e il sistema (arcade-system.squashfs: non toccare)
 
-Alla prima accensione la scheda si allarga da sola: la partizione ARCADE occupa tutto lo
+Alla prima accensione la scheda si allarga da sola: la partizione MOSAIK occupa tutto lo
 spazio della microSD (fino a 256 GB). Data e ora si impostano in Impostazioni.
 
 Wi-Fi: Impostazioni > Wi-Fi, A mostra le reti; la password si scrive con la tastiera a

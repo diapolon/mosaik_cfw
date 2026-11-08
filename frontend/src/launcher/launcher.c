@@ -2585,6 +2585,91 @@ static void detail_input(void) {
     if (in->pressed[BTN_B]) { go(back_screen == SCR_DETAIL ? SCR_HOME : back_screen); ui_sound(SND_BACK); }
 }
 
+/* ------------------------------------------------- diagnosi del gioco */
+/* Spiega cosa impedisce di avviare un gioco e quale file serve. Si apre dalle opzioni del
+   gioco e, da sola, quando il runner non riesce ad avviarlo (System/last-failure.txt). */
+
+static bool diag_open, diag_failed;
+static rdiag_t diag;
+static char diag_title[160], diag_msg[256];
+
+static bool diag_possible(const game_t *g) { return !g->missing && strcmp(g->core, "linux"); }
+
+static void diag_show(const game_t *g, bool failed, bool core_failed, const char *msg) {
+    ui_busy(T("diag.checking"), 0);
+    const emulator_t *emu = emulator_find(g->core);
+    char core[1100];
+    snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
+    romcheck_diagnose(UI.root, g, core, core_failed, &diag);
+    snprintf(diag_title, sizeof diag_title, "%s", g->title);
+    snprintf(diag_msg, sizeof diag_msg, "%s", msg ? msg : "");
+    diag_failed = failed;
+    diag_open = true;
+    ui_log("diagnosi %s: tipo %d (%s)", g->name, diag.kind, diag.file);
+}
+
+/* il runner ha lasciato una riga "core|game<TAB>percorso della ROM<TAB>errore del core" */
+static void diag_check_failure(void) {
+    char p[1100], line[2400];
+    snprintf(p, sizeof p, "%s/System/last-failure.txt", UI.root);
+    FILE *f = fopen(p, "r");
+    if (!f) return;
+    bool got = fgets(line, sizeof line, f) != NULL;
+    fclose(f);
+    remove(p);
+    if (!got) return;
+    line[strcspn(line, "\r\n")] = 0;
+    char *rom = strchr(line, '\t'), *msg = rom ? strchr(rom + 1, '\t') : NULL;
+    if (!msg) return;
+    *rom++ = 0;
+    *msg++ = 0;
+    for (int i = 0; i < ngames; i++)
+        if (games[i].path && !strcmp(games[i].path, rom) && diag_possible(&games[i])) {
+            diag_show(&games[i], true, !strcmp(line, "core"), msg);
+            return;
+        }
+    ui_toast(T("common.launch_error"));
+}
+
+static void diag_input(void) {
+    if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { diag_open = false; ui_sound(SND_BACK); }
+}
+
+static void diag_draw(void) {
+    theme_t *t = &UI.th;
+    int pad = M(0.05f), w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin), tw = w - 2 * pad;
+    bool refused = diag.kind == DG_OK && diag_failed;
+    char head[32], bkey[32], body[900], msg[320], foot[320], lines[5][160], mlines[2][160], flines[2][160], fit[300];
+    snprintf(head, sizeof head, refused ? "diag.head_failed" : "diag.head%d", diag.kind);
+    snprintf(bkey, sizeof bkey, refused ? "diag.body_failed" : "diag.body%d", diag.kind);
+    snprintf(body, sizeof body, T(bkey), diag.file, diag.where);
+    snprintf(msg, sizeof msg, "%s: %s", T("diag.core_said"), diag_msg);
+    snprintf(foot, sizeof foot, "%s", T("diag.quick"));
+    int fn = TTF_FontHeight(UI.f_normal), fs = TTF_FontHeight(UI.f_small);
+    int nb = ui_wrap(UI.f_normal, body, tw, lines, 5);
+    int nm = diag_failed && diag_msg[0] ? ui_wrap(UI.f_small, msg, tw, mlines, 2) : 0;
+    int nf = diag.kind == DG_OK ? ui_wrap(UI.f_small, foot, tw, flines, 2) : 0;
+    int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.01f) + fs + M(0.03f) + fn + M(0.015f) + fn * nb, x, y;
+    if (nm) h += M(0.02f) + fs * nm;
+    if (nf) h += M(0.02f) + fs * nf;
+    panel_box(w, h, &x, &y);
+    int ty = y + pad;
+    ui_text(UI.f_title, T("diag.title"), x + pad, ty, t->text, ALIGN_LEFT);
+    ty += TTF_FontHeight(UI.f_title) + M(0.01f);
+    ui_text_fit(UI.f_small, diag_title, tw, fit, sizeof fit);
+    ui_text(UI.f_small, fit, x + pad, ty, t->text_dim, ALIGN_LEFT);
+    ty += fs + M(0.03f);
+    ui_text(UI.f_normal, T(head), x + pad, ty, diag.kind == DG_OK && !diag_failed ? t->accent : rgba(230, 130, 20, 255), ALIGN_LEFT);
+    ty += fn + M(0.015f);
+    for (int i = 0; i < nb; i++, ty += fn) ui_text(UI.f_normal, lines[i], x + pad, ty, t->text, ALIGN_LEFT);
+    if (nm) ty += M(0.02f);
+    for (int i = 0; i < nm; i++, ty += fs) ui_text(UI.f_small, mlines[i], x + pad, ty, t->text_dim, ALIGN_LEFT);
+    if (nf) ty += M(0.02f);
+    for (int i = 0; i < nf; i++, ty += fs) ui_text(UI.f_small, flines[i], x + pad, ty, t->text_dim, ALIGN_LEFT);
+    const char *hint[] = { "A", T("common.ok") };
+    ui_hints(hint, 2);
+}
+
 /* ------------------------------------------ opzioni del gioco (collezioni) */
 /* righe: una per collezione (spunta), "nuova collezione", "nascondi/mostra" */
 
@@ -2598,8 +2683,8 @@ static void lists_changed(void) {
 
 static void gopt_input(void) {
     input_t *in = &UI.in;
-    int rows = NCOLLS + 3;
     game_t *g = &games[detail_idx];
+    int rows = NCOLLS + 3 + (diag_possible(g) ? 1 : 0);
     if (in->pressed[BTN_UP]) { gopt_sel = (gopt_sel + rows - 1) % rows; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { gopt_sel = (gopt_sel + 1) % rows; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B] || in->pressed[BTN_X]) { gopt_open = false; ui_sound(SND_BACK); return; }
@@ -2621,6 +2706,10 @@ static void gopt_input(void) {
         ui_sound(SND_OK);
     } else if (gopt_sel == NCOLLS + 2) {
         gp_show(GP_GAME);
+    } else if (gopt_sel == NCOLLS + 3) {
+        gopt_open = false;
+        ui_sound(SND_OK);
+        diag_show(g, false, false, NULL);
     } else {
         games_set_hidden(UI.root, g, !g->user_hidden);
         ui_toast(T(g->user_hidden ? "coll.hidden_toast" : "coll.shown_toast"));
@@ -2644,7 +2733,7 @@ static void gopt_draw(void) {
     theme_t *t = &UI.th;
     if (detail_idx < 0) return;
     game_t *g = &games[detail_idx];
-    int rows = NCOLLS + 3, rh = M(t->list_row_h), pad = M(0.04f);
+    int rows = NCOLLS + 3 + (diag_possible(g) ? 1 : 0), rh = M(t->list_row_h), pad = M(0.04f);
     int maxrows = (UI.h - M(t->hintbar_h) - M(0.2f) - TTF_FontHeight(UI.f_title)) / rh;
     int vis = rows < maxrows ? rows : maxrows;
     int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
@@ -2687,6 +2776,8 @@ static void gopt_draw(void) {
             genre_label(g->genre, gl, sizeof gl);
             ui_text(f, T("genre_ui.row"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
             ui_text(UI.f_small, gl[0] ? gl : "—", x + w - M(0.05f), ty + (fh - TTF_FontHeight(UI.f_small)) / 2, sel ? c : t->text_dim, ALIGN_RIGHT);
+        } else if (i == NCOLLS + 3) {
+            ui_text(f, T("diag.title"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
         } else {
             ui_text(f, T(g->user_hidden ? "coll.unhide" : "coll.hide"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
         }
@@ -3302,6 +3393,7 @@ int main(int argc, char **argv) {
     ui_mark("musica");
     screen = is_list_layout() ? SCR_LIBRARY : SCR_HOME;
     screen_t0 = -1;
+    diag_check_failure();
     bool first_frame = true, idle_logged = false;
     unsigned idle_skip = 0;
 
@@ -3333,7 +3425,7 @@ int main(int argc, char **argv) {
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open && !upd_open) {
             dlg_suspend = false;
-            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
         }
@@ -3351,6 +3443,7 @@ int main(int argc, char **argv) {
             if (r >= 0) dlg_open = dlg_suspend = false;
             if (r == 1) { ui_suspend(); last_input = UI.t; }
         }
+        else if (diag_open) diag_input();
         else if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
         else if (upd_open) upd_input();
@@ -3417,6 +3510,7 @@ int main(int argc, char **argv) {
         if (scrape_open) scrape_draw();
         if (upd_open) upd_draw();
         if (romcheck_open) romcheck_draw();
+        if (diag_open) diag_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
         if (first_frame) { first_frame = false; ui_mark("prima schermata"); update_confirm_boot(UI.root); }

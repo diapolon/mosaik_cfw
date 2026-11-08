@@ -337,6 +337,9 @@ int main(int argc, char **argv) {
     int last_sel = -1, last_vol = -1, last_bri = -1, logged = 0, last_ask = -1;
     bool full = true, toast_was = false;
     while (rc < 0) {
+        /* qui si ridisegna solo se cambia qualcosa: senza orologio aggiornato ogni pressione
+           sembrerebbe tenuta premuta da tempo e farebbe un passo in più */
+        ui_clock();
         ui_poll();
         if (asking) {
             if (UI.in.power_long) rc = RC_POWER;

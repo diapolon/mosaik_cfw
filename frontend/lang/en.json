@@ -350,7 +350,7 @@
     "shown_toast": "The game is visible again",
     "name_prompt": "Collection name",
     "failed": "Could not create the collection",
-    "hint": "Collections",
+    "hint": "Options",
     "hidden_tag": "Hidden"
   },
   "music": {
@@ -502,5 +502,35 @@
     "renamed": "%s is now %s",
     "merged": "%s merged into %s",
     "no_other": "There are no other genres"
+  },
+  "diag": {
+    "title": "Game diagnosis",
+    "checking": "Checking the game…",
+    "quick": "Quick check: it compares names, sizes and CRCs, without reading the compressed data.",
+    "core_said": "Emulator message",
+    "head_failed": "The emulator refused the game",
+    "body_failed": "The files appear to be there, but the game does not start. The content may be damaged: copy it to the card again or try another copy.",
+    "head0": "No problems found",
+    "body0": "All the required files appear to be there.",
+    "head1": "The emulator is missing",
+    "body1": "Can't find %s in the Arcade/Cores folder. Install an update or write the card again, after saving your ROMs and saves.",
+    "head2": "The emulator doesn't load",
+    "body2": "The file %s does not work. Install an update or write the card again, after saving your ROMs and saves.",
+    "head3": "Game file not found",
+    "body3": "Can't find %s any more. Copy it again to %s.",
+    "head4": "Damaged file",
+    "body4": "%s can't be read: it is probably damaged. Copy it again to %s.",
+    "head5": "BIOS missing",
+    "body5": "This game needs %s. Copy it to the Arcade/Bios folder.",
+    "head6": "Main game missing",
+    "body6": "This is a variant and also needs %s. Copy it to %s.",
+    "head7": "Files missing",
+    "body7": "Missing from the zip: %s. You need a complete copy for %s.",
+    "head8": "Different game version",
+    "body8": "These files are from another version: %s. You need the romset that matches %s.",
+    "head9": "Game not recognised",
+    "body9": "%s is not in the %s catalogue. The file may have been renamed or belong to another emulator.",
+    "head10": "Check not available",
+    "body10": "This file can't be checked: it is in 7z format, or this emulator has no file list."
   }
 }

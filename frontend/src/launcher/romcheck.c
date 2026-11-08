@@ -206,8 +206,10 @@ static bool has_name(const zlist_t *z, const char *name) {
 
 /* ----------------------------------------------------- verifica gioco */
 
-static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn) {
+/* *needs_bios: il file da recuperare (RC_NOPARENT) è un BIOS e non un gioco principale */
+static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn, bool *needs_bios) {
     detail[0] = 0;
+    *needs_bios = false;
     size_t plen = strlen(g->path);
     if (plen > 3 && !strcasecmp(g->path + plen - 3, ".7z")) return RC_UNCHECKED;
     want_t *w = want_find(d, g->name);
@@ -229,7 +231,7 @@ static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn) {
         want_t *pw = want_find(d, r);
         r = pw ? pw->romof : NULL;
     }
-    int miss = 0, miss_merged = 0, bad = 0;
+    int miss = 0, miss_merged = 0, bad = 0, merged_listed = 0;
     char list[256] = "";
     char *files = strdup(w->files), *save = NULL;
     for (char *item = strtok_r(files, ",", &save); item; item = strtok_r(NULL, ",", &save)) {
@@ -238,6 +240,7 @@ static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn) {
         *f1 = *f2 = *f3 = 0;
         unsigned crc = (unsigned)strtoul(f2 + 1, NULL, 16);
         bool merged = f3[1] == 'm';
+        if (merged) merged_listed++;
         unsigned fsize = (unsigned)strtoul(f1 + 1, NULL, 10);
         if (has_crc(&own, crc, fsize)) continue;
         bool in_chain = false;
@@ -258,11 +261,14 @@ static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn) {
     for (int c = 0; c < nchain; c++) free(chain[c].e);
     if (miss && miss == miss_merged && missing_parent[0]) {
         snprintf(detail, dn, "%s.zip", missing_parent);
+        *needs_bios = is_bios(d, missing_parent);
         return RC_NOPARENT;
     }
     if (miss) { snprintf(detail, dn, "%s", list); return RC_MISSING; }
     if (bad) { snprintf(detail, dn, "%s", list); return RC_BADCRC; }
-    if (bios_missing) { snprintf(detail, dn, "%s.zip", missing_parent); return RC_NOPARENT; }
+    /* Se l'elenco comprende i file del BIOS, averli trovati basta anche senza lo zip del BIOS
+       (rbisland.zip di solito li contiene). Se non li comprende, l'assenza dello zip conta. */
+    if (bios_missing && !merged_listed) { snprintf(detail, dn, "%s.zip", missing_parent); *needs_bios = true; return RC_NOPARENT; }
     return RC_OK;
 }
 
@@ -291,7 +297,8 @@ static int worker(void *arg) {
             snprintf(g.name, sizeof g.name, "%s", jobs[i].name);
             g.path = jobs[i].path;
             char detail[300];
-            int rc = have ? check_game(&d, &g, detail, sizeof detail) : RC_UNCHECKED;
+            bool needs_bios;
+            int rc = have ? check_game(&d, &g, detail, sizeof detail, &needs_bios) : RC_UNCHECKED;
             if (!have) detail[0] = 0;
             st.count[rc]++;
             st.done++;
@@ -337,6 +344,62 @@ void romcheck_join(void) {
     SDL_WaitThread(thread, NULL);
     thread = NULL;
     st.running = false;
+}
+
+/* ------------------------------------------------- diagnosi di un gioco */
+
+static const char *base_name(const char *p) {
+    const char *s = strrchr(p, '/');
+    return s ? s + 1 : p;
+}
+
+void romcheck_diagnose(const char *root, const game_t *g, const char *core_path, bool core_failed, rdiag_t *out) {
+    memset(out, 0, sizeof *out);
+    const emulator_t *emu = emulator_find(g->core);
+    struct stat st;
+    snprintf(out->where, sizeof out->where, "Arcade/%s", emu ? emu->roms : "Roms");
+    if (stat(core_path, &st) != 0) {
+        out->kind = DG_NO_CORE;
+        snprintf(out->file, sizeof out->file, "%s", base_name(core_path));
+        return;
+    }
+    if (core_failed) {
+        out->kind = DG_CORE_BAD;
+        snprintf(out->file, sizeof out->file, "%s", base_name(core_path));
+        return;
+    }
+    if (!g->path || !*g->path || stat(g->path, &st) != 0) {
+        out->kind = DG_NO_ROM;
+        snprintf(out->file, sizeof out->file, "%s", g->path && *g->path ? base_name(g->path) : g->name);
+        return;
+    }
+    emu_data_t d;
+    if (!emu || !load_emu(&d, root, emu)) { out->kind = DG_UNKNOWN; return; }
+    char detail[300];
+    bool needs_bios;
+    int rc = check_game(&d, g, detail, sizeof detail, &needs_bios);
+    free_emu(&d);
+    snprintf(out->file, sizeof out->file, "%s", detail);
+    switch (rc) {
+    case RC_OK: out->kind = DG_OK; break;
+    case RC_NOPARENT: out->kind = needs_bios ? DG_NO_BIOS : DG_NO_PARENT; break;
+    case RC_BADCRC: out->kind = DG_BAD_VERSION; snprintf(out->where, sizeof out->where, "%s", emu->name); break;
+    case RC_NOTINDAT:
+        out->kind = DG_NOT_IN_DAT;
+        snprintf(out->file, sizeof out->file, "%s", base_name(g->path));
+        snprintf(out->where, sizeof out->where, "%s", emu->name);
+        break;
+    case RC_MISSING:
+        if (!strcmp(detail, "zip")) {   /* la tabella dello zip non si legge */
+            out->kind = DG_BAD_ZIP;
+            snprintf(out->file, sizeof out->file, "%s", base_name(g->path));
+        } else {
+            out->kind = DG_MISSING;
+            snprintf(out->where, sizeof out->where, "%s", emu->name);
+        }
+        break;
+    default: out->kind = DG_UNKNOWN; break;
+    }
 }
 
 /* ------------------------------------------------- risultati salvati */

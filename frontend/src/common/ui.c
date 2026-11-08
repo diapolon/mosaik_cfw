@@ -116,8 +116,15 @@ void ui_suspend(void) {
     /* l'uscita audio si chiude e si riapre: dopo il risveglio chiuderla poteva bloccarsi */
     bool had_audio = UI.audio != 0;
     if (had_audio) { SDL_CloseAudioDevice(UI.audio); UI.audio = 0; }
+    /* schermo spento subito: il sistema può metterci qualche secondo ad addormentarsi */
+    plat_screen_off(true);
+    plat_apply(&UI.set);
     plat_suspend();
-    if (had_audio) audio_open();
+    plat_screen_off(false);
+    /* l'amplificatore si riattiva solo con l'uscita già aperta e assestata: riaprirla ad
+       amplificatore acceso fa gracchiare l'altoparlante */
+    if (had_audio) { audio_open(); SDL_Delay(400); }
+    plat_audio_unmute();
     /* tasti premuti prima o durante il sonno: non devono valere dopo il risveglio */
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
     memset(UI.in.pressed, 0, sizeof UI.in.pressed);
@@ -1703,6 +1710,10 @@ bool ui_init_offscreen(const char *app, const char *root) {
     ui_apply_device();
     t0 = tprev = SDL_GetPerformanceCounter();
     return true;
+}
+
+void ui_clock(void) {
+    UI.t = (double)(SDL_GetPerformanceCounter() - t0) / (double)SDL_GetPerformanceFrequency();
 }
 
 void ui_overlay_begin(bool clear) {

@@ -350,7 +350,7 @@
     "shown_toast": "O jogo está visível novamente",
     "name_prompt": "Nome da coleção",
     "failed": "Não foi possível criar a coleção",
-    "hint": "Coleções",
+    "hint": "Opções",
     "hidden_tag": "Oculto"
   },
   "music": {
@@ -502,5 +502,35 @@
     "renamed": "%s agora é %s",
     "merged": "%s junto a %s",
     "no_other": "Não há outros géneros"
+  },
+  "diag": {
+    "title": "Diagnóstico do jogo",
+    "checking": "A verificar o jogo…",
+    "quick": "Verificação rápida: compara nomes, tamanhos e CRC, sem ler os dados comprimidos.",
+    "core_said": "Mensagem do emulador",
+    "head_failed": "O emulador recusou o jogo",
+    "body_failed": "Os ficheiros parecem estar presentes, mas o jogo não arranca. O conteúdo pode estar danificado: copia-o novamente para o cartão ou experimenta outra cópia.",
+    "head0": "Nenhum problema encontrado",
+    "body0": "Todos os ficheiros necessários parecem estar presentes.",
+    "head1": "Falta o emulador",
+    "body1": "Não encontro %s na pasta Arcade/Cores. Instala uma atualização ou volta a escrever o cartão, depois de guardar as ROM e os saves.",
+    "head2": "O emulador não carrega",
+    "body2": "O ficheiro %s não funciona. Instala uma atualização ou volta a escrever o cartão, depois de guardar as ROM e os saves.",
+    "head3": "Ficheiro do jogo não encontrado",
+    "body3": "Já não encontro %s. Copia-o novamente para %s.",
+    "head4": "Ficheiro danificado",
+    "body4": "%s não pode ser lido: provavelmente está danificado. Copia-o novamente para %s.",
+    "head5": "Falta a BIOS",
+    "body5": "Este jogo precisa de %s. Copia-o para a pasta Arcade/Bios.",
+    "head6": "Falta o jogo principal",
+    "body6": "Esta é uma variante e também precisa de %s. Copia-o para %s.",
+    "head7": "Faltam ficheiros",
+    "body7": "Faltam no zip: %s. Precisas de uma cópia completa para %s.",
+    "head8": "Versão do jogo diferente",
+    "body8": "Estes ficheiros são de outra versão: %s. Precisas do romset adequado para %s.",
+    "head9": "Jogo não reconhecido",
+    "body9": "%s não está no catálogo de %s. O ficheiro pode ter sido renomeado ou pertencer a outro emulador.",
+    "head10": "Verificação indisponível",
+    "body10": "Não posso verificar este ficheiro: está em formato 7z, ou este emulador não tem lista de ficheiros."
   }
 }

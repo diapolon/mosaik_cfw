@@ -350,7 +350,7 @@
     "shown_toast": "Le jeu est à nouveau visible",
     "name_prompt": "Nom de la collection",
     "failed": "Impossible de créer la collection",
-    "hint": "Collections",
+    "hint": "Options",
     "hidden_tag": "Masqué"
   },
   "music": {
@@ -502,5 +502,35 @@
     "renamed": "%s s'appelle maintenant %s",
     "merged": "%s fusionné dans %s",
     "no_other": "Il n'y a pas d'autres genres"
+  },
+  "diag": {
+    "title": "Diagnostic du jeu",
+    "checking": "Vérification du jeu…",
+    "quick": "Contrôle rapide : il compare les noms, tailles et CRC, sans lire les données compressées.",
+    "core_said": "Message de l'émulateur",
+    "head_failed": "L'émulateur a refusé le jeu",
+    "body_failed": "Les fichiers semblent présents, mais le jeu ne démarre pas. Le contenu est peut-être endommagé : copiez-le à nouveau sur la carte ou essayez une autre copie.",
+    "head0": "Aucun problème trouvé",
+    "body0": "Tous les fichiers nécessaires semblent présents.",
+    "head1": "L'émulateur est absent",
+    "body1": "Impossible de trouver %s dans le dossier Arcade/Cores. Installez une mise à jour ou réécrivez la carte, après avoir sauvegardé vos ROM et sauvegardes.",
+    "head2": "L'émulateur ne se charge pas",
+    "body2": "Le fichier %s ne fonctionne pas. Installez une mise à jour ou réécrivez la carte, après avoir sauvegardé vos ROM et sauvegardes.",
+    "head3": "Fichier du jeu introuvable",
+    "body3": "Impossible de trouver %s. Copiez-le à nouveau dans %s.",
+    "head4": "Fichier endommagé",
+    "body4": "%s est illisible : il est probablement endommagé. Copiez-le à nouveau dans %s.",
+    "head5": "BIOS absent",
+    "body5": "Ce jeu a besoin de %s. Copiez-le dans le dossier Arcade/Bios.",
+    "head6": "Jeu principal absent",
+    "body6": "C'est une variante qui a aussi besoin de %s. Copiez-le dans %s.",
+    "head7": "Fichiers manquants",
+    "body7": "Manquants dans le zip : %s. Il faut une copie complète pour %s.",
+    "head8": "Version du jeu différente",
+    "body8": "Ces fichiers viennent d'une autre version : %s. Il faut le romset adapté à %s.",
+    "head9": "Jeu non reconnu",
+    "body9": "%s n'est pas dans le catalogue de %s. Le fichier a peut-être été renommé ou appartient à un autre émulateur.",
+    "head10": "Contrôle indisponible",
+    "body10": "Impossible de contrôler ce fichier : il est au format 7z, ou cet émulateur n'a pas de liste de fichiers."
   }
 }

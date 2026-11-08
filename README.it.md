@@ -34,6 +34,7 @@
 - **Temi, lingue, LED e filtri video** configurabili.
 - **Aggiornamenti firmati** via Wi-Fi, con un tentativo di ritorno alla versione precedente se uno fallisce.
 - **Profilo CPU per ogni gioco** e avviso nella home quando c'è un aggiornamento.
+- **Diagnosi dei giochi**: quando un gioco non parte, ti dice cosa manca e dove copiarlo.
 
 ## L'interfaccia
 
@@ -160,7 +161,7 @@ Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi
 
 - **La console non si accende con la scheda:** controlla di aver scritto l'immagine del tuo modello (`smartpro` o `brickpro` nel nome del file). Senza la scheda parte il sistema originale, come sempre.
 - **Schermo nero o rosso all'avvio:** tieni premuto il tasto di accensione per 10-20 secondi, togli la scheda e guarda in `Arcade/Logs`.
-- **Un gioco non parte:** di solito mancano file o la raccolta di ROM è diversa. Esegui Verifica ROM e apri la scheda del gioco.
+- **Un gioco non parte:** la console mostra cosa manca e dove copiarlo. Puoi aprire il controllo anche da solo: nella scheda del gioco premi X e scegli **Diagnosi del gioco**.
 - **I giochi Neo Geo non partono:** serve `neogeo.zip` in `Arcade/Bios`.
 - **Un gioco è lento o l'audio gracchia:** prova il profilo Prestazioni in Impostazioni → Giochi. Alcuni arcade 3D sono troppo pesanti o non supportati.
 - **File rovinati dopo la copia:** schede e lettori economici possono rovinare i file senza dare errori. Prova un altro lettore o un'altra scheda.

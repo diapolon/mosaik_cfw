@@ -350,7 +350,7 @@
     "shown_toast": "Das Spiel ist wieder sichtbar",
     "name_prompt": "Name der Sammlung",
     "failed": "Sammlung konnte nicht erstellt werden",
-    "hint": "Sammlungen",
+    "hint": "Optionen",
     "hidden_tag": "Ausgeblendet"
   },
   "music": {
@@ -502,5 +502,35 @@
     "renamed": "%s heißt jetzt %s",
     "merged": "%s zusammengeführt mit %s",
     "no_other": "Keine anderen Genres vorhanden"
+  },
+  "diag": {
+    "title": "Spieldiagnose",
+    "checking": "Spiel wird geprüft…",
+    "quick": "Schnellprüfung: vergleicht Namen, Größen und CRC, ohne die komprimierten Daten zu lesen.",
+    "core_said": "Meldung des Emulators",
+    "head_failed": "Der Emulator hat das Spiel abgelehnt",
+    "body_failed": "Die Dateien scheinen vorhanden zu sein, aber das Spiel startet nicht. Der Inhalt ist möglicherweise beschädigt: Kopiere ihn erneut auf die Karte oder versuche eine andere Kopie.",
+    "head0": "Keine Probleme gefunden",
+    "body0": "Alle benötigten Dateien scheinen vorhanden zu sein.",
+    "head1": "Der Emulator fehlt",
+    "body1": "%s wurde im Ordner Arcade/Cores nicht gefunden. Installiere ein Update oder beschreibe die Karte neu, nachdem du ROMs und Spielstände gesichert hast.",
+    "head2": "Der Emulator lädt nicht",
+    "body2": "Die Datei %s funktioniert nicht. Installiere ein Update oder beschreibe die Karte neu, nachdem du ROMs und Spielstände gesichert hast.",
+    "head3": "Spieldatei nicht gefunden",
+    "body3": "%s wurde nicht mehr gefunden. Kopiere die Datei erneut nach %s.",
+    "head4": "Beschädigte Datei",
+    "body4": "%s kann nicht gelesen werden und ist wahrscheinlich beschädigt. Kopiere die Datei erneut nach %s.",
+    "head5": "BIOS fehlt",
+    "body5": "Dieses Spiel braucht %s. Kopiere die Datei in den Ordner Arcade/Bios.",
+    "head6": "Hauptspiel fehlt",
+    "body6": "Dies ist eine Variante und braucht auch %s. Kopiere die Datei nach %s.",
+    "head7": "Dateien fehlen",
+    "body7": "Im Zip fehlen: %s. Du brauchst eine vollständige Kopie für %s.",
+    "head8": "Andere Spielversion",
+    "body8": "Diese Dateien stammen aus einer anderen Version: %s. Du brauchst das passende Romset für %s.",
+    "head9": "Spiel nicht erkannt",
+    "body9": "%s ist nicht im Katalog von %s. Die Datei wurde vielleicht umbenannt oder gehört zu einem anderen Emulator.",
+    "head10": "Prüfung nicht verfügbar",
+    "body10": "Diese Datei kann nicht geprüft werden: Sie ist im 7z-Format, oder für diesen Emulator gibt es keine Dateiliste."
   }
 }

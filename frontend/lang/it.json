@@ -350,7 +350,7 @@
     "shown_toast": "Il gioco è di nuovo visibile",
     "name_prompt": "Nome della collezione",
     "failed": "Impossibile creare la collezione",
-    "hint": "Collezioni",
+    "hint": "Opzioni",
     "hidden_tag": "Nascosto"
   },
   "music": {
@@ -502,5 +502,35 @@
     "renamed": "%s ora si chiama %s",
     "merged": "%s accorpato in %s",
     "no_other": "Non ci sono altri generi"
+  },
+  "diag": {
+    "title": "Diagnosi del gioco",
+    "checking": "Controllo del gioco…",
+    "quick": "Controllo rapido: confronta nomi, dimensioni e CRC, senza leggere i dati compressi.",
+    "core_said": "Messaggio dell'emulatore",
+    "head_failed": "L'emulatore ha rifiutato il gioco",
+    "body_failed": "I file risultano presenti, ma il gioco non parte. Il contenuto potrebbe essere danneggiato: copialo di nuovo sulla scheda o prova un'altra copia.",
+    "head0": "Nessun problema trovato",
+    "body0": "Tutti i file richiesti risultano presenti.",
+    "head1": "Manca l'emulatore",
+    "body1": "Non trovo %s nella cartella Arcade/Cores. Installa un aggiornamento o riscrivi la scheda, salvando prima ROM e salvataggi.",
+    "head2": "L'emulatore non si carica",
+    "body2": "Il file %s non funziona. Installa un aggiornamento o riscrivi la scheda, salvando prima ROM e salvataggi.",
+    "head3": "File del gioco non trovato",
+    "body3": "Non trovo più %s. Copialo di nuovo in %s.",
+    "head4": "File danneggiato",
+    "body4": "%s non si legge: probabilmente è rovinato. Copialo di nuovo in %s.",
+    "head5": "Manca il BIOS",
+    "body5": "Per questo gioco serve %s. Copialo nella cartella Arcade/Bios.",
+    "head6": "Manca il gioco principale",
+    "body6": "Questa è una variante e ha bisogno anche di %s. Copialo in %s.",
+    "head7": "Mancano dei file",
+    "body7": "Nello zip mancano: %s. Serve una copia completa per %s.",
+    "head8": "Versione del gioco diversa",
+    "body8": "Questi file sono di un'altra versione: %s. Serve il romset adatto a %s.",
+    "head9": "Gioco non riconosciuto",
+    "body9": "%s non è nel catalogo di %s. Il file può essere stato rinominato o appartenere a un altro emulatore.",
+    "head10": "Controllo non disponibile",
+    "body10": "Non posso controllare questo file: è in formato 7z, oppure per questo emulatore manca l'elenco dei file."
   }
 }

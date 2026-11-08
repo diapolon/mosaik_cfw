@@ -283,13 +283,17 @@ void plat_poll(plat_keys_t *k) {
 
 bool plat_suspend(void) {
     ui_log("sospensione");
-    int r = system("arcade-suspend");
+    int r = system("ARCADE_KEEP_MUTE=1 arcade-suspend");
     ui_log("risveglio (%s)", r == 0 ? "sospensione riuscita" : "sospensione non riuscita");
     reapply = true;
     /* eventi del tasto arrivati durante il sonno (quello che ha svegliato la console) */
     struct input_event ev;
     while (power_fd >= 0 && read(power_fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {}
     return r == 0;
+}
+
+void plat_audio_unmute(void) {
+    if (system("arcade-suspend unmute") != 0) ui_log("audio: riattivazione non riuscita");
 }
 
 bool plat_set_time(time_t t) {
@@ -322,5 +326,6 @@ bool plat_device_name(const char *path, char *out, int n) { (void)path; if (n) o
 bool plat_set_time(time_t t) { (void)t; return false; }
 void plat_led_theme(unsigned rgb) { (void)rgb; }
 bool plat_suspend(void) { return false; }
+void plat_audio_unmute(void) {}
 
 #endif

@@ -267,6 +267,15 @@ static void gamecfg_save(void) {
 
 /* ------------------------------------------------------------ callback */
 
+/* ultimo errore del core: il launcher lo mostra nella diagnosi, anche con il registro spento */
+static char core_last_error[256];
+
+static void note_error(const char *s) {
+    snprintf(core_last_error, sizeof core_last_error, "%s", s);
+    for (char *c = core_last_error; *c; c++)
+        if (*c == '\t' || *c == '\n' || *c == '\r') *c = ' ';
+}
+
 static void core_log(enum retro_log_level level, const char *fmt, ...) {
     if (level < RETRO_LOG_WARN) return;
     char msg[1024];
@@ -276,6 +285,7 @@ static void core_log(enum retro_log_level level, const char *fmt, ...) {
     va_end(ap);
     msg[strcspn(msg, "\n")] = 0;
     ui_log("[core] %s", msg);
+    if (level >= RETRO_LOG_ERROR) note_error(msg);
 }
 
 static char lang_code[8] = "it";
@@ -460,7 +470,12 @@ static int16_t input_state(unsigned port, unsigned device, unsigned index, unsig
 
 static bool load_core(void) {
     core.h = dlopen(core_path, RTLD_LAZY | RTLD_LOCAL);
-    if (!core.h) { ui_log("dlopen: %s", dlerror()); return false; }
+    if (!core.h) {
+        const char *e = dlerror();
+        ui_log("dlopen: %s", e ? e : "?");
+        note_error(e ? e : "");
+        return false;
+    }
 #define SYM(field, name) if (!(*(void **)&core.field = dlsym(core.h, name))) { ui_log("simbolo mancante: %s", name); return false; }
     SYM(init, "retro_init"); SYM(deinit, "retro_deinit");
     SYM(get_system_info, "retro_get_system_info"); SYM(get_system_av_info, "retro_get_system_av_info");
@@ -1264,6 +1279,25 @@ static void show_error(const char *msg) {
     }
 }
 
+/* FBNeo non rifiuta i giochi che non può avviare: risponde di averli caricati e disegna una
+   sua schermata d'errore su un'area 640x480. La si riconosce da quella misura insieme a un
+   errore del core (ROM mancanti, gioco non funzionante) o all'assenza di opzioni (gioco ignoto). */
+static bool core_refused_game(void) {
+    return !strcmp(core_id, "fbneo") && av.geometry.base_width == 640 && av.geometry.base_height == 480
+        && (core_last_error[0] || ncopts == 0);
+}
+
+/* Il launcher legge questo file al ritorno e spiega cosa impedisce di avviare il gioco. */
+static bool write_failure(const char *stage) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/System/last-failure.txt", root);
+    FILE *f = fopen(p, "w");
+    if (!f) return false;
+    bool ok = fprintf(f, "%s\t%s\t%s\n", stage, rom_path, core_last_error) > 0;
+    if (fclose(f) != 0) ok = false;
+    return ok;
+}
+
 int main(int argc, char **argv) {
     const char *auto_script = NULL;
     bool resume = false;
@@ -1302,11 +1336,12 @@ int main(int argc, char **argv) {
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
 #endif
     /* Il core va caricato prima della finestra: la frequenza audio la decide lui. */
-    bool ok = load_core() && load_game();
+    bool core_ok = load_core(), ok = core_ok && load_game() && !core_refused_game();
     if (!ui_init("Arcade", root, auto_script, ok ? (int)lround(av.timing.sample_rate) : 48000, false)) return 1;
     ui_log("gioco: %s (%s)", title, rom_path);
     if (!ok) {
-        show_error(T("game.error_body"));
+        ui_log("gioco non avviato: %s", core_last_error);
+        if (!write_failure(core_ok ? "game" : "core")) show_error(T("game.error_body"));
         ui_shutdown_code(EXIT_MENU);
         return EXIT_MENU;
     }
