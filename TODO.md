@@ -2,7 +2,7 @@
 
 ## Testing
 
-- [ ] Full test on the Brick Pro
+- [x] Full test on the Brick Pro
 - [x] Automatic return to the previous system on a Smart Pro (broken system, three failed boots)
 - [ ] Power loss during an update, on a real console
 - [ ] Wi-Fi password containing quotes, on a real console
@@ -17,6 +17,8 @@
 ## Features
 
 - [ ] Bluetooth controllers
+- [ ] Settings page for the Brick Pro's extra buttons (side HOME, F1, F2): list them on the console, choose what each one does, show the page only on models that have them
+- [ ] Analog stick calibration from the settings (the factory data is in internal storage; today the only workaround is copying `joypad.config` to `Arcade/System` by hand)
 - [ ] LED indication while charging
 - [ ] Game list cache, for very large libraries
 - [ ] More consoles (NES, SNES, Mega Drive, Game Boy, GBA, PS1)

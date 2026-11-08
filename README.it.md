@@ -23,7 +23,7 @@
   <img src="docs/images/it/home.png" width="640" alt="La schermata iniziale di Mosaik">
 </p>
 
-> **Stato:** versione 0.9. **Smart Pro: provata. Brick Pro: non provata.**
+> **Stato:** versione 0.9. **Smart Pro e Brick Pro: provate.**
 
 ## Cosa c'è dentro
 
