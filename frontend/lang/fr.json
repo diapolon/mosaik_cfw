@@ -147,7 +147,10 @@
   "dialog": {
     "power_title": "Éteindre la console ?",
     "power_body": "Réglages et favoris sont déjà enregistrés.",
-    "power_body_app": "Quitter pour revenir au menu TrimUI."
+    "power_body_app": "Quitter pour revenir au menu TrimUI.",
+    "suspend_title": "Mettre la console en veille ?",
+    "suspend_body": "Le bouton d'alimentation la réveille.",
+    "suspend": "Veille"
   },
   "game": {
     "resume": "Reprendre",

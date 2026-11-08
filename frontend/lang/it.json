@@ -147,7 +147,10 @@
   "dialog": {
     "power_title": "Spegnere la console?",
     "power_body": "Impostazioni e preferiti sono già salvati.",
-    "power_body_app": "Esci per tornare al menu TrimUI."
+    "power_body_app": "Esci per tornare al menu TrimUI.",
+    "suspend_title": "Sospendere la console?",
+    "suspend_body": "Si risveglia con il tasto di accensione.",
+    "suspend": "Sospendi"
   },
   "game": {
     "resume": "Riprendi",

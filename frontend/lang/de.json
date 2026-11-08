@@ -147,7 +147,10 @@
   "dialog": {
     "power_title": "Konsole ausschalten?",
     "power_body": "Einstellungen und Favoriten sind bereits gespeichert.",
-    "power_body_app": "Beenden kehrt zum TrimUI-Menü zurück."
+    "power_body_app": "Beenden kehrt zum TrimUI-Menü zurück.",
+    "suspend_title": "Konsole in den Ruhezustand?",
+    "suspend_body": "Die Ein/Aus-Taste weckt sie auf.",
+    "suspend": "Ruhezustand"
   },
   "game": {
     "resume": "Fortsetzen",

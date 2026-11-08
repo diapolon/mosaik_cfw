@@ -16,7 +16,9 @@
 #include <string.h>
 
 enum { GM_RESUME, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_COUNT };
-enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20 };
+enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20, RC_SLEEP = 30 };
+static bool asking;       /* finestra "sospendere?" aperta */
+static int ask_sel = 1;
 
 static int sel;
 /* geometria del pannello e delle righe (in pixel dell'immagine del menu) */
@@ -94,9 +96,13 @@ static int input(void) {
         if (sel == GM_RESUME) return RC_RESUME;
         if (sel == GM_QUIT) return RC_QUIT;
     }
-    if (UI.in.power) ui_suspend();
+    if (UI.in.power) { asking = true; ask_sel = 1; return -1; }
     if (UI.in.power_long) return RC_POWER;
     return -1;
+}
+
+static void draw_ask(void) {
+    ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
 }
 
 #ifdef TRIMUI_DEVICE
@@ -301,8 +307,10 @@ int main(int argc, char **argv) {
     const char *root = getenv("ROOT") ? getenv("ROOT") : "/mnt/SDCARD/Arcade", *shot = NULL;
     const char *title = getenv("ARCADE_TITLE");
     int volume = 0;
+    bool only_ask = false;
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--volume") && i + 1 < argc) { volume = atoi(argv[++i]); continue; }
+        if (!strcmp(argv[i], "--ask-suspend")) { asking = only_ask = true; continue; }   /* solo la finestra, sopra il gioco */
         if (!strcmp(argv[i], "--root") && i + 1 < argc) root = argv[++i];
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--title") && i + 1 < argc) title = argv[++i];
@@ -314,8 +322,8 @@ int main(int argc, char **argv) {
         sel = 1;
         ui_screenshot(shot);
         ui_overlay_begin(true);
-        draw_static(title);
-        draw_rows();
+        if (!only_ask) { draw_static(title); draw_rows(); }
+        if (asking) draw_ask();
         ui_overlay_end();
         return 0;
     }
@@ -326,11 +334,21 @@ int main(int argc, char **argv) {
     /* Le parti fisse si disegnano e si copiano una volta; poi a ogni tasto si ridisegnano e si
        copiano solo le righe delle voci (senza GPU ogni pixel costa). Con un avviso a schermo
        si ridisegna tutto. I tempi dei primi disegni vanno nel log. */
-    int last_sel = -1, last_vol = -1, last_bri = -1, logged = 0;
+    int last_sel = -1, last_vol = -1, last_bri = -1, logged = 0, last_ask = -1;
     bool full = true, toast_was = false;
     while (rc < 0) {
         ui_poll();
-        if (!armed) {
+        if (asking) {
+            if (UI.in.power_long) rc = RC_POWER;
+            else {
+                int r = ui_confirm_input(&ask_sel);
+                if (r >= 0) {
+                    asking = false;
+                    if (only_ask) rc = r ? RC_SLEEP : RC_RESUME;
+                    else if (r) ui_suspend();
+                }
+            }
+        } else if (!armed) {
             armed = !UI.in.down[BTN_MENU];
             memset(UI.in.pressed, 0, sizeof UI.in.pressed);
         } else rc = input();
@@ -338,6 +356,8 @@ int main(int argc, char **argv) {
         plat_apply(&UI.set);
         bool toast = ui_toast_active();
         if (toast || toast_was) full = true;
+        int ask_state = asking ? ask_sel : -1;
+        if (ask_state != last_ask) { last_ask = ask_state; full = true; }
         toast_was = toast;
         if (full || sel != last_sel || UI.set.volume != last_vol || UI.set.brightness != last_bri) {
             last_sel = sel;
@@ -345,8 +365,9 @@ int main(int argc, char **argv) {
             last_bri = UI.set.brightness;
             Uint64 f = SDL_GetPerformanceFrequency(), t0 = SDL_GetPerformanceCounter();
             ui_overlay_begin(full);
-            if (full) draw_static(title);
-            draw_rows();
+            if (full && !only_ask) draw_static(title);
+            if (!only_ask) draw_rows();
+            if (asking) draw_ask();
             SDL_Surface *img = ui_overlay_end();
             Uint64 t1 = SDL_GetPerformanceCounter();
             if (full) layer_show(img, 0, 0, UI.w, UI.h);

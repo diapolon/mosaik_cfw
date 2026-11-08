@@ -79,6 +79,38 @@ void ui_busy(const char *msg, double seconds) {
     } while ((SDL_GetTicks() - t0) / 1000.0 < seconds);
 }
 
+/* finestra di conferma con due pulsanti (0 = no, 1 = sì) */
+void ui_confirm_draw(const char *title, const char *body, const char *no, const char *yes, int sel) {
+    theme_t *t = &UI.th;
+    char buf[300];
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    int w = M(0.75f), h = M(0.36f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_text_fit(UI.f_title, title, w - M(0.06f), buf, sizeof buf);
+    ui_text(UI.f_title, buf, x + w / 2, y + M(0.06f), t->text, ALIGN_CENTER);
+    ui_text_fit(UI.f_small, body, w - M(0.06f), buf, sizeof buf);
+    ui_text(UI.f_small, buf, x + w / 2, y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
+    int bw = (w - M(0.03f) * 3) / 2, bh = M(0.085f), by = y + h - bh - M(0.04f);
+    const char *labels[2] = { no, yes };
+    for (int i = 0; i < 2; i++) {
+        int bx = x + M(0.03f) + i * (bw + M(0.03f));
+        bool on = sel == i;
+        ui_rrect(bx, by, bw, bh, bh / 2, on ? t->accent : with_alpha(t->text_dim, 40));
+        ui_text(UI.f_normal, labels[i], bx + bw / 2, by + (bh - TTF_FontHeight(UI.f_normal)) / 2, on ? t->accent_text : t->text, ALIGN_CENTER);
+    }
+}
+
+/* tasti della finestra: 1 sì, 0 no, -1 ancora aperta. Il tasto di accensione conferma. */
+int ui_confirm_input(int *sel) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) { *sel = !*sel; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { ui_sound(SND_BACK); return 0; }
+    if (in->power) { ui_sound(SND_OK); return 1; }
+    if (in->pressed[BTN_A]) { ui_sound(*sel ? SND_OK : SND_BACK); return *sel; }
+    return -1;
+}
+
 void ui_suspend(void) {
     if (!plat_standalone()) return;
     /* l'uscita audio si chiude e si riapre: dopo il risveglio chiuderla poteva bloccarsi */
@@ -1154,6 +1186,7 @@ static void auto_step(void) {
     if (!strncmp(tok, "wait:", 5)) { auto_wait = atoi(tok + 5); return; }
     if (!strncmp(tok, "shot:", 5)) { snprintf(shot_path, sizeof shot_path, "%s", tok + 5); return; }
     if (!strcmp(tok, "quit")) { auto_quit = true; return; }
+    if (!strcmp(tok, "power")) { UI.in.power = true; return; }
     if (!strncmp(tok, "down:", 5) || !strncmp(tok, "up:", 3)) {
         bool d = tok[0] == 'd';
         int b = btn_by_name(tok + (d ? 5 : 3));

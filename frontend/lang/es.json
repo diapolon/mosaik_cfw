@@ -147,7 +147,10 @@
   "dialog": {
     "power_title": "¿Apagar la consola?",
     "power_body": "Los ajustes y favoritos ya están guardados.",
-    "power_body_app": "Salir para volver al menú de TrimUI."
+    "power_body_app": "Salir para volver al menú de TrimUI.",
+    "suspend_title": "¿Suspender la consola?",
+    "suspend_body": "El botón de encendido la reactiva.",
+    "suspend": "Suspender"
   },
   "game": {
     "resume": "Continuar",

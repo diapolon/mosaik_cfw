@@ -15,6 +15,7 @@
   <a href="#caricare-i-giochi">Caricare i giochi</a> ·
   <a href="#comandi">Comandi</a> ·
   <a href="#problemi-frequenti">Problemi frequenti</a> ·
+  <a href="https://github.com/diapolon/mosaik_cfw/wiki/Italiano">Wiki</a> ·
   <a href="README.md">English</a>
 </p>
 
@@ -122,7 +123,7 @@ Arcade/Linux/MioGioco/
 
 | Tasto | Cosa fa |
 |---|---|
-| Accensione, breve | Sospende, anche durante un gioco. Una nuova pressione risveglia |
+| Accensione, breve | Chiede se sospendere, anche durante un gioco: conferma con A o premendo di nuovo. Un'altra pressione risveglia |
 | Accensione, tenuto | Chiede se spegnere. Durante un gioco salva la partita e spegne |
 | Volume + / − | Volume, con una barra a schermo anche in gioco |
 | A / B | Conferma / indietro |

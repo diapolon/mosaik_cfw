@@ -851,6 +851,9 @@ static void perf_frame(Uint64 a, Uint64 b, Uint64 c, Uint32 queued, Uint32 frame
     memset(&perf, 0, sizeof perf);
 }
 
+static bool suspend_ask;
+static int ask_sel = 1;
+
 static void power_off_from_game(void) {
     if (state_save(true)) write_resume();
     exit_code = EXIT_POWEROFF;
@@ -1278,13 +1281,24 @@ int main(int argc, char **argv) {
         if (UI.in.quit) { power_off_from_game(); break; }   /* chiusura finestra = tasto di accensione */
         /* tasti extra della Brick Pro: HOME torna al launcher, F1 salva, F2 carica */
         if (UI.in.home) { exit_code = EXIT_MENU; break; }
-        /* tasto di accensione (sistema su SD): breve sospende (il gioco riprende da dove era),
-           tenuto premuto salva la partita e spegne */
-        if (UI.in.power) { ui_suspend(); next = SDL_GetPerformanceCounter(); continue; }
+        /* tasto di accensione (sistema su SD): breve chiede se sospendere (il gioco riprende da
+           dove era), tenuto premuto salva la partita e spegne */
         if (UI.in.power_long) { power_off_from_game(); break; }
-        if (UI.in.f1 && !menu_open) ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed"));
-        if (UI.in.f2 && !menu_open) ui_toast(T(state_load(false) ? "game.state_loaded" : "game.no_state"));
-        if (!menu_open && hotkeys()) {
+        if (suspend_ask) {
+            int r = ui_confirm_input(&ask_sel);
+            if (r >= 0) suspend_ask = false;
+            if (r == 1) { ui_suspend(); next = SDL_GetPerformanceCounter(); continue; }
+        } else if (UI.in.power) {
+            suspend_ask = true;
+            ask_sel = 1;
+            if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
+            ui_sound(SND_OK);
+        }
+        if (UI.in.f1 && !menu_open && !suspend_ask) ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed"));
+        if (UI.in.f2 && !menu_open && !suspend_ask) ui_toast(T(state_load(false) ? "game.state_loaded" : "game.no_state"));
+        if (suspend_ask) {
+            /* il gioco resta fermo finché non si risponde */
+        } else if (!menu_open && hotkeys()) {
             menu_open = true;
             menu_anim = 0;
             page = PAGE_MAIN;
@@ -1297,7 +1311,7 @@ int main(int argc, char **argv) {
         }
         battery_watch();
         Uint64 pf0 = SDL_GetPerformanceCounter();
-        if (!menu_open) {
+        if (!menu_open && !suspend_ask) {
             for (int k = 0; k < (fast_forward ? 3 : 1); k++) core.run();
             played += UI.dt;
             /* diagnosi (sistema su SD): dopo 5 s di gioco si salva ciò che è stato disegnato */
@@ -1315,13 +1329,14 @@ int main(int argc, char **argv) {
         ui_begin();
         draw_game();
         if (menu_open) menu_draw();
+        if (suspend_ask) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
         osd_draw();
         ui_end();
-        if (!menu_open && !fast_forward) perf_frame(pf0, pf1, SDL_GetPerformanceCounter(), audio_on ? SDL_GetQueuedAudioSize(UI.audio) : 0, frame_bytes, fps);
+        if (!menu_open && !suspend_ask && !fast_forward) perf_frame(pf0, pf1, SDL_GetPerformanceCounter(), audio_on ? SDL_GetQueuedAudioSize(UI.audio) : 0, frame_bytes, fps);
 
         /* ritmo: l'audio in coda fa da orologio; senza audio si usa il timer */
         if (UI.automation) continue;
-        if (audio_on && !menu_open && !fast_forward) {
+        if (audio_on && !menu_open && !suspend_ask && !fast_forward) {
             /* se la scheda audio non consuma (driver bloccato), dopo 250 ms si continua
                senza audio con il timer: meglio un gioco muto che un gioco fermo */
             Uint32 t0 = SDL_GetTicks();

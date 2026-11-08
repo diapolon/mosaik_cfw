@@ -22,6 +22,9 @@ for k in /sys/class/rfkill/rfkill*; do
     [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 0 > "$k/state" 2> /dev/null
 done
 echo 0 > /sys/class/led_anim/enable 2> /dev/null
+# audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
+[ -w /sys/class/speaker/mute ] && echo 1 > /sys/class/speaker/mute
+for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" off 2> /dev/null; done
 touch /tmp/system_suspend
 sync
 
@@ -33,18 +36,37 @@ sync
 sleep 0.5
 r="non riuscita"
 tries=0
+# Spegnere i dispositivi richiede 2-3 secondi e lo schermo si spegne subito: se in quel tempo si
+# preme il tasto di accensione, il kernel annulla la sospensione. È un risveglio voluto, da non
+# ripetere; per saperlo si leggono gli eventi del tasto durante il tentativo.
+PWR=""
+for e in /sys/class/input/event*; do
+    [ "$(cat "$e/device/name" 2> /dev/null)" = axp2202-pek ] && PWR=/dev/input/${e##*/}
+done
+PRESSED=/run/arcade-suspend-press
 while [ $tries -lt 5 ] && [ "$r" != riuscita ]; do
     tries=$((tries + 1))
     cnt=$(cat /sys/power/wakeup_count 2> /dev/null) || break
     if ! echo "$cnt" > /sys/power/wakeup_count 2> /dev/null; then sleep 1; continue; fi
     echo "arcade: sospensione, tentativo $tries" > /dev/kmsg
+    watch=""
+    : > "$PRESSED"
+    if [ -n "$PWR" ]; then cat "$PWR" > "$PRESSED" 2> /dev/null & watch=$!; fi
     if echo mem > /sys/power/state 2> /dev/null; then
         r=riuscita
     else
         { echo "=== $(date) tentativo $tries"; dmesg | sed -n "/arcade: sospensione, tentativo $tries/,\$p" | tail -80; } >> "$LOGDIR/sospensione.txt"
+        sleep 0.2   # gli eventi del tasto arrivano appena i processi ripartono
+        if [ -s "$PRESSED" ]; then
+            r="annullata dal tasto"
+            [ -n "$watch" ] && kill "$watch" 2> /dev/null
+            break
+        fi
         sleep 1
     fi
+    [ -n "$watch" ] && kill "$watch" 2> /dev/null
 done
+rm -f "$PRESSED"
 
 for k in /sys/class/rfkill/rfkill*; do
     [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 1 > "$k/state" 2> /dev/null
@@ -57,8 +79,10 @@ if [ "$(cat "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
     amixer -q cset name="LINEOUT Output Select" DAC_SINGLE
     amixer -q cset name="LINEOUT volume" 26
 fi
-for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" on; done
+# si riapre solo quando il codec si è assestato, altrimenti si sente il crack
+sleep 0.4
+for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" on 2> /dev/null; done
 [ -w /sys/class/speaker/mute ] && echo 0 > /sys/class/speaker/mute
 step "risveglio (sospensione $r, tentativi $tries)"
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
-[ "$r" = riuscita ]
+[ "$r" != "non riuscita" ]

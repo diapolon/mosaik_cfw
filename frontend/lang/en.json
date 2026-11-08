@@ -147,7 +147,10 @@
   "dialog": {
     "power_title": "Power off the console?",
     "power_body": "Settings and favorites are already saved.",
-    "power_body_app": "Exit to return to the TrimUI menu."
+    "power_body_app": "Exit to return to the TrimUI menu.",
+    "suspend_title": "Put the console to sleep?",
+    "suspend_body": "The power button wakes it.",
+    "suspend": "Sleep"
   },
   "game": {
     "resume": "Resume",

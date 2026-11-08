@@ -147,7 +147,10 @@
   "dialog": {
     "power_title": "Desligar a consola?",
     "power_body": "Definições e favoritos já estão guardados.",
-    "power_body_app": "Sair para voltar ao menu TrimUI."
+    "power_body_app": "Sair para voltar ao menu TrimUI.",
+    "suspend_title": "Suspender a consola?",
+    "suspend_body": "O botão de ligar volta a ativá-la.",
+    "suspend": "Suspender"
   },
   "game": {
     "resume": "Continuar",

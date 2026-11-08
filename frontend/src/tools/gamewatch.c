@@ -112,11 +112,11 @@ static void stop_group(pid_t pgid) {
 #ifdef __linux__
 /* menu sopra il gioco fermo: programma gamemenu (grafica del launcher in un livello del
    display). Uscita: 0 riprendi, 10 esci dal gioco, 20 spegni, altro = riprendi */
-static int run_menu(void) {
+static int run_menu(const char *arg) {
     pid_t m = fork();
     if (m < 0) return 0;
     if (m == 0) {
-        execlp("gamemenu", "gamemenu", (char *)NULL);
+        execlp("gamemenu", "gamemenu", arg, (char *)NULL);
         _exit(3);
     }
     int st = 0;
@@ -211,6 +211,7 @@ int main(int argc, char **argv) {
        chiede lo spegnimento (codice di uscita 120 per system-init) */
     bool standalone = getenv("ARCADE_STANDALONE") && getenv("ARCADE_STANDALONE")[0] == '1';
     double power_at = 0;
+    double power_block_until = 0;   /* dopo un risveglio il tasto non vale per un momento */
     double pressed_at = 0;
     bool open_menu = false;
     pid_t osd_pid = 0;   /* barra del volume in corso */
@@ -237,14 +238,28 @@ int main(int argc, char **argv) {
                         }
                     }
                     if (standalone && ev.type == EV_KEY && ev.code == KEY_POWER) {
-                        if (ev.value == 1) power_at = now();
+                        if (now() < power_block_until) power_at = 0;   /* è ancora la pressione che ha svegliato la console */
+                        else if (ev.value == 1) power_at = now();
                         else if (ev.value == 0 && power_at) {
                             power_at = 0;
-                            fprintf(stderr, "gamewatch: sospensione\n");
+                            if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }   /* un livello alla volta */
                             kill(-pid, SIGSTOP);
-                            int rc = system("arcade-suspend");
+                            /* chiede conferma: senza un sì non si sospende */
+                            int ask = run_menu("--ask-suspend");
+                            fprintf(stderr, "gamewatch: conferma della sospensione: %d\n", ask);
+                            if (ask == 20) {
+                                kill(-pid, SIGCONT);
+                                stop_group(pid);
+                                if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+                                return 120;
+                            }
+                            if (ask == 30) {
+                                fprintf(stderr, "gamewatch: sospensione\n");
+                                int rc = system("arcade-suspend");
+                                fprintf(stderr, "gamewatch: risveglio (%s)\n", rc == 0 ? "riuscita" : "non riuscita");
+                                power_block_until = now() + 1.5;
+                            }
                             kill(-pid, SIGCONT);
-                            fprintf(stderr, "gamewatch: risveglio (%s)\n", rc == 0 ? "riuscita" : "non riuscita");
                             /* eventi arrivati durante il sonno: non devono valere dopo */
                             struct input_event skip;
                             for (int j = 0; j < nfds; j++) while (read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
@@ -312,7 +327,7 @@ int main(int argc, char **argv) {
             open_menu = false;
             if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }   /* un livello alla volta */
             kill(-pid, SIGSTOP);
-            int m = run_menu();
+            int m = run_menu(NULL);
             fprintf(stderr, "gamewatch: menu chiuso (%d)\n", m);
             kill(-pid, SIGCONT);
             if (m == 10 || m == 20) {

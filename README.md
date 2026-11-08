@@ -15,6 +15,7 @@
   <a href="#loading-games">Loading games</a> ·
   <a href="#controls">Controls</a> ·
   <a href="#troubleshooting">Troubleshooting</a> ·
+  <a href="https://github.com/diapolon/mosaik_cfw/wiki">Wiki</a> ·
   <a href="README.it.md">Italiano</a>
 </p>
 
@@ -122,7 +123,7 @@ Arcade/Linux/MyGame/
 
 | Button | What it does |
 |---|---|
-| Power, short press | Sleep, even during a game. Press again to wake |
+| Power, short press | Asks whether to sleep, even during a game: confirm with A or by pressing power again. Press it once more to wake |
 | Power, held | Asks whether to power off. During a game it saves and powers off |
 | Volume + / − | Volume, with an on-screen bar even in games |
 | A / B | Confirm / back |

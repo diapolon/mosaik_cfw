@@ -71,7 +71,7 @@ static char theme_ids[16][64], theme_names[16][64];
 static int nthemes;
 
 /* dialogo spegnimento */
-static bool dlg_open;
+static bool dlg_open, dlg_suspend;   /* dlg_suspend: la finestra chiede di sospendere, non di spegnere */
 
 /* scaricamento immagini e verifica ROM in corso (finestre di avanzamento) */
 static bool scrape_open, romcheck_open;
@@ -557,7 +557,7 @@ static void home_activate_icon(void) {
         break;
     case IC_THEMES: settings_open(SC_LOOK, 0); go(SCR_SETTINGS); break;
     case IC_SETTINGS: settings_open(-1, 0); go(SCR_SETTINGS); break;
-    case IC_POWER: dlg_open = true; dlg_sel = 0; break;
+    case IC_POWER: dlg_open = true; dlg_suspend = false; dlg_sel = 0; break;
     }
     ui_sound(SND_OK);
 }
@@ -2256,7 +2256,7 @@ static void settings_input(void) {
     if (in->pressed[BTN_LEFT]) set_change(set_sel, -1);
     if (in->pressed[BTN_RIGHT]) set_change(set_sel, +1);
     if (in->pressed[BTN_A]) {
-        if (set_sel == S_POWER) { dlg_open = true; dlg_sel = 0; ui_sound(SND_OK); }
+        if (set_sel == S_POWER) { dlg_open = true; dlg_suspend = false; dlg_sel = 0; ui_sound(SND_OK); }
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
         else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_UPDATE) upd_start();
@@ -3304,10 +3304,18 @@ int main(int argc, char **argv) {
         }
         /* tasto di accensione (sistema su SD): finestra per spegnere */
         /* tasto di accensione (sistema su SD): breve sospende, tenuto premuto chiede se spegnere */
-        if (UI.in.power && !upd_busy()) { ui_suspend(); last_input = UI.t; saver_on = false; }
-        if (UI.in.power_long && !dlg_open && !upd_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
+        if (UI.in.power && !upd_busy() && !(dlg_open && dlg_suspend)) {
+            dlg_open = dlg_suspend = true;
+            dlg_sel = 1;
+            saver_on = false;
+            last_input = UI.t;
+            UI.in.power = false;   /* questa pressione ha solo aperto la finestra */
+            ui_sound(SND_OK);
+        }
+        if (UI.in.power_long && (!dlg_open || dlg_suspend) && !upd_open) { dlg_open = true; dlg_suspend = false; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open && !upd_open) {
+            dlg_suspend = false;
             kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
@@ -3315,7 +3323,12 @@ int main(int argc, char **argv) {
         /* il layout può cambiare col tema: la home a carosello non esiste nel layout a elenco */
         if (is_list_layout() && screen == SCR_HOME) screen = SCR_LIBRARY;
 
-        if (romcheck_open) romcheck_input();
+        if (dlg_open && dlg_suspend) {
+            int r = ui_confirm_input(&dlg_sel);
+            if (r >= 0) dlg_open = dlg_suspend = false;
+            if (r == 1) { ui_suspend(); last_input = UI.t; }
+        }
+        else if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
         else if (upd_open) upd_input();
         else if (kb_open) keyboard_input();
@@ -3369,7 +3382,7 @@ int main(int argc, char **argv) {
             else library_grid_draw();
         } else if (screen == SCR_DETAIL) detail_draw();
         else settings_draw();
-        if (dlg_open) dialog_draw();
+        if (dlg_open && !dlg_suspend) dialog_draw();
         if (clock_open) clock_draw();
         if (wpanel_open) wpanel_draw();
         if (clean_open) clean_draw();
@@ -3381,6 +3394,7 @@ int main(int argc, char **argv) {
         if (scrape_open) scrape_draw();
         if (upd_open) upd_draw();
         if (romcheck_open) romcheck_draw();
+        if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
         if (first_frame) { first_frame = false; ui_mark("prima schermata"); update_confirm_boot(UI.root); }
         if (saver_on) saver_draw();

@@ -100,6 +100,8 @@ void ui_log(const char *fmt, ...);
 void ui_mark(const char *what);   /* solo con il registro "Prestazioni" o "Completo" */
 /* registro diagnostico (Impostazioni > Strumenti): true se il livello scelto è almeno level */
 bool ui_debug_on(int level);
+void ui_confirm_draw(const char *title, const char *body, const char *no, const char *yes, int sel);
+int ui_confirm_input(int *sel);
 
 /* misure: frazione dell'altezza -> pixel */
 int M(float f);

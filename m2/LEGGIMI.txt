@@ -23,7 +23,8 @@ Arcade/System/wifi.conf.
 La cartella Arcade è uguale per i due modelli: ROM e salvataggi si possono spostare da una
 scheda all'altra. Cambia solo l'area di avvio, per questo ci sono due immagini.
 
-Tasto di accensione: premuto brevemente sospende la console (anche durante un gioco, che
+Tasto di accensione: premuto brevemente chiede se sospendere la console (A o una nuova pressione
+conferma; anche durante un gioco, che
 riprende da dove era); premuto di nuovo la risveglia. Tenuto premuto un paio di secondi
 chiede se spegnere (durante un gioco salva la partita e spegne).
 
