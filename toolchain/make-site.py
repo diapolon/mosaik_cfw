@@ -20,9 +20,12 @@ dist, src, out = os.path.join(top, "dist"), os.path.join(top, "site"), os.path.j
 if not os.path.exists(os.path.join(dist, "arcade-version.txt")):
     sys.exit("manca dist/arcade-version.txt: prima sh m2/build-m2.sh")
 version, stamp = open(os.path.join(dist, "arcade-version.txt")).read().split()
+if not os.path.isdir(src):
+    sys.exit("manca la cartella site/: il modello del sito non è nel repository")
 shutil.rmtree(out, ignore_errors=True)
 os.makedirs(os.path.join(out, "download"))
 shutil.copytree(os.path.join(src, "assets"), os.path.join(out, "assets"))
+shutil.copytree(os.path.join(top, "licenses"), os.path.join(out, "assets", "licenses"))
 subprocess.run([sys.executable, os.path.join(top, "toolchain", "update-server.py"), "--out", os.path.join(out, "update")], check=True)
 
 
