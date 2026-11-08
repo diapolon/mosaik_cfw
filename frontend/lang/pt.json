@@ -442,7 +442,8 @@
     "look": "Aspeto",
     "games": "Jogos",
     "system": "Sistema",
-    "tools": "Ferramentas"
+    "tools": "Jogos e imagens",
+    "updates": "Atualizações e sistema"
   },
   "settings_cat_sum": {
     "controls": "Comandos, teste de botões e analógicos",
@@ -450,7 +451,8 @@
     "look": "Tema, idioma, proteção de ecrã",
     "games": "Imagem, filtros",
     "system": "Wi-Fi, data e hora, desligar",
-    "tools": "ROM, imagens, informações"
+    "tools": "Verificar ROM, transferir e limpar imagens",
+    "updates": "Atualizar, canal, registo, informações"
   },
   "settings_cat_desc": {
     "controls": "Comandos externos, teste de botões e analógicos e, na Brick Pro, função dos botões extra.",
@@ -458,7 +460,8 @@
     "look": "Tema do launcher, variante, idioma e proteção de ecrã.",
     "games": "Como os jogos se veem e jogam: proporção, filtros, molduras, duplicados, desempenho.",
     "system": "Wi-Fi, data, hora e fuso horário, desligar automático.",
-    "tools": "Verificação de ROM, transferência e limpeza de imagens, espaço do cartão."
+    "tools": "Verificação de ROM, transferência e limpeza de imagens.",
+    "updates": "Atualização do sistema, canal, aviso, registo de diagnóstico e espaço do cartão."
   },
   "loglvl": {
     "off": "Desligado",
@@ -579,5 +582,25 @@
     "launcher": "Voltar ao launcher",
     "menu": "Abre o menu",
     "none": "Nenhuma ação"
+  },
+  "reset": {
+    "row": "Repor o jogo",
+    "title": "Repor este jogo?",
+    "body": "Apaga definições e pontuações. A ROM fica.",
+    "confirm": "Repor",
+    "states_title": "Apagar também os jogos guardados?",
+    "states_body": "Os jogos guardados serão perdidos.",
+    "done": "Jogo reposto"
+  },
+  "confirm": {
+    "forget_title": "Esquecer esta rede?",
+    "forget_body": "Vai ser preciso a palavra-passe para ligar.",
+    "genres_title": "Repor os géneros originais?",
+    "genres_body": "As tuas alterações aos géneros perdem-se.",
+    "restore": "Repor",
+    "restart_title": "Recomeçar o jogo?",
+    "restart_body": "O progresso não guardado perde-se.",
+    "controls_title": "Repor os comandos?",
+    "controls_body": "As tuas escolhas para este jogo perdem-se."
   }
 }

@@ -442,7 +442,8 @@
     "look": "Appearance",
     "games": "Games",
     "system": "System",
-    "tools": "Tools"
+    "tools": "Games and images",
+    "updates": "Updates and system"
   },
   "settings_cat_sum": {
     "controls": "Controllers, button and stick test",
@@ -450,7 +451,8 @@
     "look": "Theme, language, screensaver",
     "games": "Picture, filters",
     "system": "Wi-Fi, date and time, power",
-    "tools": "ROMs, images, info"
+    "tools": "Verify ROMs, download and clean images",
+    "updates": "Update, channel, log, information"
   },
   "settings_cat_desc": {
     "controls": "External controllers, button and stick test and, on the Brick Pro, what the extra buttons do.",
@@ -458,7 +460,8 @@
     "look": "Launcher theme, its variant, language and screensaver.",
     "games": "How games look and play: aspect, filters, bezels, duplicates, performance.",
     "system": "Wi-Fi, date, time and time zone, automatic power off.",
-    "tools": "ROM check, image download and cleanup, card space."
+    "tools": "Verify ROMs, download images and clean up the ones no longer needed.",
+    "updates": "System updates, channel, notice, diagnostic log and card space."
   },
   "loglvl": {
     "off": "Off",
@@ -579,5 +582,25 @@
     "launcher": "Back to launcher",
     "menu": "Opens the menu",
     "none": "No action"
+  },
+  "reset": {
+    "row": "Reset game",
+    "title": "Reset this game?",
+    "body": "Deletes settings and high scores. The ROM stays.",
+    "confirm": "Reset",
+    "states_title": "Delete save states too?",
+    "states_body": "The saved progress will be lost.",
+    "done": "Game reset"
+  },
+  "confirm": {
+    "forget_title": "Forget this network?",
+    "forget_body": "You will need the password to connect again.",
+    "genres_title": "Restore the original genres?",
+    "genres_body": "Your changes to the genres will be lost.",
+    "restore": "Restore",
+    "restart_title": "Restart the game?",
+    "restart_body": "Unsaved progress will be lost.",
+    "controls_title": "Restore the controls?",
+    "controls_body": "Your choices for this game will be lost."
   }
 }

@@ -442,7 +442,8 @@
     "look": "Aspetto",
     "games": "Giochi",
     "system": "Sistema",
-    "tools": "Strumenti"
+    "tools": "Giochi e immagini",
+    "updates": "Aggiornamenti e sistema"
   },
   "settings_cat_sum": {
     "controls": "Controller, prova tasti e levette",
@@ -450,7 +451,8 @@
     "look": "Tema, lingua, salvaschermo",
     "games": "Immagine, filtri",
     "system": "Wi-Fi, data e ora, spegnimento",
-    "tools": "ROM, immagini, informazioni"
+    "tools": "Verifica ROM, scarica e pulisci immagini",
+    "updates": "Aggiorna, canale, registro, informazioni"
   },
   "settings_cat_desc": {
     "controls": "Controller esterni, prova di tasti e levette e, sulla Brick Pro, funzione dei tasti extra.",
@@ -458,7 +460,8 @@
     "look": "Tema del launcher, sua variante, lingua e salvaschermo.",
     "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni.",
     "system": "Wi-Fi, data, ora e fuso orario, spegnimento automatico.",
-    "tools": "Verifica delle ROM, scaricamento e pulizia delle immagini, spazio sulla scheda."
+    "tools": "Verifica delle ROM, scaricamento e pulizia delle immagini.",
+    "updates": "Aggiornamento del sistema, canale, avviso, registro diagnostico e spazio sulla scheda."
   },
   "loglvl": {
     "off": "Spento",
@@ -579,5 +582,25 @@
     "launcher": "Torna al launcher",
     "menu": "Apre il menu",
     "none": "Nessuna azione"
+  },
+  "reset": {
+    "row": "Reimposta il gioco",
+    "title": "Reimpostare il gioco?",
+    "body": "Cancella impostazioni e punteggi. La ROM resta.",
+    "confirm": "Reimposta",
+    "states_title": "Cancellare anche gli stati salvati?",
+    "states_body": "Le partite salvate andranno perse.",
+    "done": "Gioco reimpostato"
+  },
+  "confirm": {
+    "forget_title": "Dimenticare questa rete?",
+    "forget_body": "Servirà di nuovo la password per collegarsi.",
+    "genres_title": "Ripristinare i generi originali?",
+    "genres_body": "Le tue modifiche ai generi andranno perse.",
+    "restore": "Ripristina",
+    "restart_title": "Ricominciare la partita?",
+    "restart_body": "I progressi non salvati andranno persi.",
+    "controls_title": "Ripristinare i comandi?",
+    "controls_body": "Le tue scelte per questo gioco andranno perse."
   }
 }

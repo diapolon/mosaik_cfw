@@ -442,7 +442,8 @@
     "look": "Apparence",
     "games": "Jeux",
     "system": "Système",
-    "tools": "Outils"
+    "tools": "Jeux et images",
+    "updates": "Mises à jour et système"
   },
   "settings_cat_sum": {
     "controls": "Manettes, test des touches et sticks",
@@ -450,7 +451,8 @@
     "look": "Thème, langue, écran de veille",
     "games": "Image, filtres",
     "system": "Wi-Fi, date et heure, extinction",
-    "tools": "ROM, images, infos"
+    "tools": "Vérifier les ROM, gérer les images",
+    "updates": "Mise à jour, canal, journal, infos"
   },
   "settings_cat_desc": {
     "controls": "Manettes externes, test des touches et des sticks et, sur la Brick Pro, fonction des touches supplémentaires.",
@@ -458,7 +460,8 @@
     "look": "Thème du launcher, sa variante, langue et écran de veille.",
     "games": "Affichage et jeu : proportions, filtres, cadres, doublons, performances.",
     "system": "Wi-Fi, date, heure et fuseau horaire, extinction automatique.",
-    "tools": "Vérification des ROM, téléchargement et nettoyage des images, espace de la carte."
+    "tools": "Vérification des ROM, téléchargement et nettoyage des images.",
+    "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte."
   },
   "loglvl": {
     "off": "Désactivé",
@@ -579,5 +582,25 @@
     "launcher": "Retour au launcher",
     "menu": "Ouvre le menu",
     "none": "Aucune action"
+  },
+  "reset": {
+    "row": "Réinitialiser le jeu",
+    "title": "Réinitialiser ce jeu ?",
+    "body": "Efface réglages et scores. La ROM reste.",
+    "confirm": "Réinitialiser",
+    "states_title": "Effacer aussi les sauvegardes ?",
+    "states_body": "Les parties sauvegardées seront perdues.",
+    "done": "Jeu réinitialisé"
+  },
+  "confirm": {
+    "forget_title": "Oublier ce réseau ?",
+    "forget_body": "Le mot de passe sera de nouveau demandé.",
+    "genres_title": "Rétablir les genres d'origine ?",
+    "genres_body": "Vos modifications des genres seront perdues.",
+    "restore": "Rétablir",
+    "restart_title": "Recommencer la partie ?",
+    "restart_body": "La progression non sauvegardée sera perdue.",
+    "controls_title": "Rétablir les commandes ?",
+    "controls_body": "Vos choix pour ce jeu seront perdus."
   }
 }

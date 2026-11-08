@@ -442,7 +442,8 @@
     "look": "Aussehen",
     "games": "Spiele",
     "system": "System",
-    "tools": "Werkzeuge"
+    "tools": "Spiele und Bilder",
+    "updates": "Updates und System"
   },
   "settings_cat_sum": {
     "controls": "Controller, Tasten- und Sticktest",
@@ -450,7 +451,8 @@
     "look": "Thema, Sprache, Bildschirmschoner",
     "games": "Bild, Filter",
     "system": "WLAN, Datum und Uhrzeit, Ausschalten",
-    "tools": "ROMs, Bilder, Infos"
+    "tools": "ROMs prüfen, Bilder laden und bereinigen",
+    "updates": "Update, Kanal, Protokoll, Infos"
   },
   "settings_cat_desc": {
     "controls": "Externe Controller, Test von Tasten und Sticks und auf der Brick Pro die Funktion der Zusatztasten.",
@@ -458,7 +460,8 @@
     "look": "Launcher-Thema, Variante, Sprache und Bildschirmschoner.",
     "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung.",
     "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
-    "tools": "ROM-Prüfung, Bilder herunterladen und aufräumen, Speicherplatz."
+    "tools": "ROMs prüfen, Bilder herunterladen und bereinigen.",
+    "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte."
   },
   "loglvl": {
     "off": "Aus",
@@ -579,5 +582,25 @@
     "launcher": "Zurück zum Launcher",
     "menu": "Öffnet das Menü",
     "none": "Keine Aktion"
+  },
+  "reset": {
+    "row": "Spiel zurücksetzen",
+    "title": "Dieses Spiel zurücksetzen?",
+    "body": "Löscht Einstellungen und Scores. ROM bleibt.",
+    "confirm": "Zurücksetzen",
+    "states_title": "Auch Spielstände löschen?",
+    "states_body": "Gespeicherte Spielstände gehen verloren.",
+    "done": "Spiel zurückgesetzt"
+  },
+  "confirm": {
+    "forget_title": "Dieses Netz vergessen?",
+    "forget_body": "Das Passwort wird wieder gebraucht.",
+    "genres_title": "Originale Genres wiederherstellen?",
+    "genres_body": "Deine Genre-Änderungen gehen verloren.",
+    "restore": "Wiederherstellen",
+    "restart_title": "Spiel neu starten?",
+    "restart_body": "Nicht gespeicherter Fortschritt geht verloren.",
+    "controls_title": "Steuerung wiederherstellen?",
+    "controls_body": "Deine Einstellungen für dieses Spiel gehen verloren."
   }
 }

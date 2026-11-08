@@ -975,6 +975,16 @@ static void open_page(int p) {
     ui_sound(SND_OK);
 }
 
+/* azioni che fanno perdere qualcosa: si chiede conferma, con Annulla già selezionato */
+enum { ASK_NONE, ASK_RESTART, ASK_CONTROLS };
+static int ask_kind, ask_kind_sel;
+
+static void ask_start(int kind) {
+    ask_kind = kind;
+    ask_kind_sel = 0;
+    ui_sound(SND_OK);
+}
+
 static void menu_input(void) {
     input_t *in = &UI.in;
     int n = page_rows(), *s = &sel[page];
@@ -1003,12 +1013,7 @@ static void menu_input(void) {
         }
         if (page == PAGE_CONTROLS) {
             if (dir || (ok && *s < NREMAP)) remap_change(*s, dir ? dir : 1);
-            else if (ok && *s == NREMAP) {
-                memcpy(gcfg.map, default_map, sizeof gcfg.map);
-                gamecfg_save();
-                ui_toast(T("game.controls_restored"));
-                ui_sound(SND_OK);
-            }
+            else if (ok && *s == NREMAP) ask_start(ASK_CONTROLS);
         }
         return;
     }
@@ -1028,7 +1033,7 @@ static void menu_input(void) {
     case MI_OPTIONS: open_page(PAGE_OPTIONS); return;
     case MI_CONTROLS: open_page(PAGE_CONTROLS); return;
     case MI_SHADER: open_page(PAGE_SHADER); return;
-    case MI_RESET: core.reset(); menu_open = false; break;
+    case MI_RESET: ask_start(ASK_RESTART); break;
     case MI_EXIT: exit_code = EXIT_MENU; break;
     }
     ui_sound(SND_OK);
@@ -1263,6 +1268,18 @@ static void battery_watch(void) {
     }
 }
 
+static void ask_do(int kind) {
+    if (kind == ASK_RESTART) {
+        core.reset();
+        menu_open = false;
+    } else {
+        memcpy(gcfg.map, default_map, sizeof gcfg.map);
+        gamecfg_save();
+        ui_toast(T("game.controls_restored"));
+        ui_sound(SND_OK);
+    }
+}
+
 /* tasti F1 e F2 della Brick Pro: l'azione si sceglie in Impostazioni > Comandi */
 static void extra_key(int action) {
     switch (action) {
@@ -1390,6 +1407,9 @@ int main(int argc, char **argv) {
         if (UI.in.f2 && !menu_open && !suspend_ask) extra_key(UI.set.key_f2);
         if (suspend_ask) {
             /* il gioco resta fermo finché non si risponde */
+        } else if (ask_kind) {
+            int r = ui_confirm_input(&ask_kind_sel);
+            if (r >= 0) { int k = ask_kind; ask_kind = 0; if (r == 1) ask_do(k); }
         } else if (!menu_open && ((UI.in.home && UI.set.key_home == XH_MENU) || hotkeys())) {
             menu_open = true;
             menu_anim = 0;
@@ -1421,6 +1441,8 @@ int main(int argc, char **argv) {
         ui_begin();
         draw_game();
         if (menu_open) menu_draw();
+        if (ask_kind == ASK_RESTART) ui_confirm_draw(T("confirm.restart_title"), T("confirm.restart_body"), T("common.cancel"), T("game.reset"), ask_kind_sel);
+        if (ask_kind == ASK_CONTROLS) ui_confirm_draw(T("confirm.controls_title"), T("confirm.controls_body"), T("common.cancel"), T("confirm.restore"), ask_kind_sel);
         if (suspend_ask) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
         osd_draw();
         ui_end();

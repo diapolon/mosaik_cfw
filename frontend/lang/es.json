@@ -442,7 +442,8 @@
     "look": "Apariencia",
     "games": "Juegos",
     "system": "Sistema",
-    "tools": "Herramientas"
+    "tools": "Juegos e imágenes",
+    "updates": "Actualizaciones y sistema"
   },
   "settings_cat_sum": {
     "controls": "Mandos, prueba de botones y palancas",
@@ -450,7 +451,8 @@
     "look": "Tema, idioma, salvapantallas",
     "games": "Imagen, filtros",
     "system": "Wi-Fi, fecha y hora, apagado",
-    "tools": "ROM, imágenes, información"
+    "tools": "Verificar ROM, descargar y limpiar imágenes",
+    "updates": "Actualizar, canal, registro, información"
   },
   "settings_cat_desc": {
     "controls": "Mandos externos, prueba de botones y palancas y, en la Brick Pro, función de los botones adicionales.",
@@ -458,7 +460,8 @@
     "look": "Tema del launcher, su variante, idioma y salvapantallas.",
     "games": "Cómo se ven y se juegan los juegos: proporción, filtros, marcos, duplicados, rendimiento.",
     "system": "Wi-Fi, fecha, hora y zona horaria, apagado automático.",
-    "tools": "Verificación de ROM, descarga y limpieza de imágenes, espacio de la tarjeta."
+    "tools": "Verificación de ROM, descarga y limpieza de imágenes.",
+    "updates": "Actualización del sistema, canal, aviso, registro de diagnóstico y espacio de la tarjeta."
   },
   "loglvl": {
     "off": "Apagado",
@@ -579,5 +582,25 @@
     "launcher": "Volver al launcher",
     "menu": "Abre el menú",
     "none": "Ninguna acción"
+  },
+  "reset": {
+    "row": "Restablecer el juego",
+    "title": "¿Restablecer este juego?",
+    "body": "Borra ajustes y puntuaciones. La ROM se queda.",
+    "confirm": "Restablecer",
+    "states_title": "¿Borrar también las partidas guardadas?",
+    "states_body": "Se perderán las partidas guardadas.",
+    "done": "Juego restablecido"
+  },
+  "confirm": {
+    "forget_title": "¿Olvidar esta red?",
+    "forget_body": "Necesitarás la contraseña para conectarte.",
+    "genres_title": "¿Restaurar los géneros originales?",
+    "genres_body": "Se perderán tus cambios en los géneros.",
+    "restore": "Restaurar",
+    "restart_title": "¿Reiniciar la partida?",
+    "restart_body": "Se perderá el progreso no guardado.",
+    "controls_title": "¿Restaurar los controles?",
+    "controls_body": "Se perderán tus ajustes para este juego."
   }
 }

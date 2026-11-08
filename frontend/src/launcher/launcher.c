@@ -66,7 +66,7 @@ static int set_page = -1;        /* -1: elenco delle categorie; altrimenti la ca
 static int set_row;              /* riga scelta nella pagina */
 static float set_scroll, set_hl;
 static void settings_open(int page, int row);
-enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_CONTROLS, SC_SYSTEM, SC_TOOLS, SC_COUNT };
+enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_CONTROLS, SC_SYSTEM, SC_TOOLS, SC_UPDATES, SC_COUNT };
 static char theme_ids[16][64], theme_names[16][64];
 static int nthemes;
 
@@ -359,6 +359,22 @@ static void write_linux_env(const game_t *g) {
     else unlink(envp);
     json_free(j);
 }
+
+/* altoparlante spento durante i lavori su SD e Wi-Fi: si spegne PRIMA di iniziare, perché il
+   rumore arriva già con le prime letture; lo riaccende upd_audio quando il lavoro finisce */
+static bool audio_quiet;
+
+static void quiet_begin(void) {
+    if (audio_quiet) return;
+    audio_quiet = true;
+    ui_log("altoparlante spento (lavoro su SD o Wi-Fi)");
+    plat_audio_mute();
+}
+
+/* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES };
+static int cfm_kind, cfm_sel;
+static char cfm_ssid[33];
 
 static bool have_games(void) {
     for (int i = 0; i < ngames; i++)
@@ -1196,14 +1212,15 @@ static const char *set_key[S_COUNT] = {
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
-static const char *cat_key[SC_COUNT] = { "display", "look", "games", "controls", "system", "tools" };
+static const char *cat_key[SC_COUNT] = { "display", "look", "games", "controls", "system", "tools", "updates" };
 static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_RESUME, -1 },
     { S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
-    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },
+    { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
 
@@ -1565,6 +1582,7 @@ static void wpanel_collect(void) {
 }
 
 static void wpanel_start(void) {
+    quiet_begin();
     wpanel_open = true;
     wsel = 0;
     wscroll = 0;
@@ -1594,10 +1612,11 @@ static void wpanel_input(void) {
     if (!nwnets) return;
     wifi_net_t *n = &wnets[wsel];
     if (in->pressed[BTN_X] && n->saved) {
-        char m[160];
-        snprintf(m, sizeof m, T("wifi.forgot"), n->ssid);
-        if (wifi_forget(n->ssid)) { ui_toast(m); ui_sound(SND_OK); }
-        wpanel_refresh(false);
+        snprintf(cfm_ssid, sizeof cfm_ssid, "%s", n->ssid);
+        cfm_kind = CFM_FORGET;
+        cfm_sel = 0;
+        ui_sound(SND_OK);
+        return;
     }
     if (in->pressed[BTN_A]) {
         if (n->current) { ui_toast(T("wifi.already")); ui_sound(SND_MOVE); return; }
@@ -1815,7 +1834,7 @@ static void sdrow_add(const char *label, int count, long long bytes) {
 }
 
 static void sdinfo_start(void) {
-    plat_audio_mute();   /* il conteggio dello spazio legge tutta la scheda */
+    quiet_begin();   /* il conteggio dello spazio legge tutta la scheda */
     struct statvfs vs;
     sd_total = sd_free = -1;
     if (statvfs(UI.root, &vs) == 0) {
@@ -1969,6 +1988,7 @@ static int media_orphans(bool del, long long *bytes) {
 }
 
 static void clean_start(void) {
+    quiet_begin();
     clean_n = media_orphans(false, &clean_bytes);
     if (!clean_n) { ui_toast(T("clean.none")); ui_sound(SND_MOVE); return; }
     clean_sel = 0;
@@ -2034,17 +2054,18 @@ static bool upd_busy(void) {
 /* Wi-Fi e SD al massimo fanno ronzare l'altoparlante: aggiornamento, verifica ROM, immagini, pulizia, reti: si spegne e si
    riaccende se l'operazione si interrompe. A installazione finita resta spento: segue il riavvio. */
 static void upd_audio(void) {
-    static bool muted;
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
                 || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open;
-    if (want == muted) return;
-    muted = want;
-    ui_log("altoparlante %s (lavoro su SD o Wi-Fi)", want ? "spento" : "riacceso");
-    if (want) plat_audio_mute(); else plat_audio_unmute();
+    if (want == audio_quiet) return;
+    if (want) { quiet_begin(); return; }
+    audio_quiet = false;
+    ui_log("altoparlante riacceso");
+    plat_audio_unmute();
 }
 
 static void upd_start(void) {
+    quiet_begin();
     if (wifi_status(true)->state != WIFI_CONNECTED) { ui_toast(T("update.no_wifi")); ui_sound(SND_ERROR); return; }
     update_set_channel(UI.set.update_channel);
     update_check(UI.root);
@@ -2232,11 +2253,9 @@ static void gp_input(void) {
     case GP_MANAGE:
         if (gp_sel < ngenres) { snprintf(gp_genre, sizeof gp_genre, "%s", genres[gp_sel]); gp_mode = GP_ACTION; gp_sel = 0; ui_sound(SND_OK); }
         else {
-            games_clear_genre_groups(UI.root);
-            genres_changed();
-            ui_toast(T("genre_ui.restored"));
+            cfm_kind = CFM_GENRES;
+            cfm_sel = 0;
             ui_sound(SND_OK);
-            gp_sel = 0;
         }
         break;
     case GP_ACTION:
@@ -2376,11 +2395,12 @@ static void settings_input(void) {
             else ui_sound(SND_ERROR);
         }
         else if (set_sel == S_ROMCHECK) {
+            quiet_begin();
             if (romcheck_start(UI.root, games, ngames)) { romcheck_open = true; ui_sound(SND_OK); }
         }
         else if (set_sel == S_SCRAPE) {
             if (!UI.set.wifi) { ui_toast(T("scrape.no_wifi")); ui_sound(SND_ERROR); }
-            else if (scraper_start(UI.root, games, ngames)) { scrape_open = true; ui_sound(SND_OK); }
+            else if ((quiet_begin(), scraper_start(UI.root, games, ngames))) { scrape_open = true; ui_sound(SND_OK); }
         }
         else if (set_sel == S_MUSIC && UI.set.music_vol && music_count()) {
             music_next();
@@ -2888,6 +2908,90 @@ static void diag_draw(void) {
     ui_hints(hint, 2);
 }
 
+/* ------------------------------------------------- conferme */
+
+static void cfm_input(void) {
+    int r = ui_confirm_input(&cfm_sel);
+    if (r < 0) return;
+    int k = cfm_kind;
+    cfm_kind = CFM_NONE;
+    if (r != 1) return;
+    if (k == CFM_FORGET) {
+        char m[160];
+        snprintf(m, sizeof m, T("wifi.forgot"), cfm_ssid);
+        if (wifi_forget(cfm_ssid)) ui_toast(m);
+        wpanel_refresh(false);
+    } else {
+        games_clear_genre_groups(UI.root);
+        genres_changed();
+        ui_toast(T("genre_ui.restored"));
+        gp_sel = 0;
+    }
+}
+
+static void cfm_draw(void) {
+    if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
+    else ui_confirm_draw(T("confirm.genres_title"), T("confirm.genres_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
+}
+
+/* ------------------------------------------------- reimposta il gioco */
+/* Riporta un gioco com'era la prima volta: impostazioni proprie, DIP switch, punteggi e dati
+   interni. La ROM non si tocca; gli stati salvati solo se lo si chiede a parte. */
+
+static int reset_step, reset_sel;   /* 0 chiuso, 1 conferma, 2 anche gli stati? */
+
+static void reset_remove(const char *dir, const char *rom, const char *ext) {
+    char p[1600];
+    snprintf(p, sizeof p, "%s/%s.%s", dir, rom, ext);
+    if (remove(p) == 0) ui_log("reimposta: tolto %s", p);
+}
+
+static void game_reset(const game_t *g, bool states) {
+    const emulator_t *emu = emulator_find(g->core);
+    char core[80], base[1200], sub[1300];
+    snprintf(core, sizeof core, "%s", emu ? emu->core : g->core);
+    char *us = strstr(core, "_libretro");
+    if (us) *us = 0;
+    snprintf(base, sizeof base, "%s/Saves/%s", UI.root, core);
+    reset_remove(base, g->name, "cfg");
+    reset_remove(base, g->name, "opt");
+    if (states) { reset_remove(base, g->name, "state"); reset_remove(base, g->name, "auto.state"); }
+    /* FBNeo: memoria interna e punteggi */
+    snprintf(sub, sizeof sub, "%s/fbneo", base);
+    reset_remove(sub, g->name, "fs");
+    reset_remove(sub, g->name, "nv");
+    reset_remove(sub, g->name, "hi");
+    reset_remove(sub, g->name, "diff");
+    snprintf(sub, sizeof sub, "%s/Bios/fbneo", UI.root);
+    reset_remove(sub, g->name, "hi");
+    /* MAME 2003-Plus */
+    snprintf(sub, sizeof sub, "%s/mame2003-plus/nvram", base);
+    reset_remove(sub, g->name, "nv");
+    snprintf(sub, sizeof sub, "%s/mame2003-plus/hi", base);
+    reset_remove(sub, g->name, "hi");
+    snprintf(sub, sizeof sub, "%s/mame2003-plus/cfg", base);
+    reset_remove(sub, g->name, "cfg");
+    ui_toast(T("reset.done"));
+}
+
+static void reset_input(void) {
+    int r = ui_confirm_input(&reset_sel);
+    if (r < 0) return;
+    if (reset_step == 1) {
+        if (r != 1) { reset_step = 0; return; }
+        reset_step = 2;
+        reset_sel = 0;
+        return;
+    }
+    reset_step = 0;
+    if (detail_idx >= 0) game_reset(&games[detail_idx], r == 1);
+}
+
+static void reset_draw(void) {
+    if (reset_step == 1) ui_confirm_draw(T("reset.title"), T("reset.body"), T("common.cancel"), T("reset.confirm"), reset_sel);
+    else ui_confirm_draw(T("reset.states_title"), T("reset.states_body"), T("common.no"), T("common.yes"), reset_sel);
+}
+
 /* ------------------------------------------ opzioni del gioco (collezioni) */
 /* righe: una per collezione (spunta), "nuova collezione", "nascondi/mostra" */
 
@@ -2902,7 +3006,7 @@ static void lists_changed(void) {
 static void gopt_input(void) {
     input_t *in = &UI.in;
     game_t *g = &games[detail_idx];
-    int rows = NCOLLS + 3 + (diag_possible(g) ? 1 : 0);
+    int rows = NCOLLS + 3 + (diag_possible(g) ? 2 : 0);
     if (in->pressed[BTN_UP]) { gopt_sel = (gopt_sel + rows - 1) % rows; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { gopt_sel = (gopt_sel + 1) % rows; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B] || in->pressed[BTN_X]) { gopt_open = false; ui_sound(SND_BACK); return; }
@@ -2928,6 +3032,11 @@ static void gopt_input(void) {
         gopt_open = false;
         ui_sound(SND_OK);
         diag_show(g, false, false, NULL);
+    } else if (gopt_sel == NCOLLS + 4) {
+        gopt_open = false;
+        reset_step = 1;
+        reset_sel = 0;
+        ui_sound(SND_OK);
     } else {
         games_set_hidden(UI.root, g, !g->user_hidden);
         ui_toast(T(g->user_hidden ? "coll.hidden_toast" : "coll.shown_toast"));
@@ -2951,7 +3060,7 @@ static void gopt_draw(void) {
     theme_t *t = &UI.th;
     if (detail_idx < 0) return;
     game_t *g = &games[detail_idx];
-    int rows = NCOLLS + 3 + (diag_possible(g) ? 1 : 0), rh = M(t->list_row_h), pad = M(0.04f);
+    int rows = NCOLLS + 3 + (diag_possible(g) ? 2 : 0), rh = M(t->list_row_h), pad = M(0.04f);
     int maxrows = (UI.h - M(t->hintbar_h) - M(0.2f) - TTF_FontHeight(UI.f_title)) / rh;
     int vis = rows < maxrows ? rows : maxrows;
     int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
@@ -2996,6 +3105,8 @@ static void gopt_draw(void) {
             ui_text(UI.f_small, gl[0] ? gl : "—", x + w - M(0.05f), ty + (fh - TTF_FontHeight(UI.f_small)) / 2, sel ? c : t->text_dim, ALIGN_RIGHT);
         } else if (i == NCOLLS + 3) {
             ui_text(f, T("diag.title"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
+        } else if (i == NCOLLS + 4) {
+            ui_text(f, T("reset.row"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
         } else {
             ui_text(f, T(g->user_hidden ? "coll.unhide" : "coll.hide"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
         }
@@ -3645,6 +3756,8 @@ int main(int argc, char **argv) {
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open) {
             dlg_suspend = false;
+            reset_step = 0;
+            cfm_kind = CFM_NONE;
             diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
@@ -3663,8 +3776,10 @@ int main(int argc, char **argv) {
             if (r >= 0) dlg_open = dlg_suspend = false;
             if (r == 1) { ui_suspend(); last_input = UI.t; }
         }
+        else if (cfm_kind) cfm_input();
         else if (setup_step) setup_input();
         else if (ptest_open) ptest_input();
+        else if (reset_step) reset_input();
         else if (diag_open) diag_input();
         else if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
@@ -3736,6 +3851,8 @@ int main(int argc, char **argv) {
         if (upd_open) upd_draw();
         if (romcheck_open) romcheck_draw();
         if (diag_open) diag_draw();
+        if (reset_step) reset_draw();
+        if (cfm_kind) cfm_draw();
         if (ptest_open) ptest_draw();
         if (setup_step) setup_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
