@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { GM_RESUME, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_POWER, GM_COUNT };
+enum { GM_RESUME, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_COUNT };
 enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20 };
 
 static int sel;
@@ -23,7 +23,7 @@ static int sel;
 static int g_px, g_py, g_pw, g_ph, g_rows_y, g_rh;
 
 static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
-    static const char *keys[GM_COUNT] = { "game.back_to_game", "settings.volume", "settings.brightness", "game.exit", "game.power" };
+    static const char *keys[GM_COUNT] = { "game.back_to_game", "settings.volume", "settings.brightness", "game.exit" };
     snprintf(label, ln, "%s", T(keys[i]));
     value[0] = 0;
     if (i == GM_VOLUME) snprintf(value, vn, "%d", UI.set.volume);
@@ -93,7 +93,6 @@ static int input(void) {
     if (in->pressed[BTN_A]) {
         if (sel == GM_RESUME) return RC_RESUME;
         if (sel == GM_QUIT) return RC_QUIT;
-        if (sel == GM_POWER) return RC_POWER;
     }
     if (UI.in.power) ui_suspend();
     if (UI.in.power_long) return RC_POWER;

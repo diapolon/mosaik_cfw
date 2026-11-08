@@ -4,6 +4,7 @@
 #include "../common/platform.h"
 #include "libretro.h"
 #include "glshader.h"
+#include "ratectl.h"
 #include "../common/filters.h"
 #include "../common/json.h"
 #include <SDL_image.h>
@@ -367,8 +368,17 @@ static bool audio_on;
 
 static bool fast_forward;
 
+static ratectl_t rate;
+static double rate_target;   /* scorta di audio voluta, in byte (due fotogrammi e mezzo) */
+
 static size_t audio_batch(const int16_t *data, size_t frames) {
-    if (audio_on && !fast_forward) ui_play_pcm(data, (int)frames);
+    if (!audio_on || fast_forward) return frames;
+    static int16_t *buf;
+    static size_t cap;
+    size_t need = (size_t)((double)frames * 1.03) + 4;
+    if (need > cap) { cap = need; buf = realloc(buf, cap * 4); }
+    int n = ratectl_run(&rate, data, (int)frames, (double)SDL_GetQueuedAudioSize(UI.audio), rate_target, buf);
+    ui_play_pcm(buf, n);
     return frames;
 }
 
@@ -712,10 +722,10 @@ static void draw_game(void) {
 
 enum { PAGE_MAIN, PAGE_OPTIONS, PAGE_CONTROLS, PAGE_SHADER };
 enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_SHADER, MI_OPTIONS, MI_CONTROLS,
-       MI_RESET, MI_EXIT, MI_POWER, MI_COUNT };
+       MI_RESET, MI_EXIT, MI_COUNT };
 static const char *main_keys[MI_COUNT] = { "game.resume", "game.save_state", "game.load_state", "game.aspect",
                                            "game.filter", "game.bezel", "game.rotation", "game.shader_params", "game.options", "game.controls",
-                                           "game.reset", "game.exit", "game.power" };
+                                           "game.reset", "game.exit" };
 static const char *aspect_names[] = { "aspect.original", "aspect.integer", "aspect.full" };
 static filter_t filters[24];
 static int nfilters;
@@ -835,9 +845,9 @@ static void perf_frame(Uint64 a, Uint64 b, Uint64 c, Uint32 queued, Uint32 frame
     int mhz = read_int("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq") / 1000;
     int temp = read_int("/sys/class/thermal/thermal_zone0/temp");
     ui_log("prestazioni: %.1f fps (gioco a %.1f), emulatore %.1f ms (max %.1f), disegno %.1f ms (max %.1f), "
-           "audio scarso %d volte, CPU %d MHz, %d °C",
+           "audio scarso %d volte, CPU %d MHz (profilo %d, FN %d), %d °C",
            perf.frames / secs, fps, perf.emu / perf.frames, perf.emu_max, perf.draw / perf.frames, perf.draw_max,
-           perf.starved, mhz, temp > 1000 ? temp / 1000 : temp);
+           perf.starved, mhz, UI.set.cpu_profile, UI.in.fn, temp > 1000 ? temp / 1000 : temp);
     memset(&perf, 0, sizeof perf);
 }
 
@@ -952,7 +962,6 @@ static void menu_input(void) {
     case MI_SHADER: open_page(PAGE_SHADER); return;
     case MI_RESET: core.reset(); menu_open = false; break;
     case MI_EXIT: exit_code = EXIT_MENU; break;
-    case MI_POWER: power_off_from_game(); break;
     }
     ui_sound(SND_OK);
 }
@@ -1253,6 +1262,7 @@ int main(int argc, char **argv) {
 
     double fps = av.timing.fps > 0 ? av.timing.fps : 60;
     Uint32 frame_bytes = (Uint32)(av.timing.sample_rate / fps) * 4;
+    rate_target = frame_bytes * 2.5;
     Uint64 freq = SDL_GetPerformanceFrequency(), next = SDL_GetPerformanceCounter();
     while (exit_code < 0) {
         ui_poll();

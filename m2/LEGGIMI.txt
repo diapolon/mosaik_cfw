@@ -28,7 +28,7 @@ riprende da dove era); premuto di nuovo la risveglia. Tenuto premuto un paio di 
 chiede se spegnere (durante un gioco salva la partita e spegne).
 
 Giochi Linux: tasto Menu tenuto premuto 1 secondo = menu (riprendi, volume, luminosità,
-esci dal gioco, spegni); B o Menu riprendono il gioco.
+esci dal gioco); B o Menu riprendono il gioco.
 
 Tasti in più della Brick Pro: HOME (laterale) torna al launcher, le due barrette sotto lo
 schermo salvano e caricano la partita, l'interruttore FN attiva le prestazioni massime.
