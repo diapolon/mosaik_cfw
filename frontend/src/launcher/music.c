@@ -34,7 +34,7 @@ static void on_finished(void) { finished = true; }
 
 static bool is_audio(const char *name) {
     const char *dot = strrchr(name, '.');
-    static const char *ext[] = { "mp3", "ogg", "flac", "wav", "mod", "xm", "it", "s3m", "opus" };
+    static const char *ext[] = { "mp3", "ogg", "flac", "wav" };
     if (!dot || name[0] == '.') return false;
     for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++)
         if (!strcasecmp(dot + 1, ext[i])) return true;

@@ -72,6 +72,7 @@
     "scrape": "Transferir imagens",
     "clean_media": "Limpar imagens",
     "update": "Atualizar sistema",
+    "channel": "Canal de atualização",
     "log_level": "Registo de diagnóstico",
     "bezel": "Molduras dos jogos",
     "missing": "Jogos sem ROM",
@@ -108,6 +109,7 @@
     "scrape": "Transfere capturas, ecrãs de título e marquees do ArcadeDB e das miniaturas libretro. Requer Wi-Fi.",
     "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
     "update": "Transfere a versão nova por Wi-Fi. ROM, gravações e definições não são tocadas.",
+    "channel": "Estável: versões publicadas. Desenvolvimento: versões de teste. Voltar a Estável aplica-se a partir da próxima versão estável.",
     "log_level": "O que escrever em Arcade/Logs: nada, arranques e erros, também tempos e velocidade, ou tudo. Aplica-se por completo no próximo arranque.",
     "bezel": "Uma moldura (bezel) à volta do jogo: a do jogo em Bezels/ se existir, senão a predefinida.",
     "missing": "Mostra também os jogos do catálogo que não tem (só versões principais).",
@@ -115,7 +117,7 @@
     "screensaver": "Após algum tempo sem usar os botões: capturas dos seus jogos ou ecrã desligado.",
     "romcheck": "Verifica se cada zip tem os ficheiros certos para o seu emulador (nomes, tamanhos, CRC do DAT).",
     "pads": "Os controlos da consola são o jogador 1, um comando Bluetooth ou USB o 2. Com «jogador 1» joga-se sozinho com o comando externo.",
-    "music": "Música de fundo a partir da pasta Music do cartão SD (MP3, OGG, FLAC, MOD). A passa à faixa seguinte.",
+    "music": "Música de fundo a partir da pasta Music do cartão SD (MP3, OGG, FLAC). A passa à faixa seguinte.",
     "led": "Efeito das luzes da consola: desligadas, fixas, respiração ou pulsação. Com bateria fraca piscam a vermelho.",
     "led_color": "Cor das luzes; «Tema» usa a cor principal do tema escolhido.",
     "led_brightness": "Intensidade das luzes da consola."
@@ -449,7 +451,7 @@
     "searching": "A procurar uma atualização…",
     "checking": "A verificar os ficheiros do cartão…",
     "none": "Nenhuma atualização encontrada",
-    "none_hint": "Verifica a ligação à internet ou inicia o servidor de atualização no Mac.",
+    "none_hint": "Verifica a ligação à internet.",
     "current": "O sistema está atualizado",
     "available": "Disponível: %s",
     "details": "Em uso: %s · %d ficheiros a transferir, %s.",
@@ -469,7 +471,10 @@
     "err5": "Ficheiro diferente do original após a escrita",
     "err6": "Falha ao escrever no cartão",
     "err7": "Atualização cancelada",
-    "err_safe": "O sistema em uso não foi tocado."
+    "err_safe": "O sistema em uso não foi tocado.",
+    "channel_stable": "Estável",
+    "channel_dev": "Desenvolvimento",
+    "channel_warn": "Versões de teste: podem ter problemas"
   },
   "look": {
     "auto": "Automático",

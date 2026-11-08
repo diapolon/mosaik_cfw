@@ -1,7 +1,7 @@
-/* Aggiornamento del sistema via Wi-Fi (solo sistema su SD). La console cerca prima un Mac in
-   rete locale (toolchain/update-server.py, messaggio broadcast), poi l'indirizzo di
-   System/update-url.txt, poi quello online (file UPDATE_URL del progetto: bastano file statici,
-   per esempio le Release di GitHub). L'elenco dei file è firmato (ECDSA P-256), quindi chi li
+/* Aggiornamento del sistema via Wi-Fi (solo sistema su SD). L'indirizzo è quello di
+   System/update-url.txt se c'è (per le prove: toolchain/update-server.py sul Mac), altrimenti
+   quello online del canale scelto (file UPDATE_URL del progetto: bastano file statici, le
+   Release di GitHub; il canale sviluppo è la Release "testing"). L'elenco dei file è firmato (ECDSA P-256), quindi chi li
    consegna non conta;
    i file si scaricano con nome provvisorio, si rileggono dalla SD e si controlla l'impronta
    SHA-256: solo se tutti sono giusti prendono il posto dei vecchi. Il sistema precedente resta
@@ -24,6 +24,7 @@ typedef struct {
 bool update_supported(void);
 /* versione in uso: "0.9.0 20261108.1030" sulla console, "0.9.0" altrove */
 const char *update_current(void);
+void update_set_channel(int development); /* da chiamare prima di update_check */
 void update_check(const char *root);      /* cerca e controlla, in un thread */
 void update_install(void);                /* dopo UPD_AVAILABLE: scarica e controlla, in un thread */
 void update_apply(void);                  /* dopo UPD_READY: installa, in un thread */

@@ -89,7 +89,7 @@ Turn the console off and connect the card to your computer. Everything is in the
 | `Bios` | `neogeo.zip` and other BIOS files |
 | `Linux` | Linux games, one per folder |
 | `Media` | Game images |
-| `Music` | Background music (MP3, OGG, FLAC, MOD) |
+| `Music` | Background music (MP3, OGG, FLAC, WAV) |
 | `Saves` | Saves |
 
 Keep ROMs as `.zip` and don't rename them. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
@@ -153,6 +153,8 @@ Open **Settings → System → Wi-Fi**: left and right turn it on and off, A sho
 
 To update, open **Settings → Tools → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if the new system fails to start, the console goes back to the previous one by itself.
 
+**Settings → Tools → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
+
 ## Troubleshooting
 
 - **Black or red screen at startup:** hold the power button for 10-20 seconds, remove the card and look in `Arcade/Logs`.
@@ -168,7 +170,7 @@ The build uses Docker and needs components extracted from the official TrimUI fi
 
 ## License
 
-The code written for Mosaik is under the [GNU LGPL v3](COPYING.LESSER). It does not cover third-party components, which keep their own licenses: see the [`licenses`](licenses) folder.
+The code written for Mosaik is under the [GNU LGPL v3](COPYING.LESSER). It does not cover third-party components, which keep their own licenses: see [`licenses/THIRD-PARTY.md`](licenses/THIRD-PARTY.md), which also links the emulator sources.
 
 FinalBurn Neo and MAME 2003-Plus are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases).
 

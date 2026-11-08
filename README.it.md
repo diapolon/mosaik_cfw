@@ -89,7 +89,7 @@ Spegni la console e collega la scheda al computer. Tutto si trova nella cartella
 | `Bios` | `neogeo.zip` e gli altri BIOS |
 | `Linux` | Giochi Linux, uno per cartella |
 | `Media` | Immagini dei giochi |
-| `Music` | Musica di sottofondo (MP3, OGG, FLAC, MOD) |
+| `Music` | Musica di sottofondo (MP3, OGG, FLAC, WAV) |
 | `Saves` | Salvataggi |
 
 Tieni le ROM in `.zip` e non cambiare il nome. **Impostazioni → Strumenti → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
@@ -153,6 +153,8 @@ Apri **Impostazioni → Sistema → Wi-Fi**: sinistra e destra accendono e speng
 
 Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se il sistema nuovo non parte la console torna da sola a quello precedente.
 
+**Impostazioni → Strumenti → Canale aggiornamenti** passa tra Stabile e Sviluppo (versioni di prova, che possono avere problemi). Tornando a Stabile si resta così fino alla prossima versione stabile.
+
 ## Problemi frequenti
 
 - **Schermo nero o rosso all'avvio:** tieni premuto il tasto di accensione per 10-20 secondi, togli la scheda e guarda in `Arcade/Logs`.
@@ -168,7 +170,7 @@ La compilazione usa Docker e richiede componenti estratti dal firmware ufficiale
 
 ## Licenza
 
-Il codice scritto per Mosaik è sotto [GNU LGPL v3](COPYING.LESSER). Non si applica ai componenti di terzi, che mantengono le proprie licenze: vedi la cartella [`licenses`](licenses).
+Il codice scritto per Mosaik è sotto [GNU LGPL v3](COPYING.LESSER). Non si applica ai componenti di terzi, che mantengono le proprie licenze: vedi [`licenses/THIRD-PARTY.md`](licenses/THIRD-PARTY.md), con anche i link ai sorgenti degli emulatori.
 
 FinalBurn Neo e MAME 2003-Plus sono solo per uso non commerciale, quindi **Mosaik non può essere venduto**, né da solo né preinstallato. Le immagini del sistema contengono anche componenti presi dal firmware ufficiale TrimUI, che appartengono ai rispettivi proprietari. I sorgenti dei programmi GPL inclusi nelle immagini (BusyBox, dosfstools) sono allegati a ogni [release](https://github.com/diapolon/mosaik_cfw/releases).
 

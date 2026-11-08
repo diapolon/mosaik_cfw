@@ -1159,12 +1159,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "log_level", "info", "power",
+    "cpu", "pads", "wifi", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "log_level", "info", "power",
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
@@ -1174,7 +1174,7 @@ static const int cat_items[SC_COUNT][10] = {
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_RESUME, -1 },
     { S_WIFI, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
-    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
 
@@ -1189,7 +1189,7 @@ static int page_rows(int *rows) {
     for (int k = 0; k < 10 && cat_items[set_page][k] >= 0; k++) {
         int it = cat_items[set_page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
-        if (it == S_UPDATE && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
+        if ((it == S_UPDATE || it == S_CHANNEL) && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
         rows[n++] = it;
     }
     return n;
@@ -1293,6 +1293,7 @@ static void set_value(int item, char *buf, size_t n) {
         break;
     }
     case S_UPDATE: snprintf(buf, n, "%s", update_current()); break;
+    case S_CHANNEL: snprintf(buf, n, "%s", T(s->update_channel ? "update.channel_dev" : "update.channel_stable")); break;
     case S_GENRES: snprintf(buf, n, "%d", ngenres); break;
     case S_LOGLEVEL: {
         static const char *k[4] = { "loglvl.off", "loglvl.essential", "loglvl.perf", "loglvl.full" };
@@ -1423,6 +1424,10 @@ static void set_change(int item, int dir) {
         s->autosuspend_min = suspend_vals[(i + dir + 5) % 5];
         break;
     }
+    case S_CHANNEL:
+        s->update_channel = !s->update_channel;
+        if (s->update_channel) ui_toast(T("update.channel_warn"));
+        break;
     case S_RESUME: s->resume_last = !s->resume_last; break;
     case S_LED: s->led_mode = (s->led_mode + dir + 4) % 4; break;
     case S_LEDCOLOR: s->led_color = (s->led_color + dir + NLED_COLORS) % NLED_COLORS; break;
@@ -1941,6 +1946,7 @@ static bool upd_busy(void) {
 
 static void upd_start(void) {
     if (wifi_status(true)->state != WIFI_CONNECTED) { ui_toast(T("update.no_wifi")); ui_sound(SND_ERROR); return; }
+    update_set_channel(UI.set.update_channel);
     update_check(UI.root);
     upd_open = true;
     ui_sound(SND_OK);
@@ -1981,7 +1987,9 @@ static void upd_draw(void) {
     ui_rrect(x, y, w, h, r, t->surface);
     if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
     int pad = M(0.05f), ty = y + pad, bw = w - 2 * pad;
-    ui_text(UI.f_title, T("update.title"), x + pad, ty, t->text, ALIGN_LEFT);
+    char upd_title[120];
+    snprintf(upd_title, sizeof upd_title, "%s%s%s", T("update.title"), UI.set.update_channel ? " · " : "", UI.set.update_channel ? T("update.channel_dev") : "");
+    ui_text(UI.f_title, upd_title, x + pad, ty, t->text, ALIGN_LEFT);
     ty += TTF_FontHeight(UI.f_title) + M(0.03f);
     char line[200], key[32], size[32], sub[200] = "";
     switch (s->phase) {
@@ -2814,6 +2822,7 @@ static void detail_draw(void) {
 /* ------------------------------------------------------ verifica ROM */
 
 static void romcheck_input(void) {
+    last_input = UI.t;   /* niente spegnimento automatico mentre lavora */
     const romcheck_status_t *s = romcheck_status();
     if (!s->finished && UI.in.pressed[BTN_B]) { romcheck_cancel(); ui_sound(SND_BACK); }
     if (s->finished && (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B])) {
@@ -3097,6 +3106,7 @@ static void keyboard_draw(void) {
 /* -------------------------------------------------- scaricamento */
 
 static void scrape_input(void) {
+    last_input = UI.t;   /* niente spegnimento automatico mentre lavora */
     const scrape_status_t *s = scraper_status();
     bool finished = s->phase == SCRAPE_DONE || s->phase == SCRAPE_FAILED;
     if (!finished && UI.in.pressed[BTN_B]) { scraper_cancel(); ui_sound(SND_BACK); }

@@ -42,6 +42,7 @@ static bool zip_list(const char *path, zlist_t *out) {
     for (unsigned i = 0; i < entries && pos + 46 <= cd_size; i++) {
         if (rd32(cd + pos) != 0x02014b50) break;
         unsigned nlen = rd16(cd + pos + 28), xlen = rd16(cd + pos + 30), clen = rd16(cd + pos + 32);
+        if (pos + 46 + nlen > cd_size) break;   /* zip rovinato: il nome uscirebbe dalla tabella */
         zentry_t *z = &out->e[out->n++];
         z->crc = rd32(cd + pos + 16);
         z->size = rd32(cd + pos + 24);

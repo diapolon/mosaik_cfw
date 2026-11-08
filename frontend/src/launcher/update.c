@@ -59,7 +59,6 @@ const char *update_current(void) {
 #ifndef UPDATE_DEFAULT_URL
 #define UPDATE_DEFAULT_URL ""
 #endif
-#define UDP_PORT 8766
 #define MAX_FILES 2048
 #define SYSFILE "System/arcade-system.squashfs"
 
@@ -68,47 +67,13 @@ typedef struct { char sha[65]; long long size; char path[512]; bool need; int in
 static item_t *items;
 static int nitems;
 static char base_url[256];
+static int channel;
 static pthread_t thread;
 static bool thread_on;
 
 bool update_supported(void) { const char *e = getenv("ARCADE_STANDALONE"); return e && *e == '1'; }
 
 static void fail(int err) { st.error = err; st.phase = UPD_FAILED; }
-
-/* ------------------------------------------------------------- ricerca del server */
-static bool discover(void) {
-    int s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0) return false;
-    int yes = 1;
-    setsockopt(s, SOL_SOCKET, SO_BROADCAST, &yes, sizeof yes);
-    struct sockaddr_in to = { .sin_family = AF_INET, .sin_port = htons(UDP_PORT) };
-    const char *addr = getenv("ARCADE_UPDATE_ADDR");
-    to.sin_addr.s_addr = addr ? inet_addr(addr) : htonl(INADDR_BROADCAST);
-    bool found = false;
-    for (int t = 0; t < 2 && !found && !st.cancel; t++) {
-        sendto(s, "ARCADE-UPDATE?", 14, 0, (struct sockaddr *)&to, sizeof to);
-        fd_set fds;
-        FD_ZERO(&fds);
-        FD_SET(s, &fds);
-        struct timeval tv = { 0, 700000 };
-        if (select(s + 1, &fds, NULL, NULL, &tv) <= 0) continue;
-        char buf[64];
-        struct sockaddr_in from;
-        socklen_t fl = sizeof from;
-        ssize_t n = recvfrom(s, buf, sizeof buf - 1, 0, (struct sockaddr *)&from, &fl);
-        int port = 0;
-        if (n <= 0) continue;
-        buf[n] = 0;
-        if (sscanf(buf, "ARCADE-UPDATE %d", &port) == 1 && port > 0 && port < 65536) {
-            char ip[32];
-            inet_ntop(AF_INET, &from.sin_addr, ip, sizeof ip);
-            snprintf(base_url, sizeof base_url, "http://%s:%d", ip, port);
-            found = true;
-        }
-    }
-    close(s);
-    return found;
-}
 
 /* indirizzo fisso: System/update-url.txt se c'è, altrimenti quello online scritto nel programma
    (file UPDATE_URL del progetto, per esempio quello delle Release di GitHub) */
@@ -118,7 +83,11 @@ static bool configured_url(void) {
     FILE *f = fopen(p, "r");
     bool ok = f && fgets(base_url, sizeof base_url, f) != NULL;
     if (f) fclose(f);
-    if (!ok) snprintf(base_url, sizeof base_url, "%s", UPDATE_DEFAULT_URL);
+    if (!ok) {
+        snprintf(base_url, sizeof base_url, "%s", UPDATE_DEFAULT_URL);
+        char *tail = channel ? strstr(base_url, "/latest/download") : NULL;
+        if (tail) strcpy(tail, "/download/testing");
+    }
     base_url[strcspn(base_url, "\r\n")] = 0;
     size_t n = strlen(base_url);
     while (n && base_url[n - 1] == '/') base_url[--n] = 0;
@@ -262,7 +231,7 @@ static const char *stamp_of(const char *v) { const char *s = strchr(v, ' '); ret
 static void *check_worker(void *arg) {
     (void)arg;
     st.phase = UPD_SEARCH;
-    if (!discover() && !configured_url()) { st.phase = UPD_NO_SERVER; return NULL; }
+    if (!configured_url()) { st.phase = UPD_NO_SERVER; return NULL; }
     ui_log("aggiornamento: server %s", base_url);
     st.phase = UPD_CHECK;
     static char text[1 << 20];
@@ -315,6 +284,7 @@ static bool fetch_one(const item_t *it, const char *tmp, int *err) {
     if (!c) { fclose(f); *err = UPE_NETWORK; return false; }
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, to_file);
     curl_easy_setopt(c, CURLOPT_WRITEDATA, f);
+    if (it->size > 0) curl_easy_setopt(c, CURLOPT_MAXFILESIZE_LARGE, (curl_off_t)it->size);   /* non oltre la misura firmata */
     CURLcode rc = curl_easy_perform(c);
     curl_easy_cleanup(c);
     bool flushed = fflush(f) == 0 && fsync(fileno(f)) == 0;
@@ -322,6 +292,7 @@ static bool fetch_one(const item_t *it, const char *tmp, int *err) {
     posix_fadvise(fileno(f), 0, 0, POSIX_FADV_DONTNEED);
     fclose(f);
     if (st.cancel) { *err = UPE_CANCEL; return false; }
+    if (rc == CURLE_FILESIZE_EXCEEDED) { *err = UPE_VERIFY; return false; }   /* più grande del file firmato */
     if (rc != CURLE_OK) { *err = UPE_NETWORK; return false; }
     if (!flushed) { *err = UPE_WRITE; return false; }
     if (!sha256_file(tmp, sha, false) || strcmp(sha, it->sha)) { *err = UPE_VERIFY; return false; }
@@ -418,6 +389,8 @@ void update_check(const char *root) {
     else fail(UPE_NETWORK);
 }
 
+void update_set_channel(int development) { channel = development; }
+
 void update_install(void) {
     update_join();
     st.cancel = false;
@@ -446,6 +419,7 @@ static double sim_t0;
 static double now_s(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return t.tv_sec + t.tv_nsec / 1e9; }
 bool update_supported(void) { return true; }
 void update_join(void) {}
+void update_set_channel(int development) { (void)development; }
 void update_check(const char *root) {
     (void)root;
     memset(&st, 0, sizeof st);

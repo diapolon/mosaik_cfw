@@ -35,6 +35,12 @@
 
 static int fd;
 
+/* la schermata compare solo se c'è davvero da lavorare */
+static void notify(void) {
+    static int shown;
+    if (!shown++ && system("fbmsg show blu 0 'PREPARO LA SD' 'PRIMA ACCENSIONE' 2>/dev/null")) {}
+}
+
 static void die(const char *m) { fprintf(stderr, "sdgrow: %s\n", m); exit(2); }
 
 static uint32_t crc_table[256];
@@ -116,6 +122,7 @@ int main(int argc, char **argv) {
 
     uint64_t new_hdr = total - 1, new_ent = new_hdr - esec, new_lastuse = new_ent - 1;
     if (new_lastuse > g64(h + 48) && new_lastuse >= plast + MIN_GAIN) {
+        notify();
         printf("partizione ARCADE: %" PRIu64 " -> %" PRIu64 " MB\n",
                (plast - pfirst + 1) / 2048, (new_lastuse - pfirst + 1) / 2048);
         p64(pe + 40, new_lastuse);
@@ -209,6 +216,7 @@ int main(int argc, char **argv) {
     }
     free(buf);
 
+    notify();
     printf("FAT: %" PRIu64 " -> %" PRIu64 " MB (%" PRIu64 " cluster da %u KB)\n",
            (uint64_t)tot / 2048, new_tot / 2048, new_cl, spc / 2);
     p32(bs + 32, (uint32_t)new_tot);

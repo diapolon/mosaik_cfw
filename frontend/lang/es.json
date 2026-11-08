@@ -72,6 +72,7 @@
     "scrape": "Descargar imágenes",
     "clean_media": "Limpiar imágenes",
     "update": "Actualizar sistema",
+    "channel": "Canal de actualización",
     "log_level": "Registro de diagnóstico",
     "bezel": "Marcos de los juegos",
     "missing": "Juegos sin ROM",
@@ -108,6 +109,7 @@
     "scrape": "Descarga capturas, pantallas de título y marquees de ArcadeDB y las miniaturas de libretro. Requiere Wi-Fi.",
     "clean_media": "Borra las imágenes descargadas de juegos que ya no están en la tarjeta.",
     "update": "Descarga la versión nueva por Wi-Fi. ROM, partidas y ajustes no se tocan.",
+    "channel": "Estable: versiones publicadas. Desarrollo: versiones de prueba. Volver a Estable se aplica desde la próxima versión estable.",
     "log_level": "Qué escribir en Arcade/Logs: nada, inicios y errores, también tiempos y velocidad, o todo. Se aplica por completo en el próximo inicio.",
     "bezel": "Un marco (bezel) alrededor del juego: el del juego en Bezels/ si existe, si no el predeterminado.",
     "missing": "Muestra también los juegos del catálogo que no tienes (solo versiones principales).",
@@ -115,7 +117,7 @@
     "screensaver": "Tras un rato sin usar los botones: capturas de tus juegos o pantalla apagada.",
     "romcheck": "Comprueba que cada zip contenga los archivos correctos para su emulador (nombres, tamaños, CRC del DAT).",
     "pads": "Los controles de la consola son el jugador 1, un mando Bluetooth o USB el 2. Con «jugador 1» se juega solo con el mando externo.",
-    "music": "Música de fondo desde la carpeta Music de la SD (MP3, OGG, FLAC, MOD). A pasa a la siguiente pista.",
+    "music": "Música de fondo desde la carpeta Music de la SD (MP3, OGG, FLAC). A pasa a la siguiente pista.",
     "led": "Efecto de las luces de la consola: apagadas, fijas, respiración o pulso. Con batería baja parpadean en rojo.",
     "led_color": "Color de las luces; «Tema» usa el color principal del tema elegido.",
     "led_brightness": "Intensidad de las luces de la consola."
@@ -449,7 +451,7 @@
     "searching": "Buscando una actualización…",
     "checking": "Comprobando los archivos de la tarjeta…",
     "none": "No se encontró ninguna actualización",
-    "none_hint": "Comprueba la conexión a internet o inicia el servidor de actualización en el Mac.",
+    "none_hint": "Comprueba la conexión a internet.",
     "current": "El sistema está actualizado",
     "available": "Disponible: %s",
     "details": "En uso: %s · %d archivos por descargar, %s.",
@@ -469,7 +471,10 @@
     "err5": "El archivo difiere del original tras escribirlo",
     "err6": "Error al escribir en la tarjeta",
     "err7": "Actualización cancelada",
-    "err_safe": "El sistema en uso no se ha tocado."
+    "err_safe": "El sistema en uso no se ha tocado.",
+    "channel_stable": "Estable",
+    "channel_dev": "Desarrollo",
+    "channel_warn": "Versiones de prueba: pueden tener problemas"
   },
   "look": {
     "auto": "Automático",

@@ -39,6 +39,7 @@ typedef struct { char *data; size_t len; } buf_t;
 static size_t on_data(void *p, size_t sz, size_t n, void *ud) {
     buf_t *b = ud;
     size_t add = sz * n;
+    if (b->len + add > (32u << 20)) return 0;   /* nessuna risposta o immagine è così grande */
     char *d = realloc(b->data, b->len + add + 1);
     if (!d) return 0;
     memcpy(d + b->len, p, add);
@@ -248,7 +249,9 @@ static int worker(void *arg) {
         char url[4096] = ADB;
         for (int k = i; k < ntodo && k < i + 20; k++) {
             size_t len = strlen(url);
-            snprintf(url + len, sizeof url - len, "%s%s", k > i ? "%3B" : "", items[todo[k]].name);
+            char *esc = curl_easy_escape(NULL, items[todo[k]].name, 0);
+            snprintf(url + len, sizeof url - len, "%s%s", k > i ? "%3B" : "", esc ? esc : "");
+            curl_free(esc);
         }
         buf_t b;
         if (!http_get(url, &b, NULL, 0)) {
@@ -259,6 +262,10 @@ static int worker(void *arg) {
         jval *res = json_get(j, "result");
         for (jval *r = res && res->t == J_ARR ? res->child : NULL; r; r = r->next) {
             const char *name = json_str(r, "game_name", "");
+            /* solo i giochi chiesti: il nome arriva dalla rete e finisce nel percorso di un file */
+            bool asked = false;
+            for (int k = i; k < ntodo && k < i + 20 && !asked; k++) asked = !strcmp(items[todo[k]].name, name);
+            if (!asked) continue;
             char players[8];
             snprintf(players, sizeof players, "%d", (int)json_num(r, "players", 0));
             meta_set(name, json_str(r, "genre", ""), json_num(r, "players", 0) > 0 ? players : "");

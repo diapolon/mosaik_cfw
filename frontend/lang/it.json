@@ -72,6 +72,7 @@
     "scrape": "Scarica immagini",
     "clean_media": "Pulisci immagini",
     "update": "Aggiorna sistema",
+    "channel": "Canale aggiornamenti",
     "log_level": "Registro diagnostico",
     "bezel": "Cornici dei giochi",
     "missing": "Giochi senza ROM",
@@ -108,6 +109,7 @@
     "scrape": "Scarica schermate, titoli e marquee dei giochi da ArcadeDB e dalle miniature libretro. Serve il Wi-Fi.",
     "clean_media": "Elimina le immagini scaricate di giochi che non sono più sulla scheda.",
     "update": "Scarica la versione nuova via Wi-Fi. ROM, salvataggi e impostazioni non si toccano.",
+    "channel": "Stabile: le versioni pubblicate. Sviluppo: versioni di prova. Tornando a Stabile si resta così fino alla prossima versione stabile.",
     "log_level": "Cosa scrivere in Arcade/Logs: niente, avvii ed errori, anche tempi e velocità, oppure tutto. Vale del tutto dal prossimo avvio.",
     "bezel": "Una cornice (bezel) attorno al gioco: quella del gioco se c'è in Bezels/, altrimenti quella predefinita.",
     "missing": "Mostra anche i giochi del catalogo degli emulatori che non hai (solo le versioni principali, non i cloni).",
@@ -115,7 +117,7 @@
     "screensaver": "Dopo un po' senza usare i tasti: le schermate dei tuoi giochi oppure lo schermo spento.",
     "romcheck": "Controlla che ogni zip contenga i file giusti per il suo emulatore (nomi, dimensioni, CRC dal DAT).",
     "pads": "I comandi della console sono il giocatore 1, un controller Bluetooth o USB il 2. Con «giocatore 1» si gioca da soli con il controller esterno.",
-    "music": "Musica di sottofondo dai file nella cartella Music della SD (MP3, OGG, FLAC, MOD). A passa al brano successivo.",
+    "music": "Musica di sottofondo dai file nella cartella Music della SD (MP3, OGG, FLAC). A passa al brano successivo.",
     "led": "Effetto delle luci della console: spente, fisse, respiro o pulsazione. A batteria scarica lampeggiano in rosso.",
     "led_color": "Colore delle luci; «Tema» usa il colore principale del tema scelto.",
     "led_brightness": "Intensità delle luci della console."
@@ -449,7 +451,7 @@
     "searching": "Cerco un aggiornamento…",
     "checking": "Controllo i file sulla scheda…",
     "none": "Nessun aggiornamento trovato",
-    "none_hint": "Controlla la connessione a internet, o avvia il server di aggiornamento sul Mac.",
+    "none_hint": "Controlla la connessione a internet.",
     "current": "Il sistema è aggiornato",
     "available": "Disponibile: %s",
     "details": "In uso: %s · %d file da scaricare, %s.",
@@ -469,7 +471,10 @@
     "err5": "File diverso dall'originale dopo la scrittura",
     "err6": "Scrittura sulla scheda non riuscita",
     "err7": "Aggiornamento annullato",
-    "err_safe": "Il sistema in uso non è stato toccato."
+    "err_safe": "Il sistema in uso non è stato toccato.",
+    "channel_stable": "Stabile",
+    "channel_dev": "Sviluppo",
+    "channel_warn": "Versioni di prova: possono avere problemi"
   },
   "look": {
     "auto": "Automatico",

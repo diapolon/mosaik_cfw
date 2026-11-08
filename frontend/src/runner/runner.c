@@ -8,6 +8,7 @@
 #include "../common/filters.h"
 #include "../common/json.h"
 #include <SDL_image.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #include <math.h>
 #include <stdarg.h>
@@ -492,9 +493,14 @@ static bool state_save(bool autosave) {
     if (ok) {
         char p[1400];
         state_path(p, sizeof p, autosave);
-        FILE *f = fopen(p, "wb");
+        /* su un file provvisorio: se la scrittura si interrompe, il salvataggio di prima resta */
+        char t[1450];
+        snprintf(t, sizeof t, "%s.tmp", p);
+        FILE *f = fopen(t, "wb");
         ok = f && fwrite(buf, 1, n, f) == n;
-        if (f) fclose(f);
+        if (f) { ok = fflush(f) == 0 && fsync(fileno(f)) == 0 && ok; fclose(f); }
+        ok = ok && rename(t, p) == 0;
+        if (!ok) remove(t);
     }
     free(buf);
     return ok;

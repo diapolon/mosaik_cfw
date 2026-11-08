@@ -60,5 +60,5 @@ body:
       label: Logs
       description: |
         Logs are off by default. Turn them on in Settings → Tools → Diagnostic log, restart the console and reproduce the problem. Then, with the console off, connect the card to your computer and look in `Arcade/Logs`. `Arcade.log` and `avvio.log` are usually the most useful.
-        **Check the files before posting:** `wifi.log` can contain the name of your Wi-Fi network.
+        **Check the files before posting:** `wifi.log` and `sistema.txt` can contain your Wi-Fi network name and network addresses.
       render: text

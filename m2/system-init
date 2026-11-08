@@ -80,7 +80,9 @@ GPU_JOB=$!
 # avvio più rapido: il kernel con loglevel=8 scrive ogni messaggio sulla porta seriale.
 # envtool scrive loglevel=4 nella copia di riserva dell'ambiente di U-Boot (quella in uso resta
 # intatta finché la nuova non è valida); vale dal prossimo avvio
-envdev() { for p in /sys/class/block/mmcblk0p*; do grep -qx "PARTNAME=$1" "$p/uevent" 2>/dev/null && echo "/dev/${p##*/}"; done; }
+# solo sulla scheda da cui si è partiti, mai su un eventuale disco interno
+SDDISK=$(awk '$2 == "/mnt/SDCARD" { print $1; exit }' /proc/mounts); SDDISK=${SDDISK#/dev/}; SDDISK=${SDDISK%p*}
+envdev() { [ -n "$SDDISK" ] || return; for p in /sys/class/block/${SDDISK}p*; do grep -qx "PARTNAME=$1" "$p/uevent" 2>/dev/null && echo "/dev/${p##*/}"; done; }
 E1=$(envdev env); E2=$(envdev env-redund)
 if [ -n "$E1" ] && [ -n "$E2" ]; then
     r=$(envtool "$E1" "$E2" loglevel 4 2>&1)
@@ -294,14 +296,16 @@ PENDING="$ROOT/System/update-pending"
 rollback() {
     [ -f "$SYSF.prec" ] || return 1
     step "aggiornamento non riuscito: torno al sistema precedente"
-    mv -f "$SYSF" "$SYSF.guasto" && mv -f "$SYSF.prec" "$SYSF"
+    # il sistema può mancare se la corrente è saltata durante lo scambio dei file
+    { [ ! -f "$SYSF" ] || mv -f "$SYSF" "$SYSF.guasto"; } && mv -f "$SYSF.prec" "$SYSF"
     rm -f "$PENDING"
     sync
     finish reboot
 }
 if [ -f "$PENDING" ]; then
     n=$(cat "$PENDING" 2>/dev/null)
-    n=$(( ${n:-0} + 1 ))
+    case $n in ''|*[!0-9]*) n=0 ;; esac   # file rovinato: un errore di calcolo chiuderebbe il processo 1
+    n=$((n + 1))
     echo "$n" > "$PENDING"
     step "sistema appena aggiornato: avvio di prova $n"
     [ "$n" -gt 2 ] && rollback

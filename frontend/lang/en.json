@@ -72,6 +72,7 @@
     "scrape": "Download images",
     "clean_media": "Clean up images",
     "update": "Update system",
+    "channel": "Update channel",
     "log_level": "Diagnostic log",
     "bezel": "Game bezels",
     "missing": "Games without ROM",
@@ -108,6 +109,7 @@
     "scrape": "Downloads game screenshots, titles and marquees from ArcadeDB and libretro thumbnails. Needs Wi-Fi.",
     "clean_media": "Deletes downloaded images of games that are no longer on the card.",
     "update": "Downloads the new version over Wi-Fi. ROMs, saves and settings are left alone.",
+    "channel": "Stable: released versions. Development: test builds. Going back to Stable applies from the next stable version.",
     "log_level": "What to write in Arcade/Logs: nothing, startups and errors, timings and speed too, or everything. Fully applies from the next start.",
     "bezel": "A bezel around the game: the game's own from Bezels/ if present, otherwise the default one.",
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
@@ -115,7 +117,7 @@
     "screensaver": "After a while without input: your games' screenshots or a blank screen.",
     "romcheck": "Checks that every zip contains the right files for its emulator (names, sizes, CRCs from the DAT).",
     "pads": "The console controls are player 1, a Bluetooth or USB controller is player 2. With “player 1” you play alone with the external controller.",
-    "music": "Background music from the files in the SD card's Music folder (MP3, OGG, FLAC, MOD). A skips to the next track.",
+    "music": "Background music from the files in the SD card's Music folder (MP3, OGG, FLAC). A skips to the next track.",
     "led": "Console lights effect: off, steady, breathing or pulse. They blink red when the battery is low.",
     "led_color": "Light colour; “Theme” uses the main colour of the chosen theme.",
     "led_brightness": "Brightness of the console lights."
@@ -449,7 +451,7 @@
     "searching": "Looking for an update…",
     "checking": "Checking the files on the card…",
     "none": "No update found",
-    "none_hint": "Check the internet connection, or start the update server on the Mac.",
+    "none_hint": "Check the internet connection.",
     "current": "The system is up to date",
     "available": "Available: %s",
     "details": "In use: %s · %d files to download, %s.",
@@ -469,7 +471,10 @@
     "err5": "File differs from the original after writing",
     "err6": "Writing to the card failed",
     "err7": "Update cancelled",
-    "err_safe": "The system in use was not touched."
+    "err_safe": "The system in use was not touched.",
+    "channel_stable": "Stable",
+    "channel_dev": "Development",
+    "channel_warn": "Test builds: they may have problems"
   },
   "look": {
     "auto": "Auto",

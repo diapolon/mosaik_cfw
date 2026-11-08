@@ -28,7 +28,6 @@ int main(int c, char **v) {
 C
 gcc -O2 -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DUPDATE_REAL -DARCADE_VERSION='"0.0.0"' -o t src/t.c src/update.c -lcurl -lcrypto -lpthread
 echo "0.8.0 20260101.0000" > old.txt; echo "0.9.0 20270101.0000" > same.txt; echo "1.0.0 20300101.0000" > newer.txt
-export ARCADE_UPDATE_ADDR=127.0.0.1
 
 # pacchetto sul "Mac"
 D=$W/dist; A=$D/SD/Arcade; mkdir -p $A/System $A/Lang $A/Cores $A/Themes/t $A/Dats/history $A/Emulators $A/Filters $A/Bezels
@@ -43,12 +42,13 @@ card() {  # scheda con il sistema vecchio e i dati dell'utente
     cp $S/System/arcade-system.squashfs $W/vecchio
     echo vecchio > $S/Lang/it.json; echo '{"mio":1}' > $S/System/settings.json; echo rom > $S/Roms/a.zip
     mkdir -p $S/Dats; echo scaricato > $S/Dats/arcadedb.tsv
+    echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
 }
 serve() { python3 /trimui/toolchain/update-server.py --dist $D --http-port 8765 --udp-port 8766 --key "$1" >/dev/null & SRV=$!; for i in $(seq 50); do nc -z 127.0.0.1 8765 2>/dev/null && break; sleep 0.1; done; }
 stop() { kill $SRV 2>/dev/null; wait $SRV 2>/dev/null || true; }
 expect() { [ "$1" = "$2" ] && ok "$3 ($1)" || ko "$3: atteso $2, ottenuto $1"; }
 
-echo "--- installazione completa, server trovato col broadcast"
+echo "--- installazione completa, indirizzo da update-url.txt"
 card; serve key.pem
 export ARCADE_VERSION_FILE=$W/old.txt
 cp -a $W/sd $W/sd-prima
@@ -99,14 +99,14 @@ before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum)
 X=$W/st; rm -rf $X; mkdir -p $X; echo buono > $X/buono; h=$(sha256sum $X/buono | cut -d' ' -f1)
 printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 Lang/it.json\n' $h > $X/update.txt
 echo cattivo > $X/file-0; mk_static $X
-expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "11 5 1" "impronta sbagliata rifiutata"
+expect "$(./t $W/sd install 2>/dev/null)" "11 5 1" "impronta sbagliata rifiutata"
 [ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "scheda intatta"
 stop
 
 echo "--- elenco firmato che punta fuori dalle cartelle del sistema"
 for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x Dats/arcadedb.tsv Dats/history/a.txt; do
     printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 %s\n' $h "$bad" > $X/update.txt; mk_static $X
-    expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "11 3 0" "$bad"
+    expect "$(./t $W/sd install 2>/dev/null)" "11 3 0" "$bad"
     stop
 done
 
@@ -125,7 +125,7 @@ PY
 python3 $W/redir.py & SRV=$!
 for p in 8765 8770; do for i in $(seq 50); do nc -z 127.0.0.1 $p 2>/dev/null && break; sleep 0.1; done; done
 echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
-expect "$(ARCADE_UPDATE_ADDR=127.0.0.9 ./t $W/sd install 2>/dev/null)" "10 0 6" "installata da file statici"
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installata da file statici"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && cmp $A/Cores/a.so $S/Cores/a.so && ok "file identici"
 stop; kill $SRV2 2>/dev/null; wait $SRV2 2>/dev/null || true
 rm -f $S/System/update-url.txt

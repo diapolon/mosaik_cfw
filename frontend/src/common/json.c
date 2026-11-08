@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct { const char *p; } jp;
+typedef struct { const char *p; int depth; } jp;
+
+#define MAX_DEPTH 64   /* oltre, il file non è valido: la ricorsione non deve esaurire la pila */
 
 static void ws(jp *j) {
     for (;;) {
@@ -43,6 +45,7 @@ static char *pstring(jp *j) {
         char c = *j->p++;
         if (c != '\\') { *o++ = c; continue; }
         c = *j->p++;
+        if (!c) { j->p--; break; }   /* barra subito prima della fine del testo */
         switch (c) {
         case 'n': *o++ = '\n'; break;
         case 't': *o++ = '\t'; break;
@@ -95,8 +98,13 @@ static jval *pcontainer(jp *j, char close, jtype t) {
 static jval *pvalue(jp *j) {
     ws(j);
     char c = *j->p;
-    if (c == '{') return pcontainer(j, '}', J_OBJ);
-    if (c == '[') return pcontainer(j, ']', J_ARR);
+    if (c == '{' || c == '[') {
+        if (j->depth >= MAX_DEPTH) return NULL;
+        j->depth++;
+        jval *v = c == '{' ? pcontainer(j, '}', J_OBJ) : pcontainer(j, ']', J_ARR);
+        j->depth--;
+        return v;
+    }
     if (c == '"') { jval *v = mk(J_STR); v->s = pstring(j); return v; }
     if (!strncmp(j->p, "true", 4)) { j->p += 4; jval *v = mk(J_BOOL); v->n = 1; return v; }
     if (!strncmp(j->p, "false", 5)) { j->p += 5; return mk(J_BOOL); }
@@ -105,6 +113,7 @@ static jval *pvalue(jp *j) {
         char *end;
         jval *v = mk(J_NUM);
         v->n = strtod(j->p, &end);
+        if (end == j->p) { free(v); return NULL; }   /* "-" da solo: senza avanzare il ciclo non finirebbe */
         j->p = end;
         return v;
     }

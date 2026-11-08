@@ -72,6 +72,7 @@
     "scrape": "Bilder herunterladen",
     "clean_media": "Bilder aufräumen",
     "update": "System aktualisieren",
+    "channel": "Update-Kanal",
     "log_level": "Diagnoseprotokoll",
     "bezel": "Spielrahmen",
     "missing": "Spiele ohne ROM",
@@ -108,6 +109,7 @@
     "scrape": "Lädt Screenshots, Titelbilder und Marquees von ArcadeDB und den libretro-Thumbnails. WLAN nötig.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
     "update": "Lädt die neue Version über WLAN. ROMs, Spielstände und Einstellungen bleiben unberührt.",
+    "channel": "Stabil: veröffentlichte Versionen. Entwicklung: Testversionen. Zurück zu Stabil gilt ab der nächsten stabilen Version.",
     "log_level": "Was in Arcade/Logs geschrieben wird: nichts, Starts und Fehler, auch Zeiten und Tempo, oder alles. Gilt vollständig ab dem nächsten Start.",
     "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
@@ -115,7 +117,7 @@
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
     "romcheck": "Prüft, ob jedes Zip die richtigen Dateien für seinen Emulator enthält (Namen, Größen, CRC aus dem DAT).",
     "pads": "Die Konsole ist Spieler 1, ein Bluetooth- oder USB-Controller Spieler 2. Mit „Spieler 1“ spielt man allein mit dem externen Controller.",
-    "music": "Hintergrundmusik aus dem Ordner Music der SD-Karte (MP3, OGG, FLAC, MOD). A springt zum nächsten Titel.",
+    "music": "Hintergrundmusik aus dem Ordner Music der SD-Karte (MP3, OGG, FLAC). A springt zum nächsten Titel.",
     "led": "Lichteffekt der Konsole: aus, dauerhaft, Atmen oder Pulsieren. Bei schwachem Akku blinken sie rot.",
     "led_color": "Lichtfarbe; „Thema“ nutzt die Hauptfarbe des gewählten Themas.",
     "led_brightness": "Helligkeit der Konsolenlichter."
@@ -449,7 +451,7 @@
     "searching": "Suche nach Update…",
     "checking": "Prüfe die Dateien auf der Karte…",
     "none": "Kein Update gefunden",
-    "none_hint": "Internetverbindung prüfen oder den Update-Server auf dem Mac starten.",
+    "none_hint": "Internetverbindung prüfen.",
     "current": "Das System ist aktuell",
     "available": "Verfügbar: %s",
     "details": "Aktuell: %s · %d Dateien herunterzuladen, %s.",
@@ -469,7 +471,10 @@
     "err5": "Datei weicht nach dem Schreiben vom Original ab",
     "err6": "Schreiben auf die Karte fehlgeschlagen",
     "err7": "Update abgebrochen",
-    "err_safe": "Das laufende System wurde nicht verändert."
+    "err_safe": "Das laufende System wurde nicht verändert.",
+    "channel_stable": "Stabil",
+    "channel_dev": "Entwicklung",
+    "channel_warn": "Testversionen: Probleme sind möglich"
   },
   "look": {
     "auto": "Automatisch",

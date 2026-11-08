@@ -62,7 +62,6 @@ PN=${P#/dev/}
 DISK=/dev/$(basename "$(readlink -f /sys/class/block/$PN/..)")
 GROW=1
 if [ -f /sys/class/block/$PN/partition ] && [ -b "$DISK" ]; then
-    fbmsg show blu 0 "PREPARO LA SD" "PRIMA ACCENSIONE" 2>/dev/null
     sdgrow "$DISK" "$P" > /tmp/sdgrow.txt 2>&1
     GROW=$?
 fi
@@ -96,6 +95,11 @@ case $GROW in
     *) step "2c allargamento della SD non riuscito ($GROW): $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
 esac
 SYS=/sd/Arcade/System/arcade-system.squashfs
+# corrente mancata proprio mentre l'aggiornamento scambiava i file: resta il sistema precedente
+if [ ! -f "$SYS" ] && [ -f "$SYS.prec" ]; then
+    step "sistema assente: uso il precedente"
+    SYS=$SYS.prec
+fi
 [ -f "$SYS" ] || fail "MANCA IL SISTEMA" "ARCADE/SYSTEM/ARCADE-SYSTEM.SQUASHFS"
 if ! mount -t squashfs -o loop,ro "$SYS" /root; then
     # sistema rovinato: si prova quello precedente, che l'aggiornamento tiene da parte
