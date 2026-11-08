@@ -73,6 +73,7 @@
     "clean_media": "Limpar imagens",
     "update": "Atualizar sistema",
     "channel": "Canal de atualização",
+    "update_notify": "Aviso de atualização",
     "log_level": "Registo de diagnóstico",
     "bezel": "Molduras dos jogos",
     "missing": "Jogos sem ROM",
@@ -110,6 +111,7 @@
     "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
     "update": "Transfere a versão nova por Wi-Fi. ROM, gravações e definições não são tocadas.",
     "channel": "Estável: versões publicadas. Desenvolvimento: versões de teste. Voltar a Estável aplica-se a partir da próxima versão estável.",
+    "update_notify": "Uma vez por dia, com Wi-Fi, verifica no GitHub se há uma versão nova e mostra um aviso no início. Não transfere nada.",
     "log_level": "O que escrever em Arcade/Logs: nada, arranques e erros, também tempos e velocidade, ou tudo. Aplica-se por completo no próximo arranque.",
     "bezel": "Uma moldura (bezel) à volta do jogo: a do jogo em Bezels/ se existir, senão a predefinida.",
     "missing": "Mostra também os jogos do catálogo que não tem (só versões principais).",
@@ -135,7 +137,9 @@
   "cpu": {
     "save": "Poupança",
     "balanced": "Equilibrado",
-    "perf": "Desempenho"
+    "perf": "Desempenho",
+    "auto": "Automático",
+    "min": "Mínimo"
   },
   "variant": {
     "light": "Claro",
@@ -187,7 +191,8 @@
     "shader_note": "Esquerda/direita mudam o valor, A repõe o predefinido. Só este jogo.",
     "audio_stalled": "Áudio indisponível: jogo sem som",
     "linux_game": "Jogo Linux",
-    "linux_note": "O jogo está em pausa: B ou Menu para continuar."
+    "linux_note": "O jogo está em pausa: B ou Menu para continuar.",
+    "cpu": "Perfil de CPU"
   },
   "genre": {
     "fighter": "Luta",
@@ -474,7 +479,8 @@
     "err_safe": "O sistema em uso não foi tocado.",
     "channel_stable": "Estável",
     "channel_dev": "Desenvolvimento",
-    "channel_warn": "Versões de teste: podem ter problemas"
+    "channel_warn": "Versões de teste: podem ter problemas",
+    "notice": "Atualização disponível"
   },
   "look": {
     "auto": "Automático",

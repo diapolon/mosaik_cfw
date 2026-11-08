@@ -14,11 +14,18 @@ cp /trimui/frontend/src/launcher/update.c /trimui/frontend/src/launcher/update.h
 cat > src/t.c <<'C'
 #include "update.h"
 #include <stdarg.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
 int main(int c, char **v) {
+    if (c > 2 && !strcmp(v[2], "notify")) {
+        update_notify_start(v[1], 0);
+        for (int i = 0; i < 60 && !update_notify_version()[0]; i++) usleep(100000);
+        puts(update_notify_version()[0] ? update_notify_version() : "niente");
+        return 0;
+    }
     update_check(v[1]); update_join();
     const update_status_t *s = update_status();
     if (c > 2 && s->phase == UPD_AVAILABLE) { update_install(); update_join(); if (s->phase == UPD_READY) { if (getenv("TEST_DISCARD")) update_discard(); else update_apply(); update_join(); } }
@@ -59,6 +66,13 @@ sums() { (cd "$1" && find . -type f | sort | xargs sha256sum); }
 [ "$(sums $W/sd)" = "$(sums $W/sd-prima)" ] || { diff -r $W/sd $W/sd-prima; ko "file cambiati dopo l'annullamento"; }
 ok "annullando la scheda resta com'era"
 rm -rf $W/sd-prima
+echo "--- controllo silenzioso degli aggiornamenti"
+card
+expect "$(./t $W/sd notify 2>/dev/null)" "0.9.0 20270101.0000" "versione nuova segnalata"
+[ -f $S/System/update-notice.txt ] && [ ! -e $S/System/update-pending ] && cmp $W/vecchio $S/System/arcade-system.squashfs && ok "controllo senza toccare nulla"
+echo "http://127.0.0.1:1/" > $S/System/update-url.txt
+expect "$(./t $W/sd notify 2>/dev/null)" "0.9.0 20270101.0000" "entro un giorno non ricontrolla e ricorda l'avviso"
+card
 echo "--- errore a metà: limite noto, l'installazione resta parziale (vedi TODO)"
 card
 mkdir -p $S/Themes/t/theme.json

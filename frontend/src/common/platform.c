@@ -78,6 +78,7 @@ static void set_cpu(int khz) {
 
 static int cpu_fixed;   /* kHz chiesti dal launcher; 0 = profilo scelto nelle impostazioni */
 static bool screen_off;
+static int cpu_game;    /* kHz scelti per questo gioco o emulatore; 0 = profilo generale */
 
 bool plat_device_name(const char *path, char *out, int n) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -178,12 +179,14 @@ void plat_apply(const settings_t *s) {
     if (want_bright != bright) { bright = want_bright; set_brightness(bright); }
     if (s->volume != vol) { vol = s->volume; set_volume(vol); }
     /* FN attivo: prestazioni massime, qualunque sia il profilo scelto */
-    int want = cpu_fixed ? cpu_fixed : profile_khz(s);
+    /* l'interruttore FN (prestazioni massime) vale più della scelta per il gioco */
+    int want = cpu_fixed ? cpu_fixed : cpu_game && fn_state != 1 ? cpu_game : profile_khz(s);
     if (want != cpu) { cpu = want; set_cpu(cpu); }
 }
 
 void plat_cpu_fixed(int khz) { cpu_fixed = khz; }
 void plat_screen_off(bool off) { screen_off = off; }
+void plat_cpu_game(int khz) { cpu_game = khz; }
 
 void plat_cpu_release(const settings_t *s) {
     if (!cpu_fixed) return;
@@ -310,6 +313,7 @@ const char *plat_model(void) { return NULL; }
 void plat_apply(const settings_t *s) { (void)s; }
 void plat_cpu_fixed(int khz) { (void)khz; }
 void plat_screen_off(bool off) { (void)off; }
+void plat_cpu_game(int khz) { (void)khz; }
 void plat_cpu_release(const settings_t *s) { (void)s; }
 void plat_cpu_status(int *mhz, int *temp) { *mhz = *temp = 0; }
 int plat_battery(bool *charging) { *charging = false; return -1; }

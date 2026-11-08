@@ -73,6 +73,7 @@
     "clean_media": "Clean up images",
     "update": "Update system",
     "channel": "Update channel",
+    "update_notify": "Update notice",
     "log_level": "Diagnostic log",
     "bezel": "Game bezels",
     "missing": "Games without ROM",
@@ -110,6 +111,7 @@
     "clean_media": "Deletes downloaded images of games that are no longer on the card.",
     "update": "Downloads the new version over Wi-Fi. ROMs, saves and settings are left alone.",
     "channel": "Stable: released versions. Development: test builds. Going back to Stable applies from the next stable version.",
+    "update_notify": "Once a day, with Wi-Fi connected, checks GitHub for a new version and shows a notice on the home screen. Nothing is downloaded.",
     "log_level": "What to write in Arcade/Logs: nothing, startups and errors, timings and speed too, or everything. Fully applies from the next start.",
     "bezel": "A bezel around the game: the game's own from Bezels/ if present, otherwise the default one.",
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
@@ -135,7 +137,9 @@
   "cpu": {
     "save": "Power saving",
     "balanced": "Balanced",
-    "perf": "Performance"
+    "perf": "Performance",
+    "auto": "Automatic",
+    "min": "Minimum"
   },
   "variant": {
     "light": "Light",
@@ -187,7 +191,8 @@
     "shader_note": "Left/right change the value, A restores the default. This game only.",
     "audio_stalled": "Audio unavailable: playing without sound",
     "linux_game": "Linux game",
-    "linux_note": "The game is paused: B or Menu to resume."
+    "linux_note": "The game is paused: B or Menu to resume.",
+    "cpu": "CPU profile"
   },
   "genre": {
     "fighter": "Fighting",
@@ -474,7 +479,8 @@
     "err_safe": "The system in use was not touched.",
     "channel_stable": "Stable",
     "channel_dev": "Development",
-    "channel_warn": "Test builds: they may have problems"
+    "channel_warn": "Test builds: they may have problems",
+    "notice": "Update available"
   },
   "look": {
     "auto": "Auto",

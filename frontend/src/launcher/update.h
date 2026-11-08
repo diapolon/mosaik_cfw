@@ -25,6 +25,11 @@ bool update_supported(void);
 /* versione in uso: "0.9.0 20261108.1030" sulla console, "0.9.0" altrove */
 const char *update_current(void);
 void update_set_channel(int development); /* da chiamare prima di update_check */
+/* Controllo silenzioso, in un thread: legge solo l'elenco firmato, al massimo una volta al giorno,
+   e non tocca la finestra dell'aggiornamento. */
+void update_notify_start(const char *root, int development);
+/* versione più recente trovata, "" se non c'è nulla di nuovo */
+const char *update_notify_version(void);
 void update_check(const char *root);      /* cerca e controlla, in un thread */
 void update_install(void);                /* dopo UPD_AVAILABLE: scarica e controlla, in un thread */
 void update_apply(void);                  /* dopo UPD_READY: installa, in un thread */

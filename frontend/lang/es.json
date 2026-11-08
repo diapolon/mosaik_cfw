@@ -73,6 +73,7 @@
     "clean_media": "Limpiar imágenes",
     "update": "Actualizar sistema",
     "channel": "Canal de actualización",
+    "update_notify": "Aviso de actualización",
     "log_level": "Registro de diagnóstico",
     "bezel": "Marcos de los juegos",
     "missing": "Juegos sin ROM",
@@ -110,6 +111,7 @@
     "clean_media": "Borra las imágenes descargadas de juegos que ya no están en la tarjeta.",
     "update": "Descarga la versión nueva por Wi-Fi. ROM, partidas y ajustes no se tocan.",
     "channel": "Estable: versiones publicadas. Desarrollo: versiones de prueba. Volver a Estable se aplica desde la próxima versión estable.",
+    "update_notify": "Una vez al día, con Wi-Fi, comprueba en GitHub si hay una versión nueva y lo muestra en inicio. No descarga nada.",
     "log_level": "Qué escribir en Arcade/Logs: nada, inicios y errores, también tiempos y velocidad, o todo. Se aplica por completo en el próximo inicio.",
     "bezel": "Un marco (bezel) alrededor del juego: el del juego en Bezels/ si existe, si no el predeterminado.",
     "missing": "Muestra también los juegos del catálogo que no tienes (solo versiones principales).",
@@ -135,7 +137,9 @@
   "cpu": {
     "save": "Ahorro",
     "balanced": "Equilibrado",
-    "perf": "Rendimiento"
+    "perf": "Rendimiento",
+    "auto": "Automático",
+    "min": "Mínimo"
   },
   "variant": {
     "light": "Claro",
@@ -187,7 +191,8 @@
     "shader_note": "Izquierda/derecha cambian el valor, A restaura el predeterminado. Solo este juego.",
     "audio_stalled": "Audio no disponible: juego sin sonido",
     "linux_game": "Juego Linux",
-    "linux_note": "El juego está en pausa: B o Menu para continuar."
+    "linux_note": "El juego está en pausa: B o Menu para continuar.",
+    "cpu": "Perfil de CPU"
   },
   "genre": {
     "fighter": "Lucha",
@@ -474,7 +479,8 @@
     "err_safe": "El sistema en uso no se ha tocado.",
     "channel_stable": "Estable",
     "channel_dev": "Desarrollo",
-    "channel_warn": "Versiones de prueba: pueden tener problemas"
+    "channel_warn": "Versiones de prueba: pueden tener problemas",
+    "notice": "Actualización disponible"
   },
   "look": {
     "auto": "Automático",

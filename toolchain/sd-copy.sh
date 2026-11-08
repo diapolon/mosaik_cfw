@@ -2,7 +2,7 @@
 # Copia verificata sulla SD ARCADE dal Mac:
 #   sh toolchain/sd-copy.sh ORIGINE DESTINAZIONE [ORIGINE DESTINAZIONE]...
 # es. sh toolchain/sd-copy.sh dist/arcade-system.squashfs Arcade/System/arcade-system.squashfs
-# DESTINAZIONE è relativa alla radice della SD (/Volumes/ARCADE).
+# DESTINAZIONE è relativa alla radice della SD (/Volumes/MOSAIK, o ARCADE sulle schede più vecchie).
 #
 # Alcuni lettori USB (per esempio il Super Top 14cd:1212) ogni tanto mettono un blocco da 32 KB
 # nel posto sbagliato, sempre negli stessi punti della scheda: si copia con un nome provvisorio,
@@ -10,8 +10,9 @@
 # parte (Arcade/System/da-esaminare-*.bin) così occupa quei punti, e si riprova; solo una copia
 # identica prende il nome giusto, e dopo un altro rimontaggio si rilegge due volte.
 set -u
-VOL=/Volumes/ARCADE
-[ -d "$VOL" ] || { echo "SD ARCADE non collegata"; exit 1; }
+VOL=/Volumes/MOSAIK
+[ -d "$VOL" ] || VOL=/Volumes/ARCADE
+[ -d "$VOL" ] || { echo "SD non collegata"; exit 1; }
 DEV=$(diskutil info "$VOL" | sed -n 's/.*Device Node: *//p')
 
 remount() {

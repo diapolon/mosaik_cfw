@@ -73,6 +73,7 @@
     "clean_media": "Nettoyer les images",
     "update": "Mettre à jour",
     "channel": "Canal de mise à jour",
+    "update_notify": "Avis de mise à jour",
     "log_level": "Journal de diagnostic",
     "bezel": "Cadres des jeux",
     "missing": "Jeux sans ROM",
@@ -110,6 +111,7 @@
     "clean_media": "Supprime les images téléchargées des jeux qui ne sont plus sur la carte.",
     "update": "Télécharge la nouvelle version en Wi-Fi. ROM, sauvegardes et réglages ne sont pas touchés.",
     "channel": "Stable : versions publiées. Développement : versions de test. Le retour à Stable s'applique à la prochaine version stable.",
+    "update_notify": "Une fois par jour, en Wi-Fi, vérifie sur GitHub s'il y a une nouvelle version et l'indique à l'accueil. Rien n'est téléchargé.",
     "log_level": "Ce qui est écrit dans Arcade/Logs : rien, démarrages et erreurs, aussi temps et vitesse, ou tout. S'applique entièrement au prochain démarrage.",
     "bezel": "Un cadre (bezel) autour du jeu : celui du jeu dans Bezels/ s'il existe, sinon celui par défaut.",
     "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
@@ -135,7 +137,9 @@
   "cpu": {
     "save": "Économie",
     "balanced": "Équilibré",
-    "perf": "Performances"
+    "perf": "Performances",
+    "auto": "Automatique",
+    "min": "Minimum"
   },
   "variant": {
     "light": "Clair",
@@ -187,7 +191,8 @@
     "shader_note": "Gauche/droite modifient la valeur, A rétablit la valeur par défaut. Ce jeu uniquement.",
     "audio_stalled": "Audio indisponible : jeu sans son",
     "linux_game": "Jeu Linux",
-    "linux_note": "Le jeu est en pause : B ou Menu pour reprendre."
+    "linux_note": "Le jeu est en pause : B ou Menu pour reprendre.",
+    "cpu": "Profil CPU"
   },
   "genre": {
     "fighter": "Combat",
@@ -474,7 +479,8 @@
     "err_safe": "Le système en service n'a pas été touché.",
     "channel_stable": "Stable",
     "channel_dev": "Développement",
-    "channel_warn": "Versions de test : des problèmes sont possibles"
+    "channel_warn": "Versions de test : des problèmes sont possibles",
+    "notice": "Mise à jour disponible"
   },
   "look": {
     "auto": "Automatique",

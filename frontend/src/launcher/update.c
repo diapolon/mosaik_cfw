@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 
 void ui_log(const char *fmt, ...);
 
@@ -393,8 +394,11 @@ void update_join(void) {
     if (thread_on) { pthread_join(thread, NULL); thread_on = false; }
 }
 
+static void notify_join(void);
+
 void update_check(const char *root) {
     update_join();
+    notify_join();   /* il controllo silenzioso usa gli stessi dati */
     memset(&st, 0, sizeof st);
     snprintf(root_dir, sizeof root_dir, "%s", root);
     if (!items) items = malloc(sizeof(item_t) * MAX_FILES);
@@ -405,6 +409,59 @@ void update_check(const char *root) {
 }
 
 void update_set_channel(int development) { channel = development; }
+
+/* ---------------------------------------------------- controllo silenzioso */
+static pthread_t notify_thread;
+static bool notify_on;
+static char notify_ver[64];
+
+static void notify_path(char *p, size_t n, const char *root) { snprintf(p, n, "%s/System/update-notice.txt", root); }
+
+static void *notify_worker(void *arg) {
+    (void)arg;
+    static char text[1 << 20];
+    static unsigned char sig[512];
+    mem_t mt = { text, 0, sizeof text }, ms = { (char *)sig, 0, sizeof sig };
+    char p[1100];
+    notify_path(p, sizeof p, root_dir);
+    if (!configured_url() || !get_mem("update.txt", &mt) || !get_mem("update.sig", &ms)) return NULL;
+    if (!signature_ok(text, mt.len, sig, ms.len)) return NULL;
+    text[mt.len < sizeof text ? mt.len : sizeof text - 1] = 0;
+    char *v = strstr(text, "\nversion ");
+    char found[64] = "";
+    if (v && sscanf(v + 9, " %47[^ \n] %15[0-9.]", found, found + 48) == 2) {
+        char ver[64];
+        snprintf(ver, sizeof ver, "%s %s", found, found + 48);
+        if (strcmp(stamp_of(ver), stamp_of(update_current())) > 0) snprintf(notify_ver, sizeof notify_ver, "%s", ver);
+    }
+    FILE *f = fopen(p, "w");
+    if (f) { fprintf(f, "%lld\n%s\n", (long long)time(NULL), notify_ver); fclose(f); }
+    return NULL;
+}
+
+void update_notify_start(const char *root, int development) {
+    if (notify_on || thread_on) return;
+    channel = development;
+    snprintf(root_dir, sizeof root_dir, "%s", root);
+    char p[1100];
+    long long last = 0;
+    char ver[64] = "";
+    notify_path(p, sizeof p, root);
+    FILE *f = fopen(p, "r");
+    if (f) { if (fscanf(f, "%lld\n%63[^\n]", &last, ver) < 1) last = 0; fclose(f); }
+    /* avviso di un controllo precedente, se quella versione è ancora più recente di questa */
+    if (ver[0] && strcmp(stamp_of(ver), stamp_of(update_current())) > 0) snprintf(notify_ver, sizeof notify_ver, "%s", ver);
+    time_t now = time(NULL);
+    if (now > 1600000000 && last > 0 && now - last < 24 * 3600 && now >= last) return;   /* orologio valido: una volta al giorno */
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    if (pthread_create(&notify_thread, NULL, notify_worker, NULL) == 0) notify_on = true;
+}
+
+const char *update_notify_version(void) { return notify_ver; }
+
+static void notify_join(void) {
+    if (notify_on) { pthread_join(notify_thread, NULL); notify_on = false; }
+}
 
 void update_install(void) {
     update_join();
@@ -435,6 +492,8 @@ static double now_s(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t
 bool update_supported(void) { return true; }
 void update_join(void) {}
 void update_set_channel(int development) { (void)development; }
+void update_notify_start(const char *root, int development) { (void)root; (void)development; }
+const char *update_notify_version(void) { const char *e = getenv("ARCADE_TEST_NOTICE"); return e ? e : ""; }
 void update_check(const char *root) {
     (void)root;
     memset(&st, 0, sizeof st);

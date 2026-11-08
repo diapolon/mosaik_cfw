@@ -109,7 +109,7 @@ echo "sistema: $(du -h $W/arcade-system.squashfs | cut -f1)"
 # allarga il FAT fino alla fine della scheda cambiando solo il numero di settori (fatprep.py).
 # 2200 MB è il minimo per un FAT32 con cluster da 32 KB (65525 cluster).
 FAT=$W/fat.img; rm -f $FAT; truncate -s 256G $FAT
-mkfs.vfat -F 32 -s 64 -n ARCADE $FAT >/dev/null
+mkfs.vfat -F 32 -s 64 -n MOSAIK $FAT >/dev/null
 python3 -I $T/m2/fatprep.py $FAT 2200
 export MTOOLS_SKIP_CHECK=1
 mcopy -s -i $FAT $T/dist/SD/Arcade ::Arcade

@@ -1159,12 +1159,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "cpu", "pads", "wifi", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "log_level", "info", "power",
+    "cpu", "pads", "wifi", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
@@ -1174,7 +1174,7 @@ static const int cat_items[SC_COUNT][10] = {
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_RESUME, -1 },
     { S_WIFI, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
-    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_LOGLEVEL, S_INFO, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
 
@@ -1189,7 +1189,7 @@ static int page_rows(int *rows) {
     for (int k = 0; k < 10 && cat_items[set_page][k] >= 0; k++) {
         int it = cat_items[set_page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
-        if ((it == S_UPDATE || it == S_CHANNEL) && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
+        if ((it == S_UPDATE || it == S_CHANNEL || it == S_UPDNOTIFY) && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
         rows[n++] = it;
     }
     return n;
@@ -1294,6 +1294,7 @@ static void set_value(int item, char *buf, size_t n) {
     }
     case S_UPDATE: snprintf(buf, n, "%s", update_current()); break;
     case S_CHANNEL: snprintf(buf, n, "%s", T(s->update_channel ? "update.channel_dev" : "update.channel_stable")); break;
+    case S_UPDNOTIFY: snprintf(buf, n, "%s", T(s->update_notify ? "common.on" : "common.off")); break;
     case S_GENRES: snprintf(buf, n, "%d", ngenres); break;
     case S_LOGLEVEL: {
         static const char *k[4] = { "loglvl.off", "loglvl.essential", "loglvl.perf", "loglvl.full" };
@@ -1424,6 +1425,7 @@ static void set_change(int item, int dir) {
         s->autosuspend_min = suspend_vals[(i + dir + 5) % 5];
         break;
     }
+    case S_UPDNOTIFY: s->update_notify = !s->update_notify; break;
     case S_CHANNEL:
         s->update_channel = !s->update_channel;
         if (s->update_channel) ui_toast(T("update.channel_warn"));
@@ -2411,6 +2413,11 @@ static void settings_draw(void) {
     int n = ui_wrap(UI.f_small, desc, w, lines, 2);
     int dy = UI.h - M(t->hintbar_h) - desc_h + M(0.01f);
     for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], mx, dy + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
+    if (set_page < 0 && update_supported()) {   /* versione: utile quando si segnala un problema */
+        char ver[96];
+        snprintf(ver, sizeof ver, "Mosaik %s", update_current());
+        ui_text(UI.f_small, ver, mx + w, UI.h - M(t->hintbar_h) - desc_h - TTF_FontHeight(UI.f_small) - M(0.01f), t->text_dim, ALIGN_RIGHT);
+    }
     /* con la finestra di data e ora aperta, la barra dei tasti è quella della finestra */
     if (clock_open || sdinfo_open || wpanel_open || clean_open) return;
     if (set_page < 0) {
@@ -3333,6 +3340,12 @@ int main(int argc, char **argv) {
         /* il layout può cambiare col tema: la home a carosello non esiste nel layout a elenco */
         if (is_list_layout() && screen == SCR_HOME) screen = SCR_LIBRARY;
 
+        /* controllo degli aggiornamenti: una volta per avvio, appena il Wi-Fi è collegato */
+        static bool notify_started;
+        if (!notify_started && UI.set.update_notify && update_supported() && !upd_open && wifi_status(false)->state == WIFI_CONNECTED) {
+            notify_started = true;
+            update_notify_start(UI.root, UI.set.update_channel);
+        }
         if (dlg_open && dlg_suspend) {
             int r = ui_confirm_input(&dlg_sel);
             if (r >= 0) dlg_open = dlg_suspend = false;
@@ -3407,6 +3420,14 @@ int main(int argc, char **argv) {
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
         if (first_frame) { first_frame = false; ui_mark("prima schermata"); update_confirm_boot(UI.root); }
+        /* avviso di aggiornamento, solo nella schermata iniziale */
+        if (update_notify_version()[0] && !saver_on && (screen == SCR_HOME || (is_list_layout() && screen == SCR_LIBRARY)) && !dlg_open) {
+            const char *msg = T("update.notice");
+            int pad = M(0.02f), tw = ui_text_w(UI.f_small, msg), th = TTF_FontHeight(UI.f_small);
+            int bw = tw + pad * 2, bh = th + M(0.012f), bx = (UI.w - bw) / 2, by = M(0.022f);
+            ui_rrect(bx, by, bw, bh, bh / 2, UI.th.accent);
+            ui_text(UI.f_small, msg, UI.w / 2, by + M(0.006f), UI.th.accent_text, ALIGN_CENTER);
+        }
         if (saver_on) saver_draw();
         float fade = screen_t0 < 0 ? 0 : 1 - (float)((UI.t - screen_t0) / 0.18);
         if (fade > 0) ui_rect(0, 0, UI.w, UI.h, with_alpha(UI.th.bg, (int)(255 * fade)));

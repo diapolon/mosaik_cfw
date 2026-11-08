@@ -73,6 +73,7 @@
     "clean_media": "Bilder aufräumen",
     "update": "System aktualisieren",
     "channel": "Update-Kanal",
+    "update_notify": "Update-Hinweis",
     "log_level": "Diagnoseprotokoll",
     "bezel": "Spielrahmen",
     "missing": "Spiele ohne ROM",
@@ -110,6 +111,7 @@
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
     "update": "Lädt die neue Version über WLAN. ROMs, Spielstände und Einstellungen bleiben unberührt.",
     "channel": "Stabil: veröffentlichte Versionen. Entwicklung: Testversionen. Zurück zu Stabil gilt ab der nächsten stabilen Version.",
+    "update_notify": "Prüft einmal täglich bei WLAN-Verbindung auf GitHub, ob es eine neue Version gibt, und zeigt es an. Es wird nichts heruntergeladen.",
     "log_level": "Was in Arcade/Logs geschrieben wird: nichts, Starts und Fehler, auch Zeiten und Tempo, oder alles. Gilt vollständig ab dem nächsten Start.",
     "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
@@ -135,7 +137,9 @@
   "cpu": {
     "save": "Sparen",
     "balanced": "Ausgewogen",
-    "perf": "Leistung"
+    "perf": "Leistung",
+    "auto": "Automatisch",
+    "min": "Minimum"
   },
   "variant": {
     "light": "Hell",
@@ -187,7 +191,8 @@
     "shader_note": "Links/rechts ändern den Wert, A setzt ihn zurück. Nur für dieses Spiel.",
     "audio_stalled": "Audio nicht verfügbar: ohne Ton",
     "linux_game": "Linux-Spiel",
-    "linux_note": "Das Spiel ist pausiert: B oder Menu zum Fortsetzen."
+    "linux_note": "Das Spiel ist pausiert: B oder Menu zum Fortsetzen.",
+    "cpu": "CPU-Profil"
   },
   "genre": {
     "fighter": "Kampfspiel",
@@ -474,7 +479,8 @@
     "err_safe": "Das laufende System wurde nicht verändert.",
     "channel_stable": "Stabil",
     "channel_dev": "Entwicklung",
-    "channel_warn": "Testversionen: Probleme sind möglich"
+    "channel_warn": "Testversionen: Probleme sind möglich",
+    "notice": "Update verfügbar"
   },
   "look": {
     "auto": "Automatisch",

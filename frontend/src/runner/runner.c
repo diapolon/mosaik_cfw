@@ -8,6 +8,7 @@
 #include "../common/filters.h"
 #include "../common/json.h"
 #include <SDL_image.h>
+#include <dirent.h>
 #include <unistd.h>
 #include <dlfcn.h>
 #include <math.h>
@@ -177,7 +178,7 @@ static const int default_map[16] = {
 };
 
 static struct {
-    int aspect, rotate, bezel, map[16];
+    int aspect, rotate, bezel, cpu, map[16];   /* cpu: 0 automatico, 1 minimo, 2 risparmio, 3 bilanciato, 4 prestazioni */
     char filter[32];
     char sp_name[32][48];   /* parametri shader cambiati dal menu */
     float sp_val[32];
@@ -189,6 +190,7 @@ static void gamecfg_load(void) {
     snprintf(gcfg.filter, sizeof gcfg.filter, "%s", UI.set.filter);
     gcfg.bezel = UI.set.bezel;
     gcfg.rotate = ROT_NONE;
+    gcfg.cpu = 0;
     memcpy(gcfg.map, default_map, sizeof gcfg.map);
     char p[1200], line[128];
     game_file(p, sizeof p, "cfg");
@@ -211,9 +213,41 @@ static void gamecfg_load(void) {
             }
         }
         else if (sscanf(line, "rotate=%d", &v) == 1) gcfg.rotate = v & 3;
+        else if (sscanf(line, "cpu=%d", &v) == 1) gcfg.cpu = v >= 0 && v <= 4 ? v : 0;
         else if (sscanf(line, "map.%d=%d", &id, &v) == 2 && id >= 0 && id < 16 && v >= -1 && v < BTN_COUNT) gcfg.map[id] = v;
     }
     fclose(f);
+}
+
+/* profilo predefinito dell'emulatore: voce "cpu" in Emulators/<id>.json (0-4, come gcfg.cpu) */
+static int emu_cpu;
+static int emulator_cpu(void) {
+    char base[256], dir[1200], p[1600];
+    const char *s = strrchr(core_path, '/');
+    snprintf(base, sizeof base, "%s", s ? s + 1 : core_path);
+    char *dot = strrchr(base, '.');
+    if (dot) *dot = 0;
+    snprintf(dir, sizeof dir, "%s/Emulators", root);
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+    int v = 0;
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        size_t n = strlen(e->d_name);
+        if (n < 6 || strcmp(e->d_name + n - 5, ".json") || e->d_name[0] == '.') continue;
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        jval *j = json_load(p);
+        if (j && !strcmp(json_str(j, "core", ""), base)) v = json_int(j, "cpu", 0);
+        json_free(j);
+    }
+    closedir(d);
+    return v >= 0 && v <= 4 ? v : 0;
+}
+
+/* frequenza per questo gioco: la sua scelta, poi quella dell'emulatore, poi il profilo generale */
+static void apply_cpu(void) {
+    static const int khz[5] = { 0, 816000, 1200000, 1608000, 2000000 };
+    plat_cpu_game(khz[gcfg.cpu ? gcfg.cpu : emu_cpu]);
 }
 
 static void gamecfg_save(void) {
@@ -221,7 +255,7 @@ static void gamecfg_save(void) {
     game_file(p, sizeof p, "cfg");
     FILE *f = fopen(p, "w");
     if (!f) return;
-    fprintf(f, "aspect=%d\nfilter=%s\nbezel=%d\nrotate=%d\n", gcfg.aspect, gcfg.filter, gcfg.bezel, gcfg.rotate);
+    fprintf(f, "aspect=%d\nfilter=%s\nbezel=%d\nrotate=%d\ncpu=%d\n", gcfg.aspect, gcfg.filter, gcfg.bezel, gcfg.rotate, gcfg.cpu);
     for (int i = 0; i < 16; i++)
         if (gcfg.map[i] != default_map[i]) fprintf(f, "map.%d=%d\n", i, gcfg.map[i]);
     for (int i = 0; i < glsh_param_count(); i++) {
@@ -729,11 +763,12 @@ static void draw_game(void) {
 /* Tre pagine con la stessa grafica: principale, opzioni del gioco (core), comandi. */
 
 enum { PAGE_MAIN, PAGE_OPTIONS, PAGE_CONTROLS, PAGE_SHADER };
-enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_SHADER, MI_OPTIONS, MI_CONTROLS,
+enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS,
        MI_RESET, MI_EXIT, MI_COUNT };
 static const char *main_keys[MI_COUNT] = { "game.resume", "game.save_state", "game.load_state", "game.aspect",
-                                           "game.filter", "game.bezel", "game.rotation", "game.shader_params", "game.options", "game.controls",
+                                           "game.filter", "game.bezel", "game.rotation", "game.cpu", "game.shader_params", "game.options", "game.controls",
                                            "game.reset", "game.exit" };
+static const char *cpu_names[] = { "cpu.auto", "cpu.min", "cpu.save", "cpu.balanced", "cpu.perf" };
 static const char *aspect_names[] = { "aspect.original", "aspect.integer", "aspect.full" };
 static filter_t filters[24];
 static int nfilters;
@@ -900,6 +935,7 @@ static void main_change(int item, int dir) {
     }
     case MI_BEZEL: gcfg.bezel = !gcfg.bezel; break;
     case MI_ROTATE: gcfg.rotate = rot_values[(rot_index() + dir + 3) % 3]; break;
+    case MI_CPU: gcfg.cpu = (gcfg.cpu + dir + 5) % 5; apply_cpu(); break;
     default: return;
     }
     gamecfg_save();
@@ -973,7 +1009,7 @@ static void menu_input(void) {
         if (state_load(false)) { ui_toast(T("game.state_loaded")); menu_open = false; }
         else ui_toast(T("game.no_state"));
         break;
-    case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: main_change(*s, 1); return;
+    case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: case MI_CPU: main_change(*s, 1); return;
     case MI_OPTIONS: open_page(PAGE_OPTIONS); return;
     case MI_CONTROLS: open_page(PAGE_CONTROLS); return;
     case MI_SHADER: open_page(PAGE_SHADER); return;
@@ -993,6 +1029,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
         if (i == MI_FILTER) snprintf(value, vn, "%s", flt.name);
         if (i == MI_BEZEL) snprintf(value, vn, "%s", T(gcfg.bezel ? "common.yes" : "common.no"));
         if (i == MI_ROTATE) snprintf(value, vn, "%s", T(rotate_names[rot_index()]));
+        if (i == MI_CPU) snprintf(value, vn, "%s", T(cpu_names[gcfg.cpu % 5]));
         *sub = i == MI_OPTIONS || i == MI_CONTROLS || i == MI_SHADER;
     } else if (page == PAGE_SHADER) {
         if (!glsh_param_count()) { snprintf(label, ln, "%s", T(glsh_loaded() ? "game.no_params" : "game.no_shader")); return; }
@@ -1025,7 +1062,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
 }
 
 static bool row_changeable(int i) {
-    if (page == PAGE_MAIN) return i == MI_ASPECT || i == MI_FILTER || i == MI_BEZEL || i == MI_ROTATE;
+    if (page == PAGE_MAIN) return i == MI_ASPECT || i == MI_FILTER || i == MI_BEZEL || i == MI_ROTATE || i == MI_CPU;
     if (page == PAGE_OPTIONS) return noptv > 0;
     if (page == PAGE_SHADER) return glsh_param_count() > 0;
     return i < NREMAP;
@@ -1274,6 +1311,8 @@ int main(int argc, char **argv) {
         return EXIT_MENU;
     }
     gamecfg_load();
+    emu_cpu = emulator_cpu();
+    apply_cpu();
     filter_apply();
     audio_on = UI.audio && !UI.automation;
     if (resume && state_load(true)) ui_toast(T("game.resumed"));

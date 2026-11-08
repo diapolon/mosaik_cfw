@@ -54,6 +54,7 @@ void settings_defaults(settings_t *s) {
     s->cpu_profile = CPU_BALANCED;
     s->autosleep_min = 0;
     s->autosuspend_min = 5;
+    s->update_notify = true;
     s->aspect = ASPECT_ORIGINAL;
     strcpy(s->filter, "nitido");
     s->bezel = false;
@@ -90,6 +91,7 @@ bool settings_load(settings_t *s, const char *root) {
     s->autosleep_min = json_int(j, "autosleep_min", s->autosleep_min);
     s->autosuspend_min = json_int(j, "autosuspend_min", s->autosuspend_min);
     s->update_channel = json_int(j, "update_channel", 0) ? 1 : 0;
+    s->update_notify = json_bool(j, "update_notify", s->update_notify);
     s->saver = json_int(j, "screensaver", s->saver) % 5;
     s->aspect = json_int(j, "aspect", s->aspect);
     /* il filtro era un numero (0 nitido, 1 morbido, 2 scanline): resta leggibile */
@@ -149,6 +151,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"autosleep_min\": %d,\n"
             "  \"autosuspend_min\": %d,\n"
             "  \"update_channel\": %d,\n"
+            "  \"update_notify\": %s,\n"
             "  \"screensaver\": %d,\n"
             "  \"aspect\": %d,\n"
             "  \"filter\": \"%s\",\n"
@@ -169,7 +172,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"debug_level\": %d\n"
             "}\n",
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
-            s->autosleep_min, s->autosuspend_min, s->update_channel, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
+            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
     bool ok = written > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;

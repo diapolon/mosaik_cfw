@@ -38,10 +38,11 @@ fail() {
 
 step "1 CERCO LA SD"
 for t in $(seq 60); do
-    P=$(findfs LABEL=ARCADE 2>/dev/null) && break
+    # MOSAIK dalla 0.9.6; le schede scritte prima si chiamano ancora ARCADE
+    P=$(findfs LABEL=MOSAIK 2>/dev/null || findfs LABEL=ARCADE 2>/dev/null) && break
     sleep 0.25
 done
-[ -n "$P" ] || fail "SD NON TROVATA" "MANCA LA PARTIZIONE ARCADE"
+[ -n "$P" ] || fail "SD NON TROVATA" "MANCA LA PARTIZIONE MOSAIK"
 mkdir -p /sd /root
 # controllo del FAT prima di montarlo: spegnimenti bruschi lo possono danneggiare, e un FAT
 # danneggiato impedisce di scrivere (per esempio il file che avvia i giochi)

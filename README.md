@@ -33,6 +33,7 @@
 - **Built-in Wi-Fi** for covers, game history, time and updates.
 - **Themes, languages, LEDs and video filters** you can configure.
 - **Signed updates** over Wi-Fi, with an attempt to return to the previous version if one fails.
+- **CPU profile for each game**, and a notice on the home screen when an update is available.
 
 ## The interface
 
@@ -80,7 +81,7 @@ To go back to the original system, turn the console off and remove the card.
 
 > **ROMs and BIOS files are not included.** Only use copies of games you have the right to use.
 
-Turn the console off and connect the card to your computer. Everything is in the `Arcade` folder of the `ARCADE` drive:
+Turn the console off and connect the card to your computer. Everything is in the `Arcade` folder of the `MOSAIK` drive (`ARCADE` on cards installed before 0.9.6):
 
 | Folder | What goes in it |
 |---|---|

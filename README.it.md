@@ -33,6 +33,7 @@
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
 - **Temi, lingue, LED e filtri video** configurabili.
 - **Aggiornamenti firmati** via Wi-Fi, con un tentativo di ritorno alla versione precedente se uno fallisce.
+- **Profilo CPU per ogni gioco** e avviso nella home quando c'è un aggiornamento.
 
 ## L'interfaccia
 
@@ -80,7 +81,7 @@ Per tornare al sistema originale, spegni la console e togli la scheda.
 
 > **ROM e BIOS non sono inclusi.** Usa solo copie di giochi di cui hai diritto.
 
-Spegni la console e collega la scheda al computer. Tutto si trova nella cartella `Arcade` dell'unità `ARCADE`:
+Spegni la console e collega la scheda al computer. Tutto si trova nella cartella `Arcade` dell'unità `MOSAIK` (`ARCADE` sulle schede installate prima della 0.9.6):
 
 | Cartella | Cosa contiene |
 |---|---|
