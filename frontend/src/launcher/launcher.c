@@ -43,6 +43,10 @@ static int screen = SCR_HOME, back_screen = SCR_HOME;
 static double screen_t0;
 static double last_input;
 
+#define CPU_ACTIVE_KHZ 1608000   /* come il profilo Bilanciato: stessa prontezza di prima */
+#define CPU_IDLE_KHZ    600000
+#define IDLE_AFTER_S       3.0
+
 /* home */
 static int carousel[12], ncarousel;
 static int home_row, home_sel, icon_sel;
@@ -3214,6 +3218,7 @@ int main(int argc, char **argv) {
     snprintf(p, sizeof p, "%s/System", root);
     mkdir(p, 0755);
     if (!ui_init("Arcade", root, auto_script, 48000, true)) return 1;
+    plat_cpu_fixed(CPU_ACTIVE_KHZ);
     ui_busy(T("common.loading"), 0);   /* subito qualcosa a schermo mentre si caricano i giochi */
     if (!auto_script && consume_resume()) {
         ui_log("riprendo l'ultima partita");
@@ -3230,7 +3235,8 @@ int main(int argc, char **argv) {
     ui_mark("musica");
     screen = is_list_layout() ? SCR_LIBRARY : SCR_HOME;
     screen_t0 = -1;
-    bool first_frame = true;
+    bool first_frame = true, idle_logged = false;
+    unsigned idle_skip = 0;
 
     while (!UI.in.quit) {
         ui_poll();
@@ -3276,6 +3282,26 @@ int main(int argc, char **argv) {
         else if (screen == SCR_LIBRARY) lib_common_input(is_list_layout() ? 1 : grid_cols());
         else if (screen == SCR_DETAIL) detail_input();
         else settings_input();
+
+        /* Fermo sullo schermo da qualche secondo: CPU bassa e meno disegni, la console scalda
+           meno. Basta un tasto per tornare subito come prima; i lavori lunghi non rallentano. */
+        bool held = false;
+        for (int b = 0; b < BTN_COUNT; b++) held = held || UI.in.down[b];
+        if (held) last_input = UI.t;
+        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open;
+        bool idle = !working && !UI.automation && UI.t - last_input > IDLE_AFTER_S;
+        plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);
+        if (idle && !idle_logged && UI.t - last_input > 120) {
+            int mhz, temp;
+            idle_logged = true;
+            plat_cpu_status(&mhz, &temp);
+            ui_log("fermo da 2 minuti: CPU %d MHz, %d °C", mhz, temp);
+        }
+        /* il salvaschermo con le immagini resta fluido; a schermo spento non serve disegnare */
+        if (idle && (!saver_on || UI.set.saver >= 3) && ++idle_skip % 3) {
+            SDL_Delay(16);
+            continue;
+        }
 
         ui_begin();
         if (screen == SCR_HOME && is_bar_layout()) bar_draw();

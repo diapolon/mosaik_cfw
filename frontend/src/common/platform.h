@@ -11,6 +11,12 @@ bool plat_is_device(void);
 const char *plat_model(void);
 /* applica luminosità, volume e profilo CPU se sono cambiati (si chiama a ogni fotogramma) */
 void plat_apply(const settings_t *s);
+/* frequenza decisa dal launcher (kHz), al posto del profilo: i profili valgono per i giochi */
+void plat_cpu_fixed(int khz);
+/* si esce dal launcher: torna subito il profilo, che i giochi Linux non impostano da soli */
+void plat_cpu_release(const settings_t *s);
+/* frequenza attuale e temperatura, per il registro */
+void plat_cpu_status(int *mhz, int *temp);
 /* batteria in percentuale, -1 se non disponibile */
 int plat_battery(bool *charging);
 /* tasti della Brick Pro che SDL non vede come pulsanti: HOME (laterale), F1/F2 (le due

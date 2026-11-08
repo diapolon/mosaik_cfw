@@ -68,11 +68,14 @@ static void set_volume(int level) {
     if (system(pct ? "amixer sset 'DAC volume' 160 >/dev/null 2>&1" : "amixer sset 'DAC volume' 0 >/dev/null 2>&1")) {}
 }
 
-static void set_cpu(int profile) {
-    static const char *freq[3] = { "1200000", "1608000", "2000000" };
+static void set_cpu(int khz) {
+    char b[16];
+    snprintf(b, sizeof b, "%d", khz);
     put_str("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "userspace");
-    put_str("/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed", freq[profile < 0 || profile > 2 ? 1 : profile]);
+    put_str("/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed", b);
 }
+
+static int cpu_fixed;   /* kHz chiesti dal launcher; 0 = profilo scelto nelle impostazioni */
 
 bool plat_device_name(const char *path, char *out, int n) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -143,6 +146,12 @@ static void apply_leds(const settings_t *s, bool low_battery) {
     led_set(rgb, effect[s->led_mode & 3], duration[s->led_mode & 3], s->led_bright * 4);
 }
 
+static int profile_khz(const settings_t *s) {
+    static const int khz[3] = { 1200000, 1608000, 2000000 };
+    int p = fn_state == 1 ? CPU_PERF : s->cpu_profile;
+    return khz[p < 0 || p > 2 ? 1 : p];
+}
+
 void plat_apply(const settings_t *s) {
     static int bright = -1, vol = -1, cpu = -1, lmode = -1, lcolor = -1, lbright = -1;
     if (reapply) { reapply = false; bright = vol = cpu = lmode = lcolor = lbright = -1; }
@@ -166,8 +175,22 @@ void plat_apply(const settings_t *s) {
     if (s->brightness != bright) { bright = s->brightness; set_brightness(bright); }
     if (s->volume != vol) { vol = s->volume; set_volume(vol); }
     /* FN attivo: prestazioni massime, qualunque sia il profilo scelto */
-    int want = fn_state == 1 ? CPU_PERF : s->cpu_profile;
+    int want = cpu_fixed ? cpu_fixed : profile_khz(s);
     if (want != cpu) { cpu = want; set_cpu(cpu); }
+}
+
+void plat_cpu_fixed(int khz) { cpu_fixed = khz; }
+
+void plat_cpu_release(const settings_t *s) {
+    if (!cpu_fixed) return;
+    cpu_fixed = 0;
+    set_cpu(profile_khz(s));
+}
+
+void plat_cpu_status(int *mhz, int *temp) {
+    *mhz = get_int("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq") / 1000;
+    *temp = get_int("/sys/class/thermal/thermal_zone0/temp");
+    if (*temp > 1000) *temp /= 1000;
 }
 
 /* gamepad di trimui_inputd: si cerca per nome, riprovando ogni tanto se non c'è ancora */
@@ -281,6 +304,9 @@ int plat_battery(bool *charging) {
 bool plat_is_device(void) { return false; }
 const char *plat_model(void) { return NULL; }
 void plat_apply(const settings_t *s) { (void)s; }
+void plat_cpu_fixed(int khz) { (void)khz; }
+void plat_cpu_release(const settings_t *s) { (void)s; }
+void plat_cpu_status(int *mhz, int *temp) { *mhz = *temp = 0; }
 int plat_battery(bool *charging) { *charging = false; return -1; }
 void plat_poll(plat_keys_t *k) { memset(k, 0, sizeof *k); k->fn = -1; }
 bool plat_device_name(const char *path, char *out, int n) { (void)path; if (n) out[0] = 0; return false; }

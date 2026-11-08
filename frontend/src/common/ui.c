@@ -1563,6 +1563,7 @@ static void shut_step(const char *what) {
 }
 
 void ui_shutdown_code(int code) {
+    plat_cpu_release(&UI.set);
     if (vol_save_at > 0) { vol_save_at = 0; settings_save(&UI.set, UI.root); }
     /* System/exit.txt: chi ci ha avviati sa già come siamo usciti, anche se la chiusura
        dovesse bloccarsi (sul sistema su SD lo script ci chiude dopo qualche secondo) */
