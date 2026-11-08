@@ -74,6 +74,7 @@
     "log_level": "Journal de diagnostic",
     "bezel": "Cadres des jeux",
     "missing": "Jeux sans ROM",
+    "genres": "Genres des jeux",
     "screensaver": "Économiseur d'écran",
     "romcheck": "Vérifier les ROM",
     "pads": "Manettes",
@@ -108,6 +109,7 @@
     "log_level": "Ce qui est écrit dans Arcade/Logs. Essentiel : démarrages et erreurs. Performances : aussi temps de démarrage et vitesse des jeux. Complet : aussi boutons et captures.",
     "bezel": "Un cadre (bezel) autour du jeu : celui du jeu dans Bezels/ s'il existe, sinon celui par défaut.",
     "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
+    "genres": "Renomme les genres, fusionne-les ou reviens aux originaux. Le genre d'un jeu se change depuis sa fiche (X, puis X).",
     "screensaver": "Après un moment sans action : captures de vos jeux ou écran éteint.",
     "romcheck": "Vérifie que chaque zip contient les bons fichiers pour son émulateur (noms, tailles, CRC du DAT).",
     "pads": "Les commandes de la console sont le joueur 1, une manette Bluetooth ou USB le 2. Avec « joueur 1 » on joue seul avec la manette externe.",
@@ -465,5 +467,20 @@
     "small": "Petites",
     "normal": "Normales",
     "large": "Grandes"
+  },
+  "genre_ui": {
+    "row": "Genre",
+    "title_game": "Genre du jeu",
+    "auto": "Automatique",
+    "new": "Nouveau genre…",
+    "restore": "Restaurer les genres d'origine",
+    "rename": "Renommer",
+    "merge": "Fusionner dans…",
+    "merge_title": "Fusionner %s dans…",
+    "prompt": "Nom du genre",
+    "restored": "Genres d'origine restaurés",
+    "renamed": "%s s'appelle maintenant %s",
+    "merged": "%s fusionné dans %s",
+    "no_other": "Il n'y a pas d'autres genres"
   }
 }

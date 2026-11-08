@@ -74,6 +74,7 @@
     "log_level": "Diagnoseprotokoll",
     "bezel": "Spielrahmen",
     "missing": "Spiele ohne ROM",
+    "genres": "Spielgenres",
     "screensaver": "Bildschirmschoner",
     "romcheck": "ROMs prüfen",
     "pads": "Controller",
@@ -108,6 +109,7 @@
     "log_level": "Was in Arcade/Logs geschrieben wird. Wesentlich: Starts und Fehler. Leistung: auch Startzeiten und Spielgeschwindigkeit. Vollständig: auch Tasten und Schnappschüsse.",
     "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
+    "genres": "Genres umbenennen, zusammenführen oder zurücksetzen. Das Genre eines Spiels ändert man auf seiner Seite (X, dann X).",
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
     "romcheck": "Prüft, ob jedes Zip die richtigen Dateien für seinen Emulator enthält (Namen, Größen, CRC aus dem DAT).",
     "pads": "Die Konsole ist Spieler 1, ein Bluetooth- oder USB-Controller Spieler 2. Mit „Spieler 1“ spielt man allein mit dem externen Controller.",
@@ -465,5 +467,20 @@
     "small": "Klein",
     "normal": "Normal",
     "large": "Groß"
+  },
+  "genre_ui": {
+    "row": "Genre",
+    "title_game": "Genre des Spiels",
+    "auto": "Automatisch",
+    "new": "Neues Genre…",
+    "restore": "Originalgenres wiederherstellen",
+    "rename": "Umbenennen",
+    "merge": "Zusammenführen mit…",
+    "merge_title": "%s zusammenführen mit…",
+    "prompt": "Name des Genres",
+    "restored": "Originalgenres wiederhergestellt",
+    "renamed": "%s heißt jetzt %s",
+    "merged": "%s zusammengeführt mit %s",
+    "no_other": "Keine anderen Genres vorhanden"
   }
 }

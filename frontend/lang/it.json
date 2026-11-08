@@ -74,6 +74,7 @@
     "log_level": "Registro diagnostico",
     "bezel": "Cornici dei giochi",
     "missing": "Giochi senza ROM",
+    "genres": "Generi dei giochi",
     "screensaver": "Salvaschermo",
     "romcheck": "Verifica ROM",
     "pads": "Controller",
@@ -108,6 +109,7 @@
     "log_level": "Cosa scrivere in Arcade/Logs. Essenziale: avvii ed errori. Prestazioni: anche tempi dell'avvio e velocità dei giochi. Completo: anche tasti premuti e istantanee.",
     "bezel": "Una cornice (bezel) attorno al gioco: quella del gioco se c'è in Bezels/, altrimenti quella predefinita.",
     "missing": "Mostra anche i giochi del catalogo degli emulatori che non hai (solo le versioni principali, non i cloni).",
+    "genres": "Rinomina i generi, accorpali o torna a quelli originali. Il genere di un singolo gioco si cambia dalla sua scheda (X, poi X).",
     "screensaver": "Dopo un po' senza usare i tasti: le schermate dei tuoi giochi oppure lo schermo spento.",
     "romcheck": "Controlla che ogni zip contenga i file giusti per il suo emulatore (nomi, dimensioni, CRC dal DAT).",
     "pads": "I comandi della console sono il giocatore 1, un controller Bluetooth o USB il 2. Con «giocatore 1» si gioca da soli con il controller esterno.",
@@ -465,5 +467,20 @@
     "small": "Piccole",
     "normal": "Normali",
     "large": "Grandi"
+  },
+  "genre_ui": {
+    "row": "Genere",
+    "title_game": "Genere del gioco",
+    "auto": "Automatico",
+    "new": "Nuovo genere…",
+    "restore": "Ripristina i generi originali",
+    "rename": "Rinomina",
+    "merge": "Accorpa in…",
+    "merge_title": "Accorpa %s in…",
+    "prompt": "Nome del genere",
+    "restored": "Generi originali ripristinati",
+    "renamed": "%s ora si chiama %s",
+    "merged": "%s accorpato in %s",
+    "no_other": "Non ci sono altri generi"
   }
 }

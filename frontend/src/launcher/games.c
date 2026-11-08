@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <strings.h>
 #include <sys/stat.h>
 
@@ -257,6 +258,108 @@ static void load_genres(const char *root, game_t *g, int n) {
     free(meta);
 }
 
+/* ------------------------------------------------- generi modificati dall'utente */
+typedef struct { char key[64], val[32]; } kv_t;
+
+static int kv_load(const char *path, kv_t **out) {
+    int n = 0, cap = 64;
+    kv_t *a = malloc(sizeof(kv_t) * (size_t)cap);
+    FILE *f = fopen(path, "r");
+    char line[256];
+    while (f && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        char *v = strchr(line, '\t');
+        if (!v || !line[0] || !v[1]) continue;
+        *v++ = 0;
+        if (n == cap) a = realloc(a, sizeof(kv_t) * (size_t)(cap *= 2));
+        snprintf(a[n].key, sizeof a[n].key, "%s", line);
+        snprintf(a[n].val, sizeof a[n].val, "%s", v);
+        n++;
+    }
+    if (f) fclose(f);
+    *out = a;
+    return n;
+}
+
+static void kv_save(const char *path, const kv_t *a, int n) {
+    char tmp[1200];
+    snprintf(tmp, sizeof tmp, "%s.tmp", path);
+    FILE *f = fopen(tmp, "w");
+    if (!f) return;
+    for (int i = 0; i < n; i++) if (a[i].key[0]) fprintf(f, "%s\t%s\n", a[i].key, a[i].val);
+    fclose(f);
+    rename(tmp, path);
+}
+
+static void genre_file(const char *root, const char *name, char *out, size_t n) { snprintf(out, n, "%s/System/%s", root, name); }
+
+void games_set_genre(const char *root, const char *rom, const char *genre) {
+    char p[1100];
+    genre_file(root, "genre-custom.tsv", p, sizeof p);
+    kv_t *a;
+    int n = kv_load(p, &a), i;
+    for (i = 0; i < n; i++) if (!strcmp(a[i].key, rom)) break;
+    if (i == n && genre) { a = realloc(a, sizeof(kv_t) * (size_t)(n + 1)); snprintf(a[n].key, sizeof a[n].key, "%s", rom); n++; }
+    if (i < n) {
+        if (genre) snprintf(a[i].val, sizeof a[i].val, "%s", genre);
+        else a[i].key[0] = 0;
+    }
+    kv_save(p, a, n);
+    free(a);
+}
+
+void games_group_genre(const char *root, const char *from, const char *to) {
+    if (!strcmp(from, to)) return;
+    char p[1100];
+    genre_file(root, "genre-groups.tsv", p, sizeof p);
+    kv_t *a;
+    int n = kv_load(p, &a), found = 0;
+    /* chi puntava a "from" ora punta a "to"; un genere non punta mai a sé stesso */
+    for (int i = 0; i < n; i++) {
+        if (!strcmp(a[i].val, from)) snprintf(a[i].val, sizeof a[i].val, "%s", to);
+        if (!strcmp(a[i].key, from)) { snprintf(a[i].val, sizeof a[i].val, "%s", to); found = 1; }
+        if (!strcmp(a[i].key, a[i].val)) a[i].key[0] = 0;
+    }
+    if (!found) {
+        a = realloc(a, sizeof(kv_t) * (size_t)(n + 1));
+        snprintf(a[n].key, sizeof a[n].key, "%s", from);
+        snprintf(a[n].val, sizeof a[n].val, "%s", to);
+        n++;
+    }
+    kv_save(p, a, n);
+    free(a);
+}
+
+void games_clear_genre_groups(const char *root) {
+    char p[1100];
+    genre_file(root, "genre-groups.tsv", p, sizeof p);
+    unlink(p);
+}
+
+/* dopo i generi dello scraper: prima quelli scelti per il singolo gioco, poi accorpamenti e nomi */
+static void apply_genre_edits(const char *root, game_t *g, int n) {
+    char p[1100];
+    kv_t *a;
+    genre_file(root, "genre-custom.tsv", p, sizeof p);
+    int na = kv_load(p, &a);
+    for (int i = 0; i < n && na; i++)
+        for (int k = 0; k < na; k++)
+            if (!strcmp(a[k].key, g[i].name)) { snprintf(g[i].genre, sizeof g[i].genre, "%s", a[k].val); break; }
+    free(a);
+    genre_file(root, "genre-groups.tsv", p, sizeof p);
+    na = kv_load(p, &a);
+    for (int i = 0; i < n && na; i++) {
+        char m[32];
+        snprintf(m, sizeof m, "%s", g[i].genre);
+        char *slash = strchr(m, '/');
+        if (slash) *slash = 0;
+        for (size_t e = strlen(m); e > 0 && m[e - 1] == ' '; e--) m[e - 1] = 0;
+        for (int k = 0; k < na; k++)
+            if (!strcmp(a[k].key, m)) { snprintf(g[i].genre, sizeof g[i].genre, "%s", a[k].val); break; }
+    }
+    free(a);
+}
+
 static int title_cmp(const void *a, const void *b) {
     const game_t *x = a, *y = b;
     int c = strcasecmp(x->title, y->title);
@@ -291,6 +394,7 @@ int games_scan(const char *root, game_t **out, bool include_missing) {
     }
     scan_linux(&l, root);
     load_genres(root, l.g, l.n);
+    apply_genre_edits(root, l.g, l.n);
     qsort(l.g, (size_t)l.n, sizeof(game_t), title_cmp);
     *out = l.g;
     return l.n;

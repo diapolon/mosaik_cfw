@@ -74,6 +74,7 @@
     "log_level": "Registro de diagnóstico",
     "bezel": "Marcos de los juegos",
     "missing": "Juegos sin ROM",
+    "genres": "Géneros de juegos",
     "screensaver": "Salvapantallas",
     "romcheck": "Verificar ROM",
     "pads": "Mandos",
@@ -108,6 +109,7 @@
     "log_level": "Qué se escribe en Arcade/Logs. Esencial: arranques y errores. Rendimiento: también tiempos de arranque y velocidad de los juegos. Completo: también botones pulsados e instantáneas.",
     "bezel": "Un marco (bezel) alrededor del juego: el del juego en Bezels/ si existe, si no el predeterminado.",
     "missing": "Muestra también los juegos del catálogo que no tienes (solo versiones principales).",
+    "genres": "Renombra los géneros, combínalos o vuelve a los originales. El género de un juego se cambia desde su ficha (X y luego X).",
     "screensaver": "Tras un rato sin usar los botones: capturas de tus juegos o pantalla apagada.",
     "romcheck": "Comprueba que cada zip contenga los archivos correctos para su emulador (nombres, tamaños, CRC del DAT).",
     "pads": "Los controles de la consola son el jugador 1, un mando Bluetooth o USB el 2. Con «jugador 1» se juega solo con el mando externo.",
@@ -465,5 +467,20 @@
     "small": "Pequeñas",
     "normal": "Normales",
     "large": "Grandes"
+  },
+  "genre_ui": {
+    "row": "Género",
+    "title_game": "Género del juego",
+    "auto": "Automático",
+    "new": "Género nuevo…",
+    "restore": "Restaurar géneros originales",
+    "rename": "Renombrar",
+    "merge": "Combinar en…",
+    "merge_title": "Combinar %s en…",
+    "prompt": "Nombre del género",
+    "restored": "Géneros originales restaurados",
+    "renamed": "%s ahora es %s",
+    "merged": "%s combinado en %s",
+    "no_other": "No hay otros géneros"
   }
 }

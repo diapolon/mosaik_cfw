@@ -84,10 +84,11 @@ static int coll_sel = COLL_ALL;
 static bool gopt_open;
 static int gopt_sel;
 /* la tastiera serve per la ricerca, il nome di una nuova collezione e la password Wi-Fi */
-enum { KBM_SEARCH, KBM_COLL, KBM_WIFI };
+enum { KBM_SEARCH, KBM_COLL, KBM_WIFI, KBM_GENRE_NEW, KBM_GENRE_RENAME };
 static int kb_mode;
 static int kb_layout;   /* 0 maiuscole, 1 minuscole, 2 simboli (si cambia con X) */
 static char coll_name[48];
+static char genre_text[30];   /* nome scritto con la tastiera per un genere */
 /* finestra delle reti Wi-Fi */
 static bool wpanel_open;
 static wifi_net_t wnets[32];
@@ -1154,11 +1155,11 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_WIFI, S_SAVER, S_SLEEP, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
-    "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing",
+    "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
     "cpu", "pads", "wifi", "screensaver", "sleep", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "log_level", "info", "power",
 };
 
@@ -1167,7 +1168,7 @@ static const char *cat_key[SC_COUNT] = { "display", "look", "games", "system", "
 static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
-    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_CPU, S_PADS, S_RESUME, -1 },
+    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_RESUME, -1 },
     { S_WIFI, S_CLOCK, S_TZ, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_LOGLEVEL, S_INFO, -1 },
 };
@@ -1275,6 +1276,7 @@ static void set_value(int item, char *buf, size_t n) {
         break;
     }
     case S_UPDATE: snprintf(buf, n, "%s", update_current()); break;
+    case S_GENRES: snprintf(buf, n, "%d", ngenres); break;
     case S_LOGLEVEL: {
         static const char *k[3] = { "loglvl.essential", "loglvl.perf", "loglvl.full" };
         snprintf(buf, n, "%s", T(k[s->log_level % 3]));
@@ -1999,6 +2001,197 @@ static void upd_draw(void) {
     else { const char *h2[] = { "A", T("common.ok") }; ui_hints(h2, 2); }
 }
 
+/* Generi: scelta per il singolo gioco (opzioni della scheda) e gestione (Impostazioni > Giochi):
+   rinominare, accorpare, tornare agli originali. Un'unica finestra a elenco, con quattro usi. */
+enum { GP_GAME, GP_MANAGE, GP_ACTION, GP_MERGE };
+static bool gp_open;
+static int gp_mode, gp_sel;
+static char gp_genre[48];     /* genere su cui si sta lavorando */
+
+static void gp_show(int mode) { gp_mode = mode; gp_sel = 0; gp_open = true; ui_sound(SND_OK); }
+
+/* i generi tra cui scegliere nell'accorpamento: tutti tranne quello di partenza */
+static int gp_merge_index(int row) {
+    int r = 0;
+    for (int k = 0; k < ngenres; k++) {
+        if (!strcmp(genres[k], gp_genre)) continue;
+        if (r++ == row) return k;
+    }
+    return -1;
+}
+
+static int gp_rows(void) {
+    switch (gp_mode) {
+    case GP_GAME: return ngenres + 2;       /* Automatico, generi, Nuovo */
+    case GP_MANAGE: return ngenres + 1;     /* generi, Ripristina */
+    case GP_ACTION: return 2;               /* Rinomina, Accorpa */
+    default: return ngenres > 1 ? ngenres - 1 : 0;
+    }
+}
+
+/* dopo una modifica: si rileggono i giochi e si resta sul gioco aperto */
+static void genres_changed(void) {
+    char core[16] = "", name[64] = "";
+    if (detail_idx >= 0 && detail_idx < ngames) {
+        snprintf(core, sizeof core, "%s", games[detail_idx].core);
+        snprintf(name, sizeof name, "%s", games[detail_idx].name);
+    }
+    reload_games();
+    if (name[0])
+        for (int i = 0; i < ngames; i++)
+            if (!strcmp(games[i].name, name) && !strcmp(games[i].core, core)) { detail_idx = i; break; }
+}
+
+static void gp_set_game(const char *genre) {
+    char rom[64], l[48], m[120];
+    snprintf(rom, sizeof rom, "%s", games[detail_idx].name);
+    games_set_genre(UI.root, rom, genre);
+    genres_changed();
+    gp_open = false;
+    genre_label(games[detail_idx].genre, l, sizeof l);
+    snprintf(m, sizeof m, "%s: %s", T("genre_ui.row"), l[0] ? l : "—");
+    ui_toast(m);
+    ui_sound(SND_OK);
+}
+
+static void kb_for_genre(int mode, const char *start) {
+    snprintf(genre_text, sizeof genre_text, "%s", start);
+    kb_mode = mode;
+    kb_layout = 0;
+    kb_row = 1;
+    kb_col = 0;
+    kb_open = true;
+    ui_sound(SND_OK);
+}
+
+static void gp_input(void) {
+    input_t *in = &UI.in;
+    int n = gp_rows();
+    if (n && in->pressed[BTN_UP]) { gp_sel = (gp_sel + n - 1) % n; ui_sound(SND_MOVE); }
+    if (n && in->pressed[BTN_DOWN]) { gp_sel = (gp_sel + 1) % n; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) {
+        if (gp_mode == GP_ACTION) { gp_mode = GP_MANAGE; gp_sel = 0; }
+        else if (gp_mode == GP_MERGE) { gp_mode = GP_ACTION; gp_sel = 1; }
+        else gp_open = false;
+        ui_sound(SND_BACK);
+        return;
+    }
+    if (!in->pressed[BTN_A] || !n) return;
+    char m[160], a[48], b[48];
+    switch (gp_mode) {
+    case GP_GAME:
+        if (gp_sel == 0) gp_set_game(NULL);
+        else if (gp_sel <= ngenres) { char g[48]; snprintf(g, sizeof g, "%s", genres[gp_sel - 1]); gp_set_game(g); }
+        else kb_for_genre(KBM_GENRE_NEW, "");
+        break;
+    case GP_MANAGE:
+        if (gp_sel < ngenres) { snprintf(gp_genre, sizeof gp_genre, "%s", genres[gp_sel]); gp_mode = GP_ACTION; gp_sel = 0; ui_sound(SND_OK); }
+        else {
+            games_clear_genre_groups(UI.root);
+            genres_changed();
+            ui_toast(T("genre_ui.restored"));
+            ui_sound(SND_OK);
+            gp_sel = 0;
+        }
+        break;
+    case GP_ACTION:
+        if (gp_sel == 0) kb_for_genre(KBM_GENRE_RENAME, genre_label(gp_genre, a, sizeof a));
+        else if (ngenres > 1) { gp_mode = GP_MERGE; gp_sel = 0; ui_sound(SND_OK); }
+        else { ui_toast(T("genre_ui.no_other")); ui_sound(SND_ERROR); }
+        break;
+    default: {
+        int k = gp_merge_index(gp_sel);
+        if (k < 0) break;
+        genre_label(gp_genre, a, sizeof a);
+        genre_label(genres[k], b, sizeof b);
+        char to[48];
+        snprintf(to, sizeof to, "%s", genres[k]);
+        games_group_genre(UI.root, gp_genre, to);
+        genres_changed();
+        snprintf(m, sizeof m, T("genre_ui.merged"), a, b);
+        ui_toast(m);
+        ui_sound(SND_OK);
+        gp_mode = GP_MANAGE;
+        gp_sel = 0;
+    }
+    }
+}
+
+/* fine scrittura del nome di un genere */
+static void genre_kb_done(void) {
+    for (char *c = genre_text; *c; c++) if (*c == '/' || *c == '\t') *c = '-';
+    size_t e = strlen(genre_text);
+    while (e > 0 && genre_text[e - 1] == ' ') genre_text[--e] = 0;
+    if (!genre_text[0]) return;
+    if (kb_mode == KBM_GENRE_NEW) { gp_set_game(genre_text); return; }
+    char m[160], a[48];
+    genre_label(gp_genre, a, sizeof a);
+    games_group_genre(UI.root, gp_genre, genre_text);
+    genres_changed();
+    snprintf(m, sizeof m, T("genre_ui.renamed"), a, genre_text);
+    ui_toast(m);
+    gp_mode = GP_MANAGE;
+    gp_sel = 0;
+}
+
+static void gp_draw(void) {
+    theme_t *t = &UI.th;
+    int rows = gp_rows(), rh = M(t->list_row_h), pad = M(0.04f);
+    int maxrows = (UI.h - M(t->hintbar_h) - M(0.2f) - TTF_FontHeight(UI.f_title)) / rh;
+    int vis = rows < maxrows ? rows : maxrows;
+    if (vis < 1) vis = 1;
+    int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
+    int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.02f) + rh * vis, x, y;
+    panel_box(w, h, &x, &y);
+    char title[120], a[48];
+    if (gp_mode == GP_GAME) snprintf(title, sizeof title, "%s", T("genre_ui.title_game"));
+    else if (gp_mode == GP_MANAGE) snprintf(title, sizeof title, "%s", T("settings.genres"));
+    else if (gp_mode == GP_ACTION) snprintf(title, sizeof title, "%s", genre_label(gp_genre, a, sizeof a));
+    else snprintf(title, sizeof title, T("genre_ui.merge_title"), genre_label(gp_genre, a, sizeof a));
+    char fit[120];
+    ui_text_fit(UI.f_title, title, w - 2 * pad, fit, sizeof fit);
+    ui_text(UI.f_title, fit, x + pad, y + pad, t->text, ALIGN_LEFT);
+    int ry = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    int first = gp_sel - vis + 1 > 0 ? gp_sel - vis + 1 : 0;
+    TTF_Font *f = UI.f_normal;
+    int fh = TTF_FontHeight(f);
+    for (int i = first; i < first + vis && i < rows; i++, ry += rh) {
+        bool sel = i == gp_sel;
+        if (sel) ui_rrect(x + M(0.02f), ry, w - M(0.04f), rh - M(0.008f), M(t->panel_radius), t->accent);
+        color_t c = sel ? t->accent_text : t->text;
+        int ty = ry + (rh - M(0.008f) - fh) / 2, lx = x + M(0.05f);
+        char label[80] = "", val[32] = "";
+        int gi = -1;
+        switch (gp_mode) {
+        case GP_GAME:
+            if (i == 0) snprintf(label, sizeof label, "%s", T("genre_ui.auto"));
+            else if (i <= ngenres) gi = i - 1;
+            else snprintf(label, sizeof label, "%s", T("genre_ui.new"));
+            break;
+        case GP_MANAGE:
+            if (i < ngenres) {
+                gi = i;
+                int cnt = 0;
+                for (int k = 0; k < ngames; k++) {
+                    char m[48];
+                    if (games[k].missing) continue;
+                    genre_main(games[k].genre, m, sizeof m);
+                    cnt += !strcmp(m, genres[i]);
+                }
+                snprintf(val, sizeof val, "%d", cnt);
+            } else snprintf(label, sizeof label, "%s", T("genre_ui.restore"));
+            break;
+        case GP_ACTION: snprintf(label, sizeof label, "%s", T(i ? "genre_ui.merge" : "genre_ui.rename")); break;
+        default: gi = gp_merge_index(i);
+        }
+        if (gi >= 0) genre_label(genres[gi], label, sizeof label);
+        ui_text(f, label, lx, ty, c, ALIGN_LEFT);
+        if (val[0]) ui_text(UI.f_small, val, x + w - M(0.05f), ty + (fh - TTF_FontHeight(UI.f_small)) / 2, sel ? c : t->text_dim, ALIGN_RIGHT);
+    }
+    const char *hint[] = { "B", T("common.back"), "A", T("common.ok") };
+    ui_hints(hint, 4);
+}
+
 static void settings_input(void) {
     input_t *in = &UI.in;
     int rows[16], n = page_rows(rows);
@@ -2023,6 +2216,7 @@ static void settings_input(void) {
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
         else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_UPDATE) upd_start();
+        else if (set_sel == S_GENRES) gp_show(GP_MANAGE);
         else if (set_sel == S_WIFI && wifi_supported()) {
             if (!UI.set.wifi) set_change(S_WIFI, +1);
             wpanel_start();
@@ -2130,7 +2324,7 @@ static void settings_draw(void) {
             }
         } else {
             color_t vc = sel ? t->accent : t->text_dim;
-            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE;
+            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES;
             int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
             if (i == S_LEDCOLOR) {
                 /* pallino del colore (per "tema": il colore principale del tema) */
@@ -2335,7 +2529,7 @@ static void lists_changed(void) {
 
 static void gopt_input(void) {
     input_t *in = &UI.in;
-    int rows = NCOLLS + 2;
+    int rows = NCOLLS + 3;
     game_t *g = &games[detail_idx];
     if (in->pressed[BTN_UP]) { gopt_sel = (gopt_sel + rows - 1) % rows; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { gopt_sel = (gopt_sel + 1) % rows; ui_sound(SND_MOVE); }
@@ -2356,6 +2550,8 @@ static void gopt_input(void) {
         kb_row = 1;
         kb_col = 0;
         ui_sound(SND_OK);
+    } else if (gopt_sel == NCOLLS + 2) {
+        gp_show(GP_GAME);
     } else {
         games_set_hidden(UI.root, g, !g->user_hidden);
         ui_toast(T(g->user_hidden ? "coll.hidden_toast" : "coll.shown_toast"));
@@ -2379,7 +2575,7 @@ static void gopt_draw(void) {
     theme_t *t = &UI.th;
     if (detail_idx < 0) return;
     game_t *g = &games[detail_idx];
-    int rows = NCOLLS + 2, rh = M(t->list_row_h), pad = M(0.04f);
+    int rows = NCOLLS + 3, rh = M(t->list_row_h), pad = M(0.04f);
     int maxrows = (UI.h - M(t->hintbar_h) - M(0.2f) - TTF_FontHeight(UI.f_title)) / rh;
     int vis = rows < maxrows ? rows : maxrows;
     int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
@@ -2417,6 +2613,11 @@ static void gopt_draw(void) {
         } else if (i == NCOLLS) {
             ui_text(f, "+", bx + box / 2, ty, sel ? c : t->accent, ALIGN_CENTER);
             ui_text(f, T("coll.new"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
+        } else if (i == NCOLLS + 2) {
+            char gl[48];
+            genre_label(g->genre, gl, sizeof gl);
+            ui_text(f, T("genre_ui.row"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
+            ui_text(UI.f_small, gl[0] ? gl : "—", x + w - M(0.05f), ty + (fh - TTF_FontHeight(UI.f_small)) / 2, sel ? c : t->text_dim, ALIGN_RIGHT);
         } else {
             ui_text(f, T(g->user_hidden ? "coll.unhide" : "coll.hide"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
         }
@@ -2725,6 +2926,7 @@ enum { KB_SPACE, KB_DEL, KB_DONE };
 
 static char *kb_buf(size_t *cap) {
     if (kb_mode == KBM_WIFI) { if (cap) *cap = sizeof wifi_pass; return wifi_pass; }
+    if (kb_mode == KBM_GENRE_NEW || kb_mode == KBM_GENRE_RENAME) { if (cap) *cap = sizeof genre_text; return genre_text; }
     if (cap) *cap = kb_mode == KBM_COLL ? sizeof coll_name : sizeof search;
     return kb_mode == KBM_COLL ? coll_name : search;
 }
@@ -2748,7 +2950,10 @@ static void lists_changed(void);
 /* fine scrittura: per la ricerca chiude anche i filtri; per la collezione la crea */
 static void wifi_join(const char *ssid, const char *psk);
 
+static void genre_kb_done(void);
+
 static void kb_done(void) {
+    if (kb_mode == KBM_GENRE_NEW || kb_mode == KBM_GENRE_RENAME) { kb_open = false; genre_kb_done(); return; }
     if (kb_mode == KBM_WIFI) {
         if (strlen(wifi_pass) < 8) { ui_toast(T("wifi.short")); ui_sound(SND_ERROR); return; }
         kb_open = false;
@@ -2810,6 +3015,7 @@ static void keyboard_draw(void) {
     int tw = typed[0] ? ui_text(f, typed, tx, ty, t->text, ALIGN_LEFT) : 0;
     char prompt[96];
     if (kb_mode == KBM_WIFI) snprintf(prompt, sizeof prompt, T("wifi.password_for"), wifi_target);
+    else if (kb_mode == KBM_GENRE_NEW || kb_mode == KBM_GENRE_RENAME) snprintf(prompt, sizeof prompt, "%s", T("genre_ui.prompt"));
     else snprintf(prompt, sizeof prompt, "%s", T(kb_mode == KBM_COLL ? "coll.name_prompt" : "kb.title"));
     if (!typed[0]) ui_text(f, prompt, tx, ty, t->text_dim, ALIGN_LEFT);
     if (fmod(UI.t, 1.0) < 0.55) ui_rect(tx + tw + 2, ty + M(0.004f), M(0.004f) + 1, TTF_FontHeight(f) - M(0.008f), t->accent);
@@ -3046,7 +3252,7 @@ int main(int argc, char **argv) {
         if (UI.in.power_long && !dlg_open && !upd_open) { dlg_open = true; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
         if (UI.in.home && !romcheck_open && !scrape_open && !upd_open) {
-            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = false;
+            kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
         }
@@ -3057,6 +3263,7 @@ int main(int argc, char **argv) {
         else if (scrape_open) scrape_input();
         else if (upd_open) upd_input();
         else if (kb_open) keyboard_input();
+        else if (gp_open) gp_input();
         else if (gopt_open && screen == SCR_DETAIL) gopt_input();
         else if (fpanel_open) fpanel_input();
         else if (dlg_open) dialog_input();
@@ -3085,6 +3292,7 @@ int main(int argc, char **argv) {
         if (sdinfo_open) sdinfo_draw();
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
+        if (gp_open) gp_draw();
         if (kb_open) keyboard_draw();
         if (scrape_open) scrape_draw();
         if (upd_open) upd_draw();
