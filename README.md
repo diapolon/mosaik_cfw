@@ -22,7 +22,7 @@
   <img src="docs/images/home.png" width="640" alt="The Mosaik home screen">
 </p>
 
-> **Status:** version 0.9, tested on the Smart Pro. Testing on the Brick Pro is still in progress.
+> **Status:** version 0.9. **Smart Pro: tested. Brick Pro: not tested.**
 
 ## What's inside
 
