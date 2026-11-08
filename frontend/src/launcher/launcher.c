@@ -1195,6 +1195,18 @@ static int page_rows(int *rows) {
     return n;
 }
 
+/* voci che in questo momento non possono fare nulla: in grigio, con la descrizione che resta leggibile */
+static bool set_disabled(int i) {
+    switch (i) {
+    case S_SCRAPE: case S_UPDATE: return !UI.set.wifi;
+    case S_MUSIC: return !music_count();
+    case S_LEDCOLOR: case S_LEDBRIGHT: return !UI.set.led_mode;
+    case S_VARIANT: return UI.th.nvariants < 2;
+    case S_GRIDCOLS: case S_HOMESIZE: return is_list_layout() || is_bar_layout();
+    default: return false;
+    }
+}
+
 static void settings_open(int page, int row) {
     set_page = page;
     set_row = row;
@@ -2224,6 +2236,13 @@ static void settings_input(void) {
         if (in->pressed[BTN_A] || in->pressed[BTN_RIGHT]) { settings_open(set_sel - ROW_CAT, 0); ui_sound(SND_OK); }
         return;
     }
+    if (set_disabled(set_sel)) {
+        if (in->pressed[BTN_A] || in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) {
+            if (set_sel == S_SCRAPE || set_sel == S_UPDATE) ui_toast(T("scrape.no_wifi"));
+            ui_sound(SND_ERROR);
+        }
+        return;
+    }
     if (in->pressed[BTN_LEFT]) set_change(set_sel, -1);
     if (in->pressed[BTN_RIGHT]) set_change(set_sel, +1);
     if (in->pressed[BTN_A]) {
@@ -2301,6 +2320,16 @@ static void settings_draw(void) {
             ui_text_fit(UI.f_small, T(key), vx2 - (mx + M(0.06f) + lw), fit, sizeof fit);
             ui_text(UI.f_small, fit, vx2, cy - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_RIGHT);
             ui_text(f, "›", mx + w - M(0.03f), cy - fh / 2, sel ? t->accent : t->text_dim, ALIGN_RIGHT);
+            continue;
+        }
+        if (set_disabled(i)) {
+            color_t grey = with_alpha(t->text_dim, 120);
+            ui_text(f, set_text("settings", i), mx + M(0.03f), cy - fh / 2, grey, ALIGN_LEFT);
+            if (i != S_SCRAPE) {
+                char off[160];
+                set_value(i, off, sizeof off);
+                ui_text(f, off, mx + w - M(0.03f), cy - fh / 2, grey, ALIGN_RIGHT);
+            }
             continue;
         }
         color_t lc = i == S_POWER ? (sel ? rgba(220, 70, 70, 255) : t->text) : t->text;

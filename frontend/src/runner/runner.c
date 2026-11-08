@@ -856,6 +856,11 @@ static void power_off_from_game(void) {
     exit_code = EXIT_POWEROFF;
 }
 
+/* voci del menu senza effetto per questo gioco: in grigio */
+static bool row_disabled(int i) {
+    return page == PAGE_MAIN && ((i == MI_SHADER && !glsh_param_count()) || (i == MI_OPTIONS && !noptv));
+}
+
 static int page_rows(void) {
     if (page == PAGE_OPTIONS) return noptv ? noptv : 1;
     if (page == PAGE_SHADER) return glsh_param_count() ? glsh_param_count() : 1;
@@ -949,6 +954,7 @@ static void menu_input(void) {
     if (dir) main_change(*s, dir);
     if (in->pressed[BTN_B] || in->pressed[BTN_MENU]) { menu_open = false; ui_sound(SND_BACK); return; }
     if (!ok) return;
+    if (row_disabled(*s)) { ui_sound(SND_ERROR); return; }
     switch (*s) {
     case MI_RESUME: menu_open = false; break;
     case MI_SAVE: ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed")); break;
@@ -1066,6 +1072,7 @@ static void menu_draw(void) {
         bool is_sel = i == *s, sub;
         row_text(i, label, sizeof label, value, sizeof value, &sub);
         color_t c = is_sel ? t->accent_text : t->text;
+        if (row_disabled(i)) { c = with_alpha(is_sel ? t->accent_text : t->text_dim, 120); sub = false; }
         int ty = ry_i + (rh - fh) / 2, right = px + pw - M(0.05f);
         int vw = 0;
         if (value[0]) {
