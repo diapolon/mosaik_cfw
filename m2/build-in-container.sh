@@ -69,7 +69,7 @@ models | while IFS="|" read -r id fw name file; do
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
         $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw \
         +libEGL.so.1 +libGLESv2.so.2 +libasound.so.2 +libIMGegl.so +libsrv_um.so +libusc.so +libglslcompiler.so +libudev.so.1 \
-        > $W/libs-$id.txt 2> $W/libs-mancanti-$id.txt
+        > $W/libs-$id.txt 2> $W/libs-mancanti-$id.txt || { echo "strato $id:"; cat $W/libs-mancanti-$id.txt; exit 1; }
     for l in $(cat $W/libs-$id.txt); do mkdir -p $L/$(dirname $l); cp -L $F/$l $L/$l; done
     for pat in "libEGL*" "libGLES*" "libpvr*" "libPVR*" "libIMG*" "libsrv_um*" "libusc*" "libglslcompiler*" "libasound*"; do
         for f in $F/usr/lib/$pat; do [ -e "$f" ] && cp -a "$f" $L/usr/lib/; done

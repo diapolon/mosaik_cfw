@@ -157,6 +157,17 @@ for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x
     stop
 done
 
+echo "--- righe che questa versione non conosce"
+card; echo "http://127.0.0.1:8765/" > $S/System/update-url.txt; cp $X/buono $X/file-0
+printf 'arcade-update 1\nminboot 2\nversion 0.9.0 20270101.0000\nfile %s 6 Lang/it.json\nqualcosa di nuovo\n' $h > $X/update.txt; mk_static $X
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 1" "riga sconosciuta ignorata"
+cmp $X/buono $S/Lang/it.json && ok "file installato"
+stop
+card; echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
+printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile nonvalida\n' > $X/update.txt; mk_static $X
+expect "$(./t $W/sd install 2>/dev/null)" "11 3 0" "riga file malformata rifiutata"
+stop
+
 echo "--- file pubblicati online: statici, dietro un reindirizzamento come GitHub"
 card; export ARCADE_VERSION_FILE=$W/old.txt
 python3 /trimui/toolchain/update-server.py --dist $D --key key.pem --out $W/pub >/dev/null

@@ -456,7 +456,12 @@ static size_t audio_batch(const int16_t *data, size_t frames) {
     static int16_t *buf;
     static size_t cap;
     size_t need = (size_t)((double)frames * 1.03) + 4;
-    if (need > cap) { cap = need; buf = realloc(buf, cap * 4); }
+    if (need > cap) {
+        int16_t *bigger = realloc(buf, need * 4);
+        if (!bigger) return frames;   /* senza memoria si perde questo audio, non la partita */
+        buf = bigger;
+        cap = need;
+    }
     int n = ratectl_run(&rate, data, (int)frames, (double)SDL_GetQueuedAudioSize(UI.audio), rate_target, buf);
     ui_play_pcm(buf, n);
     return frames;
@@ -543,6 +548,7 @@ static bool load_game(void) {
         gi.size = (size_t)ftell(f);
         fseek(f, 0, SEEK_SET);
         rom_data = malloc(gi.size);
+        if (!rom_data) { ui_log("memoria insufficiente per %s", rom_path); fclose(f); return false; }
         gi.size = fread(rom_data, 1, gi.size, f);
         fclose(f);
         gi.data = rom_data;
@@ -610,6 +616,7 @@ static bool state_save(bool autosave) {
     size_t n = core.serialize_size();
     if (!n) return false;
     void *buf = malloc(n);
+    if (!buf) return false;
     bool ok = core.serialize(buf, n);
     if (ok) {
         char p[1400];

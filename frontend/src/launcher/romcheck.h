@@ -17,9 +17,9 @@ enum {
 };
 
 typedef struct {
-    volatile bool running, finished, cancel;
-    volatile int done, total;
-    volatile int count[RC_COUNT];
+    _Atomic bool running, finished, cancel;
+    _Atomic int done, total;
+    _Atomic int count[RC_COUNT];
 } romcheck_status_t;
 
 bool romcheck_start(const char *root, const game_t *games, int n);

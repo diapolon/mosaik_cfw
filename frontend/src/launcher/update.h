@@ -14,11 +14,11 @@ enum { UPD_IDLE, UPD_SEARCH, UPD_CHECK, UPD_NO_SERVER, UPD_CURRENT, UPD_AVAILABL
 enum { UPE_NONE, UPE_NETWORK, UPE_SIGNATURE, UPE_MANIFEST, UPE_SPACE, UPE_VERIFY, UPE_WRITE, UPE_CANCEL };
 
 typedef struct {
-    volatile int phase, error;
-    volatile long long done, total;   /* byte elaborati / da elaborare nella fase */
-    volatile int files;               /* file da aggiornare */
+    _Atomic int phase, error;
+    _Atomic long long done, total;   /* byte elaborati / da elaborare nella fase */
+    _Atomic int files;               /* file da aggiornare */
     char version[64];                 /* versione offerta */
-    volatile bool cancel;
+    _Atomic bool cancel;
 } update_status_t;
 
 bool update_supported(void);

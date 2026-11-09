@@ -46,10 +46,13 @@ on)
         printf 'ctrl_interface=%s\nupdate_config=1\n' "$CTRL" > "$CONF"
     fi
     ifconfig wlan0 up
+    sleep 0.5   # come il firmware TrimUI: un attimo prima di wpa_supplicant
     mkdir -p "$CTRL"
     if ! pidof wpa_supplicant >/dev/null; then
         # stdout e stderr non sulla SD: allo spegnimento la SD non deve avere file aperti
-        wpa_supplicant -B -i wlan0 -D nl80211 -c "$CONF" -C "$CTRL" > /dev/null 2>&1 9>&- || { log "wpa_supplicant: errore"; exit 1; }
+        # disable_scan_offload: come il firmware, la ricerca delle reti non è affidata al driver
+        echo disable_scan_offload=1 > /run/wpa-overlay.conf
+        wpa_supplicant -B -i wlan0 -D nl80211 -c "$CONF" -I /run/wpa-overlay.conf -C "$CTRL" > /dev/null 2>&1 9>&- || { log "wpa_supplicant: errore"; exit 1; }
     fi
     # non "pidof wpa_cli": troverebbe anche i wpa_cli brevi con cui il launcher legge lo stato,
     # e senza questo processo nessuno chiederebbe l'indirizzo alla rete

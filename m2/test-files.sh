@@ -3,7 +3,7 @@
 # estratto dai sorgenti; gli errori della scheda sono simulati:
 #   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-files.sh
 set -e
-apk add -q build-base >/dev/null
+apk add -q build-base linux-headers python3 >/dev/null
 W=/tmp/fl; rm -rf $W; mkdir -p $W/d $W/sd/Logs; cd $W
 R=/trimui/frontend/src/runner/runner.c; G=/trimui/frontend/src/launcher/games.c
 fn() { awk -v re="$2" '$0 ~ re {on=1} on {print} on && /^}/ {exit}' "$1"; }
@@ -124,21 +124,104 @@ gcc -g -O0 -Wall -Wextra -Wno-unused-function -Wno-format-truncation -fsanitize=
 
 echo "--- blocco del Wi-Fi"
 ok() { echo "  ok: $*"; }
-ko() { echo "  ERRORE: $*"; exit 1; }
+FAIL=0
+ko() { echo "  ERRORE: $*"; FAIL=1; }
+check() { m=$1; shift; if "$@"; then ok "$m"; else ko "$m"; fi; }
 export ROOT=$W/sd ARCADE_LOG_DIR=$W/sd/Logs WIFI_LOCK=$W/lock WIFI_LOCK_TRIES=10
 LOG=$W/sd/Logs/wifi.log
 CTL=/trimui/m2/wifi-ctl
-sh $CTL off && grep -q 'Wi-Fi spento' $LOG && ok "blocco libero: il comando viene eseguito"
+if sh $CTL off && grep -q 'Wi-Fi spento' $LOG; then ok "blocco libero: il comando viene eseguito"; else ko "blocco libero"; fi
 sh -c "exec 9> $WIFI_LOCK; flock -n 9; exec sleep 30" &
 HOLD=$!
 for i in $(seq 50); do (exec 8> $WIFI_LOCK; flock -n 8) || break; sleep 0.1; done
 : > $LOG
 if sh $CTL off; then ko "comando eseguito senza il blocco"; fi
-grep -q rinuncio $LOG && ! grep -q 'Wi-Fi spento' $LOG && ok "blocco occupato: il comando non viene eseguito"
+if grep -q rinuncio $LOG && ! grep -q 'Wi-Fi spento' $LOG; then ok "blocco occupato: il comando non viene eseguito"; else ko "blocco occupato"; fi
 if (exec 8> $WIFI_LOCK; flock -n 8); then ko "blocco tolto a chi lo teneva"; fi
 ok "il blocco resta a chi lo teneva"
 kill $HOLD; wait $HOLD 2>/dev/null || true
 : > $LOG
-sh $CTL off && grep -q 'Wi-Fi spento' $LOG && ok "comando interrotto: il blocco si libera da solo"
+if sh $CTL off && grep -q 'Wi-Fi spento' $LOG; then ok "comando interrotto: il blocco si libera da solo"; else ko "comando interrotto"; fi
 [ "$(grep -c 'wpa_.*9>&-' $CTL)" = 2 ] && ok "i demoni non ereditano il blocco" || ko "i demoni ereditano il blocco"
+
+check "ricerca delle reti non affidata al driver" grep -q 'wpa_supplicant -B .*-I /run/wpa-overlay.conf' $CTL
+check "impostazione scritta nel file aggiuntivo" grep -q 'disable_scan_offload=1 > /run/wpa-overlay.conf' $CTL
+check "attesa prima di wpa_supplicant" grep -q '^    sleep 0.5' $CTL
+
+echo "--- avvio ritardato del Wi-Fi"
+mkdir -p $W/fake; printf '#!/bin/sh\necho "$*" >> %s/sleep.log\n' $W > $W/fake/sleep; printf '#!/bin/sh\necho "$*" >> %s/ctl.log\n' $W > $W/fake/wifi-ctl; chmod +x $W/fake/*
+RIGA=$(grep 'sleep 15' /trimui/m2/system-init)
+rm -f /run/wifi-touched
+(PATH=$W/fake:$PATH; eval "$RIGA"; wait)
+check "aspetta 15 secondi" [ "$(cat $W/sleep.log 2>/dev/null)" = 15 ]
+check "poi accende il Wi-Fi" [ "$(cat $W/ctl.log 2>/dev/null)" = on ]
+rm -f $W/ctl.log; touch /run/wifi-touched
+(PATH=$W/fake:$PATH; eval "$RIGA"; wait)
+check "se si è già toccato il Wi-Fi dal menu non lo riaccende" [ ! -e $W/ctl.log ]
+rm -f /run/wifi-touched
+
+echo "--- JSON senza memoria"
+cat > oom.c <<'C'
+#include <stdlib.h>
+#include "json.h"
+static int left;
+void *tm(size_t n) { return left-- == 0 ? NULL : malloc(n); }
+void *tc(size_t a, size_t b) { return left-- == 0 ? NULL : calloc(a, b); }
+int main(void) {
+    const char *t = "{\"a\":[1,\"x\",{\"b\":true,\"n\":null,\"f\":false}],\"c\":\"y\"}";
+    int failed = 0;
+    for (int n = 0; n < 40; n++) { left = n; jval *v = json_parse(t); if (!v) failed++; json_free(v); }
+    left = 1 << 30;
+    jval *v = json_parse(t);
+    int ok = v != NULL && failed > 0;
+    json_free(v);
+    return ok ? 0 : 1;
+}
+C
+gcc -g -O0 -c -Dmalloc=tm -Dcalloc=tc -I/trimui/frontend/src/common -o json-oom.o /trimui/frontend/src/common/json.c
+gcc -g -O0 -I/trimui/frontend/src/common -o oom oom.c json-oom.o -lm
+check "ogni allocazione può fallire senza far cadere il programma" ./oom
+
+echo "--- processi lasciati dai giochi Linux"
+gcc -std=c11 -O2 -D_DEFAULT_SOURCE -o gw /trimui/frontend/src/tools/gamewatch.c
+cat > gioco.sh <<SH
+(trap "" TERM; exec sleep 60) &
+echo \$! > $W/figlio-duro
+sleep 60 &
+echo \$! > $W/figlio
+exit 7
+SH
+vivo() { [ -d /proc/$1 ] && ! grep -q ') Z ' /proc/$1/stat; }
+set +e; ./gw -- sh gioco.sh 2>/dev/null; rc=$?; set -e
+check "il codice di uscita del gioco resta quello" [ "$rc" = 7 ]
+A=$(cat $W/figlio); B=$(cat $W/figlio-duro)
+if vivo $A; then ko "processo rimasto attivo"; else ok "processo normale chiuso"; fi
+if vivo $B; then ko "processo che ignora la chiusura rimasto attivo"; else ok "processo che ignora la chiusura eliminato"; fi
+
+echo "--- controllo delle librerie nella costruzione"
+LC="python3 -I /trimui/toolchain/libclosure.py"
+R2=$W/rootfs; mkdir -p $R2/lib
+cat > lib.c <<'C'
+int f(void) { return 1; }
+C
+cat > uno.map <<'M'
+FOO_1 { global: f; local: *; };
+M
+cat > due.map <<'M'
+FOO_2 { global: f; local: *; };
+M
+echo 'int f(void); int main(void) { return f(); }' > prog.c
+gcc -shared -Wl,-soname,libfoo.so.1 -Wl,--version-script=due.map -o libfoo-2.so lib.c
+gcc -shared -Wl,-soname,libfoo.so.1 -Wl,--version-script=uno.map -o libfoo-1.so lib.c
+cp libfoo-2.so libfoo.so; gcc -o prog prog.c -L. -l:libfoo.so -Wl,-rpath-link,.
+cp /lib/ld-musl-*.so.1 $R2/lib/; L=$(readelf -d prog | sed -n 's/.*NEEDED.*\[\(libc[^]]*\)\].*/\1/p'); cp /lib/ld-musl-*.so.1 $R2/lib/$L
+cp libfoo-2.so $R2/lib/libfoo.so.1
+check "tutto presente: la costruzione prosegue" $LC $R2 $W/prog
+cp libfoo-1.so $R2/lib/libfoo.so.1
+if $LC $R2 $W/prog >/dev/null 2>&1; then ko "versione di simboli mancante non rilevata"; else ok "versione di simboli mancante: si ferma"; fi
+rm $R2/lib/libfoo.so.1
+if $LC $R2 $W/prog >/dev/null 2>&1; then ko "libreria mancante non rilevata"; else ok "libreria mancante: si ferma"; fi
+echo testo > nonelf
+if $LC $R2 $W/nonelf >/dev/null 2>&1; then ko "file non valido non rilevato"; else ok "file non valido: si ferma"; fi
+[ $FAIL = 0 ] || { echo "CI SONO ERRORI"; exit 1; }
 echo "tutte le prove passate"

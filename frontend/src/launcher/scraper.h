@@ -7,10 +7,10 @@
 enum { SCRAPE_IDLE, SCRAPE_INFO, SCRAPE_IMAGES, SCRAPE_DONE, SCRAPE_FAILED };
 
 typedef struct {
-    volatile int phase;
-    volatile int done, total;        /* giochi elaborati / da elaborare */
-    volatile int saved, missing;     /* immagini scaricate / non trovate */
-    volatile bool cancel;
+    _Atomic int phase;
+    _Atomic int done, total;        /* giochi elaborati / da elaborare */
+    _Atomic int saved, missing;     /* immagini scaricate / non trovate */
+    _Atomic bool cancel;
 } scrape_status_t;
 
 bool scraper_start(const char *root, const game_t *games, int n);

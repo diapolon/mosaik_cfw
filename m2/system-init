@@ -227,7 +227,10 @@ arcade-suspend mute 2> /dev/null
 
 # Wi-Fi: se acceso nelle impostazioni, si avvia in sottofondo (il launcher lo accende e spegne)
 if grep -q '"wifi": *true' "$ROOT/System/settings.json" 2>/dev/null || [ ! -f "$ROOT/System/settings.json" ]; then
-    ( sleep 3; wifi-ctl on ) > /dev/null 2>&1 &
+    # dopo 15 secondi, a menu già pronto: tre blocchi della Brick Pro alla prima accensione dopo
+    # una lunga pausa sono avvenuti tutti mentre il driver partiva insieme al launcher. Se nel
+    # frattempo si è toccato il Wi-Fi dal menu vale quella scelta.
+    ( sleep 15; [ -e /run/wifi-touched ] || wifi-ctl on ) > /dev/null 2>&1 &
 fi
 
 # rapporto per la diagnosi (Logs/sistema.txt), con il registro diagnostico "Prestazioni" o

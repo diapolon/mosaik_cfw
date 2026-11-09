@@ -10,7 +10,7 @@
 static char (*tracks)[512];
 static int ntracks, cur = -1, last_vol = -1;
 static Mix_Music *mus;
-static volatile bool finished;
+static _Atomic bool finished;
 static bool mixer_on;
 static char title[128];
 

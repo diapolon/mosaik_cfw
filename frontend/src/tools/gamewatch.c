@@ -100,10 +100,14 @@ static double now(void) {
     return ts.tv_sec + ts.tv_nsec / 1e9;
 }
 
+/* chiude il gioco e tutti i suoi processi, anche quando il programma principale è già finito:
+   al ritorno al menu non deve restare niente in esecuzione */
 static void stop_group(pid_t pgid) {
     kill(-pgid, SIGTERM);
+    kill(-pgid, SIGCONT);   /* un processo fermo dal menu non riceverebbe la richiesta */
     for (int i = 0; i < 20; i++) {
-        if (waitpid(pgid, NULL, WNOHANG) == pgid) return;
+        waitpid(pgid, NULL, WNOHANG);
+        if (kill(-pgid, 0) != 0) return;   /* nessuno è rimasto */
         usleep(100 * 1000);
     }
     kill(-pgid, SIGKILL);
@@ -219,6 +223,7 @@ int main(int argc, char **argv) {
         int status;
         pid_t r = waitpid(pid, &status, WNOHANG);
         if (r == pid) {
+            stop_group(pid);   /* il programma principale è finito: restano i processi che ha lanciato */
             if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
             return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
         }

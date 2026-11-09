@@ -22,7 +22,7 @@ static void ws(jp *j) {
 
 static jval *mk(jtype t) {
     jval *v = calloc(1, sizeof(jval));
-    v->t = t;
+    if (v) v->t = t;
     return v;
 }
 
@@ -41,6 +41,7 @@ static char *pstring(jp *j) {
     size_t cap = 0;
     while (*s && *s != '"') { if (*s == '\\' && s[1]) s++; s++; cap++; }
     char *out = malloc(cap * 3 + 1), *o = out;
+    if (!out) return NULL;
     while (*j->p && *j->p != '"') {
         char c = *j->p++;
         if (c != '\\') { *o++ = c; continue; }
@@ -70,7 +71,9 @@ static char *pstring(jp *j) {
 static jval *pvalue(jp *j);
 
 static jval *pcontainer(jp *j, char close, jtype t) {
-    jval *v = mk(t), **tail = &v->child;
+    jval *v = mk(t);
+    if (!v) return NULL;
+    jval **tail = &v->child;
     j->p++;
     for (;;) {
         ws(j);
@@ -105,13 +108,19 @@ static jval *pvalue(jp *j) {
         j->depth--;
         return v;
     }
-    if (c == '"') { jval *v = mk(J_STR); v->s = pstring(j); return v; }
-    if (!strncmp(j->p, "true", 4)) { j->p += 4; jval *v = mk(J_BOOL); v->n = 1; return v; }
+    if (c == '"') {
+        jval *v = mk(J_STR);
+        if (v) v->s = pstring(j);
+        if (v && !v->s) { free(v); return NULL; }
+        return v;
+    }
+    if (!strncmp(j->p, "true", 4)) { j->p += 4; jval *v = mk(J_BOOL); if (v) v->n = 1; return v; }
     if (!strncmp(j->p, "false", 5)) { j->p += 5; return mk(J_BOOL); }
     if (!strncmp(j->p, "null", 4)) { j->p += 4; return mk(J_NULL); }
     if (c == '-' || isdigit((unsigned char)c)) {
         char *end;
         jval *v = mk(J_NUM);
+        if (!v) return NULL;
         v->n = strtod(j->p, &end);
         if (end == j->p) { free(v); return NULL; }   /* "-" da solo: senza avanzare il ciclo non finirebbe */
         j->p = end;

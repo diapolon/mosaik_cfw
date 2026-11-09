@@ -174,6 +174,7 @@ static bool sha256_file(const char *path, char out[65], bool count) {
     FILE *f = fopen(path, "rb");
     if (!f) return false;
     EVP_MD_CTX *c = EVP_MD_CTX_new();
+    if (!c) { fclose(f); return false; }
     EVP_DigestInit_ex(c, EVP_sha256(), NULL);
     static unsigned char buf[1 << 16];
     size_t n;
@@ -211,6 +212,9 @@ static bool parse_manifest(char *text) {
     st.version[0] = 0;
     for (line = strtok_r(NULL, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
         if (!strncmp(line, "version ", 8)) { snprintf(st.version, sizeof st.version, "%s", line + 8); continue; }
+        /* Una riga che questa versione non conosce si ignora: la firma è già stata controllata, e
+           così una versione futura può aggiungere informazioni senza bloccare chi deve aggiornarsi. */
+        if (strncmp(line, "file ", 5)) continue;
         char sha[65], path[512];
         long long size;
         int skip = 0;
@@ -433,6 +437,7 @@ void update_check(const char *root) {
     memset(&st, 0, sizeof st);
     snprintf(root_dir, sizeof root_dir, "%s", root);
     if (!items) items = malloc(sizeof(item_t) * MAX_FILES);
+    if (!items) { fail(UPE_MANIFEST); return; }
     curl_global_init(CURL_GLOBAL_DEFAULT);
     st.phase = UPD_SEARCH;
     if (pthread_create(&thread, NULL, check_worker, NULL) == 0) thread_on = true;
@@ -445,6 +450,7 @@ void update_set_channel(int development) { channel = development; }
 static pthread_t notify_thread;
 static bool notify_on;
 static char notify_ver[64];
+static pthread_mutex_t notify_lock = PTHREAD_MUTEX_INITIALIZER;   /* il menu lo legge a ogni fotogramma */
 
 static void notify_path(char *p, size_t n, const char *root) { snprintf(p, n, "%s/System/update-notice.txt", root); }
 
@@ -463,7 +469,11 @@ static void *notify_worker(void *arg) {
     if (v && sscanf(v + 9, " %47[^ \n] %15[0-9.]", found, found + 48) == 2) {
         char ver[64];
         snprintf(ver, sizeof ver, "%s %s", found, found + 48);
-        if (strcmp(stamp_of(ver), stamp_of(update_current())) > 0) snprintf(notify_ver, sizeof notify_ver, "%s", ver);
+        if (strcmp(stamp_of(ver), stamp_of(update_current())) > 0) {
+            pthread_mutex_lock(&notify_lock);
+            snprintf(notify_ver, sizeof notify_ver, "%s", ver);
+            pthread_mutex_unlock(&notify_lock);
+        }
     }
     FILE *f = fopen(p, "w");
     if (f) { fprintf(f, "%lld\n%s\n", (long long)time(NULL), notify_ver); fclose(f); }
@@ -488,7 +498,13 @@ void update_notify_start(const char *root, int development) {
     if (pthread_create(&notify_thread, NULL, notify_worker, NULL) == 0) notify_on = true;
 }
 
-const char *update_notify_version(void) { return notify_ver; }
+const char *update_notify_version(void) {
+    static char copy[sizeof notify_ver];
+    pthread_mutex_lock(&notify_lock);
+    memcpy(copy, notify_ver, sizeof copy);
+    pthread_mutex_unlock(&notify_lock);
+    return copy;
+}
 
 static void notify_join(void) {
     if (notify_on) { pthread_join(notify_thread, NULL); notify_on = false; }
