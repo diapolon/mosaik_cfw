@@ -10,6 +10,7 @@
 #include "../common/platform.h"
 #include "../common/wifi.h"
 #include "update.h"
+#include "stickcal.h"
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
@@ -372,7 +373,7 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS };
 static int cfm_kind, cfm_sel;
 static char cfm_ssid[33];
 
@@ -1212,12 +1213,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
@@ -1226,7 +1227,7 @@ static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, -1 },
-    { S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
+    { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
@@ -1234,6 +1235,18 @@ static const int cat_items[SC_COUNT][10] = {
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
 
 /* HOME laterale, F1 e F2 ci sono solo sulla Brick Pro (sul Mac si mostrano per le prove) */
+/* solo nel sistema su SD: partendo dal sistema TrimUI quella cartella è nella memoria interna */
+static bool sc_available(void) {
+    if (!plat_standalone()) return false;
+#ifdef TRIMUI_DEVICE
+    return true;
+#else
+    return getenv("TRIMUI_FAKE_STICKS") != NULL;
+#endif
+}
+static void sc_open(void);
+static void sc_restore_factory(void);
+
 static bool has_extra_keys(void) {
     const char *m = plat_model();
     return !plat_is_device() || (m && !strcmp(m, "brickpro"));
@@ -1251,6 +1264,7 @@ static int page_rows(int *rows) {
         int it = cat_items[set_page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
         if (it == S_WIFINETS && !wifi_supported()) continue;
+        if (it == S_STICKCAL && !sc_available()) continue;
         if ((it == S_KEYF1 || it == S_KEYF2 || it == S_KEYHOME) && !has_extra_keys()) continue;
         if ((it == S_UPDATE || it == S_CHANNEL || it == S_UPDNOTIFY) && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
         rows[n++] = it;
@@ -1360,7 +1374,7 @@ static void set_value(int item, char *buf, size_t n) {
     case S_UPDNOTIFY: snprintf(buf, n, "%s", T(s->update_notify ? "common.on" : "common.off")); break;
     case S_GENRES: snprintf(buf, n, "%d", ngenres); break;
     case S_COLLS: snprintf(buf, n, "%d", NCOLLS); break;
-    case S_PADTEST: buf[0] = 0; break;
+    case S_PADTEST: case S_STICKCAL: buf[0] = 0; break;
     case S_KEYF1: case S_KEYF2: {
         static const char *acts[4] = { "keyact.none", "keyact.save", "keyact.load", "keyact.shot" };
         snprintf(buf, n, "%s", T(acts[item == S_KEYF1 ? s->key_f1 : s->key_f2]));
@@ -2089,8 +2103,7 @@ static void upd_reboot(void) {
     settings_save(&UI.set, UI.root);
     ui_busy(T("update.restarting"), 0.5);
     music_quit();
-    ui_shutdown_code(EXIT_REBOOT);
-    exit(EXIT_REBOOT);
+    ui_exit_now(EXIT_REBOOT);
 }
 
 static void upd_input(void) {
@@ -2405,6 +2418,7 @@ static void settings_input(void) {
             else { ui_toast(T("coll.none")); ui_sound(SND_ERROR); }
         }
         else if (set_sel == S_PADTEST) { ptest_open = true; ptest_hold = 0; ui_sound(SND_OK); }
+        else if (set_sel == S_STICKCAL) { sc_open(); ui_sound(SND_OK); }
         else if (set_sel == S_WIFI) { set_change(S_WIFI, +1); ui_sound(SND_OK); }
         else if (set_sel == S_WIFINETS) {
             if (UI.set.wifi) { wpanel_start(); ui_sound(SND_OK); }
@@ -2509,7 +2523,7 @@ static void settings_draw(void) {
             draw_switch(vx - sh * 9 / 5, cy - sh / 2, sh, on);
         } else {
             color_t vc = sel ? t->accent : t->text_dim;
-            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_WIFINETS;
+            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_STICKCAL && i != S_WIFINETS;
             int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
             if (i == S_LEDCOLOR) {
                 /* pallino del colore (per "tema": il colore principale del tema) */
@@ -2839,6 +2853,213 @@ static void ptest_draw(void) {
     ui_hints(hint, 2);
 }
 
+/* ------------------------------------------------ calibrazione levette */
+/* Centro a levette ferme, poi i limiti ruotandole fino in fondo. Sulla SD si scrive solo alla
+   fine: annullando, o spegnendo a metà, resta tutto com'era. */
+
+enum { SCS_CLOSED, SCS_INTRO, SCS_PREP, SCS_CENTER, SCS_RANGE, SCS_APPLY, SCS_CANCEL, SCS_DONE, SCS_FAIL };
+static int sc_state;
+static double sc_t;
+static stickcal_t sc_c;
+static long long sc_sum[SC_AXES];
+static int sc_n;
+static const char *sc_ud(void) {
+#ifdef TRIMUI_DEVICE
+    return "/mnt/UDISK";
+#else
+    static char p[1100];   /* sul Mac: una cartella qualunque al posto di quella in memoria */
+    snprintf(p, sizeof p, "%s/System/udisk-prova", UI.root);
+    mkdir(p, 0755);
+    return p;
+#endif
+}
+
+static bool sc_brick(void) { const char *m = plat_model(); return m && !strcmp(m, "brickpro"); }
+static void sc_sysdir(char *out, size_t n) { snprintf(out, n, "%s/System", UI.root); }
+
+/* il programma dei tasti rilegge i valori: la Brick Pro lo fa a comando, la Smart Pro riavviandolo */
+static void sc_reload(void) {
+#ifdef TRIMUI_DEVICE
+    int r = system(sc_brick() ? "touch /tmp/trimui_inputd/cal_update"
+                              : "killall trimui_inputd; sleep 0.5; trimui_inputd > /dev/null 2>&1 &");
+    (void)r;
+#endif
+}
+
+static int sc_axis(int a) {
+#ifndef TRIMUI_DEVICE
+    if (getenv("TRIMUI_FAKE_STICKS")) {   /* solo per le prove sul Mac */
+        static const int centre[SC_AXES] = { 2106, 2191, 1975, 2140 };
+        double swing = sc_state == SCS_RANGE ? sin(UI.t * 3 + a) * (UI.t - sc_t > 2 ? 1000 : 300) : 0;
+        return -((centre[a] + (int)swing) - 300) * 32760 / 3795;
+    }
+#endif
+    return UI.in.axis[a];
+}
+
+/* la Brick Pro ha una corsa molto più corta della Smart Pro: valori di fabbrica 1450-2750 contro
+   1050-2900, e una levetta col centro spostato ha un lato ancora più corto */
+static int sc_expected_span(void) { return sc_brick() ? 650 : 1150; }
+
+static void sc_open(void) {
+    stickcal_set_min_span(sc_brick() ? 250 : 450);
+    sc_state = SCS_INTRO;
+}
+
+static void sc_restore_factory(void) {
+    char sys[1100];
+    sc_sysdir(sys, sizeof sys);
+    stickcal_reset(sys, sc_ud(), sc_brick());
+    sc_reload();
+    ui_log("calibrazione levette: tolta, valori di fabbrica");
+    ui_toast(T("stickcal.restored"));
+}
+
+static void sc_go(int state) { sc_state = state; sc_t = UI.t; }
+
+static void sc_log_range(const char *why) {
+    for (int a = 0; a < SC_AXES; a++)
+        ui_log("calibrazione levette (%s): asse %d min %d centro %d max %d", why, a, sc_c.min[a], sc_c.zero[a], sc_c.max[a]);
+}
+
+static void sc_abort(void) {
+    if (sc_state == SCS_RANGE) sc_log_range("annullata");
+    stickcal_cancel(sc_ud(), sc_brick());
+    sc_reload();
+    ui_sound(SND_BACK);
+    sc_go(SCS_CANCEL);
+}
+
+static void sc_input(void) {
+    input_t *in = &UI.in;
+    double el = UI.t - sc_t;
+    switch (sc_state) {
+    case SCS_INTRO: {
+        char sys[1100];
+        sc_sysdir(sys, sizeof sys);
+        if (in->pressed[BTN_B]) { sc_state = SCS_CLOSED; ui_sound(SND_BACK); }
+        else if (in->pressed[BTN_X] && stickcal_has_custom(sys)) { cfm_kind = CFM_STICKS; cfm_sel = 0; sc_state = SCS_CLOSED; ui_sound(SND_OK); }
+        else if (in->pressed[BTN_A]) {
+            ui_sound(SND_OK);
+            if (stickcal_begin(sc_ud(), sc_brick())) { sc_reload(); sc_go(SCS_PREP); }
+            else { stickcal_cancel(sc_ud(), sc_brick()); sc_go(SCS_FAIL); }
+        }
+        break;
+    }
+    case SCS_PREP:
+        if (in->pressed[BTN_B]) sc_abort();
+        else if (el > 2.5) { memset(sc_sum, 0, sizeof sc_sum); sc_n = 0; sc_go(SCS_CENTER); }
+        break;
+    case SCS_CENTER:
+        if (in->pressed[BTN_B]) { sc_abort(); break; }
+        if (el > 0.5) {
+            for (int a = 0; a < SC_AXES; a++) sc_sum[a] += stickcal_raw(sc_axis(a));
+            sc_n++;
+        }
+        if (el > 2.5) {
+            bool signal = sc_n > 0;
+            for (int a = 0; a < SC_AXES && signal; a++) {
+                int z = (int)(sc_sum[a] / sc_n);
+                sc_c.zero[a] = sc_c.min[a] = sc_c.max[a] = z;
+                signal = z >= 900;   /* con questi valori una levetta ferma non può stare così in basso */
+            }
+            ui_log("calibrazione levette: centro %d %d %d %d", sc_c.zero[0], sc_c.zero[1], sc_c.zero[2], sc_c.zero[3]);
+            if (signal) sc_go(SCS_RANGE);
+            else { stickcal_cancel(sc_ud(), sc_brick()); sc_reload(); sc_go(SCS_FAIL); ui_sound(SND_ERROR); }
+        }
+        break;
+    case SCS_RANGE:
+        for (int a = 0; a < SC_AXES; a++) {
+            int r = stickcal_raw(sc_axis(a));
+            if (r < 0) continue;
+            if (r < sc_c.min[a]) sc_c.min[a] = r;
+            if (r > sc_c.max[a]) sc_c.max[a] = r;
+        }
+        if (in->pressed[BTN_B]) sc_abort();
+        else if (in->pressed[BTN_A] && stickcal_ok(&sc_c)) {
+            char sys[1100];
+            sc_sysdir(sys, sizeof sys);
+            bool ok = stickcal_save(sys, sc_ud(), &sc_c, sc_brick());
+            sc_log_range("salvata");
+            sc_reload();
+            ui_sound(ok ? SND_OK : SND_ERROR);
+            sc_go(ok ? SCS_APPLY : SCS_FAIL);
+        }
+        break;
+    case SCS_APPLY:
+        if (el > 2.5) sc_go(SCS_DONE);
+        break;
+    case SCS_CANCEL:
+        if (el > 2.5) sc_state = SCS_CLOSED;
+        break;
+    case SCS_DONE:
+    case SCS_FAIL:
+        if (in->pressed[BTN_A] || in->pressed[BTN_B]) { sc_state = SCS_CLOSED; ui_sound(SND_BACK); }
+        break;
+    }
+}
+
+static void sc_dial(int cx, int cy, int r, int xaxis, int yaxis, const char *label) {
+    theme_t *t = &UI.th;
+    int dot = r / 5;
+    bool ok = sc_state == SCS_RANGE && stickcal_axis_ok(&sc_c, xaxis) && stickcal_axis_ok(&sc_c, yaxis);
+    ui_circle(cx, cy, r, ok ? with_alpha(t->accent, 90) : with_alpha(t->text, 26));
+    ui_rect(cx - r, cy, 2 * r, 1, t->line);
+    ui_rect(cx, cy - r, 1, 2 * r, t->line);
+    int dx = 0, dy = 0;
+    if (sc_state == SCS_RANGE) {
+        int rx = stickcal_raw(sc_axis(xaxis)), ry = stickcal_raw(sc_axis(yaxis));
+        int span = sc_expected_span();
+        if (rx >= 0) dx = -(rx - sc_c.zero[xaxis]) * (r - dot) / span;
+        if (ry >= 0) dy = -(ry - sc_c.zero[yaxis]) * (r - dot) / span;
+        if (dx > r - dot) dx = r - dot;
+        if (dx < dot - r) dx = dot - r;
+        if (dy > r - dot) dy = r - dot;
+        if (dy < dot - r) dy = dot - r;
+    }
+    ui_circle(cx + dx, cy + dy, dot, t->accent);
+    ui_text(UI.f_small, label, cx, cy - r - TTF_FontHeight(UI.f_small) - M(0.008f), t->text_dim, ALIGN_CENTER);
+}
+
+static void sc_draw(void) {
+    theme_t *t = &UI.th;
+    int pad = M(0.04f), w = UI.w - 2 * M(t->margin), h = UI.h - M(t->hintbar_h) - 2 * M(0.03f), x, y;
+    panel_box(w, h, &x, &y);
+    ui_text(UI.f_title, T("stickcal.title"), x + pad, y + pad, t->text, ALIGN_LEFT);
+    const char *msg = sc_state == SCS_INTRO ? T("stickcal.intro") : sc_state == SCS_PREP ? T("stickcal.prep") :
+                      sc_state == SCS_CENTER ? T("stickcal.center") : sc_state == SCS_RANGE ? T("stickcal.range") :
+                      sc_state == SCS_APPLY || sc_state == SCS_CANCEL ? T("stickcal.wait") :
+                      sc_state == SCS_DONE ? T("stickcal.done") : T("stickcal.fail");
+    char lines[4][160];
+    int top = y + pad + TTF_FontHeight(UI.f_title) + M(0.03f), lh = TTF_FontHeight(UI.f_normal) + M(0.006f);
+    int n = ui_wrap(UI.f_normal, msg, w - 2 * pad, lines, 4);
+    for (int i = 0; i < n; i++) ui_text(UI.f_normal, lines[i], x + pad, top + i * lh, t->text, ALIGN_LEFT);
+    int bottom = y + h - pad, ctop = top + n * lh + M(0.02f) + TTF_FontHeight(UI.f_small);
+    int r = (bottom - ctop) / 2, cy = (ctop + bottom) / 2;
+    if (r > M(0.15f)) r = M(0.15f);
+    if (sc_state == SCS_CENTER || sc_state == SCS_RANGE) {
+        sc_dial(x + w / 4, cy, r, SC_LX, SC_LY, T("ptest.left"));
+        sc_dial(x + 3 * w / 4, cy, r, SC_RX, SC_RY, T("ptest.right"));
+    }
+    if (sc_state == SCS_INTRO) {
+        char sys[1100];
+        sc_sysdir(sys, sizeof sys);
+        const char *h1[] = { "A", T("stickcal.start"), "X", T("confirm.restore"), "B", T("common.back") };
+        const char *h2[] = { "A", T("stickcal.start"), "B", T("common.back") };
+        if (stickcal_has_custom(sys)) ui_hints(h1, 6); else ui_hints(h2, 4);
+    } else if (sc_state == SCS_RANGE) {
+        const char *h1[] = { "A", T("stickcal.save"), "B", T("common.cancel") };
+        const char *h2[] = { "B", T("common.cancel") };
+        if (stickcal_ok(&sc_c)) ui_hints(h1, 4); else ui_hints(h2, 2);
+    } else if (sc_state == SCS_PREP || sc_state == SCS_CENTER) {
+        const char *h[] = { "B", T("common.cancel") };
+        ui_hints(h, 2);
+    } else if (sc_state == SCS_DONE || sc_state == SCS_FAIL) {
+        const char *h[] = { "A", T("common.ok") };
+        ui_hints(h, 2);
+    }
+}
+
 /* ------------------------------------------------- diagnosi del gioco */
 /* Spiega cosa impedisce di avviare un gioco e quale file serve. Si apre dalle opzioni del
    gioco e, da sola, quando il runner non riesce ad avviarlo (System/last-failure.txt). */
@@ -2994,6 +3215,8 @@ static void cfm_input(void) {
         } else ui_toast(T("coll.failed"));
         if (cp_sel >= NCOLLS) cp_sel = NCOLLS ? NCOLLS - 1 : 0;
         if (!NCOLLS) cp_open = false;
+    } else if (k == CFM_STICKS) {
+        sc_restore_factory();
     } else if (k == CFM_FORGET) {
         char m[160];
         snprintf(m, sizeof m, T("wifi.forgot"), cfm_ssid);
@@ -3008,7 +3231,8 @@ static void cfm_input(void) {
 }
 
 static void cfm_draw(void) {
-    if (cfm_kind == CFM_COLL) ui_confirm_draw(T("confirm.coll_title"), T("confirm.coll_body"), T("common.cancel"), T("coll.delete"), cfm_sel);
+    if (cfm_kind == CFM_STICKS) ui_confirm_draw(T("confirm.sticks_title"), T("confirm.sticks_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
+    else if (cfm_kind == CFM_COLL) ui_confirm_draw(T("confirm.coll_title"), T("confirm.coll_body"), T("common.cancel"), T("coll.delete"), cfm_sel);
     else if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
     else ui_confirm_draw(T("confirm.genres_title"), T("confirm.genres_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
 }
@@ -3019,10 +3243,13 @@ static void cfm_draw(void) {
 
 static int reset_step, reset_sel;   /* 0 chiuso, 1 conferma, 2 anche gli stati? */
 
+static int reset_failed;   /* file che esistono ma non si sono potuti cancellare */
+
 static void reset_remove(const char *dir, const char *rom, const char *ext) {
     char p[1600];
     snprintf(p, sizeof p, "%s/%s.%s", dir, rom, ext);
     if (remove(p) == 0) ui_log("reimposta: tolto %s", p);
+    else if (errno != ENOENT) { reset_failed++; ui_log("reimposta: impossibile togliere %s: %s", p, strerror(errno)); }
 }
 
 static void game_reset(const game_t *g, bool states) {
@@ -3054,7 +3281,8 @@ static void game_reset(const game_t *g, bool states) {
     reset_remove(sub, g->name, "hi");
     snprintf(sub, sizeof sub, "%s/mame2003-plus/cfg", base);
     reset_remove(sub, g->name, "cfg");
-    ui_toast(T("reset.done"));
+    ui_toast(T(reset_failed ? "reset.partial" : "reset.done"));
+    reset_failed = 0;
 }
 
 static void reset_input(void) {
@@ -3841,7 +4069,7 @@ int main(int argc, char **argv) {
         }
         if (UI.in.power_long && (!dlg_open || dlg_suspend) && !upd_open) { dlg_open = true; dlg_suspend = false; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
-        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open) {
+        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open && !sc_state) {
             dlg_suspend = false;
             reset_step = 0;
             cfm_kind = CFM_NONE;
@@ -3866,6 +4094,7 @@ int main(int argc, char **argv) {
         }
         else if (cfm_kind) cfm_input();
         else if (setup_step) setup_input();
+        else if (sc_state) sc_input();
         else if (ptest_open) ptest_input();
         else if (reset_step) reset_input();
         else if (diag_open) diag_input();
@@ -3943,6 +4172,7 @@ int main(int argc, char **argv) {
         if (romcheck_open) romcheck_draw();
         if (diag_open) diag_draw();
         if (reset_step) reset_draw();
+        if (sc_state) sc_draw();
         if (cfm_kind) cfm_draw();
         if (ptest_open) ptest_draw();
         if (setup_step) setup_draw();

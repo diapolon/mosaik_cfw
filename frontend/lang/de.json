@@ -52,6 +52,7 @@
   "settings": {
     "collections": "Sammlungen",
     "pad_test": "Tastentest",
+    "stick_cal": "Sticks kalibrieren",
     "key_f1": "F1-Taste",
     "key_f2": "F2-Taste",
     "key_home": "HOME-Taste",
@@ -97,6 +98,7 @@
   "settings_desc": {
     "collections": "Sammlungen umbenennen oder löschen.",
     "pad_test": "Zeigt jede gedrückte Taste und die Position der Sticks: nützlich, um ihre Funktion zu prüfen.",
+    "stick_cal": "Verwenden, wenn ein Stick nicht zur Mitte zurückkehrt oder den Rand nicht erreicht.",
     "key_f1": "Was die F1-Leiste in FBNeo- und MAME-Spielen macht.",
     "key_f2": "Was die F2-Leiste in FBNeo- und MAME-Spielen macht.",
     "key_home": "Was die seitliche HOME-Taste in FBNeo- und MAME-Spielen macht.",
@@ -577,6 +579,19 @@
     "step2": "2. Kopiere die ROMs nach: %s.",
     "step3": "3. BIOS-Dateien wie neogeo.zip gehören nach Arcade/Bios. Stecke die Karte dann wieder ein und schalte die Konsole ein."
   },
+  "stickcal": {
+    "title": "Stick-Kalibrierung",
+    "intro": "Hilft, wenn ein Stick nicht zur Mitte zurückkehrt oder den Rand nicht erreicht. Beim Abbrechen bleibt alles unverändert.",
+    "prep": "Vorbereitung, Sticks nicht berühren…",
+    "center": "Sticks nicht bewegen.",
+    "range": "Beide Sticks mehrmals bis zum Rand drehen. Der Kreis leuchtet, wenn es genügt.",
+    "wait": "Einen Moment…",
+    "done": "Kalibrierung gespeichert. Prüfe das Ergebnis im Tastentest.",
+    "fail": "Messung fehlgeschlagen. Die Sticks sind unverändert.",
+    "start": "Starten",
+    "save": "Speichern",
+    "restored": "Kalibrierung entfernt"
+  },
   "ptest": {
     "title": "Tastentest",
     "left": "Linker Stick",
@@ -595,6 +610,7 @@
     "none": "Keine Aktion"
   },
   "reset": {
+    "partial": "Nur teilweise zurückgesetzt: Einige Dateien konnten nicht gelöscht werden",
     "row": "Spiel zurücksetzen",
     "title": "Dieses Spiel zurücksetzen?",
     "body": "Löscht Einstellungen und Scores. ROM bleibt.",
@@ -604,6 +620,8 @@
     "done": "Spiel zurückgesetzt"
   },
   "confirm": {
+    "sticks_title": "Kalibrierung entfernen?",
+    "sticks_body": "Die Sticks kehren zu den Standardwerten zurück.",
     "overwrite_title": "Diesen Platz überschreiben?",
     "overwrite_body": "Der hier gespeicherte Stand geht verloren.",
     "coll_title": "Sammlung löschen?",

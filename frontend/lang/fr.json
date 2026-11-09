@@ -52,6 +52,7 @@
   "settings": {
     "collections": "Collections",
     "pad_test": "Test des commandes",
+    "stick_cal": "Calibrer les sticks",
     "key_f1": "Touche F1",
     "key_f2": "Touche F2",
     "key_home": "Touche HOME",
@@ -97,6 +98,7 @@
   "settings_desc": {
     "collections": "Renommer ou supprimer les collections.",
     "pad_test": "Affiche chaque touche pressée et la position des sticks : utile pour vérifier leur fonctionnement.",
+    "stick_cal": "À utiliser si un stick ne revient pas au centre ou n'atteint pas le bord.",
     "key_f1": "Action de la barre F1 pendant les jeux FBNeo et MAME.",
     "key_f2": "Action de la barre F2 pendant les jeux FBNeo et MAME.",
     "key_home": "Action de la touche latérale HOME pendant les jeux FBNeo et MAME.",
@@ -577,6 +579,19 @@
     "step2": "2. Copiez les ROM dans : %s.",
     "step3": "3. Les BIOS, comme neogeo.zip, vont dans Arcade/Bios. Remettez ensuite la carte et rallumez."
   },
+  "stickcal": {
+    "title": "Calibrage des sticks",
+    "intro": "Utile si un stick ne revient pas au centre ou n'atteint pas le bord. Si vous annulez, rien ne change.",
+    "prep": "Préparation, ne touchez pas les sticks…",
+    "center": "Laissez les sticks immobiles.",
+    "range": "Faites tourner les deux sticks jusqu'au bord, plusieurs fois. Le cercle s'allume quand c'est suffisant.",
+    "wait": "Un instant…",
+    "done": "Calibrage enregistré. Vérifiez le résultat dans le test des commandes.",
+    "fail": "Mesure échouée. Les sticks n'ont pas changé.",
+    "start": "Commencer",
+    "save": "Enregistrer",
+    "restored": "Calibrage supprimé"
+  },
   "ptest": {
     "title": "Test des commandes",
     "left": "Stick gauche",
@@ -595,6 +610,7 @@
     "none": "Aucune action"
   },
   "reset": {
+    "partial": "Réinitialisé en partie : certains fichiers n'ont pas pu être supprimés",
     "row": "Réinitialiser le jeu",
     "title": "Réinitialiser ce jeu ?",
     "body": "Efface réglages et scores. La ROM reste.",
@@ -604,6 +620,8 @@
     "done": "Jeu réinitialisé"
   },
   "confirm": {
+    "sticks_title": "Supprimer le calibrage ?",
+    "sticks_body": "Les sticks reviennent aux valeurs par défaut.",
     "overwrite_title": "Écraser cet emplacement ?",
     "overwrite_body": "L'état enregistré ici sera perdu.",
     "coll_title": "Supprimer la collection ?",

@@ -52,6 +52,7 @@
   "settings": {
     "collections": "Coleções",
     "pad_test": "Teste dos comandos",
+    "stick_cal": "Calibrar analógicos",
     "key_f1": "Botão F1",
     "key_f2": "Botão F2",
     "key_home": "Botão HOME",
@@ -97,6 +98,7 @@
   "settings_desc": {
     "collections": "Muda o nome ou elimina as coleções.",
     "pad_test": "Mostra cada botão premido e a posição dos analógicos: útil para verificar se funcionam.",
+    "stick_cal": "Usa isto se um analógico não voltar ao centro ou não chegar ao limite.",
     "key_f1": "O que a barra F1 faz durante os jogos FBNeo e MAME.",
     "key_f2": "O que a barra F2 faz durante os jogos FBNeo e MAME.",
     "key_home": "O que o botão lateral HOME faz durante os jogos FBNeo e MAME.",
@@ -577,6 +579,19 @@
     "step2": "2. Copia as ROM para: %s.",
     "step3": "3. As BIOS, como neogeo.zip, vão para Arcade/Bios. Depois volta a colocar o cartão e liga a consola."
   },
+  "stickcal": {
+    "title": "Calibração dos analógicos",
+    "intro": "Serve se um analógico não voltar ao centro ou não chegar ao limite. Se cancelares, nada muda.",
+    "prep": "A preparar, não toques nos analógicos…",
+    "center": "Deixa os analógicos parados.",
+    "range": "Roda os dois analógicos até ao limite, várias vezes. O círculo acende quando for suficiente.",
+    "wait": "Um momento…",
+    "done": "Calibração guardada. Confirma o resultado no teste de comandos.",
+    "fail": "Medição falhada. Os analógicos não mudaram.",
+    "start": "Começar",
+    "save": "Guardar",
+    "restored": "Calibração removida"
+  },
   "ptest": {
     "title": "Teste dos comandos",
     "left": "Analógico esquerdo",
@@ -595,6 +610,7 @@
     "none": "Nenhuma ação"
   },
   "reset": {
+    "partial": "Reposto só em parte: alguns ficheiros não foram apagados",
     "row": "Repor o jogo",
     "title": "Repor este jogo?",
     "body": "Apaga definições e pontuações. A ROM fica.",
@@ -604,6 +620,8 @@
     "done": "Jogo reposto"
   },
   "confirm": {
+    "sticks_title": "Remover a calibração?",
+    "sticks_body": "Os analógicos voltam aos valores predefinidos.",
     "overwrite_title": "Substituir esta ranhura?",
     "overwrite_body": "O estado guardado aqui perde-se.",
     "coll_title": "Eliminar a coleção?",

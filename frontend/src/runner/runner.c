@@ -1568,7 +1568,16 @@ int main(int argc, char **argv) {
     apply_cpu();
     filter_apply();
     audio_on = UI.audio && !UI.automation;
-    if (resume && state_load(true)) ui_toast(T("game.resumed"));
+    /* un profilo scelto per questo gioco resta attivo a lungo: lo si dice all'avvio */
+    bool resumed = resume && state_load(true);
+    char start_msg[200] = "";
+    if (gcfg.cpu) snprintf(start_msg, sizeof start_msg, "%s: %s", T("game.cpu"), T(cpu_names[gcfg.cpu % 5]));
+    if (resumed && gcfg.cpu) {
+        char joined[256];
+        snprintf(joined, sizeof joined, "%s · %s", T("game.resumed"), start_msg);
+        ui_toast(joined);
+    } else if (resumed) ui_toast(T("game.resumed"));
+    else if (gcfg.cpu) ui_toast(start_msg);
 
     double fps = av.timing.fps > 0 ? av.timing.fps : 60;
     Uint32 frame_bytes = (Uint32)(av.timing.sample_rate / fps) * 4;

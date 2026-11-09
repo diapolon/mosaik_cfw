@@ -52,6 +52,7 @@
   "settings": {
     "collections": "Collezioni",
     "pad_test": "Prova dei comandi",
+    "stick_cal": "Calibra le levette",
     "key_f1": "Tasto F1",
     "key_f2": "Tasto F2",
     "key_home": "Tasto HOME",
@@ -97,6 +98,7 @@
   "settings_desc": {
     "collections": "Rinomina o elimina le collezioni.",
     "pad_test": "Mostra ogni tasto premuto e la posizione delle levette: utile per controllare che funzionino.",
+    "stick_cal": "Da usare se una levetta non torna al centro o non arriva fino in fondo.",
     "key_f1": "Cosa fa la barretta F1 durante i giochi FBNeo e MAME.",
     "key_f2": "Cosa fa la barretta F2 durante i giochi FBNeo e MAME.",
     "key_home": "Cosa fa il tasto laterale HOME durante i giochi FBNeo e MAME.",
@@ -577,6 +579,19 @@
     "step2": "2. Copia le ROM in: %s.",
     "step3": "3. I BIOS, come neogeo.zip, vanno in Arcade/Bios. Poi rimetti la scheda e riaccendi."
   },
+  "stickcal": {
+    "title": "Calibrazione delle levette",
+    "intro": "Serve se una levetta non torna al centro o non arriva in fondo. Se la annulli, resta tutto com'era.",
+    "prep": "Preparazione, non toccare le levette…",
+    "center": "Lascia le levette ferme.",
+    "range": "Ruota entrambe le levette fino in fondo, più volte. Il cerchio si colora quando basta.",
+    "wait": "Un momento…",
+    "done": "Calibrazione salvata. Controlla il risultato in Prova dei comandi.",
+    "fail": "Misura non riuscita. Le levette sono rimaste come prima.",
+    "start": "Inizia",
+    "save": "Salva",
+    "restored": "Calibrazione tolta"
+  },
   "ptest": {
     "title": "Prova dei comandi",
     "left": "Levetta sinistra",
@@ -595,6 +610,7 @@
     "none": "Nessuna azione"
   },
   "reset": {
+    "partial": "Reimpostato solo in parte: alcuni file non si sono potuti cancellare",
     "row": "Reimposta il gioco",
     "title": "Reimpostare il gioco?",
     "body": "Cancella impostazioni e punteggi. La ROM resta.",
@@ -604,6 +620,8 @@
     "done": "Gioco reimpostato"
   },
   "confirm": {
+    "sticks_title": "Togliere la calibrazione?",
+    "sticks_body": "Le levette tornano ai valori predefiniti.",
     "overwrite_title": "Sovrascrivere questo slot?",
     "overwrite_body": "Lo stato salvato qui andrà perso.",
     "coll_title": "Eliminare la collezione?",

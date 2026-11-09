@@ -52,6 +52,7 @@
   "settings": {
     "collections": "Colecciones",
     "pad_test": "Prueba de controles",
+    "stick_cal": "Calibrar palancas",
     "key_f1": "Botón F1",
     "key_f2": "Botón F2",
     "key_home": "Botón HOME",
@@ -97,6 +98,7 @@
   "settings_desc": {
     "collections": "Renombra o elimina las colecciones.",
     "pad_test": "Muestra cada botón pulsado y la posición de las palancas: útil para comprobar que funcionan.",
+    "stick_cal": "Úsalo si una palanca no vuelve al centro o no llega hasta el final.",
     "key_f1": "Qué hace la barra F1 durante los juegos FBNeo y MAME.",
     "key_f2": "Qué hace la barra F2 durante los juegos FBNeo y MAME.",
     "key_home": "Qué hace el botón lateral HOME durante los juegos FBNeo y MAME.",
@@ -577,6 +579,19 @@
     "step2": "2. Copia las ROM en: %s.",
     "step3": "3. Las BIOS, como neogeo.zip, van en Arcade/Bios. Luego vuelve a poner la tarjeta y enciende."
   },
+  "stickcal": {
+    "title": "Calibración de las palancas",
+    "intro": "Sirve si una palanca no vuelve al centro o no llega hasta el final. Si cancelas, no cambia nada.",
+    "prep": "Preparando, no toques las palancas…",
+    "center": "Deja las palancas quietas.",
+    "range": "Gira ambas palancas hasta el final, varias veces. El círculo se ilumina cuando es suficiente.",
+    "wait": "Un momento…",
+    "done": "Calibración guardada. Comprueba el resultado en la prueba de controles.",
+    "fail": "Medición fallida. Las palancas no han cambiado.",
+    "start": "Empezar",
+    "save": "Guardar",
+    "restored": "Calibración eliminada"
+  },
   "ptest": {
     "title": "Prueba de controles",
     "left": "Palanca izquierda",
@@ -595,6 +610,7 @@
     "none": "Ninguna acción"
   },
   "reset": {
+    "partial": "Restablecido solo en parte: algunos archivos no se han podido borrar",
     "row": "Restablecer el juego",
     "title": "¿Restablecer este juego?",
     "body": "Borra ajustes y puntuaciones. La ROM se queda.",
@@ -604,6 +620,8 @@
     "done": "Juego restablecido"
   },
   "confirm": {
+    "sticks_title": "¿Quitar la calibración?",
+    "sticks_body": "Las palancas vuelven a los valores predeterminados.",
     "overwrite_title": "¿Sobrescribir esta ranura?",
     "overwrite_body": "Se perderá el estado guardado aquí.",
     "coll_title": "¿Eliminar la colección?",

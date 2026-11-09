@@ -160,6 +160,69 @@ rm -f $W/ctl.log; touch /run/wifi-touched
 check "se si è già toccato il Wi-Fi dal menu non lo riaccende" [ ! -e $W/ctl.log ]
 rm -f /run/wifi-touched
 
+echo "--- calibrazione delle levette"
+cat > cal.c <<'C'
+#include "stickcal.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+/* lo stesso calcolo di trimui_inputd: valore mandato a SDL da valore grezzo e configurazione */
+static int to_sdl(int raw, int min, int max, int zero) {
+    int f = 0;
+    if (raw > zero) { f = (raw - zero) * 32760 / (max - zero); if (f > 32760) f = 32760; }
+    else if (raw < zero) { f = (raw - zero) * 32760 / (zero - min); if (f < -32760) f = -32760; }
+    return -f;
+}
+static int bad;
+static void chk(const char *m, int cond) { printf("  %s: %s\n", cond ? "ok" : "ERRORE", m); if (!cond) bad = 1; }
+static char *slurp(const char *p) { static char b[512]; FILE *f = fopen(p, "r"); if (!f) return NULL; size_t n = fread(b, 1, 511, f); b[n] = 0; fclose(f); return b; }
+static void put(const char *p, const char *t) { FILE *f = fopen(p, "w"); fputs(t, f); fclose(f); }
+int main(void) {
+    int worst = 0;
+    for (int raw = 700; raw <= 3700; raw += 7) { int d = stickcal_raw(to_sdl(raw, 0, 4095, 300)) - raw; if (d < 0) d = -d; if (d > worst) worst = d; }
+    chk("dal valore mandato a SDL si risale a quello grezzo", worst <= 1);
+    chk("un valore fuori scala non viene accettato", stickcal_raw(32000) == -1);
+    stickcal_t c; for (int a = 0; a < SC_AXES; a++) { c.min[a] = 1000 + a; c.zero[a] = 2100; c.max[a] = 3200 - a; }
+    chk("misura plausibile accettata", stickcal_ok(&c));
+    stickcal_t d = c; d.max[SC_RY] = 2200; chk("levetta non portata in fondo: rifiutata", !stickcal_ok(&d));
+    d = c; d.zero[SC_LX] = 1000; chk("centro impossibile: rifiutato", !stickcal_ok(&d));
+    d = c; d.max[SC_LX] = 2400; chk("corsa corta: rifiutata con la soglia della Smart Pro", !stickcal_ok(&d));
+    stickcal_set_min_span(250); chk("corsa corta: accettata con la soglia della Brick Pro", stickcal_ok(&d));
+    d.max[SC_LX] = 2300; chk("corsa troppo corta: rifiutata anche sulla Brick Pro", !stickcal_ok(&d));
+    stickcal_set_min_span(450);
+    const char *S = "/tmp/fl/cal/sys", *U = "/tmp/fl/cal/ud";
+    chk("all'inizio nessuna calibrazione", !stickcal_has_custom(S));
+    chk("valori di misura scritti", stickcal_begin(U, false));
+    chk("zero di misura lontano dal centro vero", strstr(slurp("/tmp/fl/cal/ud/joypad.config"), "x_zero=300") != NULL);
+    stickcal_cancel(U, false);
+    chk("annullando senza file di prima: file tolto", slurp("/tmp/fl/cal/ud/joypad.config") == NULL);
+    put("/tmp/fl/cal/ud/joypad.config", "x_min=1\nz_min=111\nz_max=999\ndeadzone=0.33\n");
+    stickcal_begin(U, true);
+    char *t = slurp("/tmp/fl/cal/ud/joypad.config");
+    chk("Brick Pro: zona morta spenta durante la misura", strstr(t, "deadzone=0.00") && strstr(t, "z_min=111") && strstr(t, "z_max=999"));
+    stickcal_cancel(U, true);
+    chk("annullando torna il file di prima", strstr(slurp("/tmp/fl/cal/ud/joypad.config"), "x_min=1\n") != NULL);
+    stickcal_begin(U, true);
+    chk("salvataggio riuscito", stickcal_save(S, U, &c, true));
+    t = slurp("/tmp/fl/cal/sys/joypad.config");
+    chk("sulla SD il sinistro con limiti un filo dentro", strstr(t, "x_min=1033\n") && strstr(t, "x_max=3167\n") && strstr(t, "x_zero=2100\n"));
+    chk("Brick Pro: grilletti e zona morta conservati", strstr(t, "z_min=111") && strstr(t, "deadzone=0.33"));
+    chk("destro scritto nel suo file", strstr(slurp("/tmp/fl/cal/ud/joypad_right.config"), "x_min=1034\n") != NULL);
+    chk("calibrazione presente", stickcal_has_custom(S));
+    d = c; d.zero[0] = 1;
+    put("/tmp/fl/cal/sys/joypad.config", "buono");
+    stickcal_begin(U, false);
+    chk("misura sbagliata non salvata", !stickcal_save(S, U, &d, false));
+    chk("la SD resta com'era", !strcmp(slurp("/tmp/fl/cal/sys/joypad.config"), "buono"));
+    stickcal_reset(S, U, false);
+    chk("ripristino: file tolti", !stickcal_has_custom(S) && slurp("/tmp/fl/cal/ud/joypad.config") == NULL);
+    return bad;
+}
+C
+mkdir -p $W/cal/sys $W/cal/ud
+gcc -g -O0 -Wall -Wextra -D_DEFAULT_SOURCE -I/trimui/frontend/src/launcher -fsanitize=undefined -fsanitize-undefined-trap-on-error -o calprova cal.c /trimui/frontend/src/launcher/stickcal.c
+if ./calprova; then :; else ko "calibrazione delle levette"; fi
+
 echo "--- JSON senza memoria"
 cat > oom.c <<'C'
 #include <stdlib.h>

@@ -52,6 +52,7 @@
   "settings": {
     "collections": "Collections",
     "pad_test": "Button test",
+    "stick_cal": "Calibrate sticks",
     "key_f1": "F1 button",
     "key_f2": "F2 button",
     "key_home": "HOME button",
@@ -97,6 +98,7 @@
   "settings_desc": {
     "collections": "Rename or delete your collections.",
     "pad_test": "Shows every button you press and the position of the sticks: useful to check that they work.",
+    "stick_cal": "Use this if a stick does not return to the centre or does not reach the edge.",
     "key_f1": "What the F1 bar does during FBNeo and MAME games.",
     "key_f2": "What the F2 bar does during FBNeo and MAME games.",
     "key_home": "What the side HOME button does during FBNeo and MAME games.",
@@ -577,6 +579,19 @@
     "step2": "2. Copy your ROMs to: %s.",
     "step3": "3. BIOS files such as neogeo.zip go in Arcade/Bios. Then put the card back and turn the console on."
   },
+  "stickcal": {
+    "title": "Stick calibration",
+    "intro": "Use this if a stick does not return to the centre or does not reach the edge. If you cancel, nothing changes.",
+    "prep": "Getting ready, do not touch the sticks…",
+    "center": "Leave the sticks still.",
+    "range": "Rotate both sticks all the way round, several times. The circle lights up when it is enough.",
+    "wait": "One moment…",
+    "done": "Calibration saved. Check the result in Controls test.",
+    "fail": "Measurement failed. The sticks are unchanged.",
+    "start": "Start",
+    "save": "Save",
+    "restored": "Calibration removed"
+  },
   "ptest": {
     "title": "Button test",
     "left": "Left stick",
@@ -595,6 +610,7 @@
     "none": "No action"
   },
   "reset": {
+    "partial": "Only partly reset: some files could not be deleted",
     "row": "Reset game",
     "title": "Reset this game?",
     "body": "Deletes settings and high scores. The ROM stays.",
@@ -604,6 +620,8 @@
     "done": "Game reset"
   },
   "confirm": {
+    "sticks_title": "Remove the calibration?",
+    "sticks_body": "The sticks go back to the default values.",
     "overwrite_title": "Overwrite this slot?",
     "overwrite_body": "The state saved here will be lost.",
     "coll_title": "Delete this collection?",

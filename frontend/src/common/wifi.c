@@ -37,7 +37,21 @@ extern char **environ;
 
 bool wifi_supported(void) { return plat_standalone(); }
 
+static double uptime_s(void) {
+    double up = 1e9;
+    FILE *f = fopen("/proc/uptime", "r");
+    if (f) { if (fscanf(f, "%lf", &up) != 1) up = 1e9; fclose(f); }
+    return up;
+}
+
+static double enabled_at = -100;
+
+/* sta ancora partendo: nei primi secondi dall'accensione o subito dopo averlo acceso dal menu.
+   Oltre, se non c'è collegamento, vuol dire che non c'è una rete raggiungibile. */
+bool wifi_starting(void) { return uptime_s() < 45 || now_s() - enabled_at < 25; }
+
 void wifi_enable(bool on) {
+    if (on) enabled_at = now_s();
     /* il servizio carica il driver e può metterci qualche secondo: in sottofondo */
     int r = system(on ? "touch /run/wifi-touched; wifi-ctl on > /dev/null 2>&1 &"
                       : "touch /run/wifi-touched; wifi-ctl off > /dev/null 2>&1 &");
@@ -211,12 +225,7 @@ const wifi_status_t *wifi_status(bool refresh) {
 
 /* Nei primi 30 secondi dalla accensione il driver sta ancora partendo e fa già la sua prima
    ricerca: non gliene si chiede un'altra, l'elenco si riempie comunque con i suoi risultati. */
-static bool just_booted(void) {
-    double up = 1e9;
-    FILE *f = fopen("/proc/uptime", "r");
-    if (f) { if (fscanf(f, "%lf", &up) != 1) up = 1e9; fclose(f); }
-    return up < 30;
-}
+static bool just_booted(void) { return uptime_s() < 30; }
 
 void wifi_scan(void) {
     if (just_booted()) return;
@@ -314,6 +323,7 @@ static double sim_t0 = -100;      /* inizio del collegamento */
 
 bool wifi_supported(void) { return true; }
 void wifi_enable(bool on) { sim_on = on; sim_t0 = now_s(); st_time = -10; }
+bool wifi_starting(void) { return sim_on && now_s() - sim_t0 < 25; }
 
 const wifi_status_t *wifi_status(bool refresh) {
     (void)refresh;

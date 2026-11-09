@@ -78,6 +78,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
 void ui_shutdown(void);
 /* chiusura con codice di uscita, scritto prima in System/exit.txt */
 void ui_shutdown_code(int code);
+void ui_exit_now(int code);                      /* esce subito senza chiudere SDL (si sta riavviando) */
 /* sospensione (sistema su SD): audio in pausa, console in sospensione, poi si riprende */
 void ui_suspend(void);
 /* schermata d'attesa (spegnimento, uscita, avvio): un indicatore che gira per qualche istante,

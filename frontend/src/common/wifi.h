@@ -24,6 +24,7 @@ typedef struct {
 } wifi_status_t;
 
 bool wifi_supported(void);
+bool wifi_starting(void);                        /* sta ancora partendo: l'icona lampeggia */
 void wifi_enable(bool on);                       /* avvia o ferma il servizio, senza aspettare */
 const wifi_status_t *wifi_status(bool refresh);  /* refresh: rilegge subito; altrimenti ogni 2 s */
 void wifi_scan(void);                            /* chiede una ricerca; i risultati arrivano dopo */

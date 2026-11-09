@@ -141,9 +141,14 @@ static void led_set(unsigned rgb, int effect, int duration_ms, int scale) {
     ui_log("LED: colore %06X, effetto %d, durata %d ms, scala %d", rgb & 0xFFFFFF, effect, duration_ms, scale);
 }
 
-static void apply_leds(const settings_t *s, bool low_battery) {
-    if (low_battery) { led_set(0xFF0000, 6, 2000, 40); return; }   /* come il firmware */
-    if (s->led_mode == 0) { led_set(0, 0, 1000, 0); return; }
+enum { LEDS_NORMAL, LEDS_LOW, LEDS_CHARGING, LEDS_FULL };
+
+static void apply_leds(const settings_t *s, int status) {
+    if (status == LEDS_LOW) { led_set(0xFF0000, 6, 2000, 40); return; }   /* come il firmware */
+    if (s->led_mode == 0) { led_set(0, 0, 1000, 0); return; }             /* chi li ha spenti non li vede accendersi */
+    /* in carica: arancione che respira; carica completa: verde fisso */
+    if (status == LEDS_CHARGING) { led_set(0xFF8000, 2, 3000, s->led_bright * 4); return; }
+    if (status == LEDS_FULL) { led_set(0x00FF40, 4, 1000, s->led_bright * 4); return; }
     static const int effect[4] = { 0, 4, 2, 3 }, duration[4] = { 1000, 1000, 3000, 1500 };
     unsigned rgb = s->led_color > 0 && s->led_color < NLED_COLORS ? LED_COLORS[s->led_color].rgb : led_theme_rgb;
     led_set(rgb, effect[s->led_mode & 3], duration[s->led_mode & 3], s->led_bright * 4);
@@ -161,18 +166,18 @@ void plat_apply(const settings_t *s) {
     /* LED: solo nel sistema su SD (nell'app li gestisce il firmware TrimUI) */
     if (plat_standalone()) {
         static unsigned ltheme;
-        static bool low;
+        static int lstatus;
         static unsigned tick;
-        bool low_now = low;
+        int status_now = lstatus;
         if (tick++ % 600 == 0) {   /* batteria ogni 10 s circa */
             bool ch;
             int pct = plat_battery(&ch);
-            low_now = pct >= 0 && pct <= 10 && !ch;
+            status_now = pct >= 0 && pct <= 10 && !ch ? LEDS_LOW : ch && pct >= 100 ? LEDS_FULL : ch ? LEDS_CHARGING : LEDS_NORMAL;
         }
         unsigned theme_now = s->led_color == 0 ? led_theme_rgb : 0;
-        if (s->led_mode != lmode || s->led_color != lcolor || s->led_bright != lbright || theme_now != ltheme || low_now != low) {
-            lmode = s->led_mode; lcolor = s->led_color; lbright = s->led_bright; ltheme = theme_now; low = low_now;
-            apply_leds(s, low);
+        if (s->led_mode != lmode || s->led_color != lcolor || s->led_bright != lbright || theme_now != ltheme || status_now != lstatus) {
+            lmode = s->led_mode; lcolor = s->led_color; lbright = s->led_bright; ltheme = theme_now; lstatus = status_now;
+            apply_leds(s, lstatus);
         }
     }
     int want_bright = screen_off ? BRIGHT_OFF : s->brightness;

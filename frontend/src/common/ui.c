@@ -810,7 +810,7 @@ static int snd_len[SND_COUNT];
 
 int ui_battery(bool *charging) {
     const char *fake = getenv("TRIMUI_FAKE_BATTERY");
-    if (fake) { *charging = false; return atoi(fake); }
+    if (fake) { *charging = getenv("TRIMUI_FAKE_CHARGING") != NULL; return atoi(fake); }
     int secs, pct = plat_battery(charging);
     if (pct >= 0) return pct;
     SDL_PowerState ps = SDL_GetPowerInfo(&secs, &pct);
@@ -1472,11 +1472,15 @@ void ui_draw_toast(void) {
 
 static void battery_icon(int x, int y, int w, int h, int pct, bool charging, color_t c) {
     int t = h > 14 ? 2 : 1;
-    ui_rborder(x, y, w, h, h / 4, t, c);
-    ui_rect(x + w + 1, y + h / 3, t + 1, h / 3, c);
-    int inner = (w - 4 * t) * pct / 100;
-    color_t fill = pct <= 15 && !charging ? rgba(230, 60, 60, 255) : c;
-    if (inner > 0) ui_rrect(x + 2 * t, y + 2 * t, inner, h - 4 * t, h / 6, fill);
+    bool low = pct <= 15 && !charging;
+    color_t edge = low ? rgba(230, 60, 60, 255) : c;
+    ui_rborder(x, y, w, h, h / 4, t, edge);
+    ui_rect(x + w + 1, y + h / 3, t + 1, h / 3, edge);
+    int shown = pct;
+    if (charging && pct < 100) shown = pct + (int)((100 - pct) * fmod(UI.t, 2.0) / 2.0);   /* in carica: si riempie a ciclo */
+    if (pct <= 5 && !charging && fmod(UI.t, 1.0) > 0.5) return;   /* quasi scarica: lampeggia */
+    int inner = (w - 4 * t) * shown / 100;
+    if (inner > 0) ui_rrect(x + 2 * t, y + 2 * t, inner, h - 4 * t, h / 6, edge);
 }
 
 /* level: -1 spento, 0 acceso ma non collegato, 1..3 tacche di segnale */
@@ -1511,11 +1515,16 @@ void ui_topbar(const char *title) {
     int wh = M(0.026f);
     x -= M(0.03f) + wh;
     int level = UI.set.wifi ? 3 : -1;
+    bool waiting = false;
     if (wifi_supported()) {
         const wifi_status_t *ws = wifi_status(false);
         level = !UI.set.wifi ? -1 : ws->state == WIFI_CONNECTED ? (ws->bars ? ws->bars : 1) : 0;
+        waiting = UI.set.wifi && ws->state != WIFI_CONNECTED && (ws->state == WIFI_CONNECTING || wifi_starting());
     }
-    wifi_icon(x, cy - wh / 2, wh, level, t->text);
+    if (waiting) {   /* sta partendo o si sta collegando: pulsa, per distinguerlo da "nessuna rete" */
+        color_t pulse = with_alpha(t->text, 60 + (int)(195 * (0.5 + 0.5 * sin(UI.t * 4))));
+        ui_wifi_icon(x, cy - wh / 2, wh, 3, pulse, pulse);
+    } else wifi_icon(x, cy - wh / 2, wh, level, t->text);
     time_t now = time(NULL);
     struct tm tmv;
     localtime_r(&now, &tmv);
@@ -1671,17 +1680,30 @@ static void shut_step(const char *what) {
     if (logf_) fsync(fileno(logf_));
 }
 
+static void write_exit_code(int code) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/System/exit.txt", UI.root);
+    FILE *f = fopen(p, "w");
+    if (f) { fprintf(f, "%d\n", code); fflush(f); fsync(fileno(f)); fclose(f); }
+}
+
+/* Riavvio dopo un aggiornamento: la chiusura dell'audio lì si blocca e bisogna aspettare che lo
+   script chiuda il programma. Tanto la console si riavvia: si esce subito, senza chiudere SDL. */
+void ui_exit_now(int code) {
+    plat_cpu_release(&UI.set);
+    write_exit_code(code);
+    ui_log("chiusura immediata (%d)", code);
+    if (logf_) fclose(logf_);
+    logf_ = NULL;
+    _exit(code);
+}
+
 void ui_shutdown_code(int code) {
     plat_cpu_release(&UI.set);
     if (vol_save_at > 0) { vol_save_at = 0; settings_save(&UI.set, UI.root); }
     /* System/exit.txt: chi ci ha avviati sa già come siamo usciti, anche se la chiusura
        dovesse bloccarsi (sul sistema su SD lo script ci chiude dopo qualche secondo) */
-    if (code >= 0) {
-        char p[1100];
-        snprintf(p, sizeof p, "%s/System/exit.txt", UI.root);
-        FILE *f = fopen(p, "w");
-        if (f) { fprintf(f, "%d\n", code); fflush(f); fsync(fileno(f)); fclose(f); }
-    }
+    if (code >= 0) write_exit_code(code);
     shut_step("font");
     fonts_clear();
     shut_step("audio");
