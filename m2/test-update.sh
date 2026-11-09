@@ -33,7 +33,7 @@ int main(int c, char **v) {
     return 0;
 }
 C
-gcc -O2 -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DUPDATE_REAL -DARCADE_VERSION='"0.0.0"' -o t src/t.c src/update.c -lcurl -lcrypto -lpthread
+gcc -O2 -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DUPDATE_REAL -DARCADE_VERSION='"0.0.0"' -DSYS_BLOCK_DIR='"/tmp/upd/block"' -o t src/t.c src/update.c -lcurl -lcrypto -lpthread
 echo "0.8.0 20260101.0000" > old.txt; echo "0.9.0 20270101.0000" > same.txt; echo "1.0.0 20300101.0000" > newer.txt
 
 # pacchetto sul "Mac"
@@ -83,6 +83,28 @@ echo "--- impossibile scrivere il segno degli avvii di prova"
 mkdir $S/System/update-pending
 expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"
 cmp $W/vecchio $S/System/arcade-system.squashfs && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema precedente rimesso a posto"
+echo "--- manca il sistema principale: la console gira sulla copia precedente"
+card
+mv $S/System/arcade-system.squashfs $S/System/arcade-system.squashfs.prec
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato senza sistema principale"
+cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nuovo al suo posto"
+cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "copia precedente non cancellata"
+echo "--- sistema principale rovinato: la console gira sulla copia precedente"
+SF=$S/System/arcade-system.squashfs
+in_uso() { mkdir -p $W/block/loop0/loop; echo "/mnt/SDCARD/Arcade/System/$1" > $W/block/loop0/loop/backing_file; }
+card; cp $SF $SF.prec; echo rovinato > $SF; cp $SF $W/rovinato; in_uso arcade-system.squashfs.prec
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato sopra il sistema rovinato"
+cmp $D/arcade-system.squashfs $SF && ok "sistema nuovo al suo posto"
+cmp $W/vecchio $SF.prec && ok "la copia buona resta quella precedente"
+card; cp $SF $SF.prec; echo rovinato > $SF; in_uso arcade-system.squashfs.prec
+mkdir $S/System/update-pending
+expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"
+cmp $W/rovinato $SF && cmp $W/vecchio $SF.prec && ok "se si ferma, i due file restano com'erano"
+echo "--- la console gira sul sistema principale: diventa la copia precedente"
+card; echo copia-vecchia > $SF.prec; in_uso arcade-system.squashfs
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato"
+cmp $W/vecchio $SF.prec && ok "il sistema in uso diventa la copia precedente"
+rm -rf $W/block
 card
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "fine installazione, 6 file"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nuovo identico"

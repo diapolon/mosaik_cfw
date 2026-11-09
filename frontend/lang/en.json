@@ -16,6 +16,8 @@
     "unfavorite": "Unfavorite",
     "settings": "Settings",
     "power_off": "Power off",
+    "restart": "Restart",
+    "restarting": "Restarting…",
     "all_games": "All games",
     "launch_error": "Unable to start the game",
     "quit_menu": "Exit",

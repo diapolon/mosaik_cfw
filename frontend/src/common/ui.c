@@ -815,7 +815,7 @@ int ui_battery(bool *charging) {
     if (pct >= 0) return pct;
     SDL_PowerState ps = SDL_GetPowerInfo(&secs, &pct);
     *charging = ps == SDL_POWERSTATE_CHARGING || ps == SDL_POWERSTATE_CHARGED;
-    return pct < 0 ? 100 : pct;
+    return pct;   /* -1: livello sconosciuto */
 }
 
 float ui_gain(void) {
@@ -1501,11 +1501,13 @@ void ui_topbar(const char *title) {
     int pct = ui_battery(&charging);
     char buf[32];
     int x = UI.w - mx;
-    snprintf(buf, sizeof buf, "%d%%", pct);
-    x -= ui_text(f, buf, x, cy - fh / 2, t->text, ALIGN_RIGHT) + M(0.012f);
-    int biw = M(0.05f), bih = M(0.026f);
-    x -= biw + M(0.006f);
-    battery_icon(x, cy - bih / 2, biw, bih, pct, charging, t->text);
+    if (pct >= 0) {   /* livello sconosciuto: meglio nessuna indicazione che una falsa */
+        snprintf(buf, sizeof buf, "%d%%", pct);
+        x -= ui_text(f, buf, x, cy - fh / 2, t->text, ALIGN_RIGHT) + M(0.012f);
+        int biw = M(0.05f), bih = M(0.026f);
+        x -= biw + M(0.006f);
+        battery_icon(x, cy - bih / 2, biw, bih, pct, charging, t->text);
+    }
     int wh = M(0.026f);
     x -= M(0.03f) + wh;
     int level = UI.set.wifi ? 3 : -1;

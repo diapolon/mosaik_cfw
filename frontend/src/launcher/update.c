@@ -304,6 +304,29 @@ static bool fetch_one(const item_t *it, const char *tmp, int *err) {
 static void tmp_name(const item_t *it, char *out, size_t n) { snprintf(out, n, "%s/%s.nuovo", root_dir, it->path); }
 
 /* errore a metà: si rimette il sistema di prima. Se non riesce resta il .prec, che l'avvio sa usare */
+#ifndef SYS_BLOCK_DIR
+#define SYS_BLOCK_DIR "/sys/block"
+#endif
+
+/* La console sta girando sulla copia precedente? Lo dice il kernel: è il file dietro il
+   dispositivo loop del sistema. Il solo controllo del file principale non basta, perché può
+   esserci ma essere rovinato: in quel caso l'initramfs è ripartito dalla copia precedente. */
+static bool running_from_prev(void) {
+    for (int i = 0; i < 8; i++) {
+        char p[256], line[1200];
+        snprintf(p, sizeof p, SYS_BLOCK_DIR "/loop%d/loop/backing_file", i);
+        FILE *f = fopen(p, "r");
+        if (!f) continue;
+        char *got = fgets(line, sizeof line, f);
+        fclose(f);
+        if (!got || !strstr(line, "arcade-system.squashfs")) continue;
+        line[strcspn(line, "\n")] = 0;
+        ui_log("aggiornamento: sistema in uso: %s", line);
+        return strstr(line, ".squashfs.prec") != NULL;
+    }
+    return false;
+}
+
 static void restore_system(const char *prev, const char *dst) {
     if (rename(prev, dst) != 0) ui_log("aggiornamento: sistema precedente NON ripristinato (%s): resta %s", strerror(errno), prev);
 }
@@ -362,8 +385,15 @@ static void *apply_worker(void *arg) {
         snprintf(prev, sizeof prev, "%s.prec", dst);
         snprintf(pend, sizeof pend, "%s/System/update-pending", root_dir);
         /* il sistema in uso resta aperto (è montato) anche con un altro nome */
-        unlink(prev);
-        if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); remove_tmps(); fail(UPE_WRITE); return NULL; }
+        /* Se la console sta girando sul .prec, quella è la copia buona e non va toccata: il
+           sistema nuovo prende il posto del principale, mancante o rovinato che sia. */
+        struct stat main_st;
+        bool moved = false;
+        if (!running_from_prev() && stat(dst, &main_st) == 0) {
+            unlink(prev);
+            if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); remove_tmps(); fail(UPE_WRITE); return NULL; }
+            moved = true;
+        }
         /* senza questo file non si contano gli avvii di prova: non si prosegue */
         FILE *f = fopen(pend, "w");
         bool marked = f && fputs("0\n", f) >= 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
@@ -371,14 +401,14 @@ static void *apply_worker(void *arg) {
         if (!marked) {
             ui_log("aggiornamento: impossibile scrivere update-pending");
             unlink(pend);
-            restore_system(prev, dst);
+            if (moved) restore_system(prev, dst);
             remove_tmps();
             fail(UPE_WRITE);
             return NULL;
         }
         if (rename(tmp, dst) != 0) {
             ui_log("aggiornamento: rename del sistema nuovo: %s", strerror(errno));
-            restore_system(prev, dst);
+            if (moved) restore_system(prev, dst);
             unlink(pend);
             remove_tmps();
             fail(UPE_WRITE);

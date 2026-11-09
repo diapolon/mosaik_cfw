@@ -13,14 +13,18 @@ EVPID=/run/wifi-event.pid
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 
 # un comando alla volta: spegnere e riaccendere in fretta dal menu non deve sovrapporsi
-LOCK=/run/wifi-ctl.lock
+# (flock: se un comando viene interrotto il blocco si libera da solo, e chi non lo ottiene non
+# prosegue. I demoni avviati qui sotto non devono ereditare il descrittore 9, o lo terrebbero.)
+exec 9> "${WIFI_LOCK:-/run/wifi-ctl.lock}"
 i=0
-while ! mkdir "$LOCK" 2> /dev/null; do
+until flock -n 9; do
     i=$((i + 1))
-    [ $i -ge 100 ] && break   # 10 secondi: blocco rimasto da un comando interrotto
+    if [ $i -ge ${WIFI_LOCK_TRIES:-200} ]; then   # 20 secondi, più di quanto duri un comando
+        log "$1: altro comando Wi-Fi ancora in corso, rinuncio"
+        exit 1
+    fi
     sleep 0.1
 done
-trap 'rmdir "$LOCK" 2> /dev/null' EXIT
 
 case "$1" in
 on)
@@ -45,12 +49,12 @@ on)
     mkdir -p "$CTRL"
     if ! pidof wpa_supplicant >/dev/null; then
         # stdout e stderr non sulla SD: allo spegnimento la SD non deve avere file aperti
-        wpa_supplicant -B -i wlan0 -D nl80211 -c "$CONF" -C "$CTRL" > /dev/null 2>&1 || { log "wpa_supplicant: errore"; exit 1; }
+        wpa_supplicant -B -i wlan0 -D nl80211 -c "$CONF" -C "$CTRL" > /dev/null 2>&1 9>&- || { log "wpa_supplicant: errore"; exit 1; }
     fi
     # non "pidof wpa_cli": troverebbe anche i wpa_cli brevi con cui il launcher legge lo stato,
     # e senza questo processo nessuno chiederebbe l'indirizzo alla rete
     if ! { [ -f "$EVPID" ] && kill -0 "$(cat "$EVPID")" 2> /dev/null; }; then
-        wpa_cli -B -P "$EVPID" -p "$CTRL" -i wlan0 -a /usr/arcade/bin/wifi-event > /dev/null 2>&1
+        wpa_cli -B -P "$EVPID" -p "$CTRL" -i wlan0 -a /usr/arcade/bin/wifi-event > /dev/null 2>&1 9>&-
     fi
     log "Wi-Fi acceso"
     ;;

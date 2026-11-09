@@ -420,14 +420,20 @@ static void launch(game_t *g) {
     }
     snprintf(path, sizeof path, "%s/System/next.txt", UI.root);
     FILE *f = fopen(path, "w");
-    if (!f) {
+    bool written = f != NULL;
+    if (f) {
+        fprintf(f, "%s\t%s\t%s\t%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title);
+        written = !ferror(f) && fflush(f) == 0;
+        if (fclose(f) != 0) written = false;
+    }
+    if (!written) {
+        /* un file a metà non deve avviare qualcos'altro: si resta nel menu */
         ui_log("impossibile scrivere %s: %s", path, strerror(errno));
+        unlink(path);
         ui_toast(T("common.launch_error"));
         ui_sound(SND_ERROR);
         return;
     }
-    fprintf(f, "%s\t%s\t%s\t%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title);
-    fclose(f);
     ui_log("avvio %s (%s)", g->title, g->core);
     ui_sound(SND_OK);
     char msg[200];
@@ -438,16 +444,19 @@ static void launch(game_t *g) {
     exit(EXIT_LAUNCH);
 }
 
-static void power_off(void) {
+static void leave_system(int code, const char *msg) {
     char p[1100];
     snprintf(p, sizeof p, "%s/System/resume.txt", UI.root);
     unlink(p);   /* spento dal menu: al riavvio non c'è una partita da riprendere */
     settings_save(&UI.set, UI.root);
-    ui_busy(T("common.shutting_down"), 0.5);
+    ui_busy(msg, 0.5);
     music_quit();
-    ui_shutdown_code(EXIT_POWEROFF);
-    exit(EXIT_POWEROFF);
+    ui_shutdown_code(code);
+    exit(code);
 }
+
+static void power_off(void) { leave_system(EXIT_POWEROFF, T("common.shutting_down")); }
+static void restart_system(void) { leave_system(EXIT_REBOOT, T("common.restarting")); }
 
 /* --------------------------------------------------------- copertine */
 
@@ -2545,7 +2554,8 @@ static void settings_draw(void) {
 
 /* Sulla console, finché il sistema gira come app del firmware originale, c'è anche
    "Esci": torna al menu TrimUI. Pulsanti: annulla, (esci), spegni. */
-static int dlg_buttons(void) { return plat_is_device() && !plat_standalone() ? 3 : 2; }
+/* Annulla e Spegni; in mezzo Riavvia nel sistema su SD, Esci se si è partiti dal sistema TrimUI */
+static int dlg_buttons(void) { return plat_standalone() || plat_is_device() ? 3 : 2; }
 
 static void quit_to_menu(void) {
     settings_save(&UI.set, UI.root);
@@ -2562,7 +2572,7 @@ static void dialog_input(void) {
     if (in->pressed[BTN_B]) { dlg_open = false; ui_sound(SND_BACK); }
     if (in->pressed[BTN_A]) {
         if (dlg_sel == n - 1) power_off();
-        if (n == 3 && dlg_sel == 1) quit_to_menu();
+        if (n == 3 && dlg_sel == 1) { if (plat_standalone()) restart_system(); else quit_to_menu(); }
         dlg_open = false;
         ui_sound(SND_BACK);
     }
@@ -2575,14 +2585,15 @@ static void dialog_draw(void) {
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(x, y, w, h, r, t->surface);
     ui_text(UI.f_title, T("dialog.power_title"), x + w / 2, y + M(0.06f), t->text, ALIGN_CENTER);
-    ui_text(UI.f_small, T(dlg_buttons() == 3 ? "dialog.power_body_app" : "dialog.power_body"), x + w / 2, y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
+    ui_text(UI.f_small, T(dlg_buttons() == 3 && !plat_standalone() ? "dialog.power_body_app" : "dialog.power_body"), x + w / 2, y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
     int n = dlg_buttons(), bw = (w - M(0.03f) * (n + 1)) / n, bh = M(0.085f), by = y + h - bh - M(0.04f);
-    const char *labels[3] = { T("common.cancel"), n == 3 ? T("common.quit_menu") : T("common.power_off"), T("common.power_off") };
+    const char *labels[3] = { T("common.cancel"), n == 3 ? T(plat_standalone() ? "common.restart" : "common.quit_menu") : T("common.power_off"), T("common.power_off") };
     for (int i = 0; i < n; i++) {
         int bx = x + M(0.03f) + i * (bw + M(0.03f));
         bool sel = dlg_sel == i;
         ui_rrect(bx, by, bw, bh, bh / 2, sel ? t->accent : with_alpha(t->text_dim, 40));
-        ui_text(UI.f_normal, labels[i], bx + bw / 2, by + (bh - TTF_FontHeight(UI.f_normal)) / 2, sel ? t->accent_text : t->text, ALIGN_CENTER);
+        TTF_Font *lf = ui_text_w(UI.f_normal, labels[i]) > bw - M(0.02f) ? UI.f_small : UI.f_normal;   /* tre pulsanti: le parole lunghe devono starci */
+        ui_text(lf, labels[i], bx + bw / 2, by + (bh - TTF_FontHeight(lf)) / 2, sel ? t->accent_text : t->text, ALIGN_CENTER);
     }
 }
 
@@ -3743,14 +3754,14 @@ static void battery_check(void) {
         pct = ui_battery(&charging);
         next_check = UI.t + 5;
         if (charging) warned_low = false;
-        if (!charging && pct <= 15 && !warned_low) {
+        if (!charging && pct >= 0 && pct <= 15 && !warned_low) {
             char m[96];
             snprintf(m, sizeof m, T("battery.low"), pct);
             ui_toast(m);
             warned_low = true;
         }
     }
-    if (!charging && pct <= 5 && !saver_on) {
+    if (!charging && pct >= 0 && pct <= 5 && !saver_on) {
         char m[128];
         snprintf(m, sizeof m, T("battery.critical"), pct);
         int w = ui_text_w(UI.f_small, m) + M(0.04f), h = TTF_FontHeight(UI.f_small) + M(0.015f);

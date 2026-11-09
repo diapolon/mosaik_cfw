@@ -200,7 +200,7 @@ static void gamecfg_load(void) {
     if (!f) return;
     while (fgets(line, sizeof line, f)) {
         int id, v;
-        if (sscanf(line, "aspect=%d", &v) == 1) gcfg.aspect = v % 3;
+        if (sscanf(line, "aspect=%d", &v) == 1) { if (v >= 0 && v < 3) gcfg.aspect = v; }
         else if (!strncmp(line, "filter=", 7)) {
             char id[32];
             if (sscanf(line + 7, "%31s", id) == 1)
@@ -574,15 +574,36 @@ static void state_path(char *out, size_t n, bool autosave) {
     game_file(out, n, save_ext[autosave ? SAVE_AUTO : gcfg.slot]);
 }
 
-/* il salvataggio automatico di prima resta come copia, con la sua anteprima */
+/* copia passando da un file provvisorio: la destinazione o è quella di prima o è completa */
+static bool copy_whole(const char *from, const char *to) {
+    char t[1500], buf[65536];
+    snprintf(t, sizeof t, "%s.tmp", to);
+    FILE *in = fopen(from, "rb");
+    if (!in) return false;
+    FILE *out = fopen(t, "wb");
+    bool ok = out != NULL;
+    size_t n;
+    while (ok && (n = fread(buf, 1, sizeof buf, in)) > 0) ok = fwrite(buf, 1, n, out) == n;
+    ok = ok && !ferror(in);
+    if (out) {
+        ok = fflush(out) == 0 && fsync(fileno(out)) == 0 && ok;
+        if (fclose(out) != 0) ok = false;
+    }
+    fclose(in);
+    ok = ok && rename(t, to) == 0;
+    if (!ok) remove(t);
+    return ok;
+}
+
+/* Il salvataggio automatico di prima resta come copia, con la sua anteprima. Si copia e non si
+   rinomina: così quello in uso c'è sempre, anche se la scrittura del nuovo non va a buon fine. */
 static void auto_keep_previous(void) {
     char a[1400], b[1400], ap[1450], bp[1450];
     game_file(a, sizeof a, save_ext[SAVE_AUTO]);
     game_file(b, sizeof b, save_ext[SAVE_PREV]);
     snprintf(ap, sizeof ap, "%s.png", a);
     snprintf(bp, sizeof bp, "%s.png", b);
-    rename(a, b);
-    rename(ap, bp);
+    if (copy_whole(a, b) && !copy_whole(ap, bp)) remove(bp);
 }
 
 static bool state_save(bool autosave) {
@@ -602,10 +623,11 @@ static bool state_save(bool autosave) {
         if (ok && autosave) auto_keep_previous();
         ok = ok && rename(t, p) == 0;
         if (!ok) remove(t);
-        if (ok && thumb) {
+        if (ok) {
             char png[1450];
             snprintf(png, sizeof png, "%s.png", p);
-            IMG_SavePNG(thumb, png);
+            if (thumb) IMG_SavePNG(thumb, png);
+            else remove(png);   /* l'anteprima di prima non sarebbe più di questo salvataggio */
         }
     }
     free(buf);
@@ -924,13 +946,15 @@ static void stats_update(void) {
 }
 
 static void write_resume(void) {
-    char p[1200];
+    char p[1200], t[1300];
     snprintf(p, sizeof p, "%s/System/resume.txt", root);
-    FILE *f = fopen(p, "w");
-    if (f) {
-        fprintf(f, "libretro\t%s\t%s\t%s\tresume\n", core_path, rom_path, title);
-        fclose(f);
-    }
+    snprintf(t, sizeof t, "%s.tmp", p);
+    FILE *f = fopen(t, "w");
+    if (!f) { ui_log("impossibile scrivere %s", t); return; }
+    fprintf(f, "libretro\t%s\t%s\t%s\tresume\n", core_path, rom_path, title);
+    bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (fclose(f) != 0) ok = false;
+    if (!ok || rename(t, p) != 0) { ui_log("impossibile scrivere %s", p); remove(t); }
 }
 
 /* Prestazioni: ogni 10 s di gioco nel log fotogrammi al secondo, tempi dell'emulatore e del
@@ -1412,6 +1436,7 @@ static void battery_watch(void) {
     bool charging;
     int pct = ui_battery(&charging);
     if (charging) { warned = saved = false; return; }
+    if (pct < 0) return;   /* livello sconosciuto: niente avvisi né salvataggi per batteria scarica */
     if (pct <= 10 && !warned) {
         char m[96];
         snprintf(m, sizeof m, T("battery.low"), pct);

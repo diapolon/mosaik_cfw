@@ -1,5 +1,6 @@
 #include "games.h"
 #include "../common/json.h"
+#include "../common/ui.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -281,14 +282,23 @@ static int kv_load(const char *path, kv_t **out) {
     return n;
 }
 
+/* Il file provvisorio prende il posto di quello vero solo se è arrivato tutto sulla scheda:
+   se la scrittura si interrompe, resta l'elenco di prima. */
+static void commit_file(FILE *f, const char *tmp, const char *path) {
+    bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (fclose(f) != 0) ok = false;
+    if (ok && rename(tmp, path) == 0) return;
+    ui_log("scrittura di %s non riuscita: resta il file di prima", path);
+    remove(tmp);
+}
+
 static void kv_save(const char *path, const kv_t *a, int n) {
     char tmp[1200];
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
     FILE *f = fopen(tmp, "w");
     if (!f) return;
     for (int i = 0; i < n; i++) if (a[i].key[0]) fprintf(f, "%s\t%s\n", a[i].key, a[i].val);
-    fclose(f);
-    rename(tmp, path);
+    commit_file(f, tmp, path);
 }
 
 static void genre_file(const char *root, const char *name, char *out, size_t n) { snprintf(out, n, "%s/System/%s", root, name); }
@@ -421,10 +431,12 @@ static int read_list(const char *path, char keys[][96], int max) {
 }
 
 static void write_list(const char *path, char keys[][96], int n) {
-    FILE *f = fopen(path, "w");
-    if (!f) return;
+    char tmp[1200];
+    snprintf(tmp, sizeof tmp, "%s.tmp", path);
+    FILE *f = fopen(tmp, "w");
+    if (!f) { ui_log("scrittura di %s non riuscita", path); return; }
     for (int i = 0; i < n; i++) fprintf(f, "%s\n", keys[i]);
-    fclose(f);
+    commit_file(f, tmp, path);
 }
 
 static void key_of(const game_t *g, char *k) { snprintf(k, 96, "%s\t%s", g->core, g->name); }

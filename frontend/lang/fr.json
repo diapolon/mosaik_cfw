@@ -16,6 +16,8 @@
     "unfavorite": "Retirer des favoris",
     "settings": "Réglages",
     "power_off": "Éteindre",
+    "restart": "Redémarrer",
+    "restarting": "Redémarrage…",
     "all_games": "Tous les jeux",
     "launch_error": "Impossible de lancer le jeu",
     "quit_menu": "Quitter",
