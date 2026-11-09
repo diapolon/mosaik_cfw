@@ -14,7 +14,10 @@ mute() {
     for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" off 2> /dev/null; done
 }
 unmute() {
-    for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" on 2> /dev/null; done
+    for c in "Headphone Switch" "HpSpeaker Switch"; do amixer -q cset name="$c" on 2> /dev/null; done
+    # LINEOUT resta spenta: non serve all'altoparlante né alle cuffie e con Wi-Fi e SD in attività
+    # faceva rumore (provato su Brick Pro e Smart Pro). System/lineout-on la riaccende.
+    [ -f "$ROOT/System/lineout-on" ] && amixer -q cset name="LINEOUT Switch" on 2> /dev/null
     [ -w /sys/class/speaker/mute ] && echo 0 > /sys/class/speaker/mute
 }
 # "arcade-suspend unmute": launcher e runner riaprono l'uscita audio dopo il risveglio e solo
@@ -35,6 +38,12 @@ fi
 for k in /sys/class/rfkill/rfkill*; do
     [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 0 > "$k/state" 2> /dev/null
 done
+# Il driver acceso da poco rifiuta la sospensione (phy0, errore -16): come fa Knulli, si toglie
+# e al risveglio lo ricarica wifi-ctl. Se non si lascia togliere, restano i tentativi qui sotto.
+if grep -q '^xradio_wlan ' /proc/modules; then
+    if timeout -s KILL 5 rmmod xradio_wlan 2> /dev/null; then step "driver Wi-Fi tolto"
+    else step "driver Wi-Fi non tolto"; fi
+fi
 echo 0 > /sys/class/led_anim/enable 2> /dev/null
 # audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
 mute

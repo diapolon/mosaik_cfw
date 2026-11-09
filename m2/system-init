@@ -58,6 +58,17 @@ halt_with() {
 for f in "$LOG" "$ROOT/Logs/Arcade.log" "$ROOT/Logs/linux-games.log"; do
     [ -f "$f" ] && [ "$(wc -c < "$f")" -gt 200000 ] && mv -f "$f" "$f.old"
 done
+
+# Blocchi dell'intero sistema: un riavvio forzato cancella i messaggi del kernel. Con il registro
+# acceso vanno sulla SD ogni secondo per il primo minuto; il segno resta se il giro non si chiude
+# bene, e al giro dopo quei messaggi si conservano in kernel-blocco.txt.
+KMARK="$ROOT/Logs/kernel-in-corso"
+if [ "$DEBUG" -ge 1 ]; then
+    [ -f "$KMARK" ] && [ -f "$ROOT/Logs/kernel.txt" ] && mv -f "$ROOT/Logs/kernel.txt" "$ROOT/Logs/kernel-blocco.txt"
+    : > "$KMARK"
+    ( i=0; while [ $i -lt 60 ]; do dmesg > "$ROOT/Logs/kernel.txt"; sync; i=$((i + 1)); sleep 1; done ) > /dev/null 2>&1 &
+    KPID=$!
+fi
 # orologio della console in UTC (come nel firmware TrimUI); il fuso orario lo applica il launcher
 hwclock -s -u 2>/dev/null
 echo "=== $(date) · sistema Arcade M2 · $TRIMUI_MODEL" >> "$LOG"
@@ -238,6 +249,8 @@ finish() {
     step "${1:-spegnimento}"
     # Wi-Fi e SD lavorano fino all'ultimo: con l'altoparlante acceso si sentirebbe un ronzio
     arcade-suspend mute 2> /dev/null
+    [ -n "${KPID:-}" ] && kill "$KPID" 2> /dev/null
+    rm -f "$KMARK"
     sync
     # SD smontata o in sola lettura: il kernel toglie il segno "in uso" dal FAT e al prossimo
     # avvio il controllo non serve (vedi initramfs-init). Prima si fermano i programmi che

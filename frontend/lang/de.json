@@ -48,6 +48,7 @@
     "about": "%d Spiele · Prototyp 0.1 · %s"
   },
   "settings": {
+    "collections": "Sammlungen",
     "pad_test": "Tastentest",
     "key_f1": "F1-Taste",
     "key_f2": "F2-Taste",
@@ -92,6 +93,7 @@
     "led_brightness": "LED-Helligkeit"
   },
   "settings_desc": {
+    "collections": "Sammlungen umbenennen oder löschen.",
     "pad_test": "Zeigt jede gedrückte Taste und die Position der Sticks: nützlich, um ihre Funktion zu prüfen.",
     "key_f1": "Was die F1-Leiste in FBNeo- und MAME-Spielen macht.",
     "key_f2": "Was die F2-Leiste in FBNeo- und MAME-Spielen macht.",
@@ -299,6 +301,8 @@
     "no_history": "Keine Beschreibung: „Bilder herunterladen“ verwenden."
   },
   "hotkey": {
+    "page": "Tastenkürzel",
+    "note": "Bei gedrückter Menu-Taste.",
     "ff_on": "Schnellvorlauf an",
     "ff_off": "Schnellvorlauf aus",
     "screenshot": "Screenshot gespeichert",
@@ -351,6 +355,11 @@
     "ext_p1": "Extern = Spieler 1 (%s)"
   },
   "coll": {
+    "rename": "Umbenennen",
+    "delete": "Löschen",
+    "renamed": "Sammlung umbenannt",
+    "deleted": "Sammlung gelöscht",
+    "none": "Keine Sammlungen: Erstelle eine auf der Seite eines Spiels",
     "filter": "Sammlung",
     "hidden_view": "Ausgeblendet (%d)",
     "menu_title": "Spieloptionen",
@@ -593,6 +602,10 @@
     "done": "Spiel zurückgesetzt"
   },
   "confirm": {
+    "overwrite_title": "Diesen Platz überschreiben?",
+    "overwrite_body": "Der hier gespeicherte Stand geht verloren.",
+    "coll_title": "Sammlung löschen?",
+    "coll_body": "Die Spiele bleiben, nur die Liste geht verloren.",
     "forget_title": "Dieses Netz vergessen?",
     "forget_body": "Das Passwort wird wieder gebraucht.",
     "genres_title": "Originale Genres wiederherstellen?",
@@ -602,5 +615,17 @@
     "restart_body": "Nicht gespeicherter Fortschritt geht verloren.",
     "controls_title": "Steuerung wiederherstellen?",
     "controls_body": "Deine Einstellungen für dieses Spiel gehen verloren."
+  },
+  "saves": {
+    "title": "Spielstände",
+    "slot": "Platz %d",
+    "auto": "Automatisch",
+    "prev": "Vorherige Kopie",
+    "empty": "Leer",
+    "save": "Speichern",
+    "load": "Laden",
+    "no_preview": "Keine Vorschau",
+    "load_failed": "Nicht geladen: vielleicht aus einer anderen Version",
+    "note": "Beim Laden eines Platzes bleibt das laufende Spiel im automatischen Speicherstand."
   }
 }

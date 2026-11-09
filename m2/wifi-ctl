@@ -25,16 +25,19 @@ trap 'rmdir "$LOCK" 2> /dev/null' EXIT
 case "$1" in
 on)
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
-    if ! grep -q '^xradio_wlan ' /proc/modules; then
-        for m in xradio_mac xradio_core xradio_wlan; do
-            insmod /run/fw/modules/$m.ko >> "$LOG" 2>&1 || log "insmod $m: errore"
-        done
-    fi
+    # dopo una sospensione manca solo xradio_wlan: si carica ciò che non c'è
+    for m in xradio_mac xradio_core xradio_wlan; do
+        grep -q "^$m " /proc/modules && continue
+        insmod /run/fw/modules/$m.ko >> "$LOG" 2>&1 || log "insmod $m: errore"
+    done
     for i in $(seq 50); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.2; done
     if [ ! -e /sys/class/net/wlan0 ]; then
         log "wlan0 non comparsa"; dmesg | grep -i -E "xradio|xr829|sdio|mmc1" | tail -30 >> "$LOG"
         exit 1
     fi
+    for k in /sys/class/rfkill/rfkill*; do
+        [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 1 > "$k/state" 2> /dev/null
+    done
     if [ ! -f "$CONF" ]; then
         printf 'ctrl_interface=%s\nupdate_config=1\n' "$CTRL" > "$CONF"
     fi

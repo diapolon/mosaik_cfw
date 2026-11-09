@@ -48,6 +48,7 @@
     "about": "%d juegos · prototipo 0.1 · %s"
   },
   "settings": {
+    "collections": "Colecciones",
     "pad_test": "Prueba de controles",
     "key_f1": "Botón F1",
     "key_f2": "Botón F2",
@@ -92,6 +93,7 @@
     "led_brightness": "Brillo de los LED"
   },
   "settings_desc": {
+    "collections": "Renombra o elimina las colecciones.",
     "pad_test": "Muestra cada botón pulsado y la posición de las palancas: útil para comprobar que funcionan.",
     "key_f1": "Qué hace la barra F1 durante los juegos FBNeo y MAME.",
     "key_f2": "Qué hace la barra F2 durante los juegos FBNeo y MAME.",
@@ -299,6 +301,8 @@
     "no_history": "Sin descripción: usa «Descargar imágenes»."
   },
   "hotkey": {
+    "page": "Atajos",
+    "note": "Manteniendo pulsado Menu.",
     "ff_on": "Avance rápido activado",
     "ff_off": "Avance rápido desactivado",
     "screenshot": "Captura guardada",
@@ -351,6 +355,11 @@
     "ext_p1": "Externo = jugador 1 (%s)"
   },
   "coll": {
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "renamed": "Colección renombrada",
+    "deleted": "Colección eliminada",
+    "none": "No hay colecciones: crea una desde la ficha de un juego",
     "filter": "Colección",
     "hidden_view": "Ocultos (%d)",
     "menu_title": "Opciones del juego",
@@ -593,6 +602,10 @@
     "done": "Juego restablecido"
   },
   "confirm": {
+    "overwrite_title": "¿Sobrescribir esta ranura?",
+    "overwrite_body": "Se perderá el estado guardado aquí.",
+    "coll_title": "¿Eliminar la colección?",
+    "coll_body": "Los juegos se quedan, solo se pierde la lista.",
     "forget_title": "¿Olvidar esta red?",
     "forget_body": "Necesitarás la contraseña para conectarte.",
     "genres_title": "¿Restaurar los géneros originales?",
@@ -602,5 +615,17 @@
     "restart_body": "Se perderá el progreso no guardado.",
     "controls_title": "¿Restaurar los controles?",
     "controls_body": "Se perderán tus ajustes para este juego."
+  },
+  "saves": {
+    "title": "Partidas guardadas",
+    "slot": "Ranura %d",
+    "auto": "Automático",
+    "prev": "Copia anterior",
+    "empty": "Vacía",
+    "save": "Guardar",
+    "load": "Cargar",
+    "no_preview": "Sin vista previa",
+    "load_failed": "Estado no cargado: quizá de otra versión",
+    "note": "Al cargar una ranura, la partida en curso queda en el guardado automático."
   }
 }

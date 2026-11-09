@@ -35,6 +35,7 @@
 - **Signed updates** over Wi-Fi, with an attempt to return to the previous version if one fails.
 - **CPU profile for each game**, and a notice on the home screen when an update is available.
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
+- **Three save slots per game** with preview and date, plus an automatic save with a previous copy.
 
 ## The interface
 

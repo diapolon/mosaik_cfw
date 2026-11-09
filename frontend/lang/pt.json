@@ -48,6 +48,7 @@
     "about": "%d jogos · protótipo 0.1 · %s"
   },
   "settings": {
+    "collections": "Coleções",
     "pad_test": "Teste dos comandos",
     "key_f1": "Botão F1",
     "key_f2": "Botão F2",
@@ -92,6 +93,7 @@
     "led_brightness": "Brilho dos LED"
   },
   "settings_desc": {
+    "collections": "Muda o nome ou elimina as coleções.",
     "pad_test": "Mostra cada botão premido e a posição dos analógicos: útil para verificar se funcionam.",
     "key_f1": "O que a barra F1 faz durante os jogos FBNeo e MAME.",
     "key_f2": "O que a barra F2 faz durante os jogos FBNeo e MAME.",
@@ -299,6 +301,8 @@
     "no_history": "Sem descrição: use «Transferir imagens»."
   },
   "hotkey": {
+    "page": "Atalhos",
+    "note": "Mantendo premido Menu.",
     "ff_on": "Avanço rápido ligado",
     "ff_off": "Avanço rápido desligado",
     "screenshot": "Captura guardada",
@@ -351,6 +355,11 @@
     "ext_p1": "Externo = jogador 1 (%s)"
   },
   "coll": {
+    "rename": "Mudar o nome",
+    "delete": "Eliminar",
+    "renamed": "Coleção renomeada",
+    "deleted": "Coleção eliminada",
+    "none": "Sem coleções: cria uma na ficha de um jogo",
     "filter": "Coleção",
     "hidden_view": "Ocultos (%d)",
     "menu_title": "Opções do jogo",
@@ -593,6 +602,10 @@
     "done": "Jogo reposto"
   },
   "confirm": {
+    "overwrite_title": "Substituir esta ranhura?",
+    "overwrite_body": "O estado guardado aqui perde-se.",
+    "coll_title": "Eliminar a coleção?",
+    "coll_body": "Os jogos ficam, só se perde a lista.",
     "forget_title": "Esquecer esta rede?",
     "forget_body": "Vai ser preciso a palavra-passe para ligar.",
     "genres_title": "Repor os géneros originais?",
@@ -602,5 +615,17 @@
     "restart_body": "O progresso não guardado perde-se.",
     "controls_title": "Repor os comandos?",
     "controls_body": "As tuas escolhas para este jogo perdem-se."
+  },
+  "saves": {
+    "title": "Jogos guardados",
+    "slot": "Ranhura %d",
+    "auto": "Automático",
+    "prev": "Cópia anterior",
+    "empty": "Vazia",
+    "save": "Guardar",
+    "load": "Carregar",
+    "no_preview": "Sem pré-visualização",
+    "load_failed": "Estado não carregado: talvez de outra versão",
+    "note": "Ao carregar uma ranhura, o jogo em curso fica na gravação automática."
   }
 }

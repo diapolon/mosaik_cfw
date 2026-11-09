@@ -48,6 +48,7 @@
     "about": "%d games · prototype 0.1 · %s"
   },
   "settings": {
+    "collections": "Collections",
     "pad_test": "Button test",
     "key_f1": "F1 button",
     "key_f2": "F2 button",
@@ -92,6 +93,7 @@
     "led_brightness": "LED brightness"
   },
   "settings_desc": {
+    "collections": "Rename or delete your collections.",
     "pad_test": "Shows every button you press and the position of the sticks: useful to check that they work.",
     "key_f1": "What the F1 bar does during FBNeo and MAME games.",
     "key_f2": "What the F2 bar does during FBNeo and MAME games.",
@@ -299,6 +301,8 @@
     "no_history": "No description: use “Download images” to get it."
   },
   "hotkey": {
+    "page": "Shortcuts",
+    "note": "While holding Menu.",
     "ff_on": "Fast forward on",
     "ff_off": "Fast forward off",
     "screenshot": "Screenshot saved",
@@ -351,6 +355,11 @@
     "ext_p1": "External = player 1 (%s)"
   },
   "coll": {
+    "rename": "Rename",
+    "delete": "Delete",
+    "renamed": "Collection renamed",
+    "deleted": "Collection deleted",
+    "none": "No collections: create one from a game's details page",
     "filter": "Collection",
     "hidden_view": "Hidden (%d)",
     "menu_title": "Game options",
@@ -593,6 +602,10 @@
     "done": "Game reset"
   },
   "confirm": {
+    "overwrite_title": "Overwrite this slot?",
+    "overwrite_body": "The state saved here will be lost.",
+    "coll_title": "Delete this collection?",
+    "coll_body": "The games stay, only the list is lost.",
     "forget_title": "Forget this network?",
     "forget_body": "You will need the password to connect again.",
     "genres_title": "Restore the original genres?",
@@ -602,5 +615,17 @@
     "restart_body": "Unsaved progress will be lost.",
     "controls_title": "Restore the controls?",
     "controls_body": "Your choices for this game will be lost."
+  },
+  "saves": {
+    "title": "Save states",
+    "slot": "Slot %d",
+    "auto": "Automatic",
+    "prev": "Previous copy",
+    "empty": "Empty",
+    "save": "Save",
+    "load": "Load",
+    "no_preview": "No preview",
+    "load_failed": "State not loaded: it may be from another version",
+    "note": "When you load a slot, the current game stays in the automatic save."
   }
 }

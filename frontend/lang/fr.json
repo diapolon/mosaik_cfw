@@ -48,6 +48,7 @@
     "about": "%d jeux · prototype 0.1 · %s"
   },
   "settings": {
+    "collections": "Collections",
     "pad_test": "Test des commandes",
     "key_f1": "Touche F1",
     "key_f2": "Touche F2",
@@ -92,6 +93,7 @@
     "led_brightness": "Luminosité des LED"
   },
   "settings_desc": {
+    "collections": "Renommer ou supprimer les collections.",
     "pad_test": "Affiche chaque touche pressée et la position des sticks : utile pour vérifier leur fonctionnement.",
     "key_f1": "Action de la barre F1 pendant les jeux FBNeo et MAME.",
     "key_f2": "Action de la barre F2 pendant les jeux FBNeo et MAME.",
@@ -299,6 +301,8 @@
     "no_history": "Aucune description : utilisez « Télécharger les images »."
   },
   "hotkey": {
+    "page": "Raccourcis",
+    "note": "En maintenant Menu.",
     "ff_on": "Avance rapide activée",
     "ff_off": "Avance rapide désactivée",
     "screenshot": "Capture enregistrée",
@@ -351,6 +355,11 @@
     "ext_p1": "Externe = joueur 1 (%s)"
   },
   "coll": {
+    "rename": "Renommer",
+    "delete": "Supprimer",
+    "renamed": "Collection renommée",
+    "deleted": "Collection supprimée",
+    "none": "Aucune collection : créez-en une depuis la fiche d'un jeu",
     "filter": "Collection",
     "hidden_view": "Masqués (%d)",
     "menu_title": "Options du jeu",
@@ -593,6 +602,10 @@
     "done": "Jeu réinitialisé"
   },
   "confirm": {
+    "overwrite_title": "Écraser cet emplacement ?",
+    "overwrite_body": "L'état enregistré ici sera perdu.",
+    "coll_title": "Supprimer la collection ?",
+    "coll_body": "Les jeux restent, seule la liste est perdue.",
     "forget_title": "Oublier ce réseau ?",
     "forget_body": "Le mot de passe sera de nouveau demandé.",
     "genres_title": "Rétablir les genres d'origine ?",
@@ -602,5 +615,17 @@
     "restart_body": "La progression non sauvegardée sera perdue.",
     "controls_title": "Rétablir les commandes ?",
     "controls_body": "Vos choix pour ce jeu seront perdus."
+  },
+  "saves": {
+    "title": "Sauvegardes",
+    "slot": "Emplacement %d",
+    "auto": "Automatique",
+    "prev": "Copie précédente",
+    "empty": "Vide",
+    "save": "Sauvegarder",
+    "load": "Charger",
+    "no_preview": "Pas d'aperçu",
+    "load_failed": "État non chargé : peut-être d'une autre version",
+    "note": "En chargeant un emplacement, la partie en cours reste dans la sauvegarde automatique."
   }
 }

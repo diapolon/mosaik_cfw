@@ -88,7 +88,7 @@ static int coll_sel = COLL_ALL;
 static bool gopt_open;
 static int gopt_sel;
 /* la tastiera serve per la ricerca, il nome di una nuova collezione e la password Wi-Fi */
-enum { KBM_SEARCH, KBM_COLL, KBM_WIFI, KBM_GENRE_NEW, KBM_GENRE_RENAME };
+enum { KBM_SEARCH, KBM_COLL, KBM_COLL_RENAME, KBM_WIFI, KBM_GENRE_NEW, KBM_GENRE_RENAME };
 static int kb_mode;
 static int kb_layout;   /* 0 maiuscole, 1 minuscole, 2 simboli (si cambia con X) */
 static char coll_name[48];
@@ -372,7 +372,7 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL };
 static int cfm_kind, cfm_sel;
 static char cfm_ssid[33];
 
@@ -1203,12 +1203,12 @@ static void library_list_draw(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "cpu", "pads", "pad_test", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
+    "collections", "cpu", "pads", "pad_test", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
 };
 
 /* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
@@ -1216,7 +1216,7 @@ static const char *cat_key[SC_COUNT] = { "display", "look", "games", "controls",
 static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
-    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_CPU, S_RESUME, -1 },
+    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, -1 },
     { S_PADS, S_PADTEST, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },
@@ -1350,6 +1350,7 @@ static void set_value(int item, char *buf, size_t n) {
     case S_CHANNEL: snprintf(buf, n, "%s", T(s->update_channel ? "update.channel_dev" : "update.channel_stable")); break;
     case S_UPDNOTIFY: snprintf(buf, n, "%s", T(s->update_notify ? "common.on" : "common.off")); break;
     case S_GENRES: snprintf(buf, n, "%d", ngenres); break;
+    case S_COLLS: snprintf(buf, n, "%d", NCOLLS); break;
     case S_PADTEST: buf[0] = 0; break;
     case S_KEYF1: case S_KEYF2: {
         static const char *acts[4] = { "keyact.none", "keyact.save", "keyact.load", "keyact.shot" };
@@ -2043,6 +2044,8 @@ static void clean_draw(void) {
 
 /* Aggiorna sistema: cerca, chiede conferma, scarica, verifica, installa e riavvia */
 static bool upd_open;
+static bool cp_open;         /* gestione delle collezioni */
+static int cp_sel;
 static bool ptest_open;      /* prova dei comandi */
 static double ptest_hold;
 
@@ -2388,6 +2391,10 @@ static void settings_input(void) {
         else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_UPDATE) upd_start();
         else if (set_sel == S_GENRES) gp_show(GP_MANAGE);
+        else if (set_sel == S_COLLS) {
+            if (NCOLLS) { cp_open = true; cp_sel = 0; ui_sound(SND_OK); }
+            else { ui_toast(T("coll.none")); ui_sound(SND_ERROR); }
+        }
         else if (set_sel == S_PADTEST) { ptest_open = true; ptest_hold = 0; ui_sound(SND_OK); }
         else if (set_sel == S_WIFI) { set_change(S_WIFI, +1); ui_sound(SND_OK); }
         else if (set_sel == S_WIFINETS) {
@@ -2493,7 +2500,7 @@ static void settings_draw(void) {
             draw_switch(vx - sh * 9 / 5, cy - sh / 2, sh, on);
         } else {
             color_t vc = sel ? t->accent : t->text_dim;
-            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_PADTEST && i != S_WIFINETS;
+            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_WIFINETS;
             int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
             if (i == S_LEDCOLOR) {
                 /* pallino del colore (per "tema": il colore principale del tema) */
@@ -2908,6 +2915,58 @@ static void diag_draw(void) {
     ui_hints(hint, 2);
 }
 
+/* ------------------------------------------------- gestione delle collezioni */
+
+static void lists_changed(void);
+
+static void cp_input(void) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_UP]) { cp_sel = (cp_sel + NCOLLS - 1) % NCOLLS; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN]) { cp_sel = (cp_sel + 1) % NCOLLS; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { cp_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_A]) {
+        snprintf(coll_name, sizeof coll_name, "%s", COLLS[cp_sel]);
+        kb_mode = KBM_COLL_RENAME;
+        kb_open = true;
+        kb_row = 1;
+        kb_col = 0;
+        ui_sound(SND_OK);
+    } else if (in->pressed[BTN_X]) {
+        cfm_kind = CFM_COLL;
+        cfm_sel = 0;
+        ui_sound(SND_OK);
+    }
+}
+
+static void cp_rename_done(void) {
+    if (games_rename_coll(UI.root, cp_sel, coll_name, games, ngames)) {
+        coll_sel = COLL_ALL;
+        ui_toast(T("coll.renamed"));
+        lists_changed();
+        ui_sound(SND_OK);
+    } else {
+        ui_toast(T("coll.failed"));
+        ui_sound(SND_ERROR);
+    }
+}
+
+static void cp_draw(void) {
+    theme_t *t = &UI.th;
+    int rh = M(t->list_row_h), pad = M(0.04f), ft = TTF_FontHeight(UI.f_title), fh = TTF_FontHeight(UI.f_normal);
+    int maxrows = (UI.h - M(t->hintbar_h) - M(0.2f) - ft) / rh, vis = NCOLLS < maxrows ? NCOLLS : maxrows;
+    int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin), x, y;
+    panel_box(w, pad * 2 + ft + M(0.02f) + rh * vis, &x, &y);
+    ui_text(UI.f_title, T("settings.collections"), x + pad, y + pad, t->text, ALIGN_LEFT);
+    int ry = y + pad + ft + M(0.02f), first = cp_sel - vis + 1 > 0 ? cp_sel - vis + 1 : 0;
+    for (int i = first; i < first + vis && i < NCOLLS; i++, ry += rh) {
+        bool sel = i == cp_sel;
+        if (sel) ui_rrect(x + M(0.02f), ry, w - M(0.04f), rh - M(0.008f), M(t->panel_radius), t->accent);
+        ui_text(UI.f_normal, COLLS[i], x + M(0.05f), ry + (rh - M(0.008f) - fh) / 2, sel ? t->accent_text : t->text, ALIGN_LEFT);
+    }
+    const char *hint[] = { "B", T("common.back"), "X", T("coll.delete"), "A", T("coll.rename") };
+    ui_hints(hint, 6);
+}
+
 /* ------------------------------------------------- conferme */
 
 static void cfm_input(void) {
@@ -2916,7 +2975,15 @@ static void cfm_input(void) {
     int k = cfm_kind;
     cfm_kind = CFM_NONE;
     if (r != 1) return;
-    if (k == CFM_FORGET) {
+    if (k == CFM_COLL) {
+        if (games_delete_coll(UI.root, cp_sel, games, ngames)) {
+            coll_sel = COLL_ALL;
+            ui_toast(T("coll.deleted"));
+            lists_changed();
+        } else ui_toast(T("coll.failed"));
+        if (cp_sel >= NCOLLS) cp_sel = NCOLLS ? NCOLLS - 1 : 0;
+        if (!NCOLLS) cp_open = false;
+    } else if (k == CFM_FORGET) {
         char m[160];
         snprintf(m, sizeof m, T("wifi.forgot"), cfm_ssid);
         if (wifi_forget(cfm_ssid)) ui_toast(m);
@@ -2930,7 +2997,8 @@ static void cfm_input(void) {
 }
 
 static void cfm_draw(void) {
-    if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
+    if (cfm_kind == CFM_COLL) ui_confirm_draw(T("confirm.coll_title"), T("confirm.coll_body"), T("common.cancel"), T("coll.delete"), cfm_sel);
+    else if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
     else ui_confirm_draw(T("confirm.genres_title"), T("confirm.genres_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
 }
 
@@ -2955,7 +3023,11 @@ static void game_reset(const game_t *g, bool states) {
     snprintf(base, sizeof base, "%s/Saves/%s", UI.root, core);
     reset_remove(base, g->name, "cfg");
     reset_remove(base, g->name, "opt");
-    if (states) { reset_remove(base, g->name, "state"); reset_remove(base, g->name, "auto.state"); }
+    if (states) {
+        static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev",
+                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png" };
+        for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->name, ext[i]);
+    }
     /* FBNeo: memoria interna e punteggi */
     snprintf(sub, sizeof sub, "%s/fbneo", base);
     reset_remove(sub, g->name, "fs");
@@ -3417,8 +3489,9 @@ enum { KB_SPACE, KB_DEL, KB_DONE };
 static char *kb_buf(size_t *cap) {
     if (kb_mode == KBM_WIFI) { if (cap) *cap = sizeof wifi_pass; return wifi_pass; }
     if (kb_mode == KBM_GENRE_NEW || kb_mode == KBM_GENRE_RENAME) { if (cap) *cap = sizeof genre_text; return genre_text; }
-    if (cap) *cap = kb_mode == KBM_COLL ? sizeof coll_name : sizeof search;
-    return kb_mode == KBM_COLL ? coll_name : search;
+    bool coll = kb_mode == KBM_COLL || kb_mode == KBM_COLL_RENAME;
+    if (cap) *cap = coll ? sizeof coll_name : sizeof search;
+    return coll ? coll_name : search;
 }
 
 static void kb_type(char c) {
@@ -3437,12 +3510,15 @@ static void kb_delete(void) {
 
 static void lists_changed(void);
 
+static void cp_rename_done(void);
+
 /* fine scrittura: per la ricerca chiude anche i filtri; per la collezione la crea */
 static void wifi_join(const char *ssid, const char *psk);
 
 static void genre_kb_done(void);
 
 static void kb_done(void) {
+    if (kb_mode == KBM_COLL_RENAME) { kb_open = false; cp_rename_done(); return; }
     if (kb_mode == KBM_GENRE_NEW || kb_mode == KBM_GENRE_RENAME) { kb_open = false; genre_kb_done(); return; }
     if (kb_mode == KBM_WIFI) {
         if (strlen(wifi_pass) < 8) { ui_toast(T("wifi.short")); ui_sound(SND_ERROR); return; }
@@ -3758,6 +3834,7 @@ int main(int argc, char **argv) {
             dlg_suspend = false;
             reset_step = 0;
             cfm_kind = CFM_NONE;
+            cp_open = false;
             diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
             go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
             ui_sound(SND_BACK);
@@ -3786,6 +3863,7 @@ int main(int argc, char **argv) {
         else if (upd_open) upd_input();
         else if (kb_open) keyboard_input();
         else if (gp_open) gp_input();
+        else if (cp_open) cp_input();
         else if (gopt_open && screen == SCR_DETAIL) gopt_input();
         else if (fpanel_open) fpanel_input();
         else if (dlg_open) dialog_input();
@@ -3808,7 +3886,8 @@ int main(int argc, char **argv) {
         /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
         if (UI.t > 0.4) plat_audio_release();
         bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open;
-        bool idle = !working && !UI.automation && UI.t - last_input > IDLE_AFTER_S;
+        /* nei primi 30 s il Wi-Fi carica il driver e si collega: niente cambi di frequenza della CPU */
+        bool idle = !working && !UI.automation && UI.t > 30 && UI.t - last_input > IDLE_AFTER_S;
         plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);
         if (idle && !idle_logged && UI.t - last_input > 120) {
             int mhz, temp;
@@ -3846,6 +3925,7 @@ int main(int argc, char **argv) {
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
         if (gp_open) gp_draw();
+        if (cp_open) cp_draw();
         if (kb_open) keyboard_draw();
         if (scrape_open) scrape_draw();
         if (upd_open) upd_draw();

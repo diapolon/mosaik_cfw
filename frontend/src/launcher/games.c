@@ -522,8 +522,8 @@ void games_set_coll(const char *root, game_t *g, int ci, bool in) {
     else g->colls &= ~(1u << ci);
 }
 
-int games_new_coll(const char *root, const char *name, game_t *g, int n) {
-    char clean[48];
+/* nome utilizzabile come file: niente spazi doppi, barre o nomi nascosti */
+static bool coll_clean(const char *name, char clean[48]) {
     int w = 0;
     for (const char *s = name; *s && w < 47; s++) {
         if (*s == ' ' && (!w || clean[w - 1] == ' ')) continue;
@@ -531,7 +531,33 @@ int games_new_coll(const char *root, const char *name, game_t *g, int n) {
     }
     while (w && clean[w - 1] == ' ') w--;
     clean[w] = 0;
-    if (!w || clean[0] == '.') return -1;
+    return w && clean[0] != '.';
+}
+
+bool games_rename_coll(const char *root, int ci, const char *name, game_t *g, int n) {
+    char clean[48], a[1100], b[1100];
+    if (ci < 0 || ci >= NCOLLS || !coll_clean(name, clean)) return false;
+    for (int i = 0; i < NCOLLS; i++)
+        if (i != ci && !strcasecmp(COLLS[i], clean)) return false;
+    snprintf(a, sizeof a, "%s/System/collections/%s.txt", root, COLLS[ci]);
+    snprintf(b, sizeof b, "%s/System/collections/%s.txt", root, clean);
+    if (rename(a, b) != 0) return false;
+    games_mark_lists(root, g, n);
+    return true;
+}
+
+bool games_delete_coll(const char *root, int ci, game_t *g, int n) {
+    char p[1100];
+    if (ci < 0 || ci >= NCOLLS) return false;
+    snprintf(p, sizeof p, "%s/System/collections/%s.txt", root, COLLS[ci]);
+    if (remove(p) != 0) return false;
+    games_mark_lists(root, g, n);
+    return true;
+}
+
+int games_new_coll(const char *root, const char *name, game_t *g, int n) {
+    char clean[48];
+    if (!coll_clean(name, clean)) return -1;
     for (int i = 0; i < NCOLLS; i++)
         if (!strcasecmp(COLLS[i], clean)) return i;
     if (NCOLLS >= MAX_COLLS) return -1;

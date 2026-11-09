@@ -64,3 +64,5 @@ void games_clear_genre_groups(const char *root);
 void games_set_coll(const char *root, game_t *g, int ci, bool in);
 /* crea la collezione (o trova quella con lo stesso nome); restituisce l'indice, -1 se fallisce */
 int games_new_coll(const char *root, const char *name, game_t *g, int n);
+bool games_rename_coll(const char *root, int ci, const char *name, game_t *g, int n);
+bool games_delete_coll(const char *root, int ci, game_t *g, int n);

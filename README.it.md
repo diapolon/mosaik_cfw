@@ -35,6 +35,7 @@
 - **Aggiornamenti firmati** via Wi-Fi, con un tentativo di ritorno alla versione precedente se uno fallisce.
 - **Profilo CPU per ogni gioco** e avviso nella home quando c'è un aggiornamento.
 - **Diagnosi dei giochi**: quando un gioco non parte, ti dice cosa manca e dove copiarlo.
+- **Tre slot di salvataggio per gioco** con anteprima e data, più un salvataggio automatico con copia precedente.
 
 ## L'interfaccia
 

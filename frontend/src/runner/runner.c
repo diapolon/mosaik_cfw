@@ -183,6 +183,7 @@ static struct {
     char sp_name[32][48];   /* parametri shader cambiati dal menu */
     float sp_val[32];
     int nsp;
+    int slot;   /* slot degli stati in uso: 0..2 */
 } gcfg;
 
 static void gamecfg_load(void) {
@@ -191,6 +192,7 @@ static void gamecfg_load(void) {
     gcfg.bezel = UI.set.bezel;
     gcfg.rotate = ROT_NONE;
     gcfg.cpu = 0;
+    gcfg.slot = 0;
     memcpy(gcfg.map, default_map, sizeof gcfg.map);
     char p[1200], line[128];
     game_file(p, sizeof p, "cfg");
@@ -214,6 +216,7 @@ static void gamecfg_load(void) {
         }
         else if (sscanf(line, "rotate=%d", &v) == 1) gcfg.rotate = v & 3;
         else if (sscanf(line, "cpu=%d", &v) == 1) gcfg.cpu = v >= 0 && v <= 4 ? v : 0;
+        else if (sscanf(line, "slot=%d", &v) == 1) gcfg.slot = v >= 0 && v <= 2 ? v : 0;
         else if (sscanf(line, "map.%d=%d", &id, &v) == 2 && id >= 0 && id < 16 && v >= -1 && v < BTN_COUNT) gcfg.map[id] = v;
     }
     fclose(f);
@@ -256,6 +259,7 @@ static void gamecfg_save(void) {
     FILE *f = fopen(p, "w");
     if (!f) return;
     fprintf(f, "aspect=%d\nfilter=%s\nbezel=%d\nrotate=%d\ncpu=%d\n", gcfg.aspect, gcfg.filter, gcfg.bezel, gcfg.rotate, gcfg.cpu);
+    fprintf(f, "slot=%d\n", gcfg.slot);
     for (int i = 0; i < 16; i++)
         if (gcfg.map[i] != default_map[i]) fprintf(f, "map.%d=%d\n", i, gcfg.map[i]);
     for (int i = 0; i < glsh_param_count(); i++) {
@@ -381,6 +385,35 @@ static void video_error(const char *what) {
     if (video_errors++ < 5) ui_log("video: %s non riuscito: %s", what, SDL_GetError());
 }
 
+/* Miniatura per le anteprime degli stati: a gioco fermo nel menu il core non disegna più,
+   quindi si tiene una copia piccola aggiornata ogni mezzo secondo circa. */
+static SDL_Surface *thumb;
+
+static void thumb_update(const void *data, unsigned w, unsigned h, size_t pitch) {
+    int tw = w > 200 ? 200 : (int)w, th = (int)(h * (unsigned)tw / w);
+    if (th < 1) th = 1;
+    if (!thumb || thumb->w != tw || thumb->h != th) {
+        if (thumb) SDL_FreeSurface(thumb);
+        thumb = SDL_CreateRGBSurfaceWithFormat(0, tw, th, 32, SDL_PIXELFORMAT_ARGB8888);
+        if (!thumb) return;
+    }
+    for (int y = 0; y < th; y++) {
+        const uint8_t *row = (const uint8_t *)data + pitch * ((unsigned)y * h / (unsigned)th);
+        uint32_t *dst = (uint32_t *)((uint8_t *)thumb->pixels + y * thumb->pitch);
+        for (int x = 0; x < tw; x++) {
+            unsigned sx = (unsigned)x * w / (unsigned)tw;
+            if (pixfmt == RETRO_PIXEL_FORMAT_XRGB8888) {
+                dst[x] = ((const uint32_t *)row)[sx] | 0xFF000000u;
+            } else {
+                unsigned p = ((const uint16_t *)row)[sx], r, g, b;
+                if (pixfmt == RETRO_PIXEL_FORMAT_RGB565) { r = p >> 11 & 31; g = (p >> 5 & 63) * 255 / 63; b = p & 31; }
+                else { r = p >> 10 & 31; g = (p >> 5 & 31) * 255 / 31; b = p & 31; }
+                dst[x] = 0xFF000000u | (r * 255 / 31) << 16 | g << 8 | (b * 255 / 31);
+            }
+        }
+    }
+}
+
 static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch) {
     if (!data) return;   /* frame ripetuto: resta quello precedente */
     if (!video_first_logged) {
@@ -407,6 +440,8 @@ static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch
     frame_w = (int)w;
     frame_h = (int)h;
     have_frame = true;
+    static unsigned thumb_tick;
+    if (thumb_tick++ % 30 == 0) thumb_update(data, w, h, pitch);
 }
 
 static bool audio_on;
@@ -530,8 +565,24 @@ static bool load_game(void) {
 
 /* ---------------------------------------------------------- stati */
 
+/* Righe della pagina Salvataggi: tre slot, il salvataggio automatico e la sua copia precedente.
+   Il primo slot è il file "state" di sempre, così gli stati già salvati restano validi. */
+enum { NSLOTS = 3, SAVE_AUTO = NSLOTS, SAVE_PREV, SAVE_ROWS };
+static const char *const save_ext[SAVE_ROWS] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev" };
+
 static void state_path(char *out, size_t n, bool autosave) {
-    game_file(out, n, autosave ? "auto.state" : "state");
+    game_file(out, n, save_ext[autosave ? SAVE_AUTO : gcfg.slot]);
+}
+
+/* il salvataggio automatico di prima resta come copia, con la sua anteprima */
+static void auto_keep_previous(void) {
+    char a[1400], b[1400], ap[1450], bp[1450];
+    game_file(a, sizeof a, save_ext[SAVE_AUTO]);
+    game_file(b, sizeof b, save_ext[SAVE_PREV]);
+    snprintf(ap, sizeof ap, "%s.png", a);
+    snprintf(bp, sizeof bp, "%s.png", b);
+    rename(a, b);
+    rename(ap, bp);
 }
 
 static bool state_save(bool autosave) {
@@ -548,16 +599,20 @@ static bool state_save(bool autosave) {
         FILE *f = fopen(t, "wb");
         ok = f && fwrite(buf, 1, n, f) == n;
         if (f) { ok = fflush(f) == 0 && fsync(fileno(f)) == 0 && ok; fclose(f); }
+        if (ok && autosave) auto_keep_previous();
         ok = ok && rename(t, p) == 0;
         if (!ok) remove(t);
+        if (ok && thumb) {
+            char png[1450];
+            snprintf(png, sizeof png, "%s.png", p);
+            IMG_SavePNG(thumb, png);
+        }
     }
     free(buf);
     return ok;
 }
 
-static bool state_load(bool autosave) {
-    char p[1400];
-    state_path(p, sizeof p, autosave);
+static bool state_load_file(const char *p) {
     FILE *f = fopen(p, "rb");
     if (!f) return false;
     fseek(f, 0, SEEK_END);
@@ -570,6 +625,12 @@ static bool state_load(bool autosave) {
     fclose(f);
     free(buf);
     return ok;
+}
+
+static bool state_load(bool autosave) {
+    char p[1400];
+    state_path(p, sizeof p, autosave);
+    return state_load_file(p);
 }
 
 /* ---------------------------------------------------------- video */
@@ -777,11 +838,11 @@ static void draw_game(void) {
 /* ------------------------------------------------------ menu in gioco */
 /* Tre pagine con la stessa grafica: principale, opzioni del gioco (core), comandi. */
 
-enum { PAGE_MAIN, PAGE_OPTIONS, PAGE_CONTROLS, PAGE_SHADER };
-enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS,
+enum { PAGE_MAIN, PAGE_OPTIONS, PAGE_CONTROLS, PAGE_SHADER, PAGE_SAVES, PAGE_HOTKEYS };
+enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_SAVES, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS, MI_HOTKEYS,
        MI_RESET, MI_EXIT, MI_COUNT };
-static const char *main_keys[MI_COUNT] = { "game.resume", "game.save_state", "game.load_state", "game.aspect",
-                                           "game.filter", "game.bezel", "game.rotation", "game.cpu", "game.shader_params", "game.options", "game.controls",
+static const char *main_keys[MI_COUNT] = { "game.resume", "game.save_state", "game.load_state", "saves.title", "game.aspect",
+                                           "game.filter", "game.bezel", "game.rotation", "game.cpu", "game.shader_params", "game.options", "game.controls", "hotkey.page",
                                            "game.reset", "game.exit" };
 static const char *cpu_names[] = { "cpu.auto", "cpu.min", "cpu.save", "cpu.balanced", "cpu.perf" };
 static const char *aspect_names[] = { "aspect.original", "aspect.integer", "aspect.full" };
@@ -816,7 +877,7 @@ static const struct { const char *combo, *action; } hotkeys_list[] = {
 };
 #define NHOTKEYS ((int)(sizeof hotkeys_list / sizeof hotkeys_list[0]))
 
-static int page, sel[4];
+static int page, sel[6];
 
 /* Opzioni mostrate: prima i DIP switch del gioco (i più utili in sala giochi), poi le
    altre; i "debug-dip" di FBNeo servono solo agli sviluppatori e restano nascosti. */
@@ -831,7 +892,7 @@ static void build_option_view(void) {
             if (dip == (pass == 0)) optv[noptv++] = i;
         }
 }
-static float scroll[4], hl[4], menu_anim;
+static float scroll[6], hl[6], menu_anim;
 static int exit_code = -1;
 
 /* Statistiche: System/stats.tsv, "core<TAB>rom<TAB>partite<TAB>secondi<TAB>ultima volta".
@@ -925,7 +986,9 @@ static bool row_disabled(int i) {
 static int page_rows(void) {
     if (page == PAGE_OPTIONS) return noptv ? noptv : 1;
     if (page == PAGE_SHADER) return glsh_param_count() ? glsh_param_count() : 1;
-    if (page == PAGE_CONTROLS) return NREMAP + 1 + 1 + NHOTKEYS;   /* + ripristina, titolo e tasti rapidi */
+    if (page == PAGE_CONTROLS) return NREMAP + 1;   /* + ripristina */
+    if (page == PAGE_SAVES) return SAVE_ROWS;
+    if (page == PAGE_HOTKEYS) return NHOTKEYS;
     return MI_COUNT;
 }
 
@@ -976,13 +1039,81 @@ static void open_page(int p) {
 }
 
 /* azioni che fanno perdere qualcosa: si chiede conferma, con Annulla già selezionato */
-enum { ASK_NONE, ASK_RESTART, ASK_CONTROLS };
-static int ask_kind, ask_kind_sel;
+enum { ASK_NONE, ASK_RESTART, ASK_CONTROLS, ASK_OVERWRITE };
+static int ask_kind, ask_kind_sel, ask_row;
 
 static void ask_start(int kind) {
     ask_kind = kind;
     ask_kind_sel = 0;
     ui_sound(SND_OK);
+}
+
+/* ----------------------------------------- pagina Salvataggi */
+
+static SDL_Texture *sv_tex;
+static int sv_row = -1;
+
+static void sv_forget(void) {
+    if (sv_tex) SDL_DestroyTexture(sv_tex);
+    sv_tex = NULL;
+    sv_row = -1;
+}
+
+static bool save_exists(int row, time_t *when) {
+    char p[1400];
+    struct stat st;
+    game_file(p, sizeof p, save_ext[row]);
+    if (stat(p, &st) != 0) return false;
+    if (when) *when = st.st_mtime;
+    return true;
+}
+
+static void saves_write(int row) {
+    gcfg.slot = row;
+    gamecfg_save();
+    ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed"));
+    sv_forget();
+    ui_sound(SND_OK);
+}
+
+static void saves_load(int row) {
+    char p[1400];
+    if (!save_exists(row, NULL)) { ui_toast(T("game.no_state")); ui_sound(SND_ERROR); return; }
+    if (row < NSLOTS) {
+        gcfg.slot = row;
+        gamecfg_save();
+        state_save(true);   /* la partita in corso resta recuperabile dal salvataggio automatico */
+    }
+    game_file(p, sizeof p, save_ext[row]);
+    if (state_load_file(p)) { ui_toast(T("game.state_loaded")); menu_open = false; ui_sound(SND_OK); }
+    else { ui_toast(T("saves.load_failed")); ui_sound(SND_ERROR); }
+    sv_forget();
+}
+
+static void saves_preview(int x, int y, int w, int h, int row) {
+    theme_t *t = &UI.th;
+    if (row != sv_row) {
+        sv_forget();
+        sv_row = row;
+        char p[1400], png[1450];
+        game_file(p, sizeof p, save_ext[row]);
+        snprintf(png, sizeof png, "%s.png", p);
+        sv_tex = IMG_LoadTexture(UI.ren, png);
+    }
+    ui_rrect(x, y, w, h, M(t->panel_radius), rgba(0, 0, 0, 120));
+    if (!sv_tex) {
+        ui_text(UI.f_small, T("saves.no_preview"), x + w / 2, y + h / 2 - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_CENTER);
+        return;
+    }
+    int tw, th, m = M(0.01f);
+    SDL_QueryTexture(sv_tex, NULL, NULL, &tw, &th);
+    unsigned total = (rotation + (unsigned)gcfg.rotate) & 3;
+    bool odd = total & 1;
+    float vw = (float)(odd ? th : tw), vh = (float)(odd ? tw : th), s = fminf((w - 2 * m) / vw, (h - 2 * m) / vh);
+    int dw = (int)(vw * s), dh = (int)(vh * s), x0 = x + (w - dw) / 2, y0 = y + (h - dh) / 2;
+    int rw = odd ? dh : dw, rh = odd ? dw : dh;
+    SDL_Rect d = { x0 + (dw - rw) / 2, y0 + (dh - rh) / 2, rw, rh };
+    SDL_RenderCopyEx(UI.ren, sv_tex, NULL, &d, -90.0 * total, NULL, SDL_FLIP_NONE);
 }
 
 static void menu_input(void) {
@@ -1015,6 +1146,13 @@ static void menu_input(void) {
             if (dir || (ok && *s < NREMAP)) remap_change(*s, dir ? dir : 1);
             else if (ok && *s == NREMAP) ask_start(ASK_CONTROLS);
         }
+        if (page == PAGE_SAVES) {
+            if (ok) saves_load(*s);
+            else if (in->pressed[BTN_X] && *s < NSLOTS) {
+                if (save_exists(*s, NULL)) { ask_row = *s; ask_start(ASK_OVERWRITE); }
+                else saves_write(*s);
+            }
+        }
         return;
     }
 
@@ -1032,6 +1170,8 @@ static void menu_input(void) {
     case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: case MI_CPU: main_change(*s, 1); return;
     case MI_OPTIONS: open_page(PAGE_OPTIONS); return;
     case MI_CONTROLS: open_page(PAGE_CONTROLS); return;
+    case MI_HOTKEYS: open_page(PAGE_HOTKEYS); return;
+    case MI_SAVES: open_page(PAGE_SAVES); sel[PAGE_SAVES] = gcfg.slot; hl[PAGE_SAVES] = 0; sv_forget(); return;
     case MI_SHADER: open_page(PAGE_SHADER); return;
     case MI_RESET: ask_start(ASK_RESTART); break;
     case MI_EXIT: exit_code = EXIT_MENU; break;
@@ -1050,7 +1190,21 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
         if (i == MI_BEZEL) snprintf(value, vn, "%s", T(gcfg.bezel ? "common.yes" : "common.no"));
         if (i == MI_ROTATE) snprintf(value, vn, "%s", T(rotate_names[rot_index()]));
         if (i == MI_CPU) snprintf(value, vn, "%s", T(cpu_names[gcfg.cpu % 5]));
-        *sub = i == MI_OPTIONS || i == MI_CONTROLS || i == MI_SHADER;
+        *sub = i == MI_OPTIONS || i == MI_CONTROLS || i == MI_SHADER || i == MI_SAVES || i == MI_HOTKEYS;
+    } else if (page == PAGE_SAVES) {
+        time_t when;
+        if (i < NSLOTS) {
+            snprintf(label, ln, T("saves.slot"), i + 1);
+            if (i == gcfg.slot) { size_t l = strlen(label); snprintf(label + l, ln - l, "  •"); }
+        } else snprintf(label, ln, "%s", T(i == SAVE_AUTO ? "saves.auto" : "saves.prev"));
+        if (save_exists(i, &when)) {
+            struct tm tmv;
+            localtime_r(&when, &tmv);
+            strftime(value, vn, "%d/%m %H:%M", &tmv);
+        } else snprintf(value, vn, "%s", T("saves.empty"));
+    } else if (page == PAGE_HOTKEYS) {
+        snprintf(label, ln, "Menu + %s", hotkeys_list[i].combo[0] == '@' ? T(hotkeys_list[i].combo + 1) : hotkeys_list[i].combo);
+        snprintf(value, vn, "%s", T(hotkeys_list[i].action));
     } else if (page == PAGE_SHADER) {
         if (!glsh_param_count()) { snprintf(label, ln, "%s", T(glsh_loaded() ? "game.no_params" : "game.no_shader")); return; }
         glsh_param_t *q = glsh_param(i);
@@ -1066,13 +1220,6 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
         snprintf(value, vn, "%s", o->value);
     } else if (i == NREMAP) {
         snprintf(label, ln, "%s", T("game.controls_reset"));
-    } else if (i == NREMAP + 1) {
-        snprintf(label, ln, "— %s —", T("hotkey.title"));
-    } else if (i > NREMAP + 1) {
-        /* elenco dei tasti rapidi, solo da leggere */
-        int k = i - NREMAP - 2;
-        snprintf(label, ln, "Menu + %s", hotkeys_list[k].combo[0] == '@' ? T(hotkeys_list[k].combo + 1) : hotkeys_list[k].combo);
-        snprintf(value, vn, "%s", T(hotkeys_list[k].action));
     } else {
         int id = remap_ids[i];
         if (input_desc[id][0]) snprintf(label, ln, "%s  ·  %s", retro_names[id], input_desc[id]);
@@ -1082,6 +1229,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
 }
 
 static bool row_changeable(int i) {
+    if (page == PAGE_SAVES || page == PAGE_HOTKEYS) return false;
     if (page == PAGE_MAIN) return i == MI_ASPECT || i == MI_FILTER || i == MI_BEZEL || i == MI_ROTATE || i == MI_CPU;
     if (page == PAGE_OPTIONS) return noptv > 0;
     if (page == PAGE_SHADER) return glsh_param_count() > 0;
@@ -1107,7 +1255,7 @@ static void menu_draw(void) {
     ui_text(UI.f_title, buf, px + pad, y, t->text, ALIGN_LEFT);
     y += TTF_FontHeight(UI.f_title);
     if (page != PAGE_MAIN) {
-        ui_text(UI.f_small, T(page == PAGE_OPTIONS ? "game.options" : page == PAGE_SHADER ? "game.shader_params" : "game.controls"),
+        ui_text(UI.f_small, T(page == PAGE_OPTIONS ? "game.options" : page == PAGE_SHADER ? "game.shader_params" : page == PAGE_SAVES ? "saves.title" : page == PAGE_HOTKEYS ? "hotkey.title" : "game.controls"),
                 px + pad, y, t->accent, ALIGN_LEFT);
         y += TTF_FontHeight(UI.f_small);
     }
@@ -1115,13 +1263,15 @@ static void menu_draw(void) {
 
     /* nota in fondo al pannello */
     const char *note = page == PAGE_OPTIONS ? T("game.options_note") : page == PAGE_SHADER ? T("game.shader_note")
-                     : page == PAGE_CONTROLS ? T("game.controls_note") : T("game.per_game_note");
+                     : page == PAGE_CONTROLS ? T("game.controls_note") : page == PAGE_SAVES ? T("saves.note")
+                     : page == PAGE_HOTKEYS ? T("hotkey.note") : T("game.per_game_note");
     int note_h = TTF_FontHeight(UI.f_small) + M(0.02f);
     ui_text_fit(UI.f_small, note, pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_small, buf, px + pad, py + ph - pad / 2 - note_h + M(0.01f), t->text_dim, ALIGN_LEFT);
 
     /* righe con scorrimento */
     int rh = M(t->list_row_h), n = page_rows(), *s = &sel[page];
+    int list_w = page == PAGE_SAVES ? pw * 58 / 100 : pw;   /* a destra l'anteprima */
     int area_h = py + ph - pad / 2 - note_h - y;
     area_h -= area_h % rh;
     float ry = (float)*s * rh;
@@ -1132,8 +1282,8 @@ static void menu_draw(void) {
     hl[page] = ui_approach(hl[page], ry);
     TTF_Font *f = UI.f_normal;
     int fh = TTF_FontHeight(f);
-    ui_clip_push(px, y, pw, area_h);
-    ui_rrect(px + M(0.02f), y + (int)(hl[page] - scroll[page]), pw - M(0.04f), rh, M(t->panel_radius), t->accent);
+    ui_clip_push(px, y, list_w, area_h);
+    ui_rrect(px + M(0.02f), y + (int)(hl[page] - scroll[page]), list_w - M(0.04f), rh, M(t->panel_radius), t->accent);
     for (int i = 0; i < n; i++) {
         int ry_i = y + (int)(i * rh - scroll[page]);
         if (ry_i + rh < y || ry_i > y + area_h) continue;
@@ -1141,12 +1291,12 @@ static void menu_draw(void) {
         row_text(i, label, sizeof label, value, sizeof value, &sub);
         color_t c = is_sel ? t->accent_text : t->text;
         if (row_disabled(i)) { c = with_alpha(is_sel ? t->accent_text : t->text_dim, 120); sub = false; }
-        int ty = ry_i + (rh - fh) / 2, right = px + pw - M(0.05f);
+        int ty = ry_i + (rh - fh) / 2, right = px + list_w - M(0.05f);
         int vw = 0;
         if (value[0]) {
             snprintf(buf, sizeof buf, is_sel && row_changeable(i) ? "‹ %s ›" : "%s", value);
             char fitv[160];
-            ui_text_fit(f, buf, pw / 3, fitv, sizeof fitv);
+            ui_text_fit(f, buf, page == PAGE_SAVES ? list_w / 2 : list_w / 3, fitv, sizeof fitv);
             vw = ui_text(f, fitv, right, ty, is_sel ? c : t->text_dim, ALIGN_RIGHT) + M(0.03f);
         } else if (sub) {
             vw = ui_text(f, "›", right, ty, is_sel ? c : t->text_dim, ALIGN_RIGHT) + M(0.03f);
@@ -1155,11 +1305,18 @@ static void menu_draw(void) {
         ui_text(f, buf, px + M(0.05f), ty, c, ALIGN_LEFT);
     }
     ui_clip_pop();
+    if (page == PAGE_SAVES) saves_preview(px + list_w + M(0.01f), y, pw - list_w - pad, area_h, *s);
 
     ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, (int)(235 * menu_anim)));
     if (page == PAGE_MAIN) {
         const char *h[] = { "B", T("game.back_to_game"), "A", T("common.ok") };
         ui_hints(h, 4);
+    } else if (page == PAGE_SAVES) {
+        const char *h[] = { "B", T("common.back"), "A", T("saves.load"), "X", T("saves.save") };
+        ui_hints(h, *s < NSLOTS ? 6 : 4);
+    } else if (page == PAGE_HOTKEYS) {
+        const char *h[] = { "B", T("common.back") };
+        ui_hints(h, 2);
     } else {
         const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
         ui_hints(h, 4);
@@ -1269,7 +1426,9 @@ static void battery_watch(void) {
 }
 
 static void ask_do(int kind) {
-    if (kind == ASK_RESTART) {
+    if (kind == ASK_OVERWRITE) {
+        saves_write(ask_row);
+    } else if (kind == ASK_RESTART) {
         core.reset();
         menu_open = false;
     } else {
@@ -1441,6 +1600,7 @@ int main(int argc, char **argv) {
         ui_begin();
         draw_game();
         if (menu_open) menu_draw();
+        if (ask_kind == ASK_OVERWRITE) ui_confirm_draw(T("confirm.overwrite_title"), T("confirm.overwrite_body"), T("common.cancel"), T("saves.save"), ask_kind_sel);
         if (ask_kind == ASK_RESTART) ui_confirm_draw(T("confirm.restart_title"), T("confirm.restart_body"), T("common.cancel"), T("game.reset"), ask_kind_sel);
         if (ask_kind == ASK_CONTROLS) ui_confirm_draw(T("confirm.controls_title"), T("confirm.controls_body"), T("common.cancel"), T("confirm.restore"), ask_kind_sel);
         if (suspend_ask) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);

@@ -48,6 +48,7 @@
     "about": "%d giochi · prototipo 0.1 · %s"
   },
   "settings": {
+    "collections": "Collezioni",
     "pad_test": "Prova dei comandi",
     "key_f1": "Tasto F1",
     "key_f2": "Tasto F2",
@@ -92,6 +93,7 @@
     "led_brightness": "Luminosità dei LED"
   },
   "settings_desc": {
+    "collections": "Rinomina o elimina le collezioni.",
     "pad_test": "Mostra ogni tasto premuto e la posizione delle levette: utile per controllare che funzionino.",
     "key_f1": "Cosa fa la barretta F1 durante i giochi FBNeo e MAME.",
     "key_f2": "Cosa fa la barretta F2 durante i giochi FBNeo e MAME.",
@@ -299,6 +301,8 @@
     "no_history": "Nessuna descrizione: usa «Scarica immagini» per ottenerla."
   },
   "hotkey": {
+    "page": "Tasti rapidi",
+    "note": "Tenendo premuto Menu.",
     "ff_on": "Avanti veloce attivo",
     "ff_off": "Avanti veloce spento",
     "screenshot": "Screenshot salvato",
@@ -351,6 +355,11 @@
     "ext_p1": "Esterno = giocatore 1 (%s)"
   },
   "coll": {
+    "rename": "Rinomina",
+    "delete": "Elimina",
+    "renamed": "Collezione rinominata",
+    "deleted": "Collezione eliminata",
+    "none": "Nessuna collezione: creane una dalla scheda di un gioco",
     "filter": "Collezione",
     "hidden_view": "Nascosti (%d)",
     "menu_title": "Opzioni del gioco",
@@ -593,6 +602,10 @@
     "done": "Gioco reimpostato"
   },
   "confirm": {
+    "overwrite_title": "Sovrascrivere questo slot?",
+    "overwrite_body": "Lo stato salvato qui andrà perso.",
+    "coll_title": "Eliminare la collezione?",
+    "coll_body": "I giochi restano, si perde solo l'elenco.",
     "forget_title": "Dimenticare questa rete?",
     "forget_body": "Servirà di nuovo la password per collegarsi.",
     "genres_title": "Ripristinare i generi originali?",
@@ -602,5 +615,17 @@
     "restart_body": "I progressi non salvati andranno persi.",
     "controls_title": "Ripristinare i comandi?",
     "controls_body": "Le tue scelte per questo gioco andranno perse."
+  },
+  "saves": {
+    "title": "Salvataggi",
+    "slot": "Slot %d",
+    "auto": "Automatico",
+    "prev": "Copia precedente",
+    "empty": "Vuoto",
+    "save": "Salva",
+    "load": "Carica",
+    "no_preview": "Nessuna anteprima",
+    "load_failed": "Stato non caricato: forse di un'altra versione",
+    "note": "Caricando uno slot, la partita in corso resta nel salvataggio automatico."
   }
 }
