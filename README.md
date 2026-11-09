@@ -94,9 +94,9 @@ Turn the console off and connect the card to your computer. Everything is in the
 | `Music` | Background music (MP3, OGG, FLAC, WAV) |
 | `Saves` | Saves |
 
-Keep ROMs as `.zip` and don't rename them. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
+Keep ROMs as `.zip` and don't rename them. **Settings → Games and images → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
 
-For covers and information, connect to Wi-Fi and use **Settings → Tools → Download images**.
+For covers and information, connect to Wi-Fi and use **Settings → Games and images → Download images**.
 
 ### Linux games
 
@@ -153,19 +153,20 @@ On the Brick Pro, HOME goes back to the launcher, the two bars below the screen 
 
 Open **Settings → System**: **Wi-Fi** turns it on and off, **Wi-Fi networks** shows the networks to connect to. On the on-screen keyboard, X switches between uppercase, lowercase and symbols.
 
-To update, open **Settings → Tools → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if a new system fails to start, the console tries to go back to the previous one by itself. This does not cover every failure: in the worst case, write the image to the card again.
+To update, open **Settings → Updates and system → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if a new system fails to start, the console tries to go back to the previous one by itself. This does not cover every failure: in the worst case, write the image to the card again.
 
-**Settings → Tools → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
+**Settings → Updates and system → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
 
 ## Troubleshooting
 
 - **The console doesn't turn on with the card:** check that you wrote the image for your model (`smartpro` or `brickpro` in the file name). Without the card the original system starts as usual.
 - **Black or red screen at startup:** hold the power button for 10-20 seconds, remove the card and look in `Arcade/Logs`.
 - **A game won't start:** the console shows what's missing and where to copy it. You can also open the check yourself: on the game details page press X and choose **Game diagnosis**.
+- **A game misbehaves after changing its options:** on its details page press X and choose **Reset game**. Your ROM stays, and save states are kept unless you choose otherwise.
 - **Neo Geo games won't start:** they need `neogeo.zip` in `Arcade/Bios`.
 - **A game is slow or the audio crackles:** try the Performance profile in Settings → Games. Some 3D arcade games are too heavy or aren't supported.
 - **Damaged files after copying:** cheap cards and readers can damage files without reporting errors. Try another reader or card.
-- **Need more detail:** logs are off by default. Turn them on in **Settings → Tools → Diagnostic log**, restart the console, reproduce the problem and check `Arcade/Logs`.
+- **Need more detail:** logs are off by default. Turn them on in **Settings → Updates and system → Diagnostic log**, restart the console, reproduce the problem and check `Arcade/Logs`.
 
 ## Building
 

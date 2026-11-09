@@ -94,9 +94,9 @@ Spegni la console e collega la scheda al computer. Tutto si trova nella cartella
 | `Music` | Musica di sottofondo (MP3, OGG, FLAC, WAV) |
 | `Saves` | Salvataggi |
 
-Tieni le ROM in `.zip` e non cambiare il nome. **Impostazioni → Strumenti → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
+Tieni le ROM in `.zip` e non cambiare il nome. **Impostazioni → Giochi e immagini → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
 
-Per copertine e informazioni, collega il Wi-Fi e usa **Impostazioni → Strumenti → Scarica immagini**.
+Per copertine e informazioni, collega il Wi-Fi e usa **Impostazioni → Giochi e immagini → Scarica immagini**.
 
 ### Giochi Linux
 
@@ -153,19 +153,20 @@ Sulla Brick Pro, HOME torna al launcher, le due barrette sotto lo schermo salvan
 
 Apri **Impostazioni → Sistema**: **Wi-Fi** accende e spegne, **Reti Wi-Fi** mostra le reti a cui collegarsi. Sulla tastiera a schermo, X passa tra maiuscole, minuscole e simboli.
 
-Per aggiornare, apri **Impostazioni → Strumenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se un sistema nuovo non parte la console prova a tornare da sola a quello precedente. Non copre ogni guasto: nel caso peggiore, riscrivi l'immagine sulla scheda.
+Per aggiornare, apri **Impostazioni → Aggiornamenti e sistema → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se un sistema nuovo non parte la console prova a tornare da sola a quello precedente. Non copre ogni guasto: nel caso peggiore, riscrivi l'immagine sulla scheda.
 
-**Impostazioni → Strumenti → Canale aggiornamenti** passa tra Stabile e Sviluppo (versioni di prova, che possono avere problemi). Tornando a Stabile si resta così fino alla prossima versione stabile.
+**Impostazioni → Aggiornamenti e sistema → Canale aggiornamenti** passa tra Stabile e Sviluppo (versioni di prova, che possono avere problemi). Tornando a Stabile si resta così fino alla prossima versione stabile.
 
 ## Problemi frequenti
 
 - **La console non si accende con la scheda:** controlla di aver scritto l'immagine del tuo modello (`smartpro` o `brickpro` nel nome del file). Senza la scheda parte il sistema originale, come sempre.
 - **Schermo nero o rosso all'avvio:** tieni premuto il tasto di accensione per 10-20 secondi, togli la scheda e guarda in `Arcade/Logs`.
 - **Un gioco non parte:** la console mostra cosa manca e dove copiarlo. Puoi aprire il controllo anche da solo: nella scheda del gioco premi X e scegli **Diagnosi del gioco**.
+- **Un gioco si comporta male dopo aver cambiato le opzioni:** nella sua scheda premi X e scegli **Reimposta il gioco**. La ROM resta, e gli stati salvati restano se non scegli diversamente.
 - **I giochi Neo Geo non partono:** serve `neogeo.zip` in `Arcade/Bios`.
 - **Un gioco è lento o l'audio gracchia:** prova il profilo Prestazioni in Impostazioni → Giochi. Alcuni arcade 3D sono troppo pesanti o non supportati.
 - **File rovinati dopo la copia:** schede e lettori economici possono rovinare i file senza dare errori. Prova un altro lettore o un'altra scheda.
-- **Serve più dettaglio:** il registro è spento di base. Accendilo in **Impostazioni → Strumenti → Registro diagnostico**, riavvia la console, riproduci il problema e guarda in `Arcade/Logs`.
+- **Serve più dettaglio:** il registro è spento di base. Accendilo in **Impostazioni → Aggiornamenti e sistema → Registro diagnostico**, riavvia la console, riproduci il problema e guarda in `Arcade/Logs`.
 
 ## Compilare
 
