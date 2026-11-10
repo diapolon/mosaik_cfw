@@ -26,9 +26,35 @@ until flock -n 9; do
     sleep 0.1
 done
 
+# trimui_inputd fermo mentre il Wi-Fi si accende. Sulla Brick Pro legge le levette dal bus I2C 3
+# circa 500 volte al secondo; il blocco è un panico del driver I2C del kernel quando una lettura
+# scade mentre il Wi-Fi parte (issue trimui/firmware_brickpro#4). Con il bus fermo per quei pochi
+# secondi il difetto non può scattare. SIGSTOP/SIGCONT: il programma non si chiude e una lettura
+# già cominciata finisce prima. Riparte al collegamento, dopo 10 s o con "wifi-ctl off".
+INPUTD_PAUSE=${WIFI_INPUTD_PAUSE:-/run/wifi-inputd-pausa}
+inputd_pause() {
+    [ "${WIFI_INPUTD:-1}" = 1 ] && [ -e "${WIFI_I2C:-/dev/i2c-3}" ] || return 0
+    p=$(pidof trimui_inputd) || return 0
+    printf '%s\n%s\n' "$1" "$p" > $INPUTD_PAUSE
+    kill -STOP $p 2> /dev/null
+}
+inputd_resume() {   # $1: gettone dell'accensione, vuoto = qualunque
+    [ -f $INPUTD_PAUSE ] || return 0
+    [ -n "$1" ] && [ "$1" != "$(sed -n 1p $INPUTD_PAUSE)" ] && return 0
+    kill -CONT $(sed -n 2p $INPUTD_PAUSE) 2> /dev/null
+    rm -f $INPUTD_PAUSE
+}
+
 case "$1" in
+resume)
+    inputd_resume "$2"
+    ;;
 on)
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
+    tok=$$.$(cut -d' ' -f1 /proc/uptime)
+    # il timer prima della pausa: anche se qualcosa va storto qui sotto, i tasti tornano
+    ( sleep 10; exec "$0" resume "$tok" ) > /dev/null 2>&1 9>&- &
+    inputd_pause "$tok"
     # dopo una sospensione manca solo xradio_wlan: si carica ciò che non c'è
     # (WIFI_MODULES: un'altra compilazione dello stesso driver, solo per m2/prova-wifi)
     for m in xradio_mac xradio_core xradio_wlan; do
@@ -65,6 +91,7 @@ on)
     log "Wi-Fi acceso"
     ;;
 off)
+    inputd_resume ""
     killall wpa_cli wpa_supplicant udhcpc 2>/dev/null
     for i in $(seq 25); do pidof wpa_supplicant > /dev/null || break; sleep 0.2; done
     # senza togliere l'indirizzo, alla riaccensione la console sembrerebbe già collegata
@@ -74,5 +101,5 @@ off)
     log "Wi-Fi spento"
     ;;
 *)
-    echo "uso: wifi-ctl on|off"; exit 2 ;;
+    echo "uso: wifi-ctl on|off|resume"; exit 2 ;;
 esac

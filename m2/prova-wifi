@@ -4,8 +4,21 @@
 # freddo e a caldo, con o senza attesa). Ogni giro rifà da zero quello che succede all'avvio:
 # moduli tolti (il chip si spegne), moduli caricati, wlan0, wpa_supplicant, collegamento.
 #
-#   prova-wifi FILE      FILE contiene "DRIVER GIRI", es. "brick 40"
+#   prova-wifi FILE      FILE contiene "DRIVER GIRI [led-spenti|led-fissi] [senza-pausa]"
 #
+# led-spenti: prima di cominciare si spengono tutte le zone LED e le loro animazioni (la Brick
+# Pro ne ha molte più della Smart Pro). Lo stato dei LED all'inizio si scrive comunque.
+# led-fissi: ogni zona con l'effetto "fisso" (4) invece dell'animazione.
+# irq-separati: le interruzioni del bus I2C 3 (trimui_inputd, più di mille al secondo) su un
+# processore e quelle del Wi-Fi su un altro (/proc/irq/N/smp_affinity): sulla Brick Pro il
+# panico del driver I2C arriva quando una lettura scade mentre il Wi-Fi è attivo.
+# senza-pausa: wifi-ctl non ferma trimui_inputd mentre il Wi-Fi si accende (per confronto).
+# Prima dei giri si misurano le interruzioni al secondo (controller dei LED, bus I2C, Wi-Fi)
+# con i LED in respiro, fissi e spenti, e di nuovo al primo giro col Wi-Fi collegato: sulla
+# Brick Pro il blocco è un panico del driver I2C quando una lettura scade sotto carico
+# (issue trimui/firmware_brickpro#4), e le interruzioni dei LED aumentano il carico.
+# A ogni giro e ogni secondo (con i messaggi del kernel) si scrive l'alimentazione: carica,
+# tensione e corrente della batteria, caricatore collegato.
 # DRIVER: brickpro (quello dello strato, /run/fw/modules), brick o smartpro (stessa versione
 # del driver, compilata per i kernel di quei modelli: /run/fw/modules-brick, -smartpro).
 # Ogni passo va in Logs/prova-wifi.txt con sync prima di proseguire: dopo un blocco l'ultima
@@ -28,17 +41,66 @@ case "$GIRI" in ''|*[!0-9]*) GIRI=40 ;; esac
 
 say() { echo "$(cut -d' ' -f1 /proc/uptime)s $*" >> "$LOG"; sync; }
 battery() { cat /sys/class/power_supply/axp2202-battery/capacity 2> /dev/null || echo "?"; }
+# alimentazione: carica stimata, tensione e corrente della batteria, caricatore collegato
+PS=/sys/class/power_supply
+power() {
+    v=$(cat $PS/axp2202-battery/voltage_now 2> /dev/null); c=$(cat $PS/axp2202-battery/current_now 2> /dev/null)
+    echo "batteria $(battery)% ${v:+$((v / 1000)) mV }${c:+$((c / 1000)) mA }$(cat $PS/axp2202-battery/status 2> /dev/null) caricatore $(cat $PS/axp2202-usb/online 2> /dev/null)"
+}
 screen() { fbmsg show blu 0 "$1" "$2" 2> /dev/null; }
+# stato di trimui_inputd: T = fermo da wifi-ctl, S o R = al lavoro
+inputd() { p=$(pidof trimui_inputd) && awk '{ print $3 }' /proc/$p/stat 2> /dev/null || echo "-"; }
 
-{ echo; echo "=== $(date) · driver $DRIVER · $GIRI giri · batteria $(battery)%"; } >> "$LOG"; sync
+{ echo; echo "=== $(date) · driver $DRIVER · $GIRI giri · $REST · $(power)"; } >> "$LOG"; sync
+case " $REST " in *" senza-pausa "*) export WIFI_INPUTD=0 ;; esac
 if [ ! -f "$MOD/xradio_core.ko" ]; then
     say "ERRORE: moduli $DRIVER non trovati in $MOD"
     exit 2
 fi
 for m in xradio_mac xradio_core xradio_wlan; do say "$m: $(md5sum < "$MOD/$m.ko" | cut -c1-12)"; done
+LED=/sys/class/led_anim
+leds() {
+    v="enable=$(cat $LED/enable 2> /dev/null)"
+    for z in lr m f1 f2 rear; do [ -e $LED/effect_$z ] && v="$v $z=$(cat $LED/effect_$z 2> /dev/null | head -c 20)"; done
+    echo "$v"
+}
+say "LED all'inizio: $(leds)"
+# interruzioni al secondo in 3 secondi, per le voci di /proc/interrupts che interessano
+# chiave: numero e nome (SD e Wi-Fi si chiamano entrambi sunxi-mmc)
+irqs() { awk '/ledc|twi|i2c|mmc|xradio|wlan/ { n = 0; for (i = 2; i <= NF && $i ~ /^[0-9]+$/; i++) n += $i; print $NF "(" $1 ")", n }' /proc/interrupts; }
+rates() {
+    irqs > /tmp/irq.a; sleep 3; irqs > /tmp/irq.b
+    awk 'NR == FNR { a[$1] = $2; next } { r = ($2 - a[$1]) / 3; if (r > 0) printf "%s %.0f/s  ", $1, r }' /tmp/irq.a /tmp/irq.b
+}
+led_mode() {   # breath | fixed | off
+    echo 1 2> /dev/null > $LED/effect_enable
+    case $1 in
+        off) for z in lr m f1 f2 rear; do [ -e $LED/effect_$z ] && echo 0 > $LED/effect_$z; done; echo 0 2> /dev/null > $LED/enable ;;
+        *) echo 1 2> /dev/null > $LED/enable
+           v=2; [ $1 = fixed ] && v=4
+           for z in lr m f1 f2 rear; do [ -e $LED/effect_$z ] && echo $v > $LED/effect_$z; done ;;
+    esac
+}
+# come sono distribuite le interruzioni fra i processori (righe intere di /proc/interrupts)
+say "processori: $(grep -E 'CPU0|twi|ledc|mmc|xradio' /proc/interrupts | tr -s ' ' | tr '\n' '|')"
+# numero dell'interruzione dal nome (la prima colonna, senza i due punti)
+irqn() { awk -v n="$1" '$NF == n { sub(":", "", $1); print $1; exit }' /proc/interrupts; }
+case " $REST " in *" irq-separati "*)
+    for x in "twi3 8" "sunxi-mmc1 2" "ledcirq 4"; do
+        n=$(irqn ${x% *}); [ -n "$n" ] && echo ${x#* } > /proc/irq/$n/smp_affinity 2>> "$LOG" && say "${x% *} (irq $n) sul processore con maschera ${x#* }: $(cat /proc/irq/$n/smp_affinity)"
+    done ;;
+esac
+if [ -e $LED/enable ]; then
+    for m in breath fixed off; do led_mode $m; sleep 1; say "interruzioni, LED $m, Wi-Fi spento: $(rates)"; done
+fi
+case " $REST " in
+    *" led-spenti "*) led_mode off; say "LED spenti per la prova: $(leds)" ;;
+    *" led-fissi "*) led_mode fixed; say "LED fissi per la prova: $(leds)" ;;
+    *) led_mode breath; say "LED in respiro per la prova: $(leds)" ;;
+esac
 
 # messaggi del kernel ogni secondo, finché dura la prova
-( while :; do dmesg | tail -60 > "$KLOG"; sync; sleep 1; done ) > /dev/null 2>&1 &
+( while :; do { dmesg | tail -60; echo "--- $(cut -d' ' -f1 /proc/uptime)s $(power)"; } > "$KLOG"; sync; sleep 1; done ) > /dev/null 2>&1 &
 KPID=$!
 
 ok=0
@@ -50,9 +112,14 @@ while [ $i -le "$GIRI" ]; do
         grep -q "^$m " /proc/modules && rmmod $m 2>> "$LOG"
     done
     sleep 1
-    say "giro $i: carico i moduli (batteria $(battery)%)"
+    say "giro $i: carico i moduli ($(power))"
     WIFI_MODULES=$MOD wifi-ctl on > /dev/null 2>&1
-    say "giro $i: wifi-ctl on finito"
+    say "giro $i: wifi-ctl on finito · trimui_inputd $(inputd)"
+    # l'interruzione del chip Wi-Fi nasce a ogni caricamento del driver: si sposta ogni volta
+    case " $REST " in *" irq-separati "*)
+        n=$(irqn xradio_irq); [ -n "$n" ] && echo 2 2>> "$LOG" > /proc/irq/$n/smp_affinity
+        [ $i = 1 ] && say "xradio_irq (irq $n): $(cat /proc/irq/$n/smp_affinity 2> /dev/null)" ;;
+    esac
     t=0
     state=
     while [ $t -lt 20 ]; do
@@ -62,6 +129,13 @@ while [ $i -le "$GIRI" ]; do
         t=$((t + 1))
     done
     say "giro $i: stato $state dopo ${t}s"
+    # con wifi-ctl i LED restano fermi solo finché il Wi-Fi si accende: collegato, ripartono
+    # (wifi-event) e si lasciano andare insieme al Wi-Fi per qualche secondo
+    if [ "$state" = COMPLETED ]; then sleep 3; say "giro $i: LED enable=$(cat $LED/enable 2> /dev/null), trimui_inputd $(inputd) dopo il collegamento · $(power)"; fi
+    if [ $i = 1 ] && [ "$state" = COMPLETED ]; then
+        say "interruzioni col Wi-Fi collegato: $(rates)"
+        say "processori col Wi-Fi: $(grep -E 'CPU0|twi|ledc|mmc|xradio' /proc/interrupts | tr -s ' ' | tr '\n' '|')"
+    fi
     [ "$state" = COMPLETED ] && ok=$((ok + 1))
     i=$((i + 1))
 done
@@ -69,5 +143,6 @@ kill $KPID 2> /dev/null
 say "FINE: $GIRI giri senza blocchi, collegato $ok volte"
 wifi-ctl off > /dev/null 2>&1
 for m in xradio_wlan xradio_core xradio_mac; do grep -q "^$m " /proc/modules && rmmod $m; done
+echo 1 2> /dev/null > $LED/enable   # il launcher rimette colori ed effetti
 screen "PROVA WI-FI FINITA" "$GIRI GIRI SENZA BLOCCHI"
 sleep 3

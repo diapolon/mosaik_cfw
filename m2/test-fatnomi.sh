@@ -90,44 +90,41 @@ sed 's/^/    /' uscita4.txt
 [ "$(ls m/vero | grep -c '^C.TXT$')" = 2 ] && ok "entrambe le voci ancora lì" || ko "voci: $(ls m/vero)"
 umount m
 
-echo "--- avvio: quando si controlla (blocco vero di system-init)"
+echo "--- avvio (blocco vero di system-init)"
 # scheda nuova con un doppione; fatnomi finto che conta le chiamate e usa quello vero
 truncate -s 64M boot.img; mkfs.vfat -F 32 boot.img >/dev/null
-mount -o loop -t vfat boot.img m; mkdir -p m/Arcade/System m/Arcade/Logs m/g/aether_plaza m/g/aether_rooftop; umount m
+mount -o loop -t vfat boot.img m; mkdir -p m/Arcade/System m/Arcade/Logs m/g/aether_plaza m/g/aether_rooftop m/.fseventsd; umount m
 dup boot.img "AETHER~1   " "AETHER~2   "
 mount -o loop -t vfat boot.img m
 mkdir -p bin; cat > bin/fatnomi <<F
 #!/bin/sh
 echo x >> $W/chiamate
-[ -f $W/rompi ] && exit 2
 exec $W/fatnomi "\$@"
 F
 chmod +x bin/fatnomi
 sed -n '/^# >>> nomi corti dopo il Mac/,/^# <<< nomi corti dopo il Mac/p' /trimui/m2/system-init > blocco.sh
-[ "$(wc -l < blocco.sh)" -gt 10 ] || ko "blocco non trovato in system-init"
-boot() {   # un avvio: $1 descrizione, $2 chiamate attese in tutto
-    (set +e; PATH=$W/bin:$PATH ROOT=$W/m/Arcade SD=$W/m; step() { echo "$*" >> $W/passi; }; . ./blocco.sh)
-    [ "$(wc -l < chiamate 2>/dev/null || echo 0)" = "$2" ] && ok "$1" || ko "$1: chiamate $(wc -l < chiamate 2>/dev/null)"
-}
-: > chiamate
-boot "nessuna traccia del Mac: niente controllo" 0
-mkdir m/.fseventsd; echo AAAA > m/.fseventsd/fseventsd-uuid
-boot "primo passaggio dal Mac: controllo" 1
-grep -q 'riparato: /g/aether_rooftop' m/Arcade/Logs/nomi-corti.txt && ok "doppione riparato all'avvio" || ko "nomi-corti.txt: $(cat m/Arcade/Logs/nomi-corti.txt)"
-boot "stesso identificativo: niente controllo" 1
-echo BBBB > m/.fseventsd/fseventsd-uuid
-boot "identificativo nuovo: controllo" 2
-rm -r m/.fseventsd; mkdir m/.Trashes
-boot ".fseventsd sparita, .Trashes c'è: controllo" 3
-boot "stessa situazione: niente controllo" 3
-mkdir m/.fseventsd; echo CCCC > m/.fseventsd/fseventsd-uuid; touch rompi
-boot "controllo non riuscito: provato" 4
-rm rompi
-boot "dopo un controllo non riuscito si riprova" 5
-[ "$(cat m/Arcade/System/mac-visto.txt)" = CCCC ] && ok "ultimo identificativo ricordato" || ko "mac-visto: $(cat m/Arcade/System/mac-visto.txt)"
-[ -d m/.fseventsd ] && [ -d m/.Trashes ] && ok "cartelle di macOS lasciate" || ko "cartelle di macOS toccate"
+[ "$(wc -l < blocco.sh)" -gt 8 ] || ko "blocco non trovato in system-init"
+boot() { (set +e; PATH=$W/bin:$PATH ROOT=$W/m/Arcade SD=$W/m; step() { echo "$*" >> $W/passi; }; . ./blocco.sh); }
+: > chiamate; : > passi
+boot; boot
+[ "$(wc -l < chiamate)" = 2 ] && ok "controllo a ogni avvio" || ko "chiamate: $(wc -l < chiamate)"
+grep -q 'riparato: /g/aether_rooftop' m/Arcade/Logs/nomi-corti.txt && ok "doppione riparato al primo avvio" || ko "nomi-corti.txt: $(cat m/Arcade/Logs/nomi-corti.txt)"
+[ "$(grep -c '^===' m/Arcade/Logs/nomi-corti.txt)" = 1 ] && ok "senza doppioni il registro non cresce" || ko "registro scritto anche senza doppioni"
+grep -q '^nomi corti controllati in [0-9.]* s: esito 0, riparati 1$' passi && ok "passo con il tempo: $(head -1 passi)" || ko "passi: $(cat passi)"
+[ -d m/.fseventsd ] && ok "cartelle di macOS lasciate" || ko "cartelle di macOS toccate"
 umount m
 fsck.fat -n boot.img > fsck-boot.txt 2>&1 && ok "fsck pulito" || { cat fsck-boot.txt; ko "fsck dopo gli avvii"; }
+
+echo "--- tempo su una scheda con molti file"
+truncate -s 512M grande.img; mkfs.vfat -F 32 grande.img >/dev/null
+mount -o loop -t vfat grande.img m
+mkdir -p m/Arcade/Roms/FBNEO m/Arcade/Roms/MAME2003P m/Arcade/Media
+i=0; while [ $i -lt 4000 ]; do : > m/Arcade/Roms/FBNEO/g$i.zip; : > "m/Arcade/Media/Gioco numero $i.png"; i=$((i + 1)); done
+i=0; while [ $i -lt 300 ]; do mkdir -p "m/Arcade/Linux/gioco $i/dati"; : > "m/Arcade/Linux/gioco $i/dati/livello.bin"; i=$((i + 1)); done
+umount m; mount -o loop -t vfat grande.img m   # cache dei nomi vuota, come all'avvio
+t0=$(cut -d' ' -f1 /proc/uptime); ./fatnomi $W/m > /dev/null; t1=$(cut -d' ' -f1 /proc/uptime)
+ok "8.900 voci e 600 cartelle in $(awk -v a=$t0 -v b=$t1 'BEGIN{printf "%.2f", b-a}') s (immagine in RAM: sulla SD è più lento)"
+umount m
 
 echo "--- cartella non FAT"
 ./fatnomi /tmp > /dev/null 2>&1 && ko "su una cartella non FAT dovrebbe fermarsi" || ok "su una cartella non FAT si ferma"

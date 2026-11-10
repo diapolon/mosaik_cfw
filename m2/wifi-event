@@ -7,6 +7,8 @@ log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 case "$2" in
 CONNECTED)
     log "collegato a $(wpa_cli -p /run/wpa -i "$1" status | sed -n 's/^ssid=//p')"
+    # il driver è partito e collegato: trimui_inputd, fermato da wifi-ctl, riparte
+    wifi-ctl resume > /dev/null 2>&1
     killall udhcpc 2>/dev/null
     # udhcpc resta attivo per rinnovare l'indirizzo; i passaggi vanno in udhcpc-script
     udhcpc -i "$1" -b -t 8 -T 2 -A 5 -x hostname:arcade -s /usr/arcade/bin/udhcpc-script > /dev/null 2>&1

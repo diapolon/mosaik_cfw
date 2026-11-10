@@ -23,9 +23,11 @@
  * 1 qualche doppione rimasto, 2 cartella non leggibile o non FAT.
  */
 #define _GNU_SOURCE
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/msdos_fs.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -131,19 +133,42 @@ static int walk(int dfd, const char *path, int depth) {
         }
     }
     free(sorted);
-    if (depth < MAXDEPTH)
-        for (int i = 0; i < n; i++) {
-            const char *name = shown(&v[i]);
-            struct stat st;
-            if (fstatat(dfd, name, &st, AT_SYMLINK_NOFOLLOW) != 0 || !S_ISDIR(st.st_mode)) continue;
-            int sub = openat(dfd, name, O_RDONLY | O_DIRECTORY);
-            if (sub < 0) continue;
-            char p[4096];
-            snprintf(p, sizeof p, "%s/%s", path, name);
-            walk(sub, p, depth + 1);
-            close(sub);
-        }
     free(v);
+    if (depth >= MAXDEPTH) return 0;
+    /* sottocartelle: il tipo arriva con readdir (il FAT ha il bit "cartella" nella voce), senza
+       chiedere stat file per file. Prima si raccolgono i nomi, poi si scende: una sola cartella
+       aperta per livello. */
+    int dd = openat(dfd, ".", O_RDONLY | O_DIRECTORY);
+    DIR *dir = dd >= 0 ? fdopendir(dd) : NULL;
+    if (!dir) { if (dd >= 0) close(dd); return 0; }
+    char (*sub)[256] = NULL;
+    int ns = 0, cap = 0;
+    struct dirent *de;
+    while ((de = readdir(dir))) {
+        if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) continue;
+        bool isdir = de->d_type == DT_DIR;
+        if (de->d_type == DT_UNKNOWN) {
+            struct stat st;
+            isdir = fstatat(dfd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) == 0 && S_ISDIR(st.st_mode);
+        }
+        if (!isdir) continue;
+        if (ns == cap) {
+            void *ns2 = realloc(sub, (size_t)(cap = cap ? cap * 2 : 16) * sizeof *sub);
+            if (!ns2) break;
+            sub = ns2;
+        }
+        snprintf(sub[ns++], sizeof *sub, "%s", de->d_name);
+    }
+    closedir(dir);
+    for (int i = 0; i < ns; i++) {
+        int fd = openat(dfd, sub[i], O_RDONLY | O_DIRECTORY);
+        if (fd < 0) continue;
+        char p[4096];
+        snprintf(p, sizeof p, "%s/%s", path, sub[i]);
+        walk(fd, p, depth + 1);
+        close(fd);
+    }
+    free(sub);
     return 0;
 }
 
