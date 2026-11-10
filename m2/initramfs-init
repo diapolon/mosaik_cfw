@@ -104,6 +104,11 @@ fi
 mount -t vfat -o rw,noatime,flush "$P" /sd || fail "SD NON LEGGIBILE" "$P"
 mkdir -p /sd/Arcade/Logs
 SD_LOGS=/sd/Arcade/Logs
+# generazione dell'area di avvio (m2/area-avvio.conf): il launcher la confronta con l'elenco
+# dell'aggiornamento per dire se conviene riscrivere la SD. Si scrive solo se cambia.
+if [ -s /etc/area-avvio ] && ! cmp -s /etc/area-avvio /sd/Arcade/System/area-avvio.txt 2>/dev/null; then
+    mkdir -p /sd/Arcade/System && cp /etc/area-avvio /sd/Arcade/System/area-avvio.txt && sync
+fi
 if grep -q '"debug_level": *[1-9]' /sd/Arcade/System/settings.json 2>/dev/null; then
     STEPS=$SD_LOGS/passi.txt
     [ -f "$STEPS" ] && [ "$(wc -c < "$STEPS")" -gt 100000 ] && mv -f "$STEPS" "$STEPS.old"

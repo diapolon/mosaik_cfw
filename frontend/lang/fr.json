@@ -572,6 +572,7 @@
     "downloading": "Téléchargement et vérification…",
     "ready": "Prêt à installer",
     "ready_hint": "Installer la version %s maintenant ? La console redémarre à la fin.",
+    "reinstall": "Certaines nouveautés de cette version n'arrivent qu'en réécrivant la carte SD : les notes de version disent lesquelles.",
     "installing": "Installation : n'éteignez pas la console",
     "done": "Mise à jour installée",
     "restart": "Redémarrer",

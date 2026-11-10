@@ -572,6 +572,7 @@
     "downloading": "Lade und prüfe Dateien…",
     "ready": "Bereit zur Installation",
     "ready_hint": "Version %s jetzt installieren? Danach startet die Konsole neu.",
+    "reinstall": "Einige Neuerungen dieser Version kommen nur, wenn die SD-Karte neu beschrieben wird: Die Versionshinweise nennen sie.",
     "installing": "Wird installiert: Konsole nicht ausschalten",
     "done": "Update installiert",
     "restart": "Neu starten",

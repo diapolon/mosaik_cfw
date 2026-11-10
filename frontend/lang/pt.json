@@ -572,6 +572,7 @@
     "downloading": "A transferir e verificar ficheiros…",
     "ready": "Pronto a instalar",
     "ready_hint": "Instalar agora a versão %s? No fim, a consola reinicia.",
+    "reinstall": "Algumas novidades desta versão só chegam voltando a escrever o cartão SD: as notas da versão dizem quais.",
     "installing": "A instalar: não desligues a consola",
     "done": "Atualização instalada",
     "restart": "Reiniciar",

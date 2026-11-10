@@ -30,6 +30,7 @@ ap.add_argument("--key", default=os.path.expanduser("~/.config/arcade-update/upd
 ap.add_argument("--http-port", type=int, default=8765)
 ap.add_argument("--udp-port", type=int, default=8766)
 ap.add_argument("--out", help="cartella in cui preparare i file da pubblicare")
+ap.add_argument("--reinstall", type=int, help="soglia dell'invito a riscrivere la SD (altrimenti RISCRIVERE_SOTTO di m2/area-avvio.conf)")
 args = ap.parse_args()
 
 DATA = os.path.join(args.dist, "SD", "Arcade")
@@ -72,6 +73,13 @@ if not os.path.exists(args.key):
 version = open(os.path.join(args.dist, "arcade-version.txt")).read().strip()
 files = list(wanted())
 lines = ["arcade-update 1", "version " + version]
+# invito a riscrivere la SD per le schede con un'area di avvio più vecchia (m2/area-avvio.conf)
+conf = open(os.path.join(top, "m2", "area-avvio.conf")).read()
+reinstall = int(next((l.split("=", 1)[1] for l in conf.splitlines() if l.startswith("RISCRIVERE_SOTTO=")), "0"))
+if args.reinstall is not None:
+    reinstall = args.reinstall
+if reinstall > 0:
+    lines.append(f"reinstall {reinstall}")
 for sd, path in files:
     lines.append(f"file {sha256(path)} {os.path.getsize(path)} {sd}")
 manifest = ("\n".join(lines) + "\n").encode()

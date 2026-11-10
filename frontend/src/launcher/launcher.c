@@ -2978,7 +2978,8 @@ static void upd_draw(void) {
     theme_t *t = &UI.th;
     const update_status_t *s = update_status();
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
-    int w = M(0.95f), h = M(0.42f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    /* con l'invito a riscrivere la SD la spiegazione può prendere una riga in più */
+    int w = M(0.95f), h = M(0.42f) + (s->reinstall ? TTF_FontHeight(UI.f_small) : 0), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(x, y, w, h, r, t->surface);
     if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
@@ -2987,7 +2988,7 @@ static void upd_draw(void) {
     snprintf(upd_title, sizeof upd_title, "%s%s%s", T("update.title"), UI.set.update_channel ? " · " : "", UI.set.update_channel ? T("update.channel_dev") : "");
     ui_text(UI.f_title, upd_title, x + pad, ty, t->text, ALIGN_LEFT);
     ty += TTF_FontHeight(UI.f_title) + M(0.03f);
-    char line[200], key[32], size[32], sub[200] = "";
+    char line[200], key[32], size[32], sub[400] = "";
     switch (s->phase) {
     case UPD_SEARCH: snprintf(line, sizeof line, "%s", T("update.searching")); break;
     case UPD_CHECK: snprintf(line, sizeof line, "%s", T("update.checking")); break;
@@ -2997,11 +2998,16 @@ static void upd_draw(void) {
         fmt_bytes(s->total, size, sizeof size);
         snprintf(line, sizeof line, T("update.available"), s->version);
         snprintf(sub, sizeof sub, T("update.details"), update_current(), s->files, size);
+        if (s->reinstall) { size_t l = strlen(sub); snprintf(sub + l, sizeof sub - l, " %s", T("update.reinstall")); }
         break;
     case UPD_DOWNLOAD: case UPD_VERIFY: snprintf(line, sizeof line, "%s", T("update.downloading")); break;
     case UPD_READY:
         snprintf(line, sizeof line, "%s", T("update.ready"));
         snprintf(sub, sizeof sub, T("update.ready_hint"), s->version);
+        if (s->reinstall) {   /* il Wi-Fi porta tutto tranne l'area di avvio: lo si dice prima */
+            size_t l = strlen(sub);
+            snprintf(sub + l, sizeof sub - l, " %s", T("update.reinstall"));
+        }
         break;
     case UPD_INSTALL: snprintf(line, sizeof line, "%s", T("update.installing")); break;
     case UPD_DONE: snprintf(line, sizeof line, "%s", T("update.done")); snprintf(sub, sizeof sub, "%s", s->version); break;
@@ -3028,8 +3034,8 @@ static void upd_draw(void) {
         }
     }
     if (sub[0]) {
-        char lines[2][160];
-        int n = ui_wrap(UI.f_small, sub, bw, lines, 2);
+        char lines[3][160];
+        int n = ui_wrap(UI.f_small, sub, bw, lines, s->reinstall ? 3 : 2);
         for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
     }
     int hb = M(t->hintbar_h);

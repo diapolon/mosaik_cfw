@@ -18,6 +18,7 @@ typedef struct {
     _Atomic long long done, total;   /* byte elaborati / da elaborare nella fase */
     _Atomic int files;               /* file da aggiornare */
     char version[64];                 /* versione offerta */
+    _Atomic bool reinstall;           /* l'area di avvio della scheda è vecchia: conviene riscrivere la SD */
     _Atomic bool cancel;
 } update_status_t;
 

@@ -572,6 +572,7 @@
     "downloading": "Scarico e controllo i file…",
     "ready": "Pronto da installare",
     "ready_hint": "Installare ora la versione %s? Alla fine la console si riavvia.",
+    "reinstall": "Alcune novità di questa versione arrivano solo riscrivendo la SD: le note della versione dicono quali.",
     "installing": "Installazione in corso: non spegnere la console",
     "done": "Aggiornamento installato",
     "restart": "Riavvia",

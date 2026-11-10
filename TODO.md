@@ -22,6 +22,7 @@
 
 ## Features
 
+- [ ] Backup and restore: Tools → Backup makes one zip on the card (saves, settings, favorites, collections, play time, Wi-Fi networks; optionally images and ROMs). Copy it to a computer, write the card again, put the zip back: at the first start the console finds it and offers to import it. Pairs with the reinstall notice (`m2/area-avvio.conf`)
 - [ ] Bluetooth controllers
 - [x] Settings page for the Brick Pro's extra buttons (side HOME, F1, F2): list them on the console, choose what each one does, show the page only on models that have them
 - [x] Analog stick calibration from the settings

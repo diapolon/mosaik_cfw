@@ -214,8 +214,21 @@ static bool parse_manifest(char *text) {
     if (!line || strcmp(line, "arcade-update 1")) return false;
     nitems = 0;
     st.version[0] = 0;
+    st.reinstall = false;
     for (line = strtok_r(NULL, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
         if (!strncmp(line, "version ", 8)) { snprintf(st.version, sizeof st.version, "%s", line + 8); continue; }
+        /* "reinstall N": le schede con l'area di avvio (initramfs, kernel) di generazione più
+           bassa di N non hanno cose che il Wi-Fi non può portare: si invita a riscrivere la SD.
+           La generazione la scrive l'initramfs in System/area-avvio.txt (manca: 0). */
+        if (!strncmp(line, "reinstall ", 10)) {
+            char p[1100];
+            snprintf(p, sizeof p, "%s/System/area-avvio.txt", root_dir);
+            FILE *f = fopen(p, "r");
+            int gen = 0;
+            if (f) { if (fscanf(f, "%d", &gen) != 1) gen = 0; fclose(f); }
+            st.reinstall = gen < atoi(line + 10);
+            continue;
+        }
         /* Una riga che questa versione non conosce si ignora: la firma è già stata controllata, e
            così una versione futura può aggiungere informazioni senza bloccare chi deve aggiornarsi. */
         if (strncmp(line, "file ", 5)) continue;
@@ -619,6 +632,7 @@ void update_check(const char *root) {
     (void)root;
     memset(&st, 0, sizeof st);
     snprintf(st.version, sizeof st.version, "9.9.9 20991231.2359");
+    st.reinstall = getenv("TRIMUI_FAKE_REINSTALL") != NULL;   /* prova dell'invito a riscrivere la SD */
     st.files = 12;
     st.total = 64LL << 20;
     st.phase = UPD_AVAILABLE;

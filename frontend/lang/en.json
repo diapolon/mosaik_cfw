@@ -572,6 +572,7 @@
     "downloading": "Downloading and checking files…",
     "ready": "Ready to install",
     "ready_hint": "Install version %s now? The console restarts when it's done.",
+    "reinstall": "Some changes in this version only come by writing the SD card again: the release notes say which.",
     "installing": "Installing: don't turn off the console",
     "done": "Update installed",
     "restart": "Restart",

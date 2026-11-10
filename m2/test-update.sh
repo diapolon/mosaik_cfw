@@ -28,6 +28,7 @@ int main(int c, char **v) {
     }
     update_check(v[1]); update_join();
     const update_status_t *s = update_status();
+    if (c > 2 && !strcmp(v[2], "reinstall")) { printf("%d\n", s->phase == UPD_AVAILABLE ? (int)s->reinstall : -1); return 0; }
     if (c > 2 && s->phase == UPD_AVAILABLE) { update_install(); update_join(); if (s->phase == UPD_READY) { if (getenv("TEST_DISCARD")) update_discard(); else update_apply(); update_join(); } }
     printf("%d %d %d\n", s->phase, s->error, s->files);
     return 0;
@@ -218,6 +219,21 @@ expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installata da file statici"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && cmp $A/Cores/a.so $S/Cores/a.so && ok "file identici"
 stop; kill $SRV2 2>/dev/null; wait $SRV2 2>/dev/null || true
 rm -f $S/System/update-url.txt
+
+echo "--- invito a riscrivere la SD (area di avvio vecchia)"
+card; export ARCADE_VERSION_FILE=$W/old.txt
+python3 /trimui/toolchain/update-server.py --dist $D --http-port 8765 --udp-port 8766 --key key.pem --reinstall 2 >/dev/null & SRV=$!
+for i in $(seq 50); do nc -z 127.0.0.1 8765 2>/dev/null && break; sleep 0.1; done
+expect "$(./t $W/sd reinstall 2>/dev/null)" "1" "scheda senza generazione: invito"
+echo 1 > $S/System/area-avvio.txt
+expect "$(./t $W/sd reinstall 2>/dev/null)" "1" "generazione 1 sotto la soglia 2: invito"
+echo 2 > $S/System/area-avvio.txt
+expect "$(./t $W/sd reinstall 2>/dev/null)" "0" "generazione alla soglia: niente invito"
+stop
+serve key.pem
+rm -f $S/System/area-avvio.txt
+expect "$(./t $W/sd reinstall 2>/dev/null)" "0" "soglia 0 (nessuna riga reinstall): niente invito"
+stop
 
 echo "--- nessun server"
 rm -f $S/System/update-url.txt

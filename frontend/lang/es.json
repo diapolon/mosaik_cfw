@@ -572,6 +572,7 @@
     "downloading": "Descargando y comprobando archivos…",
     "ready": "Listo para instalar",
     "ready_hint": "¿Instalar ahora la versión %s? Al terminar, la consola se reinicia.",
+    "reinstall": "Algunas novedades de esta versión solo llegan volviendo a escribir la SD: las notas de la versión dicen cuáles.",
     "installing": "Instalando: no apagues la consola",
     "done": "Actualización instalada",
     "restart": "Reiniciar",

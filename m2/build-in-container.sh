@@ -144,6 +144,7 @@ models | while IFS="|" read -r id fw name file; do
     cp /lib/ld-musl-aarch64.so.1 $I/lib/
     ln -sf ld-musl-aarch64.so.1 $I/lib/libc.musl-aarch64.so.1
     printf "%s\n%s\n" "$id" "$name" > $I/etc/arcade-model
+    sed -n 's/^GENERAZIONE=//p' $T/m2/area-avvio.conf > $I/etc/area-avvio
     cp $T/m2/initramfs-init $I/rdinit
     chmod 755 $I/rdinit $I/bin/*
     ln -sf rdinit $I/init
