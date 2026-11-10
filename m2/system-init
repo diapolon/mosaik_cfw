@@ -50,7 +50,9 @@ halt_with() {
     [ "$LOGDIR" = "$ROOT/Logs" ] || cp -f "$LOGDIR"/* "$ROOT/Logs"/ 2>/dev/null
     dmesg > "$ROOT/Logs/dmesg.txt"; sync
     fbmsg show rosso 60 "$1" "$2"
-    sync; poweroff -f
+    sync
+    [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ] && axpctl poweroff 2>/dev/null
+    poweroff -f
     while :; do sleep 60; done
 }
 

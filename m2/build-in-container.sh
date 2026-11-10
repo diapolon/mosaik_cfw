@@ -138,7 +138,7 @@ models | while IFS="|" read -r id fw name file; do
     [ "$wm" = 0 ] || { echo "ATTENZIONE: boot_package di $fw con work mode $wm (non 0): fermo la costruzione"; exit 1; }
     I=$W/initramfs-$id; rm -rf $I; mkdir -p $I/bin $I/sbin $I/lib $I/etc $I/dev $I/proc $I/sys $I/tmp
     cp /bin/busybox.static $I/bin/busybox
-    cp $W/fbmsg $W/sdgrow $I/bin/
+    cp $W/fbmsg $W/sdgrow $W/axpctl $I/bin/
     # fsck.fat di Alpine (dosfstools, musl) con il suo caricatore, per riparare il FAT a ogni avvio
     cp /sbin/fsck.fat $I/sbin/fsck.fat
     cp /lib/ld-musl-aarch64.so.1 $I/lib/

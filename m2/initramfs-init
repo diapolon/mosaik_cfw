@@ -23,6 +23,12 @@ step() {
     echo "$(cut -d' ' -f1 /proc/uptime)s initramfs: $1" >> /tmp/passi.txt
     if [ -n "$STEPS" ]; then cat /tmp/passi.txt >> "$STEPS"; : > /tmp/passi.txt; fi
 }
+# spegnimento: col caricatore collegato il chip di alimentazione riaccenderebbe la console, che
+# si ferma in U-Boot con lo schermo nero; axpctl spegne prima le sue interruzioni (come system-init)
+power_off() {
+    [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ] && axpctl poweroff 2>/dev/null
+    poweroff -f
+}
 fail() {
     step "ERRORE: $1" "$2"
     # registro spento: i passi erano in memoria, ma un errore all'avvio va comunque sulla SD
@@ -33,7 +39,7 @@ fail() {
     fi
     fbmsg show rosso 60 "$1" "$2"
     sync
-    poweroff -f
+    power_off
     # se lo spegnimento non riesce non si va avanti comunque: si resta qui (il watchdog è vivo)
     while :; do sleep 60; done
 }
@@ -89,7 +95,7 @@ if [ $GROW = 3 ]; then
     sync
     if [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ]; then
         fbmsg show blu 8 "SD ALLARGATA" "RIACCENDI LA CONSOLE" 2>/dev/null
-        poweroff -f
+        power_off
     fi
     fbmsg show blu 3 "SD ALLARGATA" "RIAVVIO" 2>/dev/null
     reboot -f
