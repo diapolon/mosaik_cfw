@@ -1,6 +1,10 @@
 /* axpctl: il chip di alimentazione AXP2202 (indirizzo 0x34) letto e comandato da utente.
  *
  *   axpctl dump       registri 0x00-0x4F in esadecimale, su una riga
+ *   axpctl restore    rimette il bit 4 di 0x22, che poweroff toglie: il chip lo ricorda anche
+ *                     dopo la riaccensione, e senza quel bit un riavvio diventa uno spegnimento
+ *                     (provato sulla Smart Pro: 0x22 è 0x1E all'avvio normale). Scrive cosa ha
+ *                     fatto: "0x22 1e" se era già a posto, "0x22 0e -> 1e" se l'ha corretto
  *   axpctl poweroff   spegnimento come il poweroff_next di NextUI (TG5040): interruzioni del
  *                     chip disattivate (0x40-0x44 = 0) e cancellate (0x48-0x4C = 0xFF), poi
  *                     0x22 = 0x0A e 0x27 = 0x01. Serve col caricatore collegato: con lo
@@ -63,8 +67,8 @@ static void pause_ms(long ms) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2 || (strcmp(argv[1], "dump") && strcmp(argv[1], "poweroff"))) {
-        fprintf(stderr, "uso: axpctl dump|poweroff\n");
+    if (argc != 2 || (strcmp(argv[1], "dump") && strcmp(argv[1], "poweroff") && strcmp(argv[1], "restore"))) {
+        fprintf(stderr, "uso: axpctl dump|poweroff|restore\n");
         return 1;
     }
     int fd = open_bus();
@@ -78,6 +82,17 @@ int main(int argc, char **argv) {
         printf("\n");
         close(fd);
         return 0;
+    }
+    if (!strcmp(argv[1], "restore")) {
+        uint8_t v;
+        if (rd(fd, 0x22, &v) != 0) { fprintf(stderr, "axpctl: lettura di 0x22 non riuscita\n"); close(fd); return 1; }
+        if (v & 0x10) { printf("0x22 %02x\n", v); close(fd); return 0; }
+        int e = wr(fd, 0x22, (uint8_t)(v | 0x10));
+        uint8_t w = 0;
+        rd(fd, 0x22, &w);
+        printf("0x22 %02x -> %02x\n", v, w);
+        close(fd);
+        return e ? 1 : 0;
     }
     int err = 0;
     for (int r = 0x40; r <= 0x44; r++) err |= wr(fd, (uint8_t)r, 0x00);

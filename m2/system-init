@@ -268,6 +268,11 @@ irq_cpu() {   # nome in /proc/interrupts, maschera dei processori
     n=$(awk -v n="$1" '$NF == n { sub(":", "", $1); print $1; exit }' /proc/interrupts)
     [ -n "$n" ] && echo "$2" > /proc/irq/$n/smp_affinity 2> /dev/null && echo "$1 $2"
 }
+# chip di alimentazione: lo spegnimento col caricatore (axpctl poweroff) toglie il bit 4 di 0x22
+# e il chip lo ricorda; senza quel bit un riavvio diventa uno spegnimento. Si rimette a ogni avvio.
+axp=$(axpctl restore 2>/dev/null)
+case "$axp" in *"->"*) step "chip di alimentazione: $axp (riavvio rimesso a posto)" ;; esac
+
 if grep -q ' twi3$' /proc/interrupts; then
     step "interruzioni separate: $(irq_cpu twi3 8) · $(irq_cpu sunxi-mmc1 2) · $(irq_cpu ledcirq 4)"
 fi
