@@ -21,7 +21,8 @@ docker run --rm --platform linux/amd64 -v "$TOP/m1":/m1:ro -v "$TOP/m2":/m2:ro -
     'mkdir -p /build/m2 && aarch64-linux-gnu-gcc -static -O2 -o /build/m2/fbmsg /m1/m1test.c && aarch64-linux-gnu-strip /build/m2/fbmsg &&
      aarch64-linux-gnu-gcc -static -O2 -Wall -o /build/m2/sdgrow /m2/sdgrow.c && aarch64-linux-gnu-strip /build/m2/sdgrow &&
      aarch64-linux-gnu-gcc -static -O2 -Wall -o /build/m2/envtool /m2/envtool.c && aarch64-linux-gnu-strip /build/m2/envtool &&
-     aarch64-linux-gnu-gcc -static -O2 -Wall -Wextra -o /build/m2/fatnomi /m2/fatnomi.c && aarch64-linux-gnu-strip /build/m2/fatnomi'
+     aarch64-linux-gnu-gcc -static -O2 -Wall -Wextra -o /build/m2/fatnomi /m2/fatnomi.c && aarch64-linux-gnu-strip /build/m2/fatnomi &&
+     aarch64-linux-gnu-gcc -static -O2 -Wall -Wextra -o /build/m2/axpctl /m2/axpctl.c && aarch64-linux-gnu-strip /build/m2/axpctl'
 
 # tutto il resto in un Linux arm64 (script separato: niente apici annidati)
 docker run --rm --platform linux/arm64 -v "$TOP":/trimui -v trimui-build:/build alpine:3.20 sh /trimui/m2/build-in-container.sh

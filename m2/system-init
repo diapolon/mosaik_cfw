@@ -310,9 +310,13 @@ fi
 # riaccende con il tasto. Lo fa già il launcher; qui vale per ogni altra strada.
 charger_online() { [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ]; }
 finish() {
-    if [ "${1:-}" = reboot ] && charger_online; then
-        step "riavvio con il caricatore collegato: spengo (U-Boot resterebbe nella carica)"
+    CHARGER=
+    if charger_online; then
+        CHARGER=1
+        [ "${1:-}" = reboot ] && step "riavvio con il caricatore collegato: spengo (U-Boot resterebbe nella carica)"
         set -- poweroff
+        # i registri del chip di alimentazione prima di spegnere: dicono cosa lo riaccende
+        step "chip di alimentazione col caricatore: $(axpctl dump 2>&1 | tr '\n' ' ')"
     fi
     step "${1:-spegnimento}"
     # Wi-Fi e SD lavorano fino all'ultimo: con l'altoparlante acceso si sentirebbe un ronzio
@@ -345,6 +349,9 @@ finish() {
           ls -l /proc/[0-9]*/fd 2>/dev/null | grep /mnt/SDCARD; } >> "$STEPS"
         sync
     fi
+    # col caricatore: interruzioni del chip spente e cancellate, poi spegnimento dal chip
+    # (come NextUI): con lo spegnimento normale il caricatore riaccende la console in U-Boot
+    [ -n "$CHARGER" ] && axpctl poweroff 2>/dev/null
     ${1:-poweroff} -f
     while :; do sleep 60; done
 }
