@@ -21,7 +21,7 @@
     "restart": "Neu starten",
     "restarting": "Neustart…",
     "all_games": "Alle Spiele",
-    "launch_error": "Spiel kann nicht gestartet werden",
+    "launch_error": "Das Spiel ist nicht gestartet",
     "quit_menu": "Beenden",
     "shutting_down": "Wird ausgeschaltet…",
     "loading": "Wird geladen…",
@@ -53,7 +53,7 @@
     "recent": "Zuletzt gespielt",
     "open_library": "Bibliothek öffnen",
     "resume": "Fortsetzen",
-    "no_games": "Keine Spiele gefunden: ROMs nach Roms/FBNEO oder Roms/MAME2003P kopieren",
+    "no_games": "Noch keine Spiele: kopiere deine ROMs nach Arcade/Roms/FBNEO oder Arcade/Roms/MAME2003P",
     "fav_added": "Zu Favoriten hinzugefügt",
     "fav_removed": "Aus Favoriten entfernt",
     "themes": "Designs",
@@ -63,7 +63,8 @@
     "title": "Plattformen",
     "open": "Bibliothek öffnen",
     "one": "1 Spiel",
-    "native": "> native Spiele"
+    "native": "> native Spiele",
+    "console": "Konsole"
   },
   "lib": {
     "confirm": "Bestätigen",
@@ -147,7 +148,8 @@
     "music": "Musik",
     "led": "LEDs",
     "led_color": "LED-Farbe",
-    "led_brightness": "LED-Helligkeit"
+    "led_brightness": "LED-Helligkeit",
+    "autosave_exit": "Beim Verlassen speichern"
   },
   "settings_desc": {
     "restart": "Startet Mosaik neu. Einstellungen und Favoriten sind bereits gespeichert.",
@@ -155,18 +157,18 @@
     "collections": "Sammlungen umbenennen oder löschen.",
     "pad_test": "Zeigt jede gedrückte Taste und die Position der Sticks: nützlich, um ihre Funktion zu prüfen.",
     "stick_cal": "Verwenden, wenn ein Stick nicht zur Mitte zurückkehrt oder den Rand nicht erreicht.",
-    "key_f1": "Was die F1-Leiste in FBNeo- und MAME-Spielen macht.",
-    "key_f2": "Was die F2-Leiste in FBNeo- und MAME-Spielen macht.",
-    "key_home": "Was die seitliche HOME-Taste in FBNeo- und MAME-Spielen macht.",
-    "brightness": "Bildschirmhelligkeit. Auf der Konsole steuert sie die Hintergrundbeleuchtung.",
+    "key_f1": "Was die F1-Leiste in Arcade- und Konsolenspielen macht.",
+    "key_f2": "Was die F2-Leiste in Arcade- und Konsolenspielen macht.",
+    "key_home": "Was die seitliche HOME-Taste in Arcade- und Konsolenspielen macht.",
+    "brightness": "Helligkeit des Bildschirms.",
     "volume": "Systemlautstärke, gilt auch in Spielen.",
     "theme": "Aussehen des Launchers und des Spielmenüs.",
     "variant": "Farben des Designs, falls es mehrere anbietet.",
     "language": "Sprache der Menüs. Wird auch an die Emulatoren übergeben.",
     "grid_columns": "Wie viele Cover pro Reihe der Bibliothek angezeigt werden. Automatisch nutzt die Vorgabe des Themas.",
     "home_size": "Größe der Cover auf dem Startbildschirm, bei Karussell-Themen.",
-    "aspect": "Original: Proportionen des Automaten. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus.",
-    "filter": "Filter sind Ordner in Filters/: Masken, Vignette und später Shader.",
+    "aspect": "Original: die Proportionen des Spiels. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus.",
+    "filter": "Effekte für das Spielbild, zum Beispiel die Linien alter Bildschirme (Scanlines).",
     "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3).",
     "wifi": "Schaltet das WLAN ein oder aus.",
     "wifi_nets": "Zeigt die verfügbaren Netze zum Verbinden.",
@@ -179,22 +181,23 @@
     "info": "Speicherplatz auf der SD-Karte und was ihn belegt: Spiele pro Emulator, Bilder, Spielstände, Musik.",
     "power": "Speichert und schaltet aus.",
     "duplicates": "Spiel in FinalBurn Neo und MAME 2003+ vorhanden: beide oder nur eines anzeigen.",
-    "scrape": "Lädt Screenshots, Titelbilder und Marquees von ArcadeDB und den libretro-Thumbnails. WLAN nötig.",
+    "scrape": "Lädt Screenshots, Titelbilder und Marquees der Spiele aus dem Internet. Funktioniert bei verbundenem WLAN.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
-    "update": "Lädt die neue Version über WLAN. ROMs, Spielstände und Einstellungen bleiben unberührt.",
+    "update": "Lädt die neue Version über WLAN und installiert sie. ROMs, Spielstände und Einstellungen bleiben, wie sie sind.",
     "channel": "Stabil: veröffentlichte Versionen. Entwicklung: Testversionen. Zurück zu Stabil gilt ab der nächsten stabilen Version.",
     "update_notify": "Prüft einmal täglich bei WLAN-Verbindung auf GitHub, ob es eine neue Version gibt, und zeigt es an. Es wird nichts heruntergeladen.",
-    "log_level": "Was in Arcade/Logs geschrieben wird: nichts, Starts und Fehler, auch Zeiten und Tempo, oder alles. Gilt vollständig ab dem nächsten Start.",
-    "bezel": "Ein Rahmen (Bezel) um das Spiel: der eigene aus Bezels/, sonst der Standardrahmen.",
+    "log_level": "Protokolliert im Ordner Arcade/Logs, was passiert, hilfreich, um ein Problem zu melden. Für den normalen Gebrauch genügt „Aus“.",
+    "bezel": "Ein dekorativer Rahmen um das Spiel: der des Spiels, falls vorhanden, sonst der Standardrahmen.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
     "genres": "Genres umbenennen, zusammenführen oder zurücksetzen. Das Genre eines Spiels ändert man auf seiner Seite (X, dann X).",
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
-    "romcheck": "Schnelltest: Jedes ZIP muss die richtigen Dateien enthalten (angegebene Namen, Größen, CRCs). Komprimierte Daten werden nicht gelesen.",
+    "romcheck": "Prüft, ob jedem Spiel alle Dateien vorliegen. Eine schnelle Prüfung: Der Inhalt wird nicht komplett gelesen.",
     "pads": "Die Konsole ist Spieler 1, ein Bluetooth- oder USB-Controller Spieler 2. Mit „Spieler 1“ spielt man allein mit dem externen Controller.",
     "music": "Hintergrundmusik aus dem Ordner Music der SD-Karte (MP3, OGG, FLAC). A springt zum nächsten Titel.",
     "led": "Lichteffekt der Konsole: aus, dauerhaft, Atmen oder Pulsieren. Bei schwachem Akku blinken sie rot.",
     "led_color": "Lichtfarbe; „Thema“ nutzt die Hauptfarbe des gewählten Themas.",
-    "led_brightness": "Helligkeit der Konsolenlichter."
+    "led_brightness": "Helligkeit der Konsolenlichter.",
+    "autosave_exit": "Beim Verlassen zum Menü kommt das Spiel in den automatischen Spielstand, und auf dem Startbildschirm setzt du es mit „Fortsetzen“ fort. Aus: gespeichert wird nur beim Ausschalten und im Standby."
   },
   "aspect": {
     "original": "Original",
@@ -252,26 +255,26 @@
     "state_loaded": "Zustand geladen",
     "no_state": "Kein gespeicherter Zustand",
     "resumed": "Spiel fortgesetzt",
-    "error_body": "Der Core konnte die ROM nicht laden: fehlende Dateien oder andere Romset-Version.",
-    "error_hint": "Details in Logs/Arcade.log. A drücken, um zum Menü zurückzukehren.",
+    "error_body": "Das Spiel ist nicht gestartet: Es fehlen Dateien oder die ROM hat eine andere Version.",
+    "error_hint": "Drücke A, um zum Menü zurückzukehren.",
     "rotation": "Bildschirmdrehung",
     "options": "Spieloptionen",
     "controls": "Steuerung",
-    "options_note": "DIP-Schalter und Core-Optionen. Manche gelten erst nach „Neu starten“.",
-    "no_options": "Dieser Core hat keine Optionen.",
+    "options_note": "Optionen des Spiels und des Automaten (DIP-Schalter). Manche gelten erst nach „Neu starten“.",
+    "no_options": "Dieses Spiel hat keine Optionen.",
     "controls_note": "Wähle, welche Konsolentaste jede Spielfunktion nutzt.",
     "controls_reset": "Standardsteuerung wiederherstellen",
     "controls_restored": "Standardsteuerung wiederhergestellt",
     "per_game_note": "Diese Einstellungen gelten nur für dieses Spiel.",
     "bezel": "Rahmen",
-    "shader_params": "Shader-Parameter",
-    "no_params": "Dieser Shader hat keine Parameter.",
-    "no_shader": "Der aktuelle Filter nutzt keinen Shader.",
+    "shader_params": "Filtereinstellungen",
+    "no_params": "Dieser Filter hat keine Einstellungen.",
+    "no_shader": "Der gewählte Filter hat keine Einstellungen.",
     "shader_note": "Links/rechts ändern den Wert, A setzt ihn zurück. Nur für dieses Spiel.",
     "audio_stalled": "Audio nicht verfügbar: ohne Ton",
     "linux_game": "Linux-Spiel",
     "linux_note": "Das Spiel ist pausiert: B oder Menu zum Fortsetzen.",
-    "cpu": "CPU-Profil"
+    "cpu": "Leistungsprofil"
   },
   "genre": {
     "fighter": "Kampfspiel",
@@ -328,7 +331,7 @@
     "failed": "Der Dienst antwortet nicht: Verbindung prüfen und erneut versuchen.",
     "progress": "%d von %d Spielen · %d Bilder geladen · %d nicht gefunden",
     "stop": "Stoppen",
-    "no_wifi": "Zuerst WLAN einschalten"
+    "no_wifi": "Verbinde dich mit dem WLAN, um Bilder zu laden"
   },
   "filters": {
     "title": "Filter und Sortierung",
@@ -365,7 +368,9 @@
     "never": "Noch nie gespielt",
     "hours": "%d Std. %d Min.",
     "minutes": "%d Min.",
-    "no_history": "Keine Beschreibung: „Bilder herunterladen“ verwenden."
+    "no_history": "Keine Beschreibung: „Bilder herunterladen“ verwenden.",
+    "states": "Gespeicherte Spielstände: Slot %s",
+    "stats1": "%d Spiel · %s · zuletzt am %s"
   },
   "hotkey": {
     "page": "Tastenkürzel",
@@ -400,17 +405,17 @@
   "rom": {
     "title": "ROM-Prüfung",
     "progress": "%d von %d Spielen geprüft…",
-    "summary": "%d vollständig · %d fehlende Dateien · %d andere Version · %d ohne Parent/BIOS",
-    "summary2": "%d nicht im DAT · %d nicht prüfbar (7z)",
+    "summary": "%d vollständig · %d fehlende Dateien · %d andere Version · %d ohne Hauptspiel/BIOS",
+    "summary2": "%d nicht erkannt · %d nicht prüfbar (7z)",
     "status1": "ROM vollständig",
     "status2": "Dateien fehlen",
     "badge2": "Unvollständig",
     "status3": "Andere Romset-Version",
     "badge3": "Andere Version",
-    "status4": "Parent oder BIOS nötig",
-    "badge4": "Parent/BIOS fehlt",
-    "status5": "Name nicht im DAT des Emulators",
-    "status6": "ROM nicht prüfbar (7z)"
+    "status4": "Hauptspiel oder BIOS nötig",
+    "badge4": "Hauptspiel/BIOS fehlt",
+    "status5": "Spiel vom Emulator nicht erkannt",
+    "status6": "Nicht prüfbar (7z-Datei)"
   },
   "pad": {
     "connected": "Controller verbunden: %s · Spieler %d",
@@ -443,7 +448,7 @@
     "hidden_tag": "Ausgeblendet"
   },
   "music": {
-    "none": "Keine Titel in Music"
+    "none": "Keine Titel: kopiere Musik in den Ordner Arcade/Music"
   },
   "fn": {
     "on": "FN: maximale Leistung",
@@ -453,7 +458,7 @@
     "title": "Datum und Uhrzeit",
     "field": "Feld",
     "saved": "Datum und Uhrzeit gespeichert",
-    "error": "Datum und Uhrzeit konnten nicht eingestellt werden"
+    "error": "Datum und Uhrzeit konnten nicht gespeichert werden"
   },
   "sdinfo": {
     "title": "SD-Karte",
@@ -486,7 +491,7 @@
     "joining": "Verbinde mit %s…",
     "password_for": "Passwort für %s",
     "short": "Das Passwort braucht mindestens 8 Zeichen",
-    "error": "Verbindung nicht möglich",
+    "error": "Keine Verbindung: prüfe das Passwort und versuche es erneut",
     "already": "Du bist bereits mit diesem Netz verbunden"
   },
   "led": {
@@ -550,32 +555,32 @@
   },
   "update": {
     "title": "System aktualisieren",
-    "no_wifi": "WLAN muss verbunden sein",
+    "no_wifi": "Verbinde dich mit dem WLAN, um nach Updates zu suchen",
     "searching": "Suche nach Update…",
     "checking": "Prüfe die Dateien auf der Karte…",
-    "none": "Kein Update gefunden",
-    "none_hint": "Internetverbindung prüfen.",
+    "none": "Updates nicht verfügbar",
+    "none_hint": "Versuche es später erneut.",
     "current": "Das System ist aktuell",
     "available": "Verfügbar: %s",
-    "details": "Aktuell: %s · %d Dateien herunterzuladen, %s.",
+    "details": "Installiert: %s · %d Dateien zum Herunterladen, %s.",
     "download": "Herunterladen",
     "install": "Installieren",
     "downloading": "Lade und prüfe Dateien…",
-    "ready": "Heruntergeladen und geprüft",
+    "ready": "Bereit zur Installation",
     "ready_hint": "Version %s jetzt installieren? Danach startet die Konsole neu.",
-    "installing": "Installiere…",
+    "installing": "Wird installiert: Konsole nicht ausschalten",
     "done": "Update installiert",
     "restart": "Neu starten",
     "restarting": "Neustart…",
-    "err1": "Verbindung fehlgeschlagen",
-    "err2": "Ungültige Signatur: Update abgelehnt",
-    "err3": "Ungültige Dateiliste",
+    "err1": "Verbindung unterbrochen: versuche es erneut",
+    "err2": "Update nicht echt: Es wurde nicht installiert",
+    "err3": "Ungültiges Update: versuche es später erneut",
     "err4": "Nicht genug Platz auf der Karte",
-    "err5": "Datei weicht nach dem Schreiben vom Original ab",
-    "err6": "Schreiben auf die Karte fehlgeschlagen",
+    "err5": "Kopieren auf die Karte fehlgeschlagen: versuche es erneut",
+    "err6": "Schreiben auf die Karte nicht möglich",
     "err7": "Update abgebrochen",
     "battery_low": "Akku bei %d%%: zum Aktualisieren das Ladegerät anschließen",
-    "err_safe": "Das laufende System wurde nicht verändert.",
+    "err_safe": "Deine Konsole ist unverändert.",
     "channel_stable": "Stabil",
     "channel_dev": "Entwicklung",
     "channel_warn": "Testversionen: Probleme sind möglich",
@@ -605,7 +610,7 @@
   "diag": {
     "title": "Spieldiagnose",
     "checking": "Spiel wird geprüft…",
-    "quick": "Schnellprüfung: vergleicht Namen, Größen und CRC, ohne die komprimierten Daten zu lesen.",
+    "quick": "Schnellprüfung: vergleicht die Dateien des Spiels, ohne den ganzen Inhalt zu lesen.",
     "core_said": "Meldung des Emulators",
     "head_failed": "Der Emulator hat das Spiel abgelehnt",
     "body_failed": "Die Dateien scheinen vorhanden zu sein, aber das Spiel startet nicht. Der Inhalt ist möglicherweise beschädigt: Kopiere ihn erneut auf die Karte oder versuche eine andere Kopie.",
@@ -636,7 +641,7 @@
     "welcome": "Willkommen bei Mosaik",
     "language": "Wähle die Sprache",
     "wifi_title": "Mit dem WLAN verbinden?",
-    "wifi_body": "Es wird für Uhrzeit, Cover und Updates gebraucht. Du kannst das auch später in den Einstellungen tun.",
+    "wifi_body": "Damit stimmt die Uhrzeit und die Konsole kann Cover und Updates laden. Du kannst das auch später in den Einstellungen tun.",
     "connect": "Verbinden",
     "later": "Später"
   },
@@ -713,7 +718,7 @@
     "save": "Speichern",
     "load": "Laden",
     "no_preview": "Keine Vorschau",
-    "load_failed": "Nicht geladen: vielleicht aus einer anderen Version",
+    "load_failed": "Dieser Spielstand lässt sich nicht laden: vielleicht von einer anderen Spielversion",
     "note": "Beim Laden eines Platzes bleibt das laufende Spiel im automatischen Speicherstand."
   }
 }
