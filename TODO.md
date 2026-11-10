@@ -18,6 +18,7 @@
 - [ ] Neo Geo Pocket: Beetle NeoPop writes its `.flash` only when the game closes; a forced power-off loses the progress ([#6](https://github.com/diapolon/mosaik_cfw/issues/6))
 - [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system ([#3](https://github.com/diapolon/mosaik_cfw/issues/3))
 - [ ] Full ROM check that decompresses the data, as an option next to the quick check
+- [ ] On restart the card was once not closed cleanly: a process still had `Logs/passi.txt` open as its output ("SD non chiusa" in `passi.txt`, Smart Pro, 10 Nov 22:02), so the next start ran the card check. Find which process and close it in `finish`
 - [x] Undo the files already replaced when an update stops with an error
 - [x] Replace `volatile` status fields with atomics or a mutex in the worker threads
 - [x] Do not grow the card or mount it for writing after a failed disk check, and recover the partition table from its backup copy (new images since 0.9.15)
