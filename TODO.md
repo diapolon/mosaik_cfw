@@ -14,6 +14,8 @@
 
 ## Reliability
 
+- [ ] Games with the same file name on two platforms that share a core (MD/SMS/GG, GB/GBC) share saves, states, statistics and pictures: keep each platform apart and move existing files ([#5](https://github.com/diapolon/mosaik_cfw/issues/5))
+- [ ] Neo Geo Pocket: Beetle NeoPop writes its `.flash` only when the game closes; a forced power-off loses the progress ([#6](https://github.com/diapolon/mosaik_cfw/issues/6))
 - [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system ([#3](https://github.com/diapolon/mosaik_cfw/issues/3))
 - [ ] Full ROM check that decompresses the data, as an option next to the quick check
 - [x] Undo the files already replaced when an update stops with an error
