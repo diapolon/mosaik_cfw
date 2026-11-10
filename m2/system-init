@@ -110,19 +110,34 @@ if [ -f "$ROOT/System/controlla-sd" ]; then
     step "controllo della SD: Logs/fsck-controllo.txt"
 fi
 
+# >>> nomi corti dopo il Mac (m2/test-fatnomi.sh prova questo blocco)
 # nomi corti doppi lasciati dal driver FAT di macOS (m2/fatnomi.c): al primo spegnimento brusco
-# fsck.fat ne rinominerebbe uno in FSCK0000.000 e il gioco perderebbe quel file. Solo dopo che
-# la scheda è passata da un Mac (macOS crea .fseventsd a ogni montaggio) e prima del launcher,
-# che non deve trovare un file a metà rinomina. Poi la cartella si toglie: il Mac la ricrea.
-if [ -d /mnt/SDCARD/.fseventsd ]; then
-    out=$(fatnomi /mnt/SDCARD 2>&1); rc=$?
+# fsck.fat ne rinominerebbe uno in FSCK0000.000 e il gioco perderebbe quel file. Si controllano
+# dopo ogni passaggio della scheda da un Mac, prima del launcher, che non deve trovare un file a
+# metà rinomina. macOS scrive un identificativo nuovo in .fseventsd/fseventsd-uuid a ogni
+# montaggio: se è diverso dall'ultimo visto, la scheda è passata da un Mac. Si confronta il
+# contenuto e non la data (macOS scrive le date del FAT nell'ora locale del Mac). Se .fseventsd
+# manca, fanno da traccia le altre cartelle che lascia macOS. Non si cancella nulla.
+SD=${SD:-/mnt/SDCARD}
+MACID=$(cat "$SD/.fseventsd/fseventsd-uuid" 2> /dev/null)
+if [ -z "$MACID" ]; then
+    for m in .fseventsd .Trashes .Spotlight-V100 .TemporaryItems; do
+        [ -e "$SD/$m" ] && MACID="$MACID $m"
+    done
+    [ -n "$MACID" ] && MACID="senza uuid:$MACID"
+fi
+SEEN=$ROOT/System/mac-visto.txt
+if [ -n "$MACID" ] && [ "$MACID" != "$(cat "$SEEN" 2> /dev/null)" ]; then
+    out=$(fatnomi "$SD" 2>&1); rc=$?
     if [ -n "$out" ]; then
         { echo "=== $(date)"; echo "$out"; echo "esito $rc"; } >> "$ROOT/Logs/nomi-corti.txt"
-        sync
     fi
-    [ $rc != 2 ] && rm -rf /mnt/SDCARD/.fseventsd
-    step "nomi corti controllati: esito $rc, riparati $(printf '%s\n' "$out" | grep -c '^riparato:')"
+    # solo un controllo arrivato in fondo conta come fatto: altrimenti si riprova al prossimo avvio
+    if [ $rc != 2 ]; then echo "$MACID" > "$SEEN.tmp" && mv -f "$SEEN.tmp" "$SEEN"; fi
+    sync
+    step "nomi corti controllati ($MACID): esito $rc, riparati $(printf '%s\n' "$out" | grep -c '^riparato:')"
 fi
+# <<< nomi corti dopo il Mac
 
 # pulizia dei file che macOS lascia sulla SD copiando (._nome, .DS_Store; il launcher li
 # ignora): in sottofondo e solo quando il launcher è già partito. Fatta durante l'avvio,

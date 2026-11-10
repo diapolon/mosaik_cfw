@@ -46,28 +46,9 @@ if grep -q '^xradio_wlan ' /proc/modules; then
     if timeout -s KILL 5 rmmod xradio_wlan 2> /dev/null; then step "driver Wi-Fi tolto"
     else step "driver Wi-Fi non tolto"; fi
 fi
-# LED in standby (prova): invece di spegnerli tutti, una sola zona con un respiro lento al
-# minimo, per far capire che la console dorme e non è spenta. Il respiro lo calcola il driver
-# led_anim: la prova dice se continua a console sospesa, se resta fisso o se si spegne, e
-# quanto costa in batteria. Con i LED spenti nelle impostazioni (led_mode 0) restano spenti.
-led_standby() {
-    d=/sys/class/led_anim
-    [ -e $d/effect_enable ] || return 1
-    grep -q '"led_mode": *0' "$ROOT/System/settings.json" 2> /dev/null && return 1
-    z=
-    for c in m lr; do [ -e $d/effect_$c ] && { z=$c; break; }; done
-    [ -n "$z" ] || return 1
-    for c in lr m f1 f2 rear; do
-        [ "$c" != "$z" ] && [ -e $d/effect_$c ] && echo 0 > $d/effect_$c
-    done
-    for m in max_scale max_scale_lr max_scale_f1f2 max_scale_rear; do echo 4 > $d/$m 2> /dev/null; done
-    echo "FFFFFF " > $d/effect_rgb_hex_$z
-    echo 30000 > $d/effect_cycles_$z
-    echo 4000 > $d/effect_duration_$z
-    echo 2 > $d/effect_$z
-    step "LED in standby: respiro lento sulla zona $z"
-}
-led_standby || echo 0 > /sys/class/led_anim/enable 2> /dev/null
+# LED spenti: le animazioni le calcola il driver led_anim sul processore, e in sospensione si
+# fermano (provato su Brick Pro con un respiro lento: si spegne appena la console dorme)
+echo 0 > /sys/class/led_anim/enable 2> /dev/null
 # audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
 mute
 touch /tmp/system_suspend
