@@ -1,4 +1,5 @@
 #include "stickcal.h"
+#include "../common/durable.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +47,7 @@ static bool put_file(const char *path, const char *text) {
     fputs(text, f);
     bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
-    if (ok && rename(tmp, path) == 0) return true;
+    if (ok && durable_replace(tmp, path) == 0) return true;
     remove(tmp);
     return false;
 }

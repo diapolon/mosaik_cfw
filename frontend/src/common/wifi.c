@@ -97,6 +97,12 @@ static bool wpa(char *out, size_t n, ...) {
 
 static bool wpa_ok(const char *out) { return !strncmp(out, "OK", 2); }
 
+/* wpa_supplicant riscrive System/wifi.conf e lo rinomina, ma il cambio della cartella resta in
+   memoria: uno spegnimento subito dopo può far perdere tutte le reti (vedi common/durable.h) */
+static void save_config(char *buf, size_t n) {
+    if (wpa(buf, n, "save_config", NULL) && wpa_ok(buf)) sync();
+}
+
 /* wpa_cli scrive i nomi con le sequenze di printf_encode (\xNN, \", \\ ...) */
 static void ssid_decode(const char *in, char *out, size_t n) {
     size_t o = 0;
@@ -180,7 +186,7 @@ static void status_read(wifi_status_t *o) {
         if (__atomic_exchange_n(&pending, false, __ATOMIC_SEQ_CST)) {
             /* select_network disattiva le altre reti salvate: si riattivano e si salva */
             wpa(buf, sizeof buf, "enable_network", "all", NULL);
-            wpa(buf, sizeof buf, "save_config", NULL);
+            save_config(buf, sizeof buf);
         }
     }
 }
@@ -306,7 +312,7 @@ bool wifi_forget(const char *ssid) {
         snprintf(id, sizeof id, "%d", sv[s].id);
         ok = wpa(buf, sizeof buf, "remove_network", id, NULL) && wpa_ok(buf);
     }
-    if (ok) wpa(buf, sizeof buf, "save_config", NULL);
+    if (ok) save_config(buf, sizeof buf);
     st_time = -10;
     return ok;
 }

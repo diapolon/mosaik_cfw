@@ -1,6 +1,7 @@
 #include "games.h"
 #include "../common/json.h"
 #include "../common/ui.h"
+#include "../common/durable.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -287,7 +288,7 @@ static int kv_load(const char *path, kv_t **out) {
 static void commit_file(FILE *f, const char *tmp, const char *path) {
     bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
-    if (ok && rename(tmp, path) == 0) return;
+    if (ok && durable_replace(tmp, path) == 0) return;
     ui_log("scrittura di %s non riuscita: resta il file di prima", path);
     remove(tmp);
 }

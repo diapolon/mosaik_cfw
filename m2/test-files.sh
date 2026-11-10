@@ -22,7 +22,11 @@ static const char *fail_rename_to; static int fail_fsync; static char dir[512]; 
 static int test_rename(const char *a, const char *b) { if (fail_rename_to && !strcmp(b, fail_rename_to)) { errno = EIO; return -1; } return rename(a, b); }
 static int test_fsync(int fd) { if (fail_fsync) { errno = EIO; return -1; } return fsync(fd); }
 #define rename test_rename
+static int syncs;
+static void test_sync(void) { syncs++; }
+#define sync test_sync
 #define fsync test_fsync
+#include "/trimui/frontend/src/common/durable.h"
 enum { BTN_COUNT = 20, ROT_NONE = 0 };
 static const int default_map[16] = { 0 };
 static struct { struct { int aspect, bezel; char filter[32]; } set; } UI;
@@ -79,8 +83,10 @@ int main(void) {
     thumb = (SDL_Surface *)1;
     save("A", true);
     file_is("primo salvataggio", "auto.state", "A");
+    int s0 = syncs;
     save("B", true);
     file_is("secondo salvataggio", "auto.state", "B");
+    if (syncs > s0) puts("  ok: salvataggio scritto sulla scheda dopo la sostituzione"); else { puts("  ERRORE: nessun sync dopo la sostituzione del salvataggio"); errors++; }
     file_is("il primo resta come copia", "auto.state.prev", "A");
     file_is("con la sua anteprima", "auto.state.prev.png", "A");
     game_file(p, sizeof p, "auto.state");
@@ -108,9 +114,13 @@ int main(void) {
     char keys[2][96] = { "uno", "due" };
     snprintf(p, sizeof p, "%s/lista.txt", root); snprintf(q, sizeof q, "%s.tmp", p);
     put(p, "vecchia\n");
+    int s1 = syncs;
     write_list(p, keys, 2);
     same("scritta", get(p), "uno\ndue\n");
+    if (syncs > s1) puts("  ok: elenco scritto sulla scheda dopo la sostituzione"); else { puts("  ERRORE: nessun sync dopo la sostituzione dell'elenco"); errors++; }
+    s1 = syncs;
     put(p, "vecchia\n"); fail_fsync = 1; write_list(p, keys, 2); fail_fsync = 0;
+    if (syncs == s1) puts("  ok: scrittura fallita, nessun sync"); else { puts("  ERRORE: sync dopo una scrittura fallita"); errors++; }
     same("scrittura fallita: resta quella di prima", get(p), "vecchia\n");
     same("nessun provvisorio", get(q), "(manca)");
     fail_rename_to = p; write_list(p, keys, 2); fail_rename_to = NULL;
@@ -146,6 +156,7 @@ if sh $CTL off && grep -q 'Wi-Fi spento' $LOG; then ok "comando interrotto: il b
 [ "$(grep -c 'wpa_.*9>&-' $CTL)" = 2 ] && ok "i demoni non ereditano il blocco" || ko "i demoni ereditano il blocco"
 
 check "ricerca delle reti non affidata al driver" grep -q 'wpa_supplicant -B .*-I /run/wpa-overlay.conf' $CTL
+check "file delle reti vuoto: si ricrea" grep -q 'if \[ ! -s "$CONF" \]; then' $CTL
 check "impostazione scritta nel file aggiuntivo" grep -q 'disable_scan_offload=1 > /run/wpa-overlay.conf' $CTL
 check "attesa prima di wpa_supplicant" grep -q '^    sleep 0.5' $CTL
 

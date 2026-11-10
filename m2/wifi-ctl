@@ -42,7 +42,9 @@ on)
     for k in /sys/class/rfkill/rfkill*; do
         [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 1 > "$k/state" 2> /dev/null
     done
-    if [ ! -f "$CONF" ]; then
+    # anche se è vuoto: il controllo della SD svuota un file rimasto a metà dopo uno spegnimento
+    # brusco, e senza update_config=1 wpa_supplicant non salverebbe più nessuna rete
+    if [ ! -s "$CONF" ]; then
         printf 'ctrl_interface=%s\nupdate_config=1\n' "$CTRL" > "$CONF"
     fi
     ifconfig wlan0 up

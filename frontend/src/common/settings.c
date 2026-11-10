@@ -1,6 +1,7 @@
 #include "settings.h"
 #include "json.h"
 #include "filters.h"
+#include "durable.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -192,7 +193,7 @@ bool settings_save(const settings_t *s, const char *root) {
     if (fclose(f) != 0) ok = false;
     /* solo un file scritto per intero prende il posto del precedente */
     if (!ok) { remove(tmp); return false; }
-    return rename(tmp, path) == 0;
+    return durable_replace(tmp, path) == 0;
 }
 
 void device_size(const char *device, int *w, int *h) {

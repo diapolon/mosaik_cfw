@@ -7,6 +7,7 @@
 #include "ratectl.h"
 #include "../common/filters.h"
 #include "../common/json.h"
+#include "../common/durable.h"
 #include <SDL_image.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -596,7 +597,7 @@ static bool copy_whole(const char *from, const char *to) {
         if (fclose(out) != 0) ok = false;
     }
     fclose(in);
-    ok = ok && rename(t, to) == 0;
+    ok = ok && durable_replace(t, to) == 0;
     if (!ok) remove(t);
     return ok;
 }
@@ -628,7 +629,7 @@ static bool state_save(bool autosave) {
         ok = f && fwrite(buf, 1, n, f) == n;
         if (f) { ok = fflush(f) == 0 && fsync(fileno(f)) == 0 && ok; fclose(f); }
         if (ok && autosave) auto_keep_previous();
-        ok = ok && rename(t, p) == 0;
+        ok = ok && durable_replace(t, p) == 0;
         if (!ok) remove(t);
         if (ok) {
             char png[1450];
@@ -957,8 +958,10 @@ static void stats_update(void) {
     }
     if (!found) fprintf(out, "%s\t%s\t1\t%ld\t%ld\n", core_id, rom_name, (long)played, (long)time(NULL));
     if (in) fclose(in);
-    fclose(out);
-    rename(tmp, p);
+    /* come le altre scritture: o resta l'elenco di prima o arriva tutto quello nuovo */
+    bool ok = !ferror(out) && fflush(out) == 0 && fsync(fileno(out)) == 0;
+    if (fclose(out) != 0) ok = false;
+    if (!ok || durable_replace(tmp, p) != 0) { ui_log("impossibile scrivere %s", p); remove(tmp); }
 }
 
 static void write_resume(void) {
@@ -970,7 +973,7 @@ static void write_resume(void) {
     fprintf(f, "libretro\t%s\t%s\t%s\tresume\n", core_path, rom_path, title);
     bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
-    if (!ok || rename(t, p) != 0) { ui_log("impossibile scrivere %s", p); remove(t); }
+    if (!ok || durable_replace(t, p) != 0) { ui_log("impossibile scrivere %s", p); remove(t); }
 }
 
 /* Prestazioni: ogni 10 s di gioco nel log fotogrammi al secondo, tempi dell'emulatore e del
