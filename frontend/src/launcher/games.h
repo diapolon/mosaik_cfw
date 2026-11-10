@@ -36,16 +36,22 @@ typedef struct {
    Tutti i campi tranne "name" sono facoltativi. Per le console di casa:
    "kind": "console" (niente ArcadeDB, doppioni né cabinato) e "thumbnails": il nome della
    raccolta di miniature libretro, es. "Sega - Mega Drive - Genesis"; "short": la sigla sulla
-   cartuccia della schermata Piattaforme (predefinita: l'id in maiuscolo). */
+   cartuccia della schermata Piattaforme (predefinita: l'id in maiuscolo); "art": il disegno
+   nella schermata Piattaforme, "handheld" (portatile verticale) o "handheld-wide" (portatile
+   orizzontale) o "disc" (console a disco), altrimenti la console da casa; "planned": true
+   per una console non ancora supportata: solo nella schermata Piattaforme, in grigio, senza
+   core né cartella delle ROM (elenco PLANNED, separato da EMUS). */
 typedef struct {
-    char id[16], name[48], core[64], roms[256], index[256], thumbs[64], shortname[16];
+    char id[16], name[48], core[64], roms[256], index[256], thumbs[64], shortname[16], art[16];
     char exts[8][12];
     int nexts, order;
-    bool console;
+    bool console, planned;
 } emulator_t;
 
 extern emulator_t EMUS[16];
 extern int NEMUS;
+extern emulator_t PLANNED[16];
+extern int NPLANNED;
 
 int emulators_load(const char *root);
 const emulator_t *emulator_find(const char *id);

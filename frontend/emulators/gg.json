@@ -1,0 +1,8 @@
+{
+  "name": "Game Gear",
+  "kind": "console",
+  "planned": true,
+  "art": "handheld-wide",
+  "short": "Game Gear",
+  "order": 62
+}

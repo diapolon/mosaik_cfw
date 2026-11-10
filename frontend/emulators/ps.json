@@ -1,0 +1,8 @@
+{
+  "name": "PlayStation",
+  "kind": "console",
+  "planned": true,
+  "art": "disc",
+  "short": "PS1",
+  "order": 60
+}

@@ -29,6 +29,7 @@ static void test_sync(void) { syncs++; }
 #include "/trimui/frontend/src/common/durable.h"
 #define LIST_KEY 160
 #define RETRO_MEMORY_SAVE_RAM 0
+#define RETRO_MEMORY_RTC 1
 enum { BTN_COUNT = 20, ROT_NONE = 0 };
 static const int default_map[16] = { 0 };
 static struct { struct { int aspect, bezel; char filter[32]; } set; } UI;
@@ -133,9 +134,11 @@ int main(void) {
     same("nessun provvisorio", get(q), "(manca)");
 
     puts("--- salvataggi a batteria (.srm)");
-    static unsigned char ram[16];
-    size_t fsz(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? sizeof ram : 0; }
-    void *fdat(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? ram : NULL; }
+    static unsigned char ram[16], rtc[8];
+    static int with_rtc;
+    size_t fsz(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? sizeof ram : id == RETRO_MEMORY_RTC && with_rtc ? sizeof rtc : 0; }
+    void *fdat(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? ram : id == RETRO_MEMORY_RTC && with_rtc ? rtc : NULL; }
+    #define FORGET() for (int b_ = 0; b_ < NBATT; b_++) { free(batt[b_].copy); batt[b_].copy = NULL; batt[b_].len = 0; }
     mem_size = fsz; mem_data = fdat;
     game_file(p, sizeof p, "srm");
     sram_load();
@@ -149,10 +152,10 @@ int main(void) {
     remove(p); sram_save();
     same("nessun cambiamento: non si riscrive", get(p), "(manca)");
     ram[2] = 'l'; sram_save();
-    memset(ram, 0, sizeof ram); free(sram_copy); sram_copy = NULL; sram_len = 0;
+    memset(ram, 0, sizeof ram); FORGET();
     sram_load();
     same("partita dopo: memoria ricaricata dal file", (char[]){ (char)ram[0], (char)ram[1], (char)ram[2], 0 }, "Zel");
-    put(p, "AB"); memset(ram, 'x', sizeof ram); free(sram_copy); sram_copy = NULL; sram_len = 0;
+    put(p, "AB"); memset(ram, 'x', sizeof ram); FORGET();
     sram_load();
     same("file più corto: si legge quello che c'è", (char[]){ (char)ram[0], (char)ram[1], (char)ram[2], 0 }, "ABx");
     ram[5] = 'q'; fail_rename_to = p; sram_save(); fail_rename_to = NULL;
@@ -161,9 +164,22 @@ int main(void) {
     sram_save();
     { char b[8] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 6, f) != 6) b[5] = 0; fclose(f); }
       same("al tentativo dopo si scrive", b[5] == 'q' ? "q" : "vecchio", "q"); }
-    mem_size = NULL; mem_data = NULL; free(sram_copy); sram_copy = NULL; sram_len = 0;
+    mem_size = NULL; mem_data = NULL; FORGET();
     sram_load(); sram_save();
     puts("  ok: core senza memoria a batteria (FBNeo, MAME): niente da fare");
+    puts("--- orologio della cartuccia (.rtc, Gambatte)");
+    mem_size = fsz; mem_data = fdat; with_rtc = 1; FORGET();
+    game_file(q, sizeof q, "rtc");
+    remove(p); memset(ram, 0, sizeof ram); memset(rtc, 0, sizeof rtc);
+    sram_load();
+    rtc[0] = 'T'; rtc[1] = '1'; sram_save();
+    same("orologio cambiato: .rtc scritto", get(q), "T1");
+    same("memoria della partita invariata: niente .srm", get(p), "(manca)");
+    memset(rtc, 0, sizeof rtc); FORGET(); sram_load();
+    same("partita dopo: orologio ricaricato", (char[]){ (char)rtc[0], (char)rtc[1], 0 }, "T1");
+    ram[0] = 'P'; sram_save();
+    { char b[4] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 1, f) != 1) b[0] = 0; fclose(f); } same("e la memoria a parte, nel suo .srm", b, "P"); }
+    same(".rtc non riscritto se non cambia", get(q), "T1");
     return errors != 0;
 }
 C

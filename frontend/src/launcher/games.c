@@ -14,6 +14,8 @@
 
 emulator_t EMUS[16];
 int NEMUS;
+emulator_t PLANNED[16];
+int NPLANNED;
 
 static int emu_cmp(const void *a, const void *b) {
     const emulator_t *x = a, *y = b;
@@ -24,10 +26,11 @@ int emulators_load(const char *root) {
     char dirp[1100];
     snprintf(dirp, sizeof dirp, "%s/Emulators", root);
     NEMUS = 0;
+    NPLANNED = 0;
     DIR *d = opendir(dirp);
     if (!d) return 0;
     struct dirent *e;
-    while ((e = readdir(d)) && NEMUS < 16) {
+    while ((e = readdir(d))) {
         size_t len = strlen(e->d_name);
         /* i file che iniziano con un punto sono nascosti (anche i ._ di macOS) */
         if (e->d_name[0] == '.' || len < 6 || len > 20 || strcmp(e->d_name + len - 5, ".json")) continue;
@@ -35,7 +38,9 @@ int emulators_load(const char *root) {
         snprintf(p, sizeof p, "%s/%s", dirp, e->d_name);
         jval *j = json_load(p);
         if (!j) continue;
-        emulator_t *m = &EMUS[NEMUS++];
+        bool planned = json_bool(j, "planned", false);
+        if (planned ? NPLANNED >= 16 : NEMUS >= 16) { json_free(j); continue; }
+        emulator_t *m = planned ? &PLANNED[NPLANNED++] : &EMUS[NEMUS++];
         memset(m, 0, sizeof *m);
         snprintf(m->id, sizeof m->id, "%.*s", (int)(len - 5), e->d_name);
         char upper[16];
@@ -52,6 +57,8 @@ int emulators_load(const char *root) {
         m->console = !strcmp(json_str(j, "kind", ""), "console");
         snprintf(m->thumbs, sizeof m->thumbs, "%s", json_str(j, "thumbnails", ""));
         snprintf(m->shortname, sizeof m->shortname, "%s", json_str(j, "short", upper));
+        snprintf(m->art, sizeof m->art, "%s", json_str(j, "art", ""));
+        m->planned = planned;
         jval *ex = json_get(j, "extensions");
         for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v && m->nexts < 8; v = v->next)
             if (v->t == J_STR) snprintf(m->exts[m->nexts++], sizeof m->exts[0], ".%s", v->s);
@@ -60,9 +67,20 @@ int emulators_load(const char *root) {
             strcpy(m->exts[m->nexts++], ".7z");
         }
         json_free(j);
+        /* cartella delle ROM: chi aggiorna via Wi-Fi riceve l'emulatore nuovo ma non la
+           cartella. Si crea solo dentro la SD e solo se manca (mkdir di una cartella che c'è
+           non scrive nulla); un percorso assoluto è dell'utente e non si tocca. */
+        if (!planned && m->roms[0] && m->roms[0] != '/' && !strstr(m->roms, "..")) {
+            char rp[600];
+            snprintf(rp, sizeof rp, "%s/%s", root, m->roms);
+            for (char *q = rp + strlen(root) + 1; *q; q++)
+                if (*q == '/') { *q = 0; mkdir(rp, 0755); *q = '/'; }
+            mkdir(rp, 0755);
+        }
     }
     closedir(d);
     qsort(EMUS, (size_t)NEMUS, sizeof(emulator_t), emu_cmp);
+    qsort(PLANNED, (size_t)NPLANNED, sizeof(emulator_t), emu_cmp);
     return NEMUS;
 }
 

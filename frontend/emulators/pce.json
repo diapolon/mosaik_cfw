@@ -1,0 +1,7 @@
+{
+  "name": "PC Engine",
+  "kind": "console",
+  "planned": true,
+  "short": "PCE",
+  "order": 63
+}

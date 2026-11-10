@@ -129,43 +129,53 @@ static void game_file(char *out, size_t n, const char *ext) {
 
 /* ------------------------------------------------- salvataggi a batteria */
 /* La memoria che la cartuccia tiene con la pila (Zelda, Phantasy Star...) va in
-   Saves/<core>/<rom>.srm: si legge appena caricato il gioco e si scrive quando cambia
-   (controllo ogni 10 s) e a ogni uscita, anche per batteria scarica e prima della sospensione.
-   FBNeo e MAME non ne hanno: per loro non succede nulla. */
+   Saves/<core>/<rom>.srm, l'orologio della cartuccia (Pokémon Oro, Argento, Cristallo) in
+   <rom>.rtc, come in RetroArch: si leggono appena caricato il gioco e si scrivono quando
+   cambiano (controllo ogni 10 s) e a ogni uscita, anche per batteria scarica e prima della
+   sospensione. FBNeo e MAME non ne hanno: per loro non succede nulla. */
 static size_t (*mem_size)(unsigned);
 static void *(*mem_data)(unsigned);
-static unsigned char *sram_copy;   /* contenuto già sulla scheda */
-static size_t sram_len;
+static struct {
+    unsigned id;
+    const char *ext;
+    unsigned char *copy;   /* contenuto già sulla scheda */
+    size_t len;
+} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0 }, { RETRO_MEMORY_RTC, "rtc", NULL, 0 } };
+enum { NBATT = sizeof batt / sizeof batt[0] };
 
 static void sram_load(void) {
     if (!mem_size || !mem_data) return;
-    size_t len = mem_size(RETRO_MEMORY_SAVE_RAM);
-    unsigned char *m = mem_data(RETRO_MEMORY_SAVE_RAM);
-    if (!len || !m || !(sram_copy = malloc(len))) return;
-    sram_len = len;
-    char p[1200];
-    game_file(p, sizeof p, "srm");
-    FILE *f = fopen(p, "rb");
-    if (f) {
-        size_t n = fread(m, 1, len, f);
-        fclose(f);
-        ui_log("salvataggio a batteria: %zu di %zu byte letti", n, len);
+    for (int b = 0; b < NBATT; b++) {
+        size_t len = mem_size(batt[b].id);
+        unsigned char *m = mem_data(batt[b].id);
+        if (!len || !m || !(batt[b].copy = malloc(len))) continue;
+        batt[b].len = len;
+        char p[1200];
+        game_file(p, sizeof p, batt[b].ext);
+        FILE *f = fopen(p, "rb");
+        if (f) {
+            size_t n = fread(m, 1, len, f);
+            fclose(f);
+            ui_log("salvataggio a batteria (.%s): %zu di %zu byte letti", batt[b].ext, n, len);
+        }
+        memcpy(batt[b].copy, m, len);
     }
-    memcpy(sram_copy, m, len);
 }
 
 static void sram_save(void) {
-    if (!sram_len) return;
-    unsigned char *m = mem_data(RETRO_MEMORY_SAVE_RAM);
-    if (!m || !memcmp(m, sram_copy, sram_len)) return;
-    char p[1200], t[1300];
-    game_file(p, sizeof p, "srm");
-    snprintf(t, sizeof t, "%s.tmp", p);
-    FILE *f = fopen(t, "wb");
-    bool ok = f && fwrite(m, 1, sram_len, f) == sram_len;
-    if (f) { ok = fflush(f) == 0 && fsync(fileno(f)) == 0 && ok; if (fclose(f) != 0) ok = false; }
-    if (ok && durable_replace(t, p) == 0) { memcpy(sram_copy, m, sram_len); ui_log("salvataggio a batteria scritto"); }
-    else { remove(t); ui_log("impossibile scrivere %s", p); }
+    for (int b = 0; b < NBATT; b++) {
+        if (!batt[b].len) continue;
+        unsigned char *m = mem_data(batt[b].id);
+        if (!m || !memcmp(m, batt[b].copy, batt[b].len)) continue;
+        char p[1200], t[1300];
+        game_file(p, sizeof p, batt[b].ext);
+        snprintf(t, sizeof t, "%s.tmp", p);
+        FILE *f = fopen(t, "wb");
+        bool ok = f && fwrite(m, 1, batt[b].len, f) == batt[b].len;
+        if (f) { ok = fflush(f) == 0 && fsync(fileno(f)) == 0 && ok; if (fclose(f) != 0) ok = false; }
+        if (ok && durable_replace(t, p) == 0) { memcpy(batt[b].copy, m, batt[b].len); ui_log("salvataggio a batteria (.%s) scritto", batt[b].ext); }
+        else { remove(t); ui_log("impossibile scrivere %s", p); }
+    }
 }
 
 static void opts_load_overrides(void) {

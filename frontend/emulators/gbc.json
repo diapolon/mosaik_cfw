@@ -1,0 +1,11 @@
+{
+  "name": "Game Boy Color",
+  "core": "gambatte_libretro",
+  "roms": "Roms/GBC",
+  "extensions": ["gbc", "gb", "zip"],
+  "kind": "console",
+  "art": "handheld",
+  "short": "GB Color",
+  "thumbnails": "Nintendo - Game Boy Color",
+  "order": 51
+}

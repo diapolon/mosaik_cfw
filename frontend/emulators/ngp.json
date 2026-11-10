@@ -1,0 +1,8 @@
+{
+  "name": "Neo Geo Pocket",
+  "kind": "console",
+  "planned": true,
+  "art": "handheld-wide",
+  "short": "NGP",
+  "order": 64
+}

@@ -64,7 +64,8 @@
     "open": "Ouvrir la bibliothèque",
     "one": "1 jeu",
     "native": "> jeux natifs",
-    "console": "Console"
+    "console": "Console",
+    "coming": "Bientôt disponible"
   },
   "lib": {
     "confirm": "Confirmer",

@@ -54,8 +54,12 @@ static bool ring_init;
 
 /* libreria */
 /* schede: tutti, un emulatore ciascuno (TAB_EMU + indice), Linux, preferiti */
-enum { TAB_ALL, TAB_LINUX, TAB_FAV, TAB_EMU = 100, TAB_COLL = 200 };
+enum { TAB_ALL, TAB_LINUX, TAB_FAV, TAB_EMU = 100, TAB_COLL = 200, TAB_PLAN = 300 };
 static int tabs[24], ntabs, tab_sel;
+/* schermata Piattaforme: le stesse schede, poi le console in arrivo (TAB_PLAN + indice in
+   PLANNED), in grigio e senza libreria. Le prime ntabs coincidono con tabs[]. */
+static int ptabs[40], nptabs;
+static bool is_plan(int t) { return t >= TAB_PLAN; }
 static int plat_sel;   /* categoria scelta nella schermata Piattaforme */
 static int *view, nview, lib_sel;
 static float lib_scroll, lib_scroll_target;
@@ -273,6 +277,7 @@ static void build_carousel(void) {
 }
 
 static const char *tab_label(int t) {
+    if (is_plan(t)) return PLANNED[t - TAB_PLAN].name;
     if (t >= TAB_COLL) return COLLS[t - TAB_COLL];
     if (t >= TAB_EMU) return EMUS[t - TAB_EMU].name;
     switch (t) {
@@ -315,6 +320,9 @@ static void build_tabs(void) {
         if (has) tabs[ntabs++] = TAB_COLL + c;
     }
     if (tab_sel >= ntabs) tab_sel = 0;
+    nptabs = 0;
+    for (int i = 0; i < ntabs; i++) ptabs[nptabs++] = tabs[i];
+    for (int i = 0; i < NPLANNED && nptabs < 40; i++) ptabs[nptabs++] = TAB_PLAN + i;
 }
 
 static bool rom_problem(const game_t *g) {
@@ -1339,6 +1347,7 @@ static float plat_anim;
 static color_t hexc(unsigned c) { return rgba(c >> 16 & 255, c >> 8 & 255, c & 255, 255); }
 
 static color_t plat_color(int tab) {
+    if (is_plan(tab)) return hexc(0x6A6D74);
     if (tab == TAB_ALL) return hexc(0x3A4E5C);
     if (tab == TAB_LINUX) return hexc(0x4B3C86);
     if (tab == TAB_FAV) return hexc(0x8C5A1C);
@@ -1348,6 +1357,10 @@ static color_t plat_color(int tab) {
     if (strstr(id, "mame")) return hexc(0x8E2A45);
     if (!strcmp(id, "nes")) return hexc(0xA8322D);
     if (!strcmp(id, "md")) return hexc(0x2B4C9B);
+    if (!strcmp(id, "gb")) return hexc(0x6F7F2C);
+    if (!strcmp(id, "gbc")) return hexc(0x1E7F86);
+    if (!strcmp(id, "gba")) return hexc(0x4A3FA0);
+    if (!strcmp(id, "snes")) return hexc(0x6B5B95);
     static const unsigned pal[] = { 0x2A5C8E, 0x5C7A2A, 0x8E5C2A };
     return hexc(pal[(tab - TAB_EMU) % 3]);
 }
@@ -1358,6 +1371,7 @@ static int plat_count(int tab) {
     return n;
 }
 static void plat_count_text(int tab, char *out, size_t sz) {
+    if (is_plan(tab)) { snprintf(out, sz, "%s", T("plat.coming")); return; }
     int n = plat_count(tab);
     if (n == 1) snprintf(out, sz, "%s", T("plat.one"));
     else snprintf(out, sz, T("info.games"), n);
@@ -1466,6 +1480,88 @@ static void draw_console(int x, int y, int w, int h, color_t c, const char *name
     for (int k = 0; k < 2; k++) ui_circle(px + pw * (66 + k * 16) / 100, dy + (k ? -1 : 1) * ph / 10, ph / 7 + 1, c);
 }
 
+/* console portatile: verticale (schermo sopra, comandi sotto) o orizzontale (schermo al
+   centro, comandi ai lati), col nome sotto lo schermo */
+static void draw_handheld(int x, int y, int w, int h, color_t c, const char *name, bool wide) {
+    color_t body = mix(c, hexc(0xD9D5CD), 0.62f), edge = mix(body, rgba(0, 0, 0, 255), 0.22f);
+    color_t bezel = hexc(0x2E3140), dark = hexc(0x1E2028);
+    int r = (wide ? h : w) / 9 + 1;
+    ui_rrect(x, y + h / 40, w, h, r, edge);
+    ui_rrect(x, y, w, h - h / 40, r, body);
+    int bx, byy, bw, bh;   /* cornice dello schermo */
+    if (wide) { bw = w * 52 / 100; bh = h * 70 / 100; bx = x + (w - bw) / 2; byy = y + h * 9 / 100; }
+    else { bw = w * 82 / 100; bh = h * 46 / 100; bx = x + (w - bw) / 2; byy = y + h * 6 / 100; }
+    ui_rrect(bx, byy, bw, bh, r / 2 + 1, bezel);
+    int lh = bh * 20 / 100, sp = bw * 9 / 100;
+    int sx = bx + sp, sy = byy + bh * 9 / 100, sw = bw - 2 * sp, sh = bh - bh * 9 / 100 - lh - bh * 4 / 100;
+    color_t scr = mix(c, hexc(0xC9D6A0), 0.55f);
+    ui_rect(sx, sy, sw, sh, scr);
+    /* una scena piccola: terreno, una collina, un personaggio */
+    color_t ink = mix(scr, rgba(0, 0, 0, 255), 0.55f);
+    ui_rect(sx, sy + sh * 78 / 100, sw, sh - sh * 78 / 100, ink);
+    ui_triangle(sx + sw * 52 / 100, sy + sh * 78 / 100, sx + sw * 74 / 100, sy + sh * 46 / 100, sx + sw * 96 / 100, sy + sh * 78 / 100, mix(scr, ink, 0.5f));
+    int pq = sh / 8 + 1;
+    ui_rect(sx + sw * 24 / 100, sy + sh * 78 / 100 - 2 * pq, pq, 2 * pq, ink);
+    ui_circle(sx + sw * 24 / 100 + pq / 2, sy + sh * 78 / 100 - 2 * pq - pq / 2, pq / 2 + 1, ink);
+    ui_circle(sx + sw * 14 / 100, sy + sh * 20 / 100, sh / 10 + 1, mix(scr, rgba(255, 255, 255, 255), 0.5f));
+    char up[64];
+    snprintf(up, sizeof up, "%s", name);
+    for (char *p = up; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+    plat_text(up, bx + bw / 2, byy + bh - lh - bh * 2 / 100, bw - bw / 8, lh, rgba(255, 255, 255, 255));
+    /* croce e due tasti */
+    int dx, dy, ax, ay, arm;
+    if (wide) { arm = h * 11 / 100; dx = x + w * 12 / 100; dy = y + h * 42 / 100; ax = x + w * 86 / 100; ay = y + h * 40 / 100; }
+    else { arm = w * 11 / 100; dx = x + w * 24 / 100; dy = y + h * 66 / 100; ax = x + w * 72 / 100; ay = y + h * 65 / 100; }
+    int th = arm * 2 / 3 + 1, br = arm * 55 / 100 + 1;
+    ui_rect(dx - arm, dy - th / 2, 2 * arm, th, dark);
+    ui_rect(dx - th / 2, dy - arm, th, 2 * arm, dark);
+    ui_circle(ax - br, ay + br * 6 / 10, br, c);
+    ui_circle(ax + br, ay - br * 6 / 10, br, c);
+    /* select e start */
+    int pw = (wide ? w * 6 : w * 13) / 100, pt = (wide ? h : w) * 3 / 100 + 1;
+    int py = wide ? y + h * 74 / 100 : y + h * 81 / 100, pcx = wide ? dx : x + w / 2;
+    for (int k = 0; k < 2; k++) ui_rrect(pcx + (k ? pw / 4 : -pw - pw / 4), py, pw, pt, pt / 2, edge);
+    /* griglia dell'altoparlante */
+    if (!wide)
+        for (int k = 0; k < 4; k++)
+            plat_line(x + w * (70 + k * 6) / 100, y + h * 93 / 100, x + w * (78 + k * 6) / 100, y + h * 82 / 100, w / 90 + 1, edge);
+    else
+        for (int k = 0; k < 3; k++) ui_circle(x + w * (82 + k * 4) / 100, y + h * 80 / 100, h / 60 + 1, edge);
+}
+
+/* console a disco: coperchio rotondo con il disco, nome su una striscia del corpo, controller */
+static void draw_disc_console(int x, int y, int w, int h, color_t c, const char *name) {
+    color_t body = mix(c, hexc(0xC9C7C2), 0.55f), edge = mix(body, rgba(0, 0, 0, 255), 0.25f), pad = hexc(0x2A2D36);
+    int r = w / 22 + 1, by = y + h * 8 / 100, bh = h * 58 / 100;
+    ui_rrect(x, by + h / 40, w, bh, r, edge);
+    ui_rrect(x, by, w, bh, r, body);
+    /* coperchio e disco */
+    int lr = bh * 36 / 100, lx = x + w * 34 / 100, ly = by + bh * 44 / 100;
+    ui_circle(lx, ly, lr + lr / 8, edge);
+    ui_circle(lx, ly, lr, mix(body, rgba(255, 255, 255, 255), 0.25f));
+    ui_circle(lx, ly, lr * 72 / 100, hexc(0xB9C3D0));
+    ui_circle(lx, ly, lr * 50 / 100, hexc(0xD8DEE6));
+    ui_circle(lx, ly, lr * 18 / 100, edge);
+    /* striscia col nome e tasti */
+    int sx = x + w * 60 / 100, sw = w * 35 / 100, sh = bh * 36 / 100, sy = by + bh * 10 / 100;
+    ui_rrect(sx, sy, sw, sh, r / 2 + 1, c);
+    char up[64];
+    snprintf(up, sizeof up, "%s", name);
+    for (char *p = up; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+    plat_text(up, sx + sw / 2, sy, sw - sw / 10, sh, rgba(255, 255, 255, 255));
+    for (int k = 0; k < 2; k++) ui_circle(sx + sw * (25 + k * 50) / 100, by + bh * 64 / 100, bh / 11 + 1, edge);
+    ui_rect(sx, by + bh * 84 / 100, sw, bh / 30 + 1, edge);
+    /* controller */
+    int pw = w * 46 / 100, ph = h * 24 / 100, px = x + w * 50 / 100, py = y + h - ph;
+    plat_line(x + w * 20 / 100, by + bh, px + pw * 15 / 100, py + ph / 3, w / 120 + 1, pad);
+    ui_rrect(px, py, pw, ph, ph / 3, pad);
+    int dx = px + pw * 24 / 100, dy = py + ph / 2, arm = ph * 28 / 100, th = arm * 2 / 3 + 1;
+    ui_rect(dx - arm, dy - th / 2, 2 * arm, th, edge);
+    ui_rect(dx - th / 2, dy - arm, th, 2 * arm, edge);
+    for (int k = 0; k < 4; k++)
+        ui_circle(px + pw * 74 / 100 + (k == 1 ? ph / 4 : k == 3 ? -ph / 4 : 0), dy + (k == 0 ? -ph / 4 : k == 2 ? ph / 4 : 0), ph / 10 + 1, c);
+}
+
 /* portatile per i giochi Linux */
 static void draw_laptop(int x, int y, int w, int h) {
     color_t shell = hexc(0xB9AE9C), shell_d = hexc(0x8E8474), scr = hexc(0x1C1A28);
@@ -1516,10 +1612,24 @@ static void draw_plat_icon(int kind, int x, int y, int w, int h, color_t c) {
 /* l'illustrazione di una categoria dentro il riquadro dato, con le sue proporzioni */
 static void draw_plat_art(int tab, int x, int y, int w, int h) {
     color_t c = plat_color(tab);
-    if (tab >= TAB_EMU && tab < TAB_COLL && EMUS[tab - TAB_EMU].console) {
+    const emulator_t *em = is_plan(tab) ? &PLANNED[tab - TAB_PLAN] : tab >= TAB_EMU && tab < TAB_COLL ? &EMUS[tab - TAB_EMU] : NULL;
+    const char *art = em ? em->art : "";
+    if (!strcmp(art, "handheld")) {
+        int ah = h * 92 / 100, aw = ah * 60 / 100;
+        if (aw > w) { aw = w; ah = w * 100 / 60; }
+        draw_handheld(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname, false);
+    } else if (!strcmp(art, "handheld-wide")) {
+        int aw = w, ah = w * 46 / 100;
+        if (ah > h * 70 / 100) { ah = h * 70 / 100; aw = ah * 100 / 46; }
+        draw_handheld(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname, true);
+    } else if (!strcmp(art, "disc")) {
+        int aw = w, ah = w * 80 / 100;
+        if (ah > h * 80 / 100) { ah = h * 80 / 100; aw = ah * 100 / 80; }
+        draw_disc_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
+    } else if (em && em->console) {
         int aw = w, ah = w * 86 / 100;
         if (ah > h * 80 / 100) { ah = h * 80 / 100; aw = ah * 100 / 86; }
-        draw_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, EMUS[tab - TAB_EMU].shortname);
+        draw_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
     } else if (tab >= TAB_EMU && tab < TAB_COLL) {
         int ah = h, aw = h * 62 / 100;
         if (aw > w) { aw = w; ah = w * 100 / 62; }
@@ -1537,7 +1647,7 @@ static void plat_draw_cards(int y, int bottom) {
     int avail = bottom - y, ch = avail * 94 / 100, cw = ch * 82 / 100;
     if (cw > UI.w * 30 / 100) { cw = UI.w * 30 / 100; ch = cw * 100 / 82; }
     int sw = cw * 64 / 100, gap = M(0.02f), cy = y + avail / 2;
-    int order[24], n = ntabs < 24 ? ntabs : 24;
+    int order[40], n = nptabs < 40 ? nptabs : 40;
     for (int i = 0; i < n; i++) order[i] = i;
     for (int a = 0; a < n; a++)   /* prima i lontani, poi i vicini: la scelta sta sopra */
         for (int b = a + 1; b < n; b++)
@@ -1550,7 +1660,7 @@ static void plat_draw_cards(int y, int bottom) {
         float off = ad <= 1 ? ad * ((cw + sw) / 2.0f + gap) : (cw + sw) / 2.0f + gap + (ad - 1) * (sw + gap);
         int x = UI.w / 2 + (int)(d < 0 ? -off : off) - w / 2, yy = cy - h / 2;
         if (x > UI.w || x + w < 0) continue;
-        color_t c = plat_color(tabs[i]);
+        color_t c = plat_color(ptabs[i]);
         ui_shadow(x, yy + M(0.008f), w, h, M(0.006f), M(0.02f), t->shadow);
         ui_rect(x, yy, w, h, c);
         ui_clip_push(x, yy, w, h);
@@ -1558,14 +1668,15 @@ static void plat_draw_cards(int y, int bottom) {
         for (int s = -h; s < w; s += sp) plat_line(x + s, yy, x + s + h, yy + h, lt, mix(c, rgba(0, 0, 0, 255), 0.32f));
         ui_clip_pop();
         int fh = h * 23 / 100, pad = w * 8 / 100;
-        draw_plat_art(tabs[i], x + pad, yy + pad, w - 2 * pad, h - fh - pad - pad / 2);
+        draw_plat_art(ptabs[i], x + pad, yy + pad, w - 2 * pad, h - fh - pad - pad / 2);
+        if (is_plan(ptabs[i])) ui_rect(x, yy, w, h - fh, with_alpha(c, 120));   /* in arrivo: velato */
         ui_rect(x, yy + h - fh, w, fh, hexc(0x151822));
         TTF_Font *fnm = k > 0.5f ? UI.f_normal : UI.f_small;
         char fit[120];
-        ui_text_fit(fnm, tab_label(tabs[i]), w - pad, fit, sizeof fit);
+        ui_text_fit(fnm, tab_label(ptabs[i]), w - pad, fit, sizeof fit);
         int ty = yy + h - fh + (fh - TTF_FontHeight(fnm) - TTF_FontHeight(UI.f_small)) / 2;
         ui_text(fnm, fit, x + w / 2, ty, rgba(0xF2, 0xF2, 0xF2, 255), ALIGN_CENTER);
-        plat_count_text(tabs[i], cnt, sizeof cnt);
+        plat_count_text(ptabs[i], cnt, sizeof cnt);
         ui_text(UI.f_small, cnt, x + w / 2, ty + TTF_FontHeight(fnm), rgba(0xC8, 0xCC, 0xD4, 255), ALIGN_CENTER);
         /* il raggio del bordo non può essere più piccolo dello spessore */
         int bt = M(0.006f) + 1, o = M(0.004f);
@@ -1580,38 +1691,38 @@ static void plat_draw_showcase(int y, int bottom) {
     TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
     int mx = M(t->margin), W = UI.w - 2 * mx, fsh = TTF_FontHeight(fs), fth = TTF_FontHeight(ft);
     char buf[64];
-    snprintf(buf, sizeof buf, "%d / %d", plat_sel + 1, ntabs);
+    snprintf(buf, sizeof buf, "%d / %d", plat_sel + 1, nptabs);
     ui_text(fs, buf, mx, y, t->text_dim, ALIGN_LEFT);
     int bar_h = fth + M(0.035f), bar_y = bottom - bar_h, top = y + fsh + M(0.01f), art_b = bar_y - M(0.03f);
     int ah = art_b - top, step = UI.w * 34 / 100;
     for (int pass = 0; pass < 2; pass++)
-        for (int i = 0; i < ntabs; i++) {
+        for (int i = 0; i < nptabs; i++) {
             float d = i - plat_anim, ad = fabsf(d), k = ad < 1 ? 1 - ad : 0;
             if ((pass == 1) != (k > 0.5f)) continue;   /* la scelta per ultima, sopra le altre */
             int h = (int)(ah * (0.58f + 0.42f * k)) - (k > 0.5f ? 0 : fsh + M(0.015f));
             int w = h * 62 / 100;
-            if (tabs[i] == TAB_LINUX || tabs[i] < TAB_EMU || tabs[i] >= TAB_COLL) w = h;
+            if (ptabs[i] == TAB_LINUX || ptabs[i] < TAB_EMU || (ptabs[i] >= TAB_COLL && !is_plan(ptabs[i]))) w = h;
             int cx = UI.w / 2 + (int)(d * step), x = cx - w / 2, yy = art_b - h - (k > 0.5f ? 0 : fsh + M(0.015f));
             if (x > UI.w || x + w < 0) continue;
-            draw_plat_art(tabs[i], x, yy, w, h);
+            draw_plat_art(ptabs[i], x, yy, w, h);
             if (k <= 0.5f) {
                 char fit[100];
-                ui_text_fit(fs, tab_label(tabs[i]), step - M(0.02f), fit, sizeof fit);
+                ui_text_fit(fs, tab_label(ptabs[i]), step - M(0.02f), fit, sizeof fit);
                 ui_text(fs, fit, cx, art_b - fsh, t->text, ALIGN_CENTER);
             }
         }
-    color_t c = plat_color(tabs[plat_sel]);
+    color_t c = plat_color(ptabs[plat_sel]);
     ui_rrect(mx, bar_y, W, bar_h, M(t->panel_radius), c);
     char fit[120], cnt[48];
-    plat_count_text(tabs[plat_sel], cnt, sizeof cnt);
+    plat_count_text(ptabs[plat_sel], cnt, sizeof cnt);
     int cwid = ui_text_w(fn, cnt);
-    ui_text_fit(ft, tab_label(tabs[plat_sel]), W - cwid - M(0.08f), fit, sizeof fit);
+    ui_text_fit(ft, tab_label(ptabs[plat_sel]), W - cwid - M(0.08f), fit, sizeof fit);
     ui_text(ft, fit, mx + M(0.025f), bar_y + (bar_h - fth) / 2, rgba(0xF6, 0xEC, 0xE2, 255), ALIGN_LEFT);
     ui_text(fn, cnt, mx + W - M(0.025f), bar_y + (bar_h - TTF_FontHeight(fn)) / 2, rgba(0xF6, 0xEC, 0xE2, 255), ALIGN_RIGHT);
 }
 
 static void plat_open(int sel) {
-    plat_sel = sel >= 0 && sel < ntabs ? sel : 0;
+    plat_sel = sel >= 0 && sel < nptabs ? sel : 0;
     plat_anim = (float)plat_sel;
     go(SCR_PLATFORMS);
 }
@@ -1619,24 +1730,27 @@ static void plat_open(int sel) {
 static void plat_draw(void) {
     theme_t *t = &UI.th;
     topbar_label(T("plat.title"));
-    if (plat_sel >= ntabs) plat_sel = ntabs ? ntabs - 1 : 0;
+    if (plat_sel >= nptabs) plat_sel = nptabs ? nptabs - 1 : 0;
     plat_anim = ui_approach(plat_anim, (float)plat_sel);
     int y = M(t->topbar_h) + M(0.03f), bottom = UI.h - ui_keybar_h() - M(0.03f);
-    if (ntabs) {
+    if (nptabs) {
         if (is_list_layout()) plat_draw_showcase(y, bottom);
         else plat_draw_cards(y, bottom);
     }
+    /* console in arrivo: niente da aprire */
+    bool plan = nptabs && is_plan(ptabs[plat_sel]);
     const char *h[] = { "A", T("plat.open"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
-    ui_keybar(h, 9);
+    ui_keybar(plan ? h + 3 : h, plan ? 6 : 9);
 }
 
 static void plat_input(void) {
     input_t *in = &UI.in;
     int old = plat_sel;
     if ((in->pressed[BTN_LEFT] || in->pressed[BTN_L]) && plat_sel > 0) plat_sel--;
-    if ((in->pressed[BTN_RIGHT] || in->pressed[BTN_R]) && plat_sel < ntabs - 1) plat_sel++;
+    if ((in->pressed[BTN_RIGHT] || in->pressed[BTN_R]) && plat_sel < nptabs - 1) plat_sel++;
     if (plat_sel != old) ui_sound(SND_MOVE);
-    if (in->pressed[BTN_A] && ntabs) {
+    if (in->pressed[BTN_A] && nptabs && is_plan(ptabs[plat_sel])) ui_sound(SND_ERROR);
+    else if (in->pressed[BTN_A] && ntabs) {
         tab_sel = plat_sel;
         lib_sel = 0;
         lib_scroll = lib_scroll_target = 0;
@@ -3972,9 +4086,9 @@ static void game_reset(const game_t *g, bool states) {
     reset_remove(base, g->name, "cfg");
     reset_remove(base, g->name, "opt");
     if (states) {
-        /* con gli stati anche il salvataggio a batteria delle console (.srm): è la partita */
+        /* con gli stati anche il salvataggio a batteria delle console (.srm e .rtc): è la partita */
         static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev", "auto.state.rot",
-                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png", "srm" };
+                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png", "srm", "rtc" };
         for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->name, ext[i]);
     }
     /* FBNeo: memoria interna e punteggi */

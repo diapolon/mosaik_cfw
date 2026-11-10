@@ -1,0 +1,11 @@
+{
+  "name": "Game Boy",
+  "core": "gambatte_libretro",
+  "roms": "Roms/GB",
+  "extensions": ["gb", "dmg", "zip"],
+  "kind": "console",
+  "art": "handheld",
+  "short": "Game Boy",
+  "thumbnails": "Nintendo - Game Boy",
+  "order": 50
+}

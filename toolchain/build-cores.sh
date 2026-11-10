@@ -4,14 +4,14 @@
 # Si compila in una copia pulita dentro il volume Docker: il Mac ha i suoi file oggetto
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
-#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx]
+#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx}
+WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx gambatte mgba snes9x}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -58,6 +58,44 @@ for core in $WHICH; do
             > "$SRC/genesis_plus_gx.log" 2>&1 \
             || { tail -30 "$SRC/genesis_plus_gx.log"; exit 1; }
         cp "$SRC/genesis_plus_gx/genesis_plus_gx_libretro.so" "$OUT/"
+        ;;
+    gambatte)
+        clone gambatte-libretro gambatte
+        echo "== Gambatte (Game Boy e Game Boy Color)"
+        make -C "$SRC/gambatte" -f Makefile.libretro -j"$JOBS" platform=unix \
+            CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+            > "$SRC/gambatte.log" 2>&1 \
+            || { tail -30 "$SRC/gambatte.log"; exit 1; }
+        cp "$SRC/gambatte/gambatte_libretro.so" "$OUT/"
+        ;;
+    mgba)
+        clone mgba mgba
+        echo "== mGBA (Game Boy Advance)"
+        # Solo la libreria e il core libretro, senza le dipendenze esterne: il cmake del
+        # contenitore troverebbe le librerie del sistema amd64.
+        F="-O2 -mcpu=cortex-a53 -fno-common"
+        rm -rf "$SRC/mgba/build-a53"
+        cmake -S "$SRC/mgba" -B "$SRC/mgba/build-a53" -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+            -DCMAKE_C_FLAGS="$F" -DCMAKE_CXX_FLAGS="$F" \
+            -DLIBMGBA_ONLY=ON -DBUILD_LIBRETRO=ON -DLIBRETRO_STATIC=OFF -DBUILD_SHARED=OFF -DBUILD_STATIC=OFF \
+            -DUSE_ZLIB=OFF -DUSE_MINIZIP=OFF -DUSE_PNG=OFF -DUSE_LIBZIP=OFF -DUSE_SQLITE3=OFF \
+            -DUSE_ELF=OFF -DUSE_LUA=OFF -DUSE_JSON_C=OFF -DUSE_FREETYPE=OFF -DUSE_LZMA=OFF \
+            -DUSE_FFMPEG=OFF -DUSE_EDITLINE=OFF -DUSE_DISCORD_RPC=OFF -DUSE_EPOXY=OFF \
+            > "$SRC/mgba.log" 2>&1 \
+            && cmake --build "$SRC/mgba/build-a53" --target mgba_libretro -j"$JOBS" >> "$SRC/mgba.log" 2>&1 \
+            || { tail -30 "$SRC/mgba.log"; exit 1; }
+        cp "$SRC/mgba/build-a53/mgba_libretro.so" "$OUT/"
+        ;;
+    snes9x)
+        clone snes9x snes9x
+        echo "== Snes9x (Super Nintendo)"
+        make -C "$SRC/snes9x/libretro" -j"$JOBS" platform=unix \
+            CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+            > "$SRC/snes9x.log" 2>&1 \
+            || { tail -30 "$SRC/snes9x.log"; exit 1; }
+        cp "$SRC/snes9x/libretro/snes9x_libretro.so" "$OUT/"
         ;;
     esac
 done

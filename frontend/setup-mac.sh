@@ -1,7 +1,7 @@
 #!/bin/sh
 # Prepara la SD simulata (./sdcard) sul Mac: temi, core, indici dei giochi, cartelle ROM.
 # Le ROM non vengono copiate: si collegano le cartelle indicate in FBNEO_ROMS, MAME_ROMS,
-# NES_ROMS e MD_ROMS.
+# NES_ROMS, MD_ROMS, SNES_ROMS, GB_ROMS, GBC_ROMS e GBA_ROMS.
 set -e
 cd "$(dirname "$0")"
 DEPS="${DEPS:-$PWD/../deps}"
@@ -10,6 +10,10 @@ FBNEO_ROMS="${FBNEO_ROMS:-}"
 MAME_ROMS="${MAME_ROMS:-}"
 NES_ROMS="${NES_ROMS:-}"
 MD_ROMS="${MD_ROMS:-}"
+SNES_ROMS="${SNES_ROMS:-}"
+GB_ROMS="${GB_ROMS:-}"
+GBC_ROMS="${GBC_ROMS:-}"
+GBA_ROMS="${GBA_ROMS:-}"
 
 mkdir -p "$SD"/Roms "$SD"/Bios "$SD"/Saves "$SD"/Cores "$SD"/Dats "$SD"/Media "$SD"/System "$SD"/Logs "$SD"/Linux "$SD"/Themes "$SD"/Music
 
@@ -39,6 +43,9 @@ ln -sf "$DEPS/fbneo/src/burner/libretro/fbneo_libretro.dylib" "$SD/Cores/fbneo_l
 ln -sf "$DEPS/mame2003-plus/mame2003_plus_libretro.dylib" "$SD/Cores/mame2003p_libretro.dylib"
 ln -sf "$DEPS/libretro-fceumm/fceumm_libretro.dylib" "$SD/Cores/fceumm_libretro.dylib"
 ln -sf "$DEPS/Genesis-Plus-GX/genesis_plus_gx_libretro.dylib" "$SD/Cores/genesis_plus_gx_libretro.dylib"
+ln -sf "$DEPS/snes9x/libretro/snes9x_libretro.dylib" "$SD/Cores/snes9x_libretro.dylib"
+ln -sf "$DEPS/gambatte-libretro/gambatte_libretro.dylib" "$SD/Cores/gambatte_libretro.dylib"
+ln -sf "$DEPS/mgba/build-mac/mgba_libretro.dylib" "$SD/Cores/mgba_libretro.dylib"
 
 # indici dei titoli dai DAT ufficiali
 python3 -I tools/build_index.py fbneo "$DEPS/fbneo/dats/FinalBurn Neo (ClrMame Pro XML, Arcade only).dat" "$SD/Dats/fbneo.tsv"
@@ -49,7 +56,11 @@ python3 -I tools/build_index.py mame2003p "$DEPS/mame2003-plus/metadata/mame2003
 [ -n "$MAME_ROMS" ] && ln -sfn "$MAME_ROMS" "$SD/Roms/MAME2003P"
 [ -n "$NES_ROMS" ] && ln -sfn "$NES_ROMS" "$SD/Roms/NES"
 [ -n "$MD_ROMS" ] && ln -sfn "$MD_ROMS" "$SD/Roms/MD"
-mkdir -p "$SD/Roms/FBNEO" "$SD/Roms/MAME2003P" "$SD/Roms/NES" "$SD/Roms/MD" 2>/dev/null || true
+[ -n "$SNES_ROMS" ] && ln -sfn "$SNES_ROMS" "$SD/Roms/SNES"
+[ -n "$GB_ROMS" ] && ln -sfn "$GB_ROMS" "$SD/Roms/GB"
+[ -n "$GBC_ROMS" ] && ln -sfn "$GBC_ROMS" "$SD/Roms/GBC"
+[ -n "$GBA_ROMS" ] && ln -sfn "$GBA_ROMS" "$SD/Roms/GBA"
+for d in FBNEO MAME2003P NES MD SNES GB GBC GBA; do mkdir -p "$SD/Roms/$d" 2>/dev/null || true; done
 
 # esempio di gioco Linux: una cartella con launch.sh (e facoltativi game.json, cover.png)
 mkdir -p "$SD/Linux/esempio"

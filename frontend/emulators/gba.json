@@ -1,0 +1,11 @@
+{
+  "name": "Game Boy Advance",
+  "core": "mgba_libretro",
+  "roms": "Roms/GBA",
+  "extensions": ["gba", "zip"],
+  "kind": "console",
+  "art": "handheld-wide",
+  "short": "GBA",
+  "thumbnails": "Nintendo - Game Boy Advance",
+  "order": 52
+}

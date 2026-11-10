@@ -1,0 +1,7 @@
+{
+  "name": "Master System",
+  "kind": "console",
+  "planned": true,
+  "short": "SMS",
+  "order": 61
+}

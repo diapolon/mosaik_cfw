@@ -5,9 +5,10 @@
 - [x] Full test on the Brick Pro
 - [x] Automatic return to the previous system on a Smart Pro (broken system, three failed boots)
 - [ ] Power loss during an update, on a real console
+- [ ] Smart Pro: restart with the charger connected (once it stayed black after an update and needed a forced reset)
 - [ ] Wi-Fi password containing quotes, on a real console
 - [ ] First run on a brand new card
-- [ ] Brick Pro freeze a few seconds after power-on, after a long time off: confirm that starting Wi-Fi later avoids it
+- [ ] Brick Pro freeze when Wi-Fi starts (I2C bus 3 race, trimui/firmware_brickpro#4): interrupts on separate CPUs and `trimui_inputd` paused while Wi-Fi starts, 0 freezes in 200 rounds; 500-round confirmation running
 
 ## Reliability
 
@@ -25,7 +26,9 @@
 - [x] Analog stick calibration from the settings
 - [x] LED indication while charging
 - [ ] Game list cache, for very large libraries
-- [ ] More consoles (NES, SNES, Mega Drive, Game Boy, GBA, PS1)
+- [x] NES (FCEUmm) and Mega Drive (Genesis Plus GX), with zipped ROMs and battery saves
+- [x] Game Boy / Game Boy Color (Gambatte, with the cartridge clock), GBA (mGBA), SNES (Snes9x): to be checked on the console
+- [ ] More consoles: PlayStation, Master System, Game Gear, PC Engine, Neo Geo Pocket, Dreamcast (shown greyed as "coming soon" on the Platforms screen: `"planned": true` in `Emulators/<id>.json`)
 - [ ] MAME 2010 core, for games missing from FinalBurn Neo and MAME 2003-Plus
 - [ ] Flycast core for Naomi and Atomiswave (check performance first)
 - [ ] Apps section in the launcher
