@@ -560,13 +560,21 @@ static unsigned hash(const char *s) {
     return h;
 }
 
-/* Immagine del gioco: Media/<tipo>/<rom>.png nei tipi scelti dal tema (snap, title,
-   marquee, flyer), poi Media/<core>/<rom>.png messa a mano; per Linux cover.png. */
-static SDL_Texture *media_image(const game_t *g, char types[][16], int n) {
+/* Immagine del gioco: per le console la scatola (Media/box) se l'impostazione è accesa,
+   poi Media/<tipo>/<rom>.png nei tipi scelti dal tema (snap, title, marquee, flyer), poi
+   Media/<core>/<rom>.png messa a mano; per Linux cover.png. *box dice se è la scatola, che
+   va mostrata intera (è verticale) e non ritagliata come le schermate. */
+static SDL_Texture *media_image_ex(const game_t *g, char types[][16], int n, bool *box) {
     char p[1400];
+    if (box) *box = false;
     if (!strcmp(g->core, "linux")) {
         snprintf(p, sizeof p, "%.*s/cover.png", (int)(strrchr(g->path, '/') - g->path), g->path);
         return ui_image(p);
+    }
+    if (UI.set.box_covers && core_console(g->core)) {
+        snprintf(p, sizeof p, "%s/Media/box/%s.png", UI.root, g->name);
+        SDL_Texture *img = ui_image(p);
+        if (img) { if (box) *box = true; return img; }
     }
     for (int i = 0; i < n; i++) {
         snprintf(p, sizeof p, "%s/Media/%s/%s.png", UI.root, types[i], g->name);
@@ -577,10 +585,13 @@ static SDL_Texture *media_image(const game_t *g, char types[][16], int n) {
     return ui_image(p);
 }
 
+static SDL_Texture *media_image(const game_t *g, char types[][16], int n) { return media_image_ex(g, types, n, NULL); }
+
 /* Copertina: l'immagine scaricata se c'è, altrimenti una generata con colore per sistema e titolo. */
 static void draw_cover(const game_t *g, int x, int y, int w, int s, int r) {
-    SDL_Texture *img = media_image(g, UI.th.cover_types, UI.th.ncover);
-    if (img && UI.th.cover_fit) {
+    bool box;
+    SDL_Texture *img = media_image_ex(g, UI.th.cover_types, UI.th.ncover, &box);
+    if (img && (UI.th.cover_fit || box)) {
         ui_rrect(x, y, w, s, r, rgba(14, 14, 18, 255));
         ui_image_fit(img, x, y, w, s);
     } else if (img) {
@@ -2016,19 +2027,19 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
 static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "updates", "power" };
 static const int cat_items[SC_COUNT][12] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
-    { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
+    { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_BOXCOVER, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
@@ -2243,6 +2254,7 @@ static void set_value(int item, char *buf, size_t n) {
         break;
     case S_RESUME: snprintf(buf, n, "%s", T(s->resume_last ? "common.yes" : "common.no")); break;
     case S_AUTOSAVE: snprintf(buf, n, "%s", T(s->autosave_exit ? "common.yes" : "common.no")); break;
+    case S_BOXCOVER: snprintf(buf, n, "%s", T(s->box_covers ? "common.yes" : "common.no")); break;
     case S_CLOCK: {
         time_t now = time(NULL);
         struct tm tmv;
@@ -2350,6 +2362,7 @@ static void set_change(int item, int dir) {
         break;
     case S_RESUME: s->resume_last = !s->resume_last; break;
     case S_AUTOSAVE: s->autosave_exit = !s->autosave_exit; break;
+    case S_BOXCOVER: s->box_covers = !s->box_covers; break;
     case S_LED: s->led_mode = (s->led_mode + dir + 4) % 4; break;
     case S_LEDCOLOR: s->led_color = (s->led_color + dir + NLED_COLORS) % NLED_COLORS; break;
     case S_LOGLEVEL: s->log_level = (s->log_level + dir + 4) % 4; break;
@@ -3324,7 +3337,7 @@ static const char *set_cat_sub(int row) {
 }
 static bool set_has_value(int i) { return i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
-static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE; }
+static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER; }
 
 /* riquadro di una voce: bordo del colore del tema se scelto */
 static void set_box(int x, int y, int w, int h, int r, bool sel) {
@@ -3364,7 +3377,7 @@ static void set_draw_value(int i, TTF_Font *f, int x, int cy, int maxw, bool sel
         return;
     }
     if (set_switch(i)) {
-        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : i == S_AUTOSAVE ? UI.set.autosave_exit : UI.set.resume_last;
+        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : i == S_AUTOSAVE ? UI.set.autosave_exit : i == S_BOXCOVER ? UI.set.box_covers : UI.set.resume_last;
         int sh = f == UI.f_small ? M(0.032f) : M(0.04f), sw = sh * 9 / 5;
         draw_switch(right ? x - sw : x, cy - sh / 2, sh, on);
         return;

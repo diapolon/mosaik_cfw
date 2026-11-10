@@ -151,7 +151,8 @@
     "led": "LED",
     "led_color": "Cor dos LED",
     "led_brightness": "Brilho dos LED",
-    "autosave_exit": "Guardar ao sair do jogo"
+    "autosave_exit": "Guardar ao sair do jogo",
+    "box_covers": "Caixa como capa"
   },
   "settings_desc": {
     "restart": "Reinicia o Mosaik. Definições e favoritos já estão guardados.",
@@ -183,7 +184,7 @@
     "info": "Espaço no cartão SD e o que o ocupa: jogos por emulador, imagens, gravações, música.",
     "power": "Guarda e desliga.",
     "duplicates": "Jogo presente no FinalBurn Neo e no MAME 2003+: mostrar ambos ou só um.",
-    "scrape": "Transfere da internet capturas, ecrãs de título e marquees dos jogos. Funciona com o Wi-Fi ligado.",
+    "scrape": "Descarrega da internet capturas, títulos e marquees; nas consolas também a caixa, o ano, a editora, o género e os jogadores. Funciona com o Wi-Fi ligado.",
     "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
     "update": "Transfere e instala a versão nova por Wi-Fi. As tuas ROM, gravações e definições ficam como estão.",
     "channel": "Estável: versões publicadas. Desenvolvimento: versões de teste. Voltar a Estável aplica-se a partir da próxima versão estável.",
@@ -199,7 +200,8 @@
     "led": "Efeito das luzes da consola: desligadas, fixas, respiração ou pulsação. Com bateria fraca piscam a vermelho.",
     "led_color": "Cor das luzes; «Tema» usa a cor principal do tema escolhido.",
     "led_brightness": "Intensidade das luzes da consola.",
-    "autosave_exit": "Ao sair para o menu, o jogo vai para a gravação automática e no início retomas com «Continuar». Desligado: só se grava ao desligar e em suspensão."
+    "autosave_exit": "Ao sair para o menu, o jogo vai para a gravação automática e no início retomas com «Continuar». Desligado: só se grava ao desligar e em suspensão.",
+    "box_covers": "Nos jogos de consola mostra a caixa, se foi descarregada, em vez da captura de ecrã."
   },
   "aspect": {
     "original": "Original",

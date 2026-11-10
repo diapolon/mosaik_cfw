@@ -1,6 +1,8 @@
 #include "scraper.h"
 #include "../common/json.h"
 #include "games.h"
+#include "../common/durable.h"
+#include "../runner/romzip.h"
 #include <SDL.h>
 #include <SDL_image.h>
 #include <curl/curl.h>
@@ -8,18 +10,32 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdint.h>
+#include <strings.h>
+#include <time.h>
+#include <zlib.h>
+
+void ui_log(const char *fmt, ...);
 
 #define UA "TrimUI-Arcade-Prototype/0.1"
 #define ADB "https://adb.arcadeitalia.net/service_scraper.php?ajax=query_mame&use_parent=1&game_name="
 #define META_HEADER "# arcadedb v3"   /* v3: con la storia in Dats/history/<rom>.txt */
 #define MAX_SIDE 640
 
-static const char *TYPES[] = { "snap", "title", "marquee" };
-static const char *ADB_FIELDS[] = { "url_image_ingame", "url_image_title", "url_image_marquee" };
-static const char *LIBRETRO_KINDS[] = { "Named_Snaps", "Named_Titles", NULL };
-#define NTYPES 3
+/* "box": la scatola, solo per le console (miniature libretro Named_Boxarts) */
+static const char *TYPES[] = { "snap", "title", "marquee", "box" };
+static const char *ADB_FIELDS[] = { "url_image_ingame", "url_image_title", "url_image_marquee", "" };
+static const char *LIBRETRO_KINDS[] = { "Named_Snaps", "Named_Titles", NULL, "Named_Boxarts" };
+#define NTYPES 4
+#define T_BOX 3
 
-typedef struct { char name[ROM_NAME], title[160], core[16], thumbs[64]; bool console; } item_t;
+/* exts: le estensioni delle ROM dell'emulatore senza zip ("nes|fds"), per leggere gli zip;
+   canon: il nome No-Intro trovato col CRC nel database libretro */
+typedef struct {
+    char name[ROM_NAME], title[160], core[16], thumbs[64], exts[64], sysname[48], index[256], canon[160];
+    char *path;
+    bool console;
+} item_t;
 typedef struct { char name[ROM_NAME], genre[64], players[8]; } meta_t;
 
 static scrape_status_t st;
@@ -226,6 +242,7 @@ static void nf_save(void) {
 }
 
 static bool missing(const item_t *it, int type) {
+    if (type == T_BOX && !it->console) return false;
     char p[1200], key[LIST_KEY];
     snprintf(key, sizeof key, "%s/%s", TYPES[type], it->name);
     if (nf_has(key)) return false;
@@ -240,7 +257,7 @@ typedef struct { char name[ROM_NAME], urls[NTYPES][512]; } adb_t;
 /* Console: nomi da provare nelle miniature libretro, che usano i nomi No-Intro. Il titolo è il
    nome del file: così com'è, senza le note fra parentesi quadre dei set GoodTools ("[!]",
    "[T+Ita]"), e con le regioni GoodTools scritte come in No-Intro ("(E)" -> "(Europe)"). */
-static int console_names(const char *title, char out[3][160]) {
+static int console_names(const char *title, char out[][160]) {
     int n = 0;
     snprintf(out[n++], 160, "%s", title);
     char b[160];
@@ -269,6 +286,231 @@ static int console_names(const char *title, char out[3][160]) {
     return n;
 }
 
+/* ------------------------------------------ console: dati libretro */
+/* Il database libretro (CC BY-SA 4.0) ha per ogni console un file per campo, con il CRC della
+   ROM: anno, editore, sviluppatore, genere, giocatori. Si scaricano una volta (Dats/libretro,
+   rinnovati dopo 30 giorni) e si cerca il CRC di ogni gioco: il nome No-Intro ("comment")
+   diventa il titolo e serve anche a trovare le miniature dei file con nomi GoodTools. */
+static const char *LR_FIELDS[] = { "releaseyear", "publisher", "developer", "genre", "maxusers" };
+#define NLR 5
+enum { LR_YEAR, LR_PUBLISHER, LR_DEVELOPER, LR_GENRE, LR_USERS };
+typedef struct { uint32_t crc; char *name, *val; } lr_t;
+typedef struct { lr_t *e; int n; char *buf; } lr_list_t;
+
+static int lr_cmp(const void *a, const void *b) {
+    uint32_t x = ((const lr_t *)a)->crc, y = ((const lr_t *)b)->crc;
+    return x < y ? -1 : x > y;
+}
+
+/* valore dopo la chiave: "tra virgolette" o una parola */
+static char *lr_value(char *p) {
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p == '"') { char *e = strchr(++p, '"'); if (e) *e = 0; return p; }
+    char *e = p + strcspn(p, " \t\r\n");
+    *e = 0;
+    return p;
+}
+
+static void lr_parse(lr_list_t *l, char *buf) {
+    int cap = 0;
+    l->buf = buf;
+    char *name = NULL, *val = NULL;
+    for (char *line = buf; line && *line; ) {
+        char *nl = strchr(line, '\n');
+        if (nl) *nl = 0;
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (!strncmp(p, "game (", 6)) name = val = NULL;
+        else if (!strncmp(p, "comment ", 8)) name = lr_value(p + 8);
+        else if (!strncmp(p, "rom (", 5)) {
+            char *c = strstr(p, "crc ");
+            if (c && name && val) {
+                if (l->n == cap) l->e = realloc(l->e, sizeof(lr_t) * (size_t)(cap = cap ? cap * 2 : 1024));
+                l->e[l->n++] = (lr_t){ (uint32_t)strtoul(c + 4, NULL, 16), name, val };
+            }
+        } else if (*p && *p != ')' && strncmp(p, "clrmamepro", 10) && strncmp(p, "name ", 5) && strncmp(p, "description ", 12)) {
+            char *sp = p + strcspn(p, " \t");
+            if (*sp) val = lr_value(sp);
+        }
+        line = nl ? nl + 1 : NULL;
+    }
+    if (l->n) qsort(l->e, (size_t)l->n, sizeof(lr_t), lr_cmp);
+}
+
+static const lr_t *lr_find(const lr_list_t *l, uint32_t crc) {
+    lr_t key = { crc, NULL, NULL };
+    return l->n ? bsearch(&key, l->e, (size_t)l->n, sizeof(lr_t), lr_cmp) : NULL;
+}
+
+/* il file del campo per la console: dalla scheda se recente, altrimenti dalla rete */
+static char *lr_fetch(const char *field, const char *system) {
+    char dir[1200], p[1400];
+    snprintf(dir, sizeof dir, "%s/Dats/libretro", root_dir);
+    mkdir(dir, 0755);
+    snprintf(dir, sizeof dir, "%s/Dats/libretro/%s", root_dir, field);
+    mkdir(dir, 0755);
+    snprintf(p, sizeof p, "%s/%s.dat", dir, system);
+    struct stat sb;
+    bool fresh = stat(p, &sb) == 0 && sb.st_size > 100 && time(NULL) - sb.st_mtime < 30 * 86400;
+    if (!fresh) {
+        CURL *c = curl_easy_init();
+        char *es = curl_easy_escape(c, system, 0), url[512];
+        snprintf(url, sizeof url, "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/%s/%s.dat", field, es ? es : "");
+        curl_free(es);
+        curl_easy_cleanup(c);
+        buf_t b;
+        if (http_get(url, &b, NULL, 0) && b.len > 100) {
+            char tmp[1500];
+            snprintf(tmp, sizeof tmp, "%s.tmp", p);
+            FILE *f = fopen(tmp, "wb");
+            bool ok = f && fwrite(b.data, 1, b.len, f) == b.len;
+            if (f && fclose(f) != 0) ok = false;
+            if (ok) rename(tmp, p); else remove(tmp);
+        }
+        free(b.data);
+    }
+    FILE *f = fopen(p, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *buf = n > 0 ? malloc((size_t)n + 1) : NULL;
+    if (buf) { n = (long)fread(buf, 1, (size_t)n, f); buf[n] = 0; }
+    fclose(f);
+    return buf;
+}
+
+static bool has_ext_ci(const char *name, const char *ext) {
+    const char *d = strrchr(name, '.');
+    return d && !strcasecmp(d + 1, ext);
+}
+
+/* CRC della ROM come nel database: senza l'intestazione iNES (16 byte) e senza quella da 512
+   byte dei copiatori SNES e delle HuCard; per gli zip, la prima voce con un'estensione giusta */
+static bool rom_crc(const item_t *it, uint32_t *out) {
+    void *data = NULL;
+    size_t n = 0;
+    char inner[256] = "";
+    if (romzip_is_zip(it->path)) {
+        if (!it->exts[0] || romzip_extract(it->path, it->exts, &data, &n, inner, sizeof inner) != ROMZIP_OK) return false;
+    } else {
+        FILE *f = fopen(it->path, "rb");
+        if (!f) return false;
+        fseek(f, 0, SEEK_END);
+        long len = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (len <= 0 || len > (64L << 20) || !(data = malloc((size_t)len))) { fclose(f); return false; }
+        n = fread(data, 1, (size_t)len, f);
+        fclose(f);
+        snprintf(inner, sizeof inner, "%s", it->path);
+    }
+    const unsigned char *d = data;
+    size_t skip = 0;
+    if (has_ext_ci(inner, "nes") && n > 16 && !memcmp(d, "NES\x1a", 4)) skip = 16;
+    else if ((has_ext_ci(inner, "sfc") || has_ext_ci(inner, "smc") || has_ext_ci(inner, "fig") || has_ext_ci(inner, "swc")) && n % 1024 == 512) skip = 512;
+    else if (has_ext_ci(inner, "pce") && n % 8192 == 512) skip = 512;
+    *out = (uint32_t)crc32(0L, d + skip, (uInt)(n - skip));
+    free(data);
+    return true;
+}
+
+typedef struct { char name[ROM_NAME], line[512]; } ixrow_t;
+static int ixrow_cmp(const void *a, const void *b) { return strcmp(((const ixrow_t *)a)->name, ((const ixrow_t *)b)->name); }
+
+/* aggiunge o sostituisce le righe dei giochi trovati nell'indice della console (stesso formato
+   degli arcade: nome, titolo, anno, produttore, sistema, verticale, bios, parent) */
+static void index_update(const char *rel, ixrow_t *add, int nadd) {
+    char p[1400], tmp[1410], line[600];
+    snprintf(p, sizeof p, "%s/%s", root_dir, rel);
+    ixrow_t *rows = NULL;
+    int n = 0, cap = 0;
+    FILE *f = fopen(p, "r");
+    while (f && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        char *tab = strchr(line, '\t');
+        if (!tab) continue;
+        if (n == cap) rows = realloc(rows, sizeof(ixrow_t) * (size_t)(cap = cap ? cap * 2 : 256));
+        snprintf(rows[n].name, sizeof rows[n].name, "%.*s", (int)(tab - line), line);
+        snprintf(rows[n].line, sizeof rows[n].line, "%s", line);
+        n++;
+    }
+    if (f) fclose(f);
+    for (int a = 0; a < nadd; a++) {
+        int k = 0;
+        while (k < n && strcmp(rows[k].name, add[a].name)) k++;
+        if (k == n) {
+            if (n == cap) rows = realloc(rows, sizeof(ixrow_t) * (size_t)(cap = cap ? cap * 2 : 256));
+            n++;
+        }
+        rows[k] = add[a];
+    }
+    if (n) qsort(rows, (size_t)n, sizeof(ixrow_t), ixrow_cmp);
+    snprintf(tmp, sizeof tmp, "%s.tmp", p);
+    f = fopen(tmp, "w");
+    bool ok = f != NULL;
+    for (int k = 0; ok && k < n; k++) ok = fprintf(f, "%s\n", rows[k].line) > 0;
+    if (f && fclose(f) != 0) ok = false;
+    if (ok) durable_replace(tmp, p); else remove(tmp);
+    free(rows);
+}
+
+static void clean_field(char *s) { for (; *s; s++) if (*s == '\t' || *s == '\n' || *s == '\r') *s = ' '; }
+
+/* titolo, anno, editore, genere e giocatori dei giochi per console, console per console */
+static void console_info(const int *todo, int ntodo) {
+    for (int k = 0; k < ntodo && !st.cancel; k++) {
+        item_t *first = &items[todo[k]];
+        if (!first->console || !first->thumbs[0]) continue;
+        /* già fatto per questa console in un giro precedente del ciclo */
+        bool seen = false;
+        for (int q = 0; q < k && !seen; q++) seen = items[todo[q]].console && !strcmp(items[todo[q]].thumbs, first->thumbs) && !strcmp(items[todo[q]].core, first->core);
+        if (seen) continue;
+        lr_list_t lists[NLR];
+        memset(lists, 0, sizeof lists);
+        for (int fi = 0; fi < NLR && !st.cancel; fi++) {
+            char *buf = lr_fetch(LR_FIELDS[fi], first->thumbs);
+            if (buf) lr_parse(&lists[fi], buf);
+        }
+        ixrow_t *rows = malloc(sizeof(ixrow_t) * (size_t)(ntodo + 1));
+        int nrows = 0, found = 0, total = 0;
+        for (int q = k; q < ntodo && !st.cancel; q++) {
+            item_t *it = &items[todo[q]];
+            if (!it->console || strcmp(it->thumbs, first->thumbs) || strcmp(it->core, first->core)) continue;
+            total++;
+            uint32_t crc;
+            if (!rom_crc(it, &crc)) continue;
+            const lr_t *v[NLR];
+            for (int fi = 0; fi < NLR; fi++) v[fi] = lr_find(&lists[fi], crc);
+            /* il nome come nei file No-Intro: anni, generi e giocatori lo scrivono così ("A - B"),
+               editori e sviluppatori a volte con i due punti */
+            static const int order[NLR] = { LR_YEAR, LR_GENRE, LR_USERS, LR_DEVELOPER, LR_PUBLISHER };
+            const char *canon = NULL;
+            for (int o = 0; o < NLR && !canon; o++) if (v[order[o]]) canon = v[order[o]]->name;
+            if (!canon) continue;
+            found++;
+            snprintf(it->canon, sizeof it->canon, "%s", canon);
+            char title[160], year[16], maker[96], sys[48];
+            snprintf(title, sizeof title, "%s", canon);
+            snprintf(year, sizeof year, "%s", v[LR_YEAR] ? v[LR_YEAR]->val : "");
+            snprintf(maker, sizeof maker, "%s", v[LR_PUBLISHER] ? v[LR_PUBLISHER]->val : v[LR_DEVELOPER] ? v[LR_DEVELOPER]->val : "");
+            snprintf(sys, sizeof sys, "%s", it->sysname);
+            clean_field(title); clean_field(year); clean_field(maker); clean_field(sys);
+            snprintf(rows[nrows].name, sizeof rows[nrows].name, "%s", it->name);
+            snprintf(rows[nrows].line, sizeof rows[nrows].line, "%s\t%s\t%s\t%s\t%s\t0\t0\t", it->name, title, year, maker, sys);
+            nrows++;
+            char genre[64], players[8];
+            snprintf(genre, sizeof genre, "%s", v[LR_GENRE] ? v[LR_GENRE]->val : "");
+            snprintf(players, sizeof players, "%s", v[LR_USERS] ? v[LR_USERS]->val : "");
+            clean_field(genre);
+            meta_set(it->name, genre, players);
+        }
+        if (nrows) index_update(first->index, rows, nrows);
+        ui_log("scraper: %s, %d giochi su %d trovati nel database libretro", first->thumbs, found, total);
+        free(rows);
+        for (int fi = 0; fi < NLR; fi++) { free(lists[fi].e); free(lists[fi].buf); }
+    }
+}
+
 static int worker(void *arg) {
     (void)arg;
     char p[1200];
@@ -282,8 +524,8 @@ static int worker(void *arg) {
     /* giochi da completare: immagini mancanti o informazioni assenti */
     int *todo = malloc(sizeof(int) * (size_t)(nitems + 1)), ntodo = 0;
     for (int i = 0; i < nitems; i++) {
-        /* le console non hanno informazioni ArcadeDB: contano solo le immagini */
-        bool need = !items[i].console && !meta_find(items[i].name);
+        /* arcade: informazioni ArcadeDB; console: dati libretro, trovati se c'è il genere */
+        bool need = !meta_find(items[i].name);
         for (int t = 0; t < NTYPES && !need; t++) need = missing(&items[i], t);
         if (need) todo[ntodo++] = i;
     }
@@ -345,15 +587,22 @@ static int worker(void *arg) {
         free(b.data);
     }
     free(arc);
+    /* console: dati dal database libretro, cercati col CRC delle ROM */
+    console_info(todo, ntodo);
     meta_save();
 
     /* 2. immagini: ArcadeDB, poi miniature libretro per titolo */
     st.phase = SCRAPE_IMAGES;
     for (int k = 0; k < ntodo && !st.cancel; k++) {
         item_t *it = &items[todo[k]];
-        char names[3][160];
+        char names[4][160];
         int nnames = it->console ? console_names(it->title, names) : 1, first = 0;
         if (!it->console) snprintf(names[0], sizeof names[0], "%s", it->title);
+        /* col nome No-Intro trovato col CRC le miniature si trovano anche per i file GoodTools */
+        if (it->console && it->canon[0]) {
+            snprintf(names[0], sizeof names[0], "%s", it->canon);
+            nnames = 1;   /* è il nome esatto delle miniature: gli altri non servono */
+        }
         for (int t = 0; t < NTYPES && !st.cancel; t++) {
             if (!missing(it, t)) continue;
             media_path(p, sizeof p, t, it->name);
@@ -413,6 +662,7 @@ bool scraper_start(const char *root, const game_t *games, int n) {
     if (thread) return false;
     memset(&st, 0, sizeof st);
     snprintf(root_dir, sizeof root_dir, "%s", root);
+    for (int i = 0; i < nitems; i++) free(items[i].path);
     free(items);
     items = malloc(sizeof(item_t) * (size_t)(n + 1));
     nitems = 0;
@@ -428,6 +678,17 @@ bool scraper_start(const char *root, const game_t *games, int n) {
         const emulator_t *e = emulator_find(games[i].core);
         it->console = e && e->console;
         snprintf(it->thumbs, sizeof it->thumbs, "%s", e ? e->thumbs : "");
+        snprintf(it->sysname, sizeof it->sysname, "%s", e ? e->name : "");
+        snprintf(it->index, sizeof it->index, "%s", e ? e->index : "");
+        it->canon[0] = 0;
+        it->path = strdup(games[i].path ? games[i].path : "");
+        it->exts[0] = 0;
+        for (int x = 0; e && x < e->nexts; x++) {
+            const char *ext = e->exts[x] + 1;   /* senza il punto */
+            if (!strcasecmp(ext, "zip") || !strcasecmp(ext, "7z")) continue;
+            size_t l = strlen(it->exts);
+            snprintf(it->exts + l, sizeof it->exts - l, "%s%s", l ? "|" : "", ext);
+        }
     }
     curl_global_init(CURL_GLOBAL_DEFAULT);
     st.phase = SCRAPE_INFO;

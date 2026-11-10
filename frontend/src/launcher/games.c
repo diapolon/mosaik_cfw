@@ -424,7 +424,8 @@ int games_scan(const char *root, game_t **out, bool include_missing) {
         index_load(&ix, ixp);
         scan_dir(&l, &ix, &EMUS[i], dir, 0);
         /* catalogo: giochi dell'indice senza ROM, solo "parent" (i cloni affollerebbero l'elenco) */
-        for (int k = 0; include_missing && k < ix.n; k++) {
+        /* le console hanno un indice solo dei giochi che ci sono (lo scrive lo scraper) */
+        for (int k = 0; include_missing && !EMUS[i].console && k < ix.n; k++) {
             entry_t *en = &ix.e[k];
             if (en->present || en->bios || en->parent[0]) continue;
             game_t *g = push(&l);

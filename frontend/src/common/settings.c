@@ -64,6 +64,7 @@ void settings_defaults(settings_t *s) {
     s->dup_mode = 1;
     s->resume_last = false;
     s->autosave_exit = false;
+    s->box_covers = true;
     s->wifi = true;
     s->music_vol = 5;
     strcpy(s->tz, "Europe/Rome");
@@ -113,6 +114,7 @@ bool settings_load(settings_t *s, const char *root) {
     s->show_missing = json_bool(j, "show_missing", s->show_missing);
     s->resume_last = json_bool(j, "resume_last", s->resume_last);
     s->autosave_exit = json_bool(j, "autosave_exit", s->autosave_exit);
+    s->box_covers = json_bool(j, "box_covers", s->box_covers);
     s->wifi = json_bool(j, "wifi", s->wifi);
     s->ext_p1 = json_bool(j, "external_p1", s->ext_p1);
     s->music_vol = json_int(j, "music_volume", s->music_vol);
@@ -178,6 +180,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"show_missing\": %s,\n"
             "  \"resume_last\": %s,\n"
             "  \"autosave_exit\": %s,\n"
+            "  \"box_covers\": %s,\n"
             "  \"wifi\": %s,\n"
             "  \"external_p1\": %s,\n"
             "  \"music_volume\": %d,\n"
@@ -192,6 +195,7 @@ bool settings_save(const settings_t *s, const char *root) {
             s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
             s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->autosave_exit ? "true" : "false",
+            s->box_covers ? "true" : "false",
             s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
     bool ok = written > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;

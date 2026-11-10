@@ -151,7 +151,8 @@
     "led": "LED",
     "led_color": "Couleur des LED",
     "led_brightness": "Luminosité des LED",
-    "autosave_exit": "Sauvegarder en quittant le jeu"
+    "autosave_exit": "Sauvegarder en quittant le jeu",
+    "box_covers": "Boîte comme couverture"
   },
   "settings_desc": {
     "restart": "Redémarre Mosaik. Les réglages et favoris sont déjà enregistrés.",
@@ -183,7 +184,7 @@
     "info": "Espace sur la carte SD et ce qui l'occupe : jeux par émulateur, images, sauvegardes, musique.",
     "power": "Enregistre et éteint.",
     "duplicates": "Jeu présent dans FinalBurn Neo et MAME 2003+ : afficher les deux ou un seul.",
-    "scrape": "Télécharge depuis internet captures, écrans titres et marquees des jeux. Fonctionne avec le Wi-Fi connecté.",
+    "scrape": "Télécharge depuis internet captures, écrans titres et marquees ; pour les consoles aussi la boîte, l'année, l'éditeur, le genre et les joueurs. Fonctionne avec le Wi-Fi connecté.",
     "clean_media": "Supprime les images téléchargées des jeux qui ne sont plus sur la carte.",
     "update": "Télécharge et installe la nouvelle version en Wi-Fi. Vos ROM, sauvegardes et réglages restent tels quels.",
     "channel": "Stable : versions publiées. Développement : versions de test. Le retour à Stable s'applique à la prochaine version stable.",
@@ -199,7 +200,8 @@
     "led": "Effet des lumières de la console : éteintes, fixes, respiration ou pulsation. Batterie faible : elles clignotent en rouge.",
     "led_color": "Couleur des lumières ; « Thème » utilise la couleur principale du thème choisi.",
     "led_brightness": "Intensité des lumières de la console.",
-    "autosave_exit": "En quittant vers le menu, la partie va dans la sauvegarde automatique, et sur l'accueil vous la reprenez avec « Reprendre ». Désactivé : sauvegarde seulement à l'extinction et en veille."
+    "autosave_exit": "En quittant vers le menu, la partie va dans la sauvegarde automatique, et sur l'accueil vous la reprenez avec « Reprendre ». Désactivé : sauvegarde seulement à l'extinction et en veille.",
+    "box_covers": "Pour les jeux de console, affiche la boîte, si elle a été téléchargée, au lieu de la capture."
   },
   "aspect": {
     "original": "Original",

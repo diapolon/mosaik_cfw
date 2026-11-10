@@ -151,7 +151,8 @@
     "led": "LEDs",
     "led_color": "LED-Farbe",
     "led_brightness": "LED-Helligkeit",
-    "autosave_exit": "Beim Verlassen speichern"
+    "autosave_exit": "Beim Verlassen speichern",
+    "box_covers": "Verpackung als Cover"
   },
   "settings_desc": {
     "restart": "Startet Mosaik neu. Einstellungen und Favoriten sind bereits gespeichert.",
@@ -183,7 +184,7 @@
     "info": "Speicherplatz auf der SD-Karte und was ihn belegt: Spiele pro Emulator, Bilder, Spielstände, Musik.",
     "power": "Speichert und schaltet aus.",
     "duplicates": "Spiel in FinalBurn Neo und MAME 2003+ vorhanden: beide oder nur eines anzeigen.",
-    "scrape": "Lädt Screenshots, Titelbilder und Marquees der Spiele aus dem Internet. Funktioniert bei verbundenem WLAN.",
+    "scrape": "Lädt Screenshots, Titelbilder und Marquees aus dem Internet; bei Konsolen auch Verpackung, Jahr, Publisher, Genre und Spielerzahl. Funktioniert mit verbundenem WLAN.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
     "update": "Lädt die neue Version über WLAN und installiert sie. ROMs, Spielstände und Einstellungen bleiben, wie sie sind.",
     "channel": "Stabil: veröffentlichte Versionen. Entwicklung: Testversionen. Zurück zu Stabil gilt ab der nächsten stabilen Version.",
@@ -199,7 +200,8 @@
     "led": "Lichteffekt der Konsole: aus, dauerhaft, Atmen oder Pulsieren. Bei schwachem Akku blinken sie rot.",
     "led_color": "Lichtfarbe; „Thema“ nutzt die Hauptfarbe des gewählten Themas.",
     "led_brightness": "Helligkeit der Konsolenlichter.",
-    "autosave_exit": "Beim Verlassen zum Menü kommt das Spiel in den automatischen Spielstand, und auf dem Startbildschirm setzt du es mit „Fortsetzen“ fort. Aus: gespeichert wird nur beim Ausschalten und im Standby."
+    "autosave_exit": "Beim Verlassen zum Menü kommt das Spiel in den automatischen Spielstand, und auf dem Startbildschirm setzt du es mit „Fortsetzen“ fort. Aus: gespeichert wird nur beim Ausschalten und im Standby.",
+    "box_covers": "Bei Konsolenspielen wird die Verpackung angezeigt, falls heruntergeladen, statt des Screenshots."
   },
   "aspect": {
     "original": "Original",

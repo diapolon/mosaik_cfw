@@ -151,7 +151,8 @@
     "led": "LEDs",
     "led_color": "LED colour",
     "led_brightness": "LED brightness",
-    "autosave_exit": "Save when leaving a game"
+    "autosave_exit": "Save when leaving a game",
+    "box_covers": "Box art as cover"
   },
   "settings_desc": {
     "restart": "Restarts Mosaik. Settings and favorites are already saved.",
@@ -183,7 +184,7 @@
     "info": "Space on the SD card and what uses it: games per emulator, images, saves, music.",
     "power": "Saves and powers off.",
     "duplicates": "Game present in both FinalBurn Neo and MAME 2003+: show both or only one.",
-    "scrape": "Downloads game screenshots, titles and marquees from the internet. Works when Wi-Fi is connected.",
+    "scrape": "Downloads screenshots, titles and marquees from the internet; for consoles also the box, year, publisher, genre and players. Works with Wi-Fi connected.",
     "clean_media": "Deletes downloaded images of games that are no longer on the card.",
     "update": "Downloads and installs the new version over Wi-Fi. Your ROMs, saves and settings stay as they are.",
     "channel": "Stable: released versions. Development: test builds. Going back to Stable applies from the next stable version.",
@@ -199,7 +200,8 @@
     "led": "Console lights effect: off, steady, breathing or pulse. They blink red when the battery is low.",
     "led_color": "Light colour; “Theme” uses the main colour of the chosen theme.",
     "led_brightness": "Brightness of the console lights.",
-    "autosave_exit": "When you leave to the menu, the game goes into the automatic save, and on the home screen you pick it up with “Resume”. Off: it is saved only when the console turns off or sleeps."
+    "autosave_exit": "When you leave to the menu, the game goes into the automatic save, and on the home screen you pick it up with “Resume”. Off: it is saved only when the console turns off or sleeps.",
+    "box_covers": "For console games, show the box, if it was downloaded, instead of the screenshot."
   },
   "aspect": {
     "original": "Original",

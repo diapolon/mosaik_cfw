@@ -18,6 +18,16 @@ Included without changes to their code.
 | Beetle PCE Fast (PC Engine) | `GPL-2.0.txt` | https://github.com/libretro/beetle-pce-fast-libretro/tree/2de1ce1c3f237b161c126c54ba407990bb86d1e9 (source also attached to each release) |
 | Beetle NeoPop (Neo Geo Pocket) | `GPL-2.0.txt` | https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227 (source also attached to each release) |
 
+## Data downloaded by the console
+
+Not included in the images: the console downloads them only when you choose **Settings → Tools → Download images**, and keeps them on the card.
+
+| Data | License | Source |
+|---|---|---|
+| Console game data (title, year, publisher, genre, players), found by the ROM's CRC | CC BY-SA 4.0 | libretro-database, https://github.com/libretro/libretro-database |
+| Screenshots, title screens and boxes | owned by their respective holders | libretro thumbnails, https://thumbnails.libretro.com |
+| Arcade game information, history and images | owned by their respective holders | ArcadeDB, https://adb.arcadeitalia.net |
+
 ## Built for the launcher
 
 | Component | License | Source |

@@ -151,7 +151,8 @@
     "led": "LED",
     "led_color": "Colore dei LED",
     "led_brightness": "Luminosità dei LED",
-    "autosave_exit": "Salva uscendo dal gioco"
+    "autosave_exit": "Salva uscendo dal gioco",
+    "box_covers": "Scatola come copertina"
   },
   "settings_desc": {
     "restart": "Riavvia Mosaik. Impostazioni e preferiti sono già salvati.",
@@ -183,7 +184,7 @@
     "info": "Spazio sulla scheda SD e cosa lo occupa: giochi per emulatore, immagini, salvataggi, musica.",
     "power": "Salva e spegne.",
     "duplicates": "Gioco presente sia in FinalBurn Neo sia in MAME 2003+: mostra entrambi o solo uno.",
-    "scrape": "Scarica da internet schermate, titoli e marquee dei giochi. Funziona con il Wi-Fi collegato.",
+    "scrape": "Scarica da internet schermate, titoli e marquee dei giochi; per le console anche scatola, anno, editore, genere e giocatori. Funziona con il Wi-Fi collegato.",
     "clean_media": "Elimina le immagini scaricate di giochi che non sono più sulla scheda.",
     "update": "Scarica e installa la versione nuova via Wi-Fi. ROM, salvataggi e impostazioni restano come sono.",
     "channel": "Stabile: le versioni pubblicate. Sviluppo: versioni di prova. Tornando a Stabile si resta così fino alla prossima versione stabile.",
@@ -199,7 +200,8 @@
     "led": "Effetto delle luci della console: spente, fisse, respiro o pulsazione. A batteria scarica lampeggiano in rosso.",
     "led_color": "Colore delle luci; «Tema» usa il colore principale del tema scelto.",
     "led_brightness": "Intensità delle luci della console.",
-    "autosave_exit": "Uscendo al menu la partita va nel salvataggio automatico e in home la ritrovi con «Riprendi». Spento: si salva solo allo spegnimento e in standby."
+    "autosave_exit": "Uscendo al menu la partita va nel salvataggio automatico e in home la ritrovi con «Riprendi». Spento: si salva solo allo spegnimento e in standby.",
+    "box_covers": "Per i giochi per console mostra la scatola, se è stata scaricata, invece della schermata."
   },
   "aspect": {
     "original": "Originale",

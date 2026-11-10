@@ -151,7 +151,8 @@
     "led": "LED",
     "led_color": "Color de los LED",
     "led_brightness": "Brillo de los LED",
-    "autosave_exit": "Guardar al salir del juego"
+    "autosave_exit": "Guardar al salir del juego",
+    "box_covers": "Caja como portada"
   },
   "settings_desc": {
     "restart": "Reinicia Mosaik. Los ajustes y favoritos ya están guardados.",
@@ -183,7 +184,7 @@
     "info": "Espacio en la tarjeta SD y qué lo ocupa: juegos por emulador, imágenes, partidas, música.",
     "power": "Guarda y apaga.",
     "duplicates": "Juego presente en FinalBurn Neo y MAME 2003+: mostrar ambos o solo uno.",
-    "scrape": "Descarga de internet capturas, pantallas de título y marquees de los juegos. Funciona con el Wi-Fi conectado.",
+    "scrape": "Descarga de internet capturas, títulos y marquesinas; para las consolas también la caja, el año, el editor, el género y los jugadores. Funciona con el Wi-Fi conectado.",
     "clean_media": "Borra las imágenes descargadas de juegos que ya no están en la tarjeta.",
     "update": "Descarga e instala la versión nueva por Wi-Fi. Tus ROM, partidas y ajustes se quedan como están.",
     "channel": "Estable: versiones publicadas. Desarrollo: versiones de prueba. Volver a Estable se aplica desde la próxima versión estable.",
@@ -199,7 +200,8 @@
     "led": "Efecto de las luces de la consola: apagadas, fijas, respiración o pulso. Con batería baja parpadean en rojo.",
     "led_color": "Color de las luces; «Tema» usa el color principal del tema elegido.",
     "led_brightness": "Intensidad de las luces de la consola.",
-    "autosave_exit": "Al salir al menú, la partida va al guardado automático y en el inicio la retomas con «Continuar». Apagado: solo se guarda al apagar la consola y en reposo."
+    "autosave_exit": "Al salir al menú, la partida va al guardado automático y en el inicio la retomas con «Continuar». Apagado: solo se guarda al apagar la consola y en reposo.",
+    "box_covers": "En los juegos de consola muestra la caja, si se ha descargado, en lugar de la captura."
   },
   "aspect": {
     "original": "Original",
