@@ -23,12 +23,13 @@
   <img src="docs/images/it/home.png" width="640" alt="La schermata iniziale di Mosaik">
 </p>
 
-> **Stato:** versione 0.9. **Smart Pro e Brick Pro: provate.** Le console (NES, Super Nintendo, Mega Drive, Game Boy, GBA) per ora sono nel canale Sviluppo e arrivano con la prossima versione.
+> **Stato:** versione 0.9. **Smart Pro e Brick Pro: provate.**
 
 ## Cosa c'è dentro
 
 - **FinalBurn Neo e MAME 2003-Plus**: Neo Geo, CPS1, CPS2 e gran parte dei classici arcade.
-- **NES, Super Nintendo, Mega Drive, Game Boy, Game Boy Color e Game Boy Advance**, con i salvataggi a batteria (anche l'orologio dei Pokémon) e le ROM zippate. Altre console sono in arrivo.
+- **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket**, con i salvataggi a batteria (anche l'orologio dei Pokémon) e le ROM zippate.
+- **Copertine e informazioni anche per le console**: scatola, titolo, anno, editore, genere e giocatori, trovati dalla ROM stessa.
 - **Giochi Linux**, con menu sopra al gioco e sospensione.
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
@@ -99,7 +100,8 @@ Spegni la console e collega la scheda al computer. Tutto si trova nella cartella
 | `Roms/FBNEO` | ROM per FinalBurn Neo (raccolta FBNeo attuale), anche in sottocartelle |
 | `Roms/MAME2003P` | ROM per MAME 2003-Plus (raccolta 0.78-plus) |
 | `Roms/NES`, `Roms/SNES`, `Roms/MD` | Giochi NES, Super Nintendo e Mega Drive |
-| `Roms/GB`, `Roms/GBC`, `Roms/GBA` | Giochi Game Boy, Game Boy Color e Game Boy Advance |
+| `Roms/SMS`, `Roms/GG`, `Roms/PCE` | Giochi Master System, Game Gear e PC Engine (HuCard) |
+| `Roms/GB`, `Roms/GBC`, `Roms/GBA`, `Roms/NGP` | Giochi Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket |
 | `Bios` | `neogeo.zip` e gli altri BIOS |
 | `Linux` | Giochi Linux, uno per cartella |
 | `Media` | Immagini dei giochi |
@@ -188,6 +190,6 @@ La compilazione usa Docker e richiede componenti estratti dal firmware ufficiale
 
 Il codice scritto per Mosaik è sotto [GNU LGPL v3](COPYING.LESSER). Non si applica ai componenti di terzi, che mantengono le proprie licenze: vedi [`licenses/THIRD-PARTY.md`](licenses/THIRD-PARTY.md), con anche i link ai sorgenti degli emulatori.
 
-FinalBurn Neo, MAME 2003-Plus, Genesis Plus GX e Snes9x sono solo per uso non commerciale, quindi **Mosaik non può essere venduto**, né da solo né preinstallato. Le immagini del sistema contengono anche componenti presi dal firmware ufficiale TrimUI, che appartengono ai rispettivi proprietari. I sorgenti dei programmi GPL inclusi nelle immagini (BusyBox, dosfstools) sono allegati a ogni [release](https://github.com/diapolon/mosaik_cfw/releases), insieme a quelli degli emulatori GPL e MPL (FCEUmm, Gambatte, mGBA) nelle release che li contengono.
+FinalBurn Neo, MAME 2003-Plus, Genesis Plus GX e Snes9x sono solo per uso non commerciale, quindi **Mosaik non può essere venduto**, né da solo né preinstallato. Le immagini del sistema contengono anche componenti presi dal firmware ufficiale TrimUI, che appartengono ai rispettivi proprietari. I sorgenti dei programmi GPL inclusi nelle immagini (BusyBox, dosfstools) sono allegati a ogni [release](https://github.com/diapolon/mosaik_cfw/releases), insieme a quelli degli emulatori GPL e MPL (FCEUmm, Gambatte, mGBA, Beetle PCE Fast, Beetle NeoPop) nelle release che li contengono.
 
 Progetto indipendente, non affiliato a TrimUI.
