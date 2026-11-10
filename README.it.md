@@ -31,7 +31,7 @@
 - **Giochi Linux**, con menu sopra al gioco e sospensione.
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
-- **Temi, lingue, LED e filtri video** configurabili.
+- **Tre temi con varianti di colore**, lingue, LED e filtri video configurabili.
 - **Aggiornamenti firmati** via Wi-Fi, con un tentativo di ritorno alla versione precedente se uno fallisce.
 - **Profilo CPU per ogni gioco** e avviso nella home quando c'è un aggiornamento.
 - **Diagnosi dei giochi**: quando un gioco non parte, ti dice cosa manca e dove copiarlo.
@@ -41,28 +41,36 @@
 
 <table>
   <tr>
+    <td><img src="docs/images/it/platforms.png" alt="Piattaforme"></td>
     <td><img src="docs/images/it/library.png" alt="Libreria"></td>
+  </tr>
+  <tr>
+    <td align="center">Le piattaforme, per scegliere la categoria prima dei giochi</td>
+    <td align="center">La libreria, a griglia di immagini in Tessera</td>
+  </tr>
+  <tr>
     <td><img src="docs/images/it/details.png" alt="Scheda del gioco"></td>
-  </tr>
-  <tr>
-    <td align="center">La libreria, con quante miniature per riga vuoi</td>
-    <td align="center">La scheda del gioco, con storia e informazioni</td>
-  </tr>
-  <tr>
     <td><img src="docs/images/it/filters.png" alt="Filtri"></td>
+  </tr>
+  <tr>
+    <td align="center">La scheda del gioco, con storia e informazioni</td>
+    <td align="center">Ricerca, generi, collezioni e ordinamento</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/it/settings.png" alt="Impostazioni"></td>
     <td><img src="docs/images/it/appearance.png" alt="Impostazioni di aspetto"></td>
   </tr>
   <tr>
-    <td align="center">Ricerca, generi, collezioni e ordinamento</td>
-    <td align="center">Tema, lingua e miniature</td>
+    <td align="center">Le impostazioni, divise in sezioni</td>
+    <td align="center">Tema, variante di colore e lingua</td>
   </tr>
   <tr>
     <td><img src="docs/images/it/theme-cabinato.png" alt="Tema Cabinato"></td>
     <td><img src="docs/images/it/theme-onda.png" alt="Tema Onda"></td>
   </tr>
   <tr>
-    <td align="center">Tema Cabinato</td>
-    <td align="center">Tema Onda</td>
+    <td align="center">Tema Cabinato: il menu numerato da sala giochi</td>
+    <td align="center">Tema Onda: la libreria come elenco verticale</td>
   </tr>
 </table>
 
@@ -95,9 +103,9 @@ Spegni la console e collega la scheda al computer. Tutto si trova nella cartella
 | `Music` | Musica di sottofondo (MP3, OGG, FLAC, WAV) |
 | `Saves` | Salvataggi |
 
-Tieni le ROM in `.zip` e non cambiare il nome. **Impostazioni → Giochi e immagini → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
+Tieni le ROM in `.zip` e non cambiare il nome. **Impostazioni → Strumenti → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
 
-Per copertine e informazioni, collega il Wi-Fi e usa **Impostazioni → Giochi e immagini → Scarica immagini**.
+Per copertine e informazioni, collega il Wi-Fi e usa **Impostazioni → Strumenti → Scarica immagini**.
 
 ### Giochi Linux
 
@@ -154,9 +162,9 @@ Sulla Brick Pro, HOME torna al launcher, le due barrette sotto lo schermo salvan
 
 Apri **Impostazioni → Sistema**: **Wi-Fi** accende e spegne, **Reti Wi-Fi** mostra le reti a cui collegarsi. Sulla tastiera a schermo, X passa tra maiuscole, minuscole e simboli.
 
-Per aggiornare, apri **Impostazioni → Aggiornamenti e sistema → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se un sistema nuovo non parte la console prova a tornare da sola a quello precedente. Non copre ogni guasto: nel caso peggiore, riscrivi l'immagine sulla scheda.
+Per aggiornare, apri **Impostazioni → Aggiornamenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se un sistema nuovo non parte la console prova a tornare da sola a quello precedente. Non copre ogni guasto: nel caso peggiore, riscrivi l'immagine sulla scheda.
 
-**Impostazioni → Aggiornamenti e sistema → Canale aggiornamenti** passa tra Stabile e Sviluppo (versioni di prova, che possono avere problemi). Tornando a Stabile si resta così fino alla prossima versione stabile.
+**Impostazioni → Aggiornamenti → Canale aggiornamenti** passa tra Stabile e Sviluppo (versioni di prova, che possono avere problemi). Tornando a Stabile si resta così fino alla prossima versione stabile.
 
 ## Problemi frequenti
 
@@ -167,7 +175,7 @@ Per aggiornare, apri **Impostazioni → Aggiornamenti e sistema → Aggiorna sis
 - **I giochi Neo Geo non partono:** serve `neogeo.zip` in `Arcade/Bios`.
 - **Un gioco è lento o l'audio gracchia:** prova il profilo Prestazioni in Impostazioni → Giochi. Alcuni arcade 3D sono troppo pesanti o non supportati.
 - **File rovinati dopo la copia:** schede e lettori economici possono rovinare i file senza dare errori. Prova un altro lettore o un'altra scheda.
-- **Serve più dettaglio:** il registro è spento di base. Accendilo in **Impostazioni → Aggiornamenti e sistema → Registro diagnostico**, riavvia la console, riproduci il problema e guarda in `Arcade/Logs`.
+- **Serve più dettaglio:** il registro è spento di base. Accendilo in **Impostazioni → Aggiornamenti → Registro diagnostico**, riavvia la console, riproduci il problema e guarda in `Arcade/Logs`.
 
 ## Compilare
 

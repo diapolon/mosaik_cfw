@@ -31,7 +31,7 @@
 - **Linux games**, with an in-game menu and sleep.
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
-- **Themes, languages, LEDs and video filters** you can configure.
+- **Three themes with color variants**, languages, LEDs and video filters you can configure.
 - **Signed updates** over Wi-Fi, with an attempt to return to the previous version if one fails.
 - **CPU profile for each game**, and a notice on the home screen when an update is available.
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
@@ -41,28 +41,36 @@
 
 <table>
   <tr>
+    <td><img src="docs/images/platforms.png" alt="Platforms"></td>
     <td><img src="docs/images/library.png" alt="Library"></td>
+  </tr>
+  <tr>
+    <td align="center">Platforms, to pick a category before the games</td>
+    <td align="center">The library, as a grid of pictures in Tessera</td>
+  </tr>
+  <tr>
     <td><img src="docs/images/details.png" alt="Game details"></td>
-  </tr>
-  <tr>
-    <td align="center">Library, with as many thumbnails per row as you like</td>
-    <td align="center">Game details, with history and information</td>
-  </tr>
-  <tr>
     <td><img src="docs/images/filters.png" alt="Filters"></td>
+  </tr>
+  <tr>
+    <td align="center">Game details, with history and information</td>
+    <td align="center">Search, genres, collections and sorting</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/settings.png" alt="Settings"></td>
     <td><img src="docs/images/appearance.png" alt="Appearance settings"></td>
   </tr>
   <tr>
-    <td align="center">Search, genres, collections and sorting</td>
-    <td align="center">Theme, language and thumbnails</td>
+    <td align="center">Settings, grouped in sections</td>
+    <td align="center">Theme, color variant and language</td>
   </tr>
   <tr>
     <td><img src="docs/images/theme-cabinato.png" alt="Cabinato theme"></td>
     <td><img src="docs/images/theme-onda.png" alt="Onda theme"></td>
   </tr>
   <tr>
-    <td align="center">Cabinato theme</td>
-    <td align="center">Onda theme</td>
+    <td align="center">Cabinato theme: the numbered arcade menu</td>
+    <td align="center">Onda theme: the library as a vertical list</td>
   </tr>
 </table>
 
@@ -95,9 +103,9 @@ Turn the console off and connect the card to your computer. Everything is in the
 | `Music` | Background music (MP3, OGG, FLAC, WAV) |
 | `Saves` | Saves |
 
-Keep ROMs as `.zip` and don't rename them. **Settings → Games and images → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
+Keep ROMs as `.zip` and don't rename them. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
 
-For covers and information, connect to Wi-Fi and use **Settings → Games and images → Download images**.
+For covers and information, connect to Wi-Fi and use **Settings → Tools → Download images**.
 
 ### Linux games
 
@@ -154,9 +162,9 @@ On the Brick Pro, HOME goes back to the launcher, the two bars below the screen 
 
 Open **Settings → System**: **Wi-Fi** turns it on and off, **Wi-Fi networks** shows the networks to connect to. On the on-screen keyboard, X switches between uppercase, lowercase and symbols.
 
-To update, open **Settings → Updates and system → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if a new system fails to start, the console tries to go back to the previous one by itself. This does not cover every failure: in the worst case, write the image to the card again.
+To update, open **Settings → Updates → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if a new system fails to start, the console tries to go back to the previous one by itself. This does not cover every failure: in the worst case, write the image to the card again.
 
-**Settings → Updates and system → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
+**Settings → Updates → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
 
 ## Troubleshooting
 
@@ -167,7 +175,7 @@ To update, open **Settings → Updates and system → Update system** and press 
 - **Neo Geo games won't start:** they need `neogeo.zip` in `Arcade/Bios`.
 - **A game is slow or the audio crackles:** try the Performance profile in Settings → Games. Some 3D arcade games are too heavy or aren't supported.
 - **Damaged files after copying:** cheap cards and readers can damage files without reporting errors. Try another reader or card.
-- **Need more detail:** logs are off by default. Turn them on in **Settings → Updates and system → Diagnostic log**, restart the console, reproduce the problem and check `Arcade/Logs`.
+- **Need more detail:** logs are off by default. Turn them on in **Settings → Updates → Diagnostic log**, restart the console, reproduce the problem and check `Arcade/Logs`.
 
 ## Building
 
