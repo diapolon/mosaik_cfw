@@ -9,7 +9,7 @@ ko() { echo "  ERRORE: $*"; exit 1; }
 
 openssl ecparam -name prime256v1 -genkey -noout -out key.pem 2>/dev/null
 openssl ecparam -name prime256v1 -genkey -noout -out altra.pem 2>/dev/null
-cp /trimui/frontend/src/launcher/update.c /trimui/frontend/src/launcher/update.h src/
+cp /trimui/frontend/src/launcher/update.c /trimui/frontend/src/launcher/update.h /trimui/frontend/src/launcher/games.h src/
 { echo 'static const char UPDATE_PUBKEY[] ='; openssl ec -in key.pem -pubout 2>/dev/null | sed 's/.*/"&\\n"/'; echo ';'; } > src/update_pubkey.h
 cat > src/t.c <<'C'
 #include "update.h"
@@ -19,6 +19,10 @@ cat > src/t.c <<'C'
 #include <stdlib.h>
 #include <string.h>
 void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
+/* emulatori: "md" è una console (il suo indice lo scrive lo scraper), "fbneo" no */
+#include "games.h"
+static emulator_t md_emu = { .id = "md", .console = true };
+const emulator_t *emulator_find(const char *id) { return !strcmp(id, "md") ? &md_emu : NULL; }
 int main(int c, char **v) {
     if (c > 2 && !strcmp(v[2], "notify")) {
         update_notify_start(v[1], 0);
@@ -42,7 +46,10 @@ D=$W/dist; A=$D/SD/Arcade; mkdir -p $A/System $A/Lang $A/Cores $A/Themes/t $A/Da
 head -c 3000000 /dev/urandom > $D/arcade-system.squashfs
 echo "0.9.0 20270101.0000" > $D/arcade-version.txt
 echo certs > $A/System/cacert.pem; echo '{"it":1}' > $A/Lang/it.json; head -c 5000000 /dev/urandom > $A/Cores/a.so
-echo tema > $A/Themes/t/theme.json; echo idx > $A/Dats/fbneo.tsv; echo storia > $A/Dats/history/x.txt; echo pacchetto > $A/Dats/arcadedb.tsv
+echo tema > $A/Themes/t/theme.json; echo storia > $A/Dats/history/x.txt; echo pacchetto > $A/Dats/arcadedb.tsv
+# indice arcade fatto dai DAT: solo <id>.roms qui (un file in meno da contare); indice di una
+# console e dati libretro scritti dallo scraper: non vanno nell'elenco
+echo roms > $A/Dats/fbneo.roms; echo console > $A/Dats/md.tsv; mkdir -p $A/Dats/libretro/genre; echo dat > $A/Dats/libretro/genre/x.dat
 
 card() {  # scheda con il sistema vecchio e i dati dell'utente
     rm -rf $W/sd; S=$W/sd; mkdir -p $S/System $S/Lang $S/Cores $S/Roms
@@ -142,6 +149,7 @@ cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nu
 [ -z "$(find $S -name '*.annulla' -o -name '*.nuovo')" ] && ok "nessun file provvisorio dopo l'installazione" || ko "file provvisori rimasti"
 cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio conservato"
 cmp $A/Cores/a.so $S/Cores/a.so && cmp $A/Lang/it.json $S/Lang/it.json && cmp $A/Themes/t/theme.json $S/Themes/t/theme.json && ok "dati aggiornati"
+cmp $A/Dats/fbneo.roms $S/Dats/fbneo.roms && [ ! -e $S/Dats/md.tsv ] && [ ! -e $S/Dats/libretro ] && ok "indice arcade sì, indice della console e dati libretro no" || ko "indici sbagliati"
 [ "$(cat $S/System/settings.json)" = '{"mio":1}' ] && [ -f $S/Roms/a.zip ] && ok "impostazioni e ROM intatte"
 [ -f $S/System/update-pending ] && ok "segno di prova del sistema nuovo"
 [ ! -e $S/Dats/history ] && [ "$(cat $S/Dats/arcadedb.tsv)" = scaricato ] && ok "dati dello scraper non toccati"
@@ -183,7 +191,7 @@ expect "$(./t $W/sd install 2>/dev/null)" "11 5 1" "impronta sbagliata rifiutata
 stop
 
 echo "--- elenco firmato che punta fuori dalle cartelle del sistema"
-for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x Dats/arcadedb.tsv Dats/history/a.txt; do
+for bad in ../fuori.txt /etc/passwd Roms/a.zip System/settings.json Lang/../../x Dats/arcadedb.tsv Dats/history/a.txt Dats/md.tsv Dats/libretro/genre/x.dat; do
     printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 6 %s\n' $h "$bad" > $X/update.txt; mk_static $X
     expect "$(./t $W/sd install 2>/dev/null)" "11 3 0" "$bad"
     stop

@@ -34,9 +34,12 @@ cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"
 cp "$FE/emulators/"*.json "$DATA/Emulators/"
-cp -RL "$FE/sdcard/Dats/." "$DATA/Dats/"
-# generi e storie dei giochi li scarica lo scraper sulla console: dati di terzi, nell'immagine no
-rm -rf "$DATA/Dats/arcadedb.tsv" "$DATA/Dats/history"
+# solo gli indici arcade fatti dai DAT (build_index.py: <id>.tsv con accanto <id>.roms). Il resto
+# lo scrive lo scraper sulla console: generi e storie (arcadedb.tsv, history), indici delle
+# console e dati libretro (dati di terzi, nell'immagine no; quelli della SD del Mac sono di prova)
+for r in "$FE/sdcard/Dats/"*.roms; do
+    cp -L "$r" "${r%.roms}.tsv" "$DATA/Dats/"
+done
 mkdir -p "$DATA/Licenses"
 cp "$TOP/licenses/"* "$DATA/Licenses/"
 [ "$1" = "--media" ] && cp -RL "$FE/sdcard/Media/." "$DATA/Media/"

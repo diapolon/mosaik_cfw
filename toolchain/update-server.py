@@ -52,7 +52,9 @@ def wanted():
     # gli indici degli emulatori; Dats/arcadedb.tsv e Dats/history li scrive lo scraper sulla console
     dats = os.path.join(DATA, "Dats")
     for n in sorted(os.listdir(dats)):
-        if n.endswith((".tsv", ".roms")) and n != "arcadedb.tsv":
+        stem = n.rsplit(".", 1)[0]
+        # solo gli indici arcade (con accanto <id>.roms): gli altri li scrive la console
+        if n.endswith((".tsv", ".roms")) and os.path.exists(os.path.join(dats, stem + ".roms")):
             yield "Dats/" + n, os.path.join(dats, n)
 
 
