@@ -38,7 +38,8 @@ typedef struct {
    raccolta di miniature libretro, es. "Sega - Mega Drive - Genesis"; "short": la sigla sulla
    cartuccia della schermata Piattaforme (predefinita: l'id in maiuscolo); "art": il disegno
    nella schermata Piattaforme, "handheld" (portatile verticale) o "handheld-wide" (portatile
-   orizzontale) o "disc" (console a disco), altrimenti la console da casa; "planned": true
+   orizzontale), "disc" o "disc-white" (console a disco), "nes", "snes", "md", "sms", "pce" (console
+   da casa riconoscibili), altrimenti la console da casa generica; "planned": true
    per una console non ancora supportata: solo nella schermata Piattaforme, in grigio, senza
    core né cartella delle ROM (elenco PLANNED, separato da EMUS). */
 typedef struct {

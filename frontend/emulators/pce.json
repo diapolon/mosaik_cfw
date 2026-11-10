@@ -7,6 +7,7 @@
     "zip"
   ],
   "kind": "console",
+  "art": "pce",
   "short": "PCE",
   "thumbnails": "NEC - PC Engine - TurboGrafx 16",
   "order": 45

@@ -2,8 +2,16 @@
   "name": "Super Nintendo",
   "core": "snes9x_libretro",
   "roms": "Roms/SNES",
-  "extensions": ["sfc", "smc", "fig", "swc", "bs", "zip"],
+  "extensions": [
+    "sfc",
+    "smc",
+    "fig",
+    "swc",
+    "bs",
+    "zip"
+  ],
   "kind": "console",
+  "art": "snes",
   "short": "SNES",
   "thumbnails": "Nintendo - Super Nintendo Entertainment System",
   "order": 35

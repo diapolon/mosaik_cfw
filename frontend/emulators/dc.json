@@ -2,7 +2,7 @@
   "name": "Dreamcast",
   "kind": "console",
   "planned": true,
-  "art": "disc",
+  "art": "disc-white",
   "short": "DC",
   "order": 71
 }

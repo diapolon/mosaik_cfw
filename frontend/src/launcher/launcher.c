@@ -1551,14 +1551,165 @@ static void draw_handheld(int x, int y, int w, int h, color_t c, const char *nam
         for (int k = 0; k < 3; k++) ui_circle(x + w * (82 + k * 4) / 100, y + h * 80 / 100, h / 60 + 1, edge);
 }
 
+/* Console da casa riconoscibili dalla forma, senza marchi: NES (scatola con sportello),
+   Super Nintendo (arrotondata, cursori, controller a osso), Mega Drive (nera con la cupola),
+   Master System (cuneo nero con le righe), PC Engine (cubetto bianco con la HuCard). */
+enum { CON_NES, CON_SNES, CON_MD, CON_SMS, CON_PCE };
+
+#define PX(p) (x + w * (p) / 100)
+#define PY(p) (y + h * (p) / 100)
+
+static void con_label(int lx, int ly, int lw, int lh, int r, color_t c, const char *name) {
+    ui_rrect(lx, ly, lw, lh, r, c);
+    char up[64];
+    snprintf(up, sizeof up, "%s", name);
+    for (char *p = up; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+    plat_text(up, lx + lw / 2, ly, lw - lw / 10, lh, rgba(255, 255, 255, 255));
+}
+
+/* cartuccia vista da sopra: righe in alto, etichetta col nome */
+static void con_cart(int cx, int cy, int cw, int ch, int r, color_t shell, color_t c, const char *name) {
+    ui_rrect(cx, cy, cw, ch, r, shell);
+    for (int k = 0; k < 3; k++)
+        ui_rect(cx + cw * 12 / 100, cy + ch * (8 + k * 7) / 100, cw * 76 / 100, ch / 40 + 1, mix(shell, rgba(0, 0, 0, 255), 0.2f));
+    con_label(cx + cw * 7 / 100, cy + ch * 34 / 100, cw * 86 / 100, ch * 40 / 100, r / 2 + 1, c, name);
+}
+
+static void con_dpad(int dx, int dy, int arm, color_t col) {
+    int th = arm * 2 / 3 + 1;
+    ui_rect(dx - arm, dy - th / 2, 2 * arm, th, col);
+    ui_rect(dx - th / 2, dy - arm, th, 2 * arm, col);
+}
+
+static void draw_home_console(int kind, int x, int y, int w, int h, color_t c, const char *name) {
+    color_t black = hexc(0x1C1D22), cable = hexc(0x22242B);
+    int r = w / 24 + 1, lw1 = w / 120 + 1;
+    switch (kind) {
+    case CON_NES: {
+        color_t light = hexc(0xCFCBC4), dark = hexc(0x45454D), flap = hexc(0xB5B1AA);
+        int by = PY(20), bh = h * 50 / 100, split = bh * 56 / 100;
+        ui_rrect(x, by + h / 50, w, bh, r / 2 + 1, mix(dark, black, 0.5f));
+        ui_rrect(x, by, w, bh, r / 2 + 1, dark);
+        ui_rrect(x, by, w, split, r / 2 + 1, light);
+        ui_rect(x, by + split - r, w, r, light);
+        for (int k = 0; k < 4; k++) ui_rect(PX(70), by + bh * (9 + k * 9) / 100, w * 24 / 100, h / 140 + 1, mix(light, black, 0.18f));
+        int fx = PX(5), fy = by + bh * 8 / 100, fw = w * 60 / 100, fh = bh * 42 / 100;
+        ui_rrect(fx, fy, fw, fh, 2, flap);
+        con_label(fx + fw * 7 / 100, fy + fh * 18 / 100, fw * 86 / 100, fh * 64 / 100, 2, c, name);
+        for (int k = 0; k < 2; k++) ui_rrect(PX(7) + k * w * 12 / 100, by + bh * 68 / 100, w * 9 / 100, bh * 14 / 100, 2, light);
+        ui_circle(PX(33), by + bh * 75 / 100, bh / 24 + 1, hexc(0xE04848));
+        for (int k = 0; k < 2; k++) ui_rrect(PX(62) + k * w * 15 / 100, by + bh * 66 / 100, w * 11 / 100, bh * 20 / 100, 2, hexc(0x2A2A30));
+        int pw = w * 48 / 100, ph = h * 20 / 100, px = PX(48), py = y + h - ph;
+        plat_line(PX(30), by + bh, px + pw * 15 / 100, py + ph / 2, lw1, cable);
+        ui_rrect(px, py, pw, ph, ph / 10 + 1, light);
+        ui_rrect(px + pw * 5 / 100, py + ph * 16 / 100, pw * 90 / 100, ph * 68 / 100, ph / 12 + 1, hexc(0x2B2B30));
+        con_dpad(px + pw * 20 / 100, py + ph / 2, ph * 24 / 100, hexc(0x8A8A90));
+        for (int k = 0; k < 2; k++) ui_rrect(px + pw * (40 + k * 11) / 100, py + ph * 54 / 100, pw * 9 / 100, ph / 9 + 1, 1, light);
+        for (int k = 0; k < 2; k++) ui_circle(px + pw * (72 + k * 14) / 100, py + ph * 56 / 100, ph * 13 / 100 + 1, hexc(0xD0403A));
+        break;
+    }
+    case CON_SNES: {
+        color_t light = hexc(0xD5D3DA), band = hexc(0xA9A6B2), shell = hexc(0x8E8B98);
+        int by = PY(30), bh = h * 42 / 100, cw = w * 42 / 100, ch = h * 32 / 100, cx = x + (w - cw) / 2;
+        con_cart(cx, PY(3), cw, ch, r, shell, c, name);
+        ui_rrect(x, by + h / 50, w, bh, w / 9, mix(band, black, 0.3f));
+        ui_rrect(x, by, w, bh, w / 9, light);
+        ui_rrect(x + w / 30, by + bh * 62 / 100, w - w / 15, bh * 30 / 100, w / 16, band);
+        ui_rect(cx - w / 60, by, cw + w / 30, bh * 12 / 100 + 1, hexc(0x3A3842));
+        int sy = by + bh * 24 / 100, sh = bh * 14 / 100;
+        ui_rrect(PX(9), sy, w * 13 / 100, sh, sh / 2, hexc(0x8B8896));
+        ui_rrect(PX(9), sy, w * 6 / 100, sh, sh / 2, c);
+        ui_rrect(PX(78), sy, w * 13 / 100, sh, sh / 2, hexc(0x8B8896));
+        ui_rrect(PX(85), sy, w * 6 / 100, sh, sh / 2, hexc(0xBDBAC6));
+        int pw = w * 50 / 100, ph = h * 21 / 100, px = PX(46), py = y + h - ph;
+        plat_line(PX(30), by + bh, px + pw * 15 / 100, py + ph / 2, lw1, cable);
+        ui_rrect(px, py, pw, ph, ph / 2, light);
+        con_dpad(px + pw * 20 / 100, py + ph / 2, ph * 26 / 100, hexc(0x3A3842));
+        static const unsigned bcol[4] = { 0x3466B5, 0xD8B830, 0xC83B3B, 0x3E9E4F };
+        int bx = px + pw * 78 / 100, byy = py + ph / 2, d = ph * 22 / 100, br = ph / 10 + 1;
+        ui_circle(bx, byy - d, br, hexc(bcol[0])); ui_circle(bx + d, byy, br, hexc(bcol[2]));
+        ui_circle(bx, byy + d, br, hexc(bcol[1])); ui_circle(bx - d, byy, br, hexc(bcol[3]));
+        for (int k = 0; k < 2; k++) ui_rrect(px + pw * (40 + k * 10) / 100, py + ph * 50 / 100, pw * 8 / 100, ph / 9 + 1, 2, hexc(0x5A5866));
+        break;
+    }
+    case CON_MD: {
+        color_t ring = hexc(0x34353D), dome = hexc(0x26272D);
+        int by = PY(30), bh = h * 42 / 100, cw = w * 56 / 100, ch = h * 34 / 100, cx = x + (w - cw) / 2;
+        con_cart(cx, PY(2), cw, ch, r, hexc(0x2C2D33), c, name);
+        ui_rrect(x, by + h / 50, w, bh, r, hexc(0x0E0F12));
+        ui_rrect(x, by, w, bh, r, black);
+        int dr = bh * 52 / 100, dcx = x + w / 2, dcy = by + bh * 36 / 100;
+        ui_circle(dcx, dcy, dr, ring);
+        ui_circle(dcx, dcy, dr * 86 / 100, dome);
+        ui_rect(cx - w / 60, by, cw + w / 30, bh * 10 / 100 + 1, hexc(0x0E0F12));
+        ui_circle(PX(9), by + bh * 30 / 100, bh / 20 + 1, hexc(0xE04848));
+        ui_rrect(PX(6), by + bh * 56 / 100, w * 12 / 100, bh * 10 / 100, 2, ring);
+        for (int k = 0; k < 4; k++) ui_rect(PX(80), by + bh * (30 + k * 12) / 100, w * 14 / 100, h / 140 + 1, ring);
+        ui_rect(PX(14), by + bh * 84 / 100, w * 72 / 100, h / 140 + 1, c);
+        int pw = w * 50 / 100, ph = h * 22 / 100, px = PX(46), py = y + h - ph;
+        plat_line(PX(30), by + bh, px + pw * 15 / 100, py + ph / 2, lw1, cable);
+        int lr = ph * 50 / 100;
+        ui_circle(px + lr, py + ph - lr, lr, black);
+        ui_circle(px + pw - lr, py + ph - lr, lr, black);
+        ui_rrect(px + lr / 2, py, pw - lr, ph * 78 / 100, ph / 3, black);
+        con_dpad(px + pw * 20 / 100, py + ph * 50 / 100, ph * 24 / 100, hexc(0x55565E));
+        for (int k = 0; k < 3; k++) ui_circle(px + pw * (60 + k * 12) / 100, py + ph * (62 - k * 10) / 100, ph / 9 + 1, hexc(0x6A6B74));
+        ui_rrect(px + pw * 44 / 100, py + ph * 26 / 100, pw * 9 / 100, ph / 9 + 1, 2, c);
+        break;
+    }
+    case CON_SMS: {
+        color_t top = hexc(0x2A2B31);
+        int by = PY(32), bh = h * 40 / 100, cw = w * 36 / 100, ch = h * 30 / 100, cx = PX(16);
+        con_cart(cx, PY(6), cw, ch, r, hexc(0x3A3B42), c, name);
+        plat_quad(PX(4), by, PX(96), by, x + w, by + bh, x, by + bh, black);
+        plat_quad(PX(4), by, PX(96), by, PX(98), by + bh * 30 / 100, PX(2), by + bh * 30 / 100, top);
+        ui_rect(cx - w / 60, by, cw + w / 30, bh * 10 / 100 + 1, hexc(0x0E0F12));
+        for (int k = 0; k < 3; k++) ui_rect(PX(54), by + bh * (46 + k * 14) / 100, w * 40 / 100, bh / 16 + 1, c);
+        ui_rect(PX(8), by + bh * 56 / 100, w * 32 / 100, bh / 18 + 1, hexc(0x0A0A0C));
+        ui_rrect(PX(8), by + bh * 74 / 100, w * 9 / 100, bh * 12 / 100, 2, c);
+        int pw = w * 46 / 100, ph = h * 20 / 100, px = PX(48), py = y + h - ph;
+        plat_line(PX(30), by + bh, px + pw * 15 / 100, py + ph / 2, lw1, cable);
+        ui_rrect(px, py, pw, ph, ph / 7 + 1, black);
+        con_dpad(px + pw * 22 / 100, py + ph / 2, ph * 26 / 100, hexc(0x5A5B63));
+        int bs = ph * 26 / 100;
+        for (int k = 0; k < 2; k++) ui_rrect(px + pw * (62 + k * 18) / 100 - bs / 2, py + ph / 2 - bs / 2, bs, bs, 2, hexc(0x8A8B93));
+        break;
+    }
+    default: {   /* CON_PCE */
+        color_t white = hexc(0xECEAE4), shade = hexc(0xC9C6BE);
+        int bw = w * 56 / 100, bh = h * 46 / 100, bx = PX(6), by = PY(34);
+        int cw = bw * 78 / 100, ch = h * 30 / 100;
+        ui_rrect(bx + (bw - cw) / 2, by - ch * 74 / 100, cw, ch, 3, mix(c, rgba(255, 255, 255, 255), 0.15f));
+        con_label(bx + (bw - cw) / 2 + cw * 8 / 100, by - ch * 64 / 100, cw * 84 / 100, ch * 44 / 100, 2, c, name);
+        ui_rrect(bx, by + h / 50, bw, bh, r / 2 + 1, shade);
+        ui_rrect(bx, by, bw, bh, r / 2 + 1, white);
+        ui_rect(bx + bw * 10 / 100, by, bw * 80 / 100, bh * 8 / 100 + 1, hexc(0x2C2C30));
+        ui_rect(bx, by + bh * 70 / 100, bw, bh * 30 / 100, shade);
+        ui_rrect(bx + bw * 8 / 100, by + bh * 30 / 100, bw * 20 / 100, bh * 12 / 100, 2, c);
+        ui_rrect(bx + bw - bw * 8 / 100 - bw * 18 / 100, by + bh * 76 / 100, bw * 18 / 100, bh * 14 / 100, 2, hexc(0x3A3A40));
+        ui_rrect(bx + bw, by + bh * 20 / 100, w * 6 / 100, bh * 60 / 100, 2, hexc(0x3A3A40));
+        int pw = w * 40 / 100, ph = h * 19 / 100, px = PX(58), py = y + h - ph;
+        plat_line(bx + bw / 2, by + bh, px + pw * 15 / 100, py + ph / 2, lw1, cable);
+        ui_rrect(px, py, pw, ph, ph / 6 + 1, white);
+        con_dpad(px + pw * 22 / 100, py + ph / 2, ph * 26 / 100, hexc(0x2C2C30));
+        for (int k = 0; k < 2; k++) ui_circle(px + pw * (66 + k * 16) / 100, py + ph * (58 - k * 10) / 100, ph / 9 + 1, hexc(0x2C2C30));
+        for (int k = 0; k < 2; k++) ui_rrect(px + pw * (60 + k * 16) / 100, py + ph * 18 / 100, pw * 9 / 100, ph / 10 + 1, 1, c);
+        break;
+    }
+    }
+}
+#undef PX
+#undef PY
+
 /* console a disco: coperchio rotondo con il disco, nome su una striscia del corpo, controller */
-static void draw_disc_console(int x, int y, int w, int h, color_t c, const char *name) {
-    color_t body = mix(c, hexc(0xC9C7C2), 0.55f), edge = mix(body, rgba(0, 0, 0, 255), 0.25f), pad = hexc(0x2A2D36);
+static void draw_disc_console(int x, int y, int w, int h, color_t c, const char *name, bool white) {
+    /* white: corpo bianco, coperchio più piccolo e controller con la memoria al centro (Dreamcast) */
+    color_t body = white ? hexc(0xE8E7E2) : mix(c, hexc(0xC9C7C2), 0.55f), edge = mix(body, rgba(0, 0, 0, 255), 0.25f), pad = white ? hexc(0xD9D8D2) : hexc(0x2A2D36);
     int r = w / 22 + 1, by = y + h * 8 / 100, bh = h * 58 / 100;
     ui_rrect(x, by + h / 40, w, bh, r, edge);
     ui_rrect(x, by, w, bh, r, body);
     /* coperchio e disco */
-    int lr = bh * 36 / 100, lx = x + w * 34 / 100, ly = by + bh * 44 / 100;
+    int lr = bh * (white ? 30 : 36) / 100, lx = x + w * (white ? 30 : 34) / 100, ly = by + bh * 44 / 100;
     ui_circle(lx, ly, lr + lr / 8, edge);
     ui_circle(lx, ly, lr, mix(body, rgba(255, 255, 255, 255), 0.25f));
     ui_circle(lx, ly, lr * 72 / 100, hexc(0xB9C3D0));
@@ -1582,6 +1733,7 @@ static void draw_disc_console(int x, int y, int w, int h, color_t c, const char 
     ui_rect(dx - th / 2, dy - arm, th, 2 * arm, edge);
     for (int k = 0; k < 4; k++)
         ui_circle(px + pw * 74 / 100 + (k == 1 ? ph / 4 : k == 3 ? -ph / 4 : 0), dy + (k == 0 ? -ph / 4 : k == 2 ? ph / 4 : 0), ph / 10 + 1, c);
+    if (white) ui_rrect(px + pw * 42 / 100, py + ph * 12 / 100, pw * 18 / 100, ph * 46 / 100, 2, c);   /* memoria */
 }
 
 /* portatile per i giochi Linux */
@@ -1644,14 +1796,18 @@ static void draw_plat_art(int tab, int x, int y, int w, int h) {
         int aw = w, ah = w * 46 / 100;
         if (ah > h * 70 / 100) { ah = h * 70 / 100; aw = ah * 100 / 46; }
         draw_handheld(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname, true);
-    } else if (!strcmp(art, "disc")) {
+    } else if (!strcmp(art, "disc") || !strcmp(art, "disc-white")) {
         int aw = w, ah = w * 80 / 100;
         if (ah > h * 80 / 100) { ah = h * 80 / 100; aw = ah * 100 / 80; }
-        draw_disc_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
+        draw_disc_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname, !strcmp(art, "disc-white"));
     } else if (em && em->console) {
         int aw = w, ah = w * 86 / 100;
         if (ah > h * 80 / 100) { ah = h * 80 / 100; aw = ah * 100 / 86; }
-        draw_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
+        static const char *const kinds[] = { "nes", "snes", "md", "sms", "pce" };
+        int kind = -1;
+        for (int k = 0; k < 5; k++) if (!strcmp(art, kinds[k])) kind = k;
+        if (kind >= 0) draw_home_console(kind, x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
+        else draw_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
     } else if (tab >= TAB_EMU && tab < TAB_COLL) {
         int ah = h, aw = h * 62 / 100;
         if (aw > w) { aw = w; ah = w * 100 / 62; }
