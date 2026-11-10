@@ -73,16 +73,20 @@ expect "$(./t $W/sd notify 2>/dev/null)" "0.9.0 20270101.0000" "versione nuova s
 echo "http://127.0.0.1:1/" > $S/System/update-url.txt
 expect "$(./t $W/sd notify 2>/dev/null)" "0.9.0 20270101.0000" "entro un giorno non ricontrolla e ricorda l'avviso"
 card
-echo "--- errore a metà: limite noto, l'installazione resta parziale (vedi TODO)"
+echo "--- errore a metà: si rimette tutto com'era"
 card
 mkdir -p $S/Themes/t/theme.json
 expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"
-cmp $A/Lang/it.json $S/Lang/it.json && cmp $W/vecchio $S/System/arcade-system.squashfs && ok "file già sostituiti restano, il sistema resta il vecchio"
+[ "$(cat $S/Lang/it.json)" = vecchio ] && ok "file già sostituito tornato com'era" || ko "file non ripristinato: $(cat $S/Lang/it.json)"
+cmp $W/vecchio $S/System/arcade-system.squashfs && ok "il sistema resta il vecchio"
+[ ! -e $S/Cores/a.so ] && ok "file nuovi tolti" || ko "file nuovo rimasto"
+[ -z "$(find $S -name '*.annulla' -o -name '*.nuovo')" ] && ok "nessun file provvisorio" || ko "file provvisori rimasti: $(find $S -name '*.annulla' -o -name '*.nuovo')"
 card
 echo "--- impossibile scrivere il segno degli avvii di prova"
 mkdir $S/System/update-pending
 expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"
 cmp $W/vecchio $S/System/arcade-system.squashfs && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema precedente rimesso a posto"
+[ "$(cat $S/Lang/it.json)" = vecchio ] && ok "anche i dati tornano com'erano" || ko "dati non ripristinati"
 echo "--- manca il sistema principale: la console gira sulla copia precedente"
 card
 mv $S/System/arcade-system.squashfs $S/System/arcade-system.squashfs.prec
@@ -91,7 +95,7 @@ cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nu
 cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "copia precedente non cancellata"
 echo "--- sistema principale rovinato: la console gira sulla copia precedente"
 SF=$S/System/arcade-system.squashfs
-in_uso() { mkdir -p $W/block/loop0/loop; echo "/mnt/SDCARD/Arcade/System/$1" > $W/block/loop0/loop/backing_file; }
+in_uso() { rm -rf $W/block; mkdir -p $W/block/${2:-loop0}/loop; echo "/mnt/SDCARD/Arcade/System/$1" > $W/block/${2:-loop0}/loop/backing_file; }
 card; cp $SF $SF.prec; echo rovinato > $SF; cp $SF $W/rovinato; in_uso arcade-system.squashfs.prec
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato sopra il sistema rovinato"
 cmp $D/arcade-system.squashfs $SF && ok "sistema nuovo al suo posto"
@@ -104,10 +108,37 @@ echo "--- la console gira sul sistema principale: diventa la copia precedente"
 card; echo copia-vecchia > $SF.prec; in_uso arcade-system.squashfs
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato"
 cmp $W/vecchio $SF.prec && ok "il sistema in uso diventa la copia precedente"
+echo "--- sistema in uso su un dispositivo loop oltre i primi otto"
+card; cp $SF $SF.prec; echo rovinato > $SF; in_uso arcade-system.squashfs.prec loop12
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato"
+cmp $W/vecchio $SF.prec && ok "la copia buona resta quella precedente"
+echo "--- due dispositivi col sistema: vale quello montato come radice"
+card; cp $SF $SF.prec; echo rovinato > $SF; rm -rf $W/block
+mkdir -p $W/block/loop0/loop $W/block/loop5/loop
+echo /mnt/SDCARD/Arcade/System/arcade-system.squashfs > $W/block/loop0/loop/backing_file; echo 7:0 > $W/block/loop0/dev
+echo /mnt/SDCARD/Arcade/System/arcade-system.squashfs.prec > $W/block/loop5/loop/backing_file; stat -c '%Hd:%Ld' / > $W/block/loop5/dev
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato"
+cmp $W/vecchio $SF.prec && ok "riconosciuto il sistema della radice: copia buona conservata" || ko "copia buona sostituita"
+echo "--- due dispositivi col sistema, nessuno è la radice: non si sa quale"
+card; echo copia-buona > $SF.prec; rm -rf $W/block
+mkdir -p $W/block/loop0/loop $W/block/loop5/loop
+echo /mnt/SDCARD/Arcade/System/arcade-system.squashfs > $W/block/loop0/loop/backing_file
+echo /mnt/SDCARD/Arcade/System/arcade-system.squashfs.prec > $W/block/loop5/loop/backing_file
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato"
+[ "$(cat $SF.prec)" = copia-buona ] && ok "copia precedente conservata" || ko "copia precedente sostituita"
+echo "--- non si sa quale sistema è in uso: la copia precedente non si tocca"
+card; echo copia-buona > $SF.prec; rm -rf $W/block; mkdir -p $W/block/loop0/loop
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "installato"
+[ "$(cat $SF.prec)" = copia-buona ] && ok "copia precedente conservata" || ko "copia precedente sostituita"
+cmp $D/arcade-system.squashfs $SF && ok "sistema nuovo al suo posto"
+card; rm -rf $W/block; mkdir -p $W/block
+expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "senza copia precedente: installato"
+cmp $W/vecchio $SF.prec && ok "il sistema di prima diventa la copia precedente"
 rm -rf $W/block
 card
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "fine installazione, 6 file"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nuovo identico"
+[ -z "$(find $S -name '*.annulla' -o -name '*.nuovo')" ] && ok "nessun file provvisorio dopo l'installazione" || ko "file provvisori rimasti"
 cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio conservato"
 cmp $A/Cores/a.so $S/Cores/a.so && cmp $A/Lang/it.json $S/Lang/it.json && cmp $A/Themes/t/theme.json $S/Themes/t/theme.json && ok "dati aggiornati"
 [ "$(cat $S/System/settings.json)" = '{"mio":1}' ] && [ -f $S/Roms/a.zip ] && ok "impostazioni e ROM intatte"

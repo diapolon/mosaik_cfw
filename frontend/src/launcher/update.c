@@ -53,7 +53,11 @@ const char *update_current(void) {
 #include <pthread.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <dirent.h>
 #include <sys/stat.h>
+#ifdef __linux__
+#include <sys/sysmacros.h>
+#endif
 #include <sys/statvfs.h>
 #include "update_pubkey.h"
 
@@ -64,7 +68,7 @@ const char *update_current(void) {
 #define SYSFILE "System/arcade-system.squashfs"
 
 static char root_dir[1024];
-typedef struct { char sha[65]; long long size; char path[512]; bool need; int index; } item_t;
+typedef struct { char sha[65]; long long size; char path[512]; bool need; int index; bool backed, placed; } item_t;
 static item_t *items;
 static int nitems;
 static char base_url[256];
@@ -311,28 +315,92 @@ static void tmp_name(const item_t *it, char *out, size_t n) { snprintf(out, n, "
 #ifndef SYS_BLOCK_DIR
 #define SYS_BLOCK_DIR "/sys/block"
 #endif
+#ifndef SYS_ROOT_PATH
+#define SYS_ROOT_PATH "/"
+#endif
 
 /* La console sta girando sulla copia precedente? Lo dice il kernel: è il file dietro il
    dispositivo loop del sistema. Il solo controllo del file principale non basta, perché può
    esserci ma essere rovinato: in quel caso l'initramfs è ripartito dalla copia precedente. */
-static bool running_from_prev(void) {
-    for (int i = 0; i < 8; i++) {
-        char p[256], line[1200];
-        snprintf(p, sizeof p, SYS_BLOCK_DIR "/loop%d/loop/backing_file", i);
-        FILE *f = fopen(p, "r");
-        if (!f) continue;
-        char *got = fgets(line, sizeof line, f);
-        fclose(f);
-        if (!got || !strstr(line, "arcade-system.squashfs")) continue;
-        line[strcspn(line, "\n")] = 0;
-        ui_log("aggiornamento: sistema in uso: %s", line);
-        return strstr(line, ".squashfs.prec") != NULL;
+enum { RUN_UNKNOWN, RUN_MAIN, RUN_PREV };
+
+static bool read_line(const char *path, char *out, size_t n) {
+    FILE *f = fopen(path, "r");
+    if (!f) return false;
+    bool ok = fgets(out, (int)n, f) != NULL;
+    fclose(f);
+    if (ok) out[strcspn(out, "\n")] = 0;
+    return ok;
+}
+
+/* Quale file di sistema è montato come radice: il dispositivo loop con lo stesso numero della
+   radice. Se nessuno corrisponde si accetta il nome del file, ma solo se un unico dispositivo
+   loop ne ha uno del sistema: con due o più non si sa quale sia in uso. */
+static int running_system(void) {
+    struct stat rs;
+    char rootdev[32] = "";
+    if (stat(SYS_ROOT_PATH, &rs) == 0) snprintf(rootdev, sizeof rootdev, "%u:%u", major(rs.st_dev), minor(rs.st_dev));
+    DIR *d = opendir(SYS_BLOCK_DIR);
+    struct dirent *e;
+    int by_dev = RUN_UNKNOWN, by_name = RUN_UNKNOWN, named = 0;
+    char line[1200], used[1200] = "";
+    while (d && by_dev == RUN_UNKNOWN && (e = readdir(d))) {
+        if (strncmp(e->d_name, "loop", 4)) continue;   /* tutti i dispositivi loop, non solo i primi */
+        char p[512], dev[32];
+        snprintf(p, sizeof p, SYS_BLOCK_DIR "/%s/loop/backing_file", e->d_name);
+        if (!read_line(p, line, sizeof line) || !strstr(line, "arcade-system.squashfs")) continue;
+        int kind = strstr(line, ".squashfs.prec") ? RUN_PREV : RUN_MAIN;
+        snprintf(p, sizeof p, SYS_BLOCK_DIR "/%s/dev", e->d_name);
+        if (rootdev[0] && read_line(p, dev, sizeof dev) && !strcmp(dev, rootdev)) { by_dev = kind; snprintf(used, sizeof used, "%s", line); }
+        else if (named++ == 0) { by_name = kind; snprintf(used, sizeof used, "%s", line); }
     }
-    return false;
+    if (d) closedir(d);
+    int found = by_dev != RUN_UNKNOWN ? by_dev : named == 1 ? by_name : RUN_UNKNOWN;
+    if (found == RUN_UNKNOWN) ui_log("aggiornamento: non so quale sistema è in uso (%d candidati)", named);
+    else ui_log("aggiornamento: sistema in uso: %s%s", used, by_dev != RUN_UNKNOWN ? "" : " (dal nome)");
+    return found;
 }
 
 static void restore_system(const char *prev, const char *dst) {
     if (rename(prev, dst) != 0) ui_log("aggiornamento: sistema precedente NON ripristinato (%s): resta %s", strerror(errno), prev);
+}
+
+/* Mentre si sostituiscono i file, quello vecchio resta di fianco come .annulla: se un passaggio
+   fallisce si rimette tutto com'era, e la scheda non resta con file di due versioni. */
+static void backup_name(const item_t *it, char *out, size_t n) { snprintf(out, n, "%s/%s.annulla", root_dir, it->path); }
+
+static void undo_items(void) {
+    char dst[1100], bak[1120];
+    for (int i = nitems - 1; i >= 0; i--) {
+        item_t *it = &items[i];
+        snprintf(dst, sizeof dst, "%s/%s", root_dir, it->path);
+        backup_name(it, bak, sizeof bak);
+        if (it->backed) {
+            if (rename(bak, dst) != 0) ui_log("aggiornamento: %s NON ripristinato (%s)", it->path, strerror(errno));
+        } else if (it->placed) unlink(dst);
+        it->backed = it->placed = false;
+    }
+}
+
+static void drop_backups(void) {
+    char bak[1120];
+    for (int i = 0; i < nitems; i++) if (items[i].backed) { backup_name(&items[i], bak, sizeof bak); unlink(bak); }
+}
+
+/* mette il file nuovo al suo posto tenendo da parte il vecchio */
+static bool place_item(item_t *it, const char *tmp, const char *dst) {
+    char bak[1120];
+    struct stat dst_st;
+    backup_name(it, bak, sizeof bak);
+    it->backed = it->placed = false;
+    if (lstat(dst, &dst_st) == 0) {
+        if (S_ISDIR(dst_st.st_mode)) { errno = EISDIR; return false; }
+        if (rename(dst, bak) != 0) return false;
+        it->backed = true;
+    }
+    if (rename(tmp, dst) != 0) return false;
+    it->placed = true;
+    return true;
 }
 
 static void remove_tmps(void) {
@@ -380,7 +448,7 @@ static void *apply_worker(void *arg) {
         if (!strcmp(it->path, SYSFILE)) { sys = it; continue; }
         tmp_name(it, tmp, sizeof tmp);
         snprintf(dst, sizeof dst, "%s/%s", root_dir, it->path);
-        if (rename(tmp, dst) != 0) { ui_log("aggiornamento: rename %s: %s", it->path, strerror(errno)); remove_tmps(); fail(UPE_WRITE); return NULL; }
+        if (!place_item(it, tmp, dst)) { ui_log("aggiornamento: rename %s: %s", it->path, strerror(errno)); undo_items(); remove_tmps(); fail(UPE_WRITE); return NULL; }
     }
     if (sys) {
         char prev[1100], pend[1100];
@@ -390,12 +458,15 @@ static void *apply_worker(void *arg) {
         snprintf(pend, sizeof pend, "%s/System/update-pending", root_dir);
         /* il sistema in uso resta aperto (è montato) anche con un altro nome */
         /* Se la console sta girando sul .prec, quella è la copia buona e non va toccata: il
-           sistema nuovo prende il posto del principale, mancante o rovinato che sia. */
-        struct stat main_st;
+           sistema nuovo prende il posto del principale, mancante o rovinato che sia. Se non si
+           riesce a sapere quale dei due è in uso, la copia precedente non si cancella mai. */
+        struct stat main_st, prev_st;
         bool moved = false;
-        if (!running_from_prev() && stat(dst, &main_st) == 0) {
+        int run = running_system();
+        bool keep_prev = run == RUN_PREV || (run == RUN_UNKNOWN && stat(prev, &prev_st) == 0);
+        if (!keep_prev && stat(dst, &main_st) == 0) {
             unlink(prev);
-            if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); remove_tmps(); fail(UPE_WRITE); return NULL; }
+            if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); undo_items(); remove_tmps(); fail(UPE_WRITE); return NULL; }
             moved = true;
         }
         /* senza questo file non si contano gli avvii di prova: non si prosegue */
@@ -406,6 +477,7 @@ static void *apply_worker(void *arg) {
             ui_log("aggiornamento: impossibile scrivere update-pending");
             unlink(pend);
             if (moved) restore_system(prev, dst);
+            undo_items();
             remove_tmps();
             fail(UPE_WRITE);
             return NULL;
@@ -414,11 +486,13 @@ static void *apply_worker(void *arg) {
             ui_log("aggiornamento: rename del sistema nuovo: %s", strerror(errno));
             if (moved) restore_system(prev, dst);
             unlink(pend);
+            undo_items();
             remove_tmps();
             fail(UPE_WRITE);
             return NULL;
         }
     }
+    drop_backups();
     sync();
     ui_log("aggiornamento: installata la versione %s", st.version);
     st.phase = UPD_DONE;

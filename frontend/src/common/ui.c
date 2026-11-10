@@ -984,7 +984,7 @@ bool theme_load(theme_t *t, const char *root, const char *id, const char *varian
 
     jval *vars = json_get(j, "variants");
     if (vars && vars->t == J_OBJ) {
-        for (jval *v = vars->child; v && t->nvariants < 4; v = v->next)
+        for (jval *v = vars->child; v && t->nvariants < 8; v = v->next)
             snprintf(t->variants[t->nvariants++], 16, "%s", v->key);
         jval *chosen = json_get(vars, variant);
         load_variant_colors(t, chosen ? chosen : vars->child);
@@ -1488,6 +1488,50 @@ static void wifi_icon(int x, int y, int h, int level, color_t c) {
     ui_wifi_icon(x, y, h, level, with_alpha(c, level < 0 ? 45 : 255), with_alpha(c, level < 0 ? 45 : 90));
 }
 
+/* barra dei tasti su una riga: terne tasto, etichetta, etichetta corta. Se non c'è posto si usano
+   le etichette corte, poi si tolgono le voci con etichetta corta "" (le meno importanti, dalla
+   fine); il primo tasto resta sempre. */
+int ui_keybar_h(void) { return M(0.045f) + M(0.04f); }
+int ui_keybar(const char *const *items, int n) {
+    theme_t *t = &UI.th;
+    TTF_Font *f = UI.f_small;
+    int mx = M(t->margin), y0 = UI.h - ui_keybar_h(), g = M(0.042f), avail = UI.w - 2 * mx;
+    int cnt = n / 3, cy = y0 + ui_keybar_h() / 2;
+    bool keep[16], shrt = false;
+    for (int i = 0; i < cnt && i < 16; i++) keep[i] = true;
+    /* larghezza dei pulsanti come in ui_hints: tondi per una lettera, a pillola per le parole */
+    #define KB_GW(b) (!strcmp(b, "<>") || !strcmp(b, "^v") ? g * 3 / 2 : strlen(b) == 1 ? g : ui_text_w(f, b) + g / 2)
+    #define KB_LABEL(i) (shrt && items[(i) * 3 + 2] && items[(i) * 3 + 2][0] ? items[(i) * 3 + 2] : items[(i) * 3 + 1])
+    for (int pass = 0; pass < 20; pass++) {
+        int tot = 0, k = 0;
+        for (int i = 0; i < cnt; i++) {
+            if (!keep[i]) continue;
+            tot += (k++ ? M(0.03f) : 0) + KB_GW(items[i * 3]) + M(0.012f) + ui_text_w(f, KB_LABEL(i));
+        }
+        if (tot <= avail) break;
+        if (!shrt) { shrt = true; continue; }
+        int drop = -1;
+        for (int i = cnt - 1; i > 0 && drop < 0; i--) if (keep[i] && items[i * 3 + 2] && !items[i * 3 + 2][0]) drop = i;
+        if (drop < 0) for (int i = cnt - 1; i > 0 && drop < 0; i--) if (keep[i]) drop = i;
+        if (drop < 0) break;
+        keep[drop] = false;
+    }
+    ui_rect(mx, y0, UI.w - 2 * mx, 1, t->line);
+    /* da destra: il primo tasto (l'azione principale) è l'ultimo a destra, come in ui_hints */
+    int x = UI.w - mx;
+    for (int i = 0; i < cnt; i++) {
+        if (!keep[i]) continue;
+        const char *btn = items[i * 3];
+        x -= ui_text(f, KB_LABEL(i), x, cy - TTF_FontHeight(f) / 2, t->text, ALIGN_RIGHT) + M(0.012f);
+        int gw = KB_GW(btn);
+        ui_button_glyph(btn, x - gw / 2, cy, g);
+        x -= gw + M(0.03f);
+    }
+    #undef KB_GW
+    #undef KB_LABEL
+    return x + M(0.03f);   /* dove comincia la barra: a sinistra resta posto libero */
+}
+
 void ui_topbar(const char *title) {
     theme_t *t = &UI.th;
     int bh = M(t->topbar_h), mx = M(t->margin), cy = bh / 2;
@@ -1836,6 +1880,11 @@ void ui_begin(void) {
     tprev = now;
     frame_no++;
     SDL_SetRenderTarget(UI.ren, UI.canvas);
+    ui_background();
+}
+
+/* sfondo del tema: colore o sfumatura, immagine, onde */
+void ui_background(void) {
     theme_t *t = &UI.th;
     if (t->bg2.r != t->bg.r || t->bg2.g != t->bg.g || t->bg2.b != t->bg.b) ui_vgradient(0, 0, UI.w, UI.h, t->bg, t->bg2);
     else {

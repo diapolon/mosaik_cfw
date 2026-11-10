@@ -34,6 +34,8 @@ fail() {
     fbmsg show rosso 60 "$1" "$2"
     sync
     poweroff -f
+    # se lo spegnimento non riesce non si va avanti comunque: si resta qui (il watchdog è vivo)
+    while :; do sleep 60; done
 }
 
 step "1 CERCO LA SD"
@@ -49,14 +51,27 @@ mkdir -p /sd /root
 # Il kernel segna il FAT "in uso" (bit 0 del byte 65 del settore di avvio) quando lo monta e
 # toglie il segno quando lo smonta bene: il controllo serve solo se il segno è rimasto, cioè
 # dopo uno spegnimento brusco. Con una SD grande il controllo legge decine di MB.
+# >>> controllo del FAT (m2/test-boot.sh prova questo blocco)
 STATE=$(dd if="$P" bs=1 skip=65 count=1 2>/dev/null | od -An -tu1 | tr -d ' ')
+: > /tmp/fsck.txt
 if [ $(( ${STATE:-1} & 1 )) = 1 ]; then
     fbmsg show blu 0 "CONTROLLO LA SD" "" 2>/dev/null
-    fsck.fat -a -w "$P" > /tmp/fsck.txt 2>&1
-    FSCK=$?
+    # fsck.fat esce con 1 sia quando ha riparato sia quando non ci è riuscito: se ha trovato
+    # qualcosa, una verifica senza modifiche deve poi risultare pulita (due tentativi)
+    FSCK=bad
+    for pass in 1 2; do
+        fsck.fat -a -w "$P" >> /tmp/fsck.txt 2>&1
+        rc=$?
+        if [ $rc = 0 ] && [ $pass = 1 ]; then FSCK=0; break; fi
+        if fsck.fat -n "$P" >> /tmp/fsck.txt 2>&1; then FSCK=1; break; fi
+    done
 else
     FSCK=skip
 fi
+# un FAT che non si è riusciti a riparare non si allarga e non si monta in scrittura: i dati
+# restano come sono, e la scheda si ripara con un computer
+[ "$FSCK" = bad ] && fail "SD DA RIPARARE" "CONTROLLALA CON UN COMPUTER"
+# <<< controllo del FAT
 # prima accensione: la partizione ARCADE si allarga fino alla fine della scheda (m2/sdgrow.c).
 # Le volte successive sdgrow vede che non c'è nulla da fare e finisce subito.
 PN=${P#/dev/}

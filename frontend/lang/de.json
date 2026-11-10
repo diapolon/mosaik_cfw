@@ -1,11 +1,13 @@
 {
   "_name": "Deutsch",
   "common": {
+    "info": "Info",
     "ok": "OK",
     "back": "Zurück",
     "play": "Spielen",
     "cancel": "Abbrechen",
     "change": "Ändern",
+    "section": "Bereich",
     "yes": "Ja",
     "no": "Nein",
     "on": "An",
@@ -28,11 +30,61 @@
     "open": "Öffnen"
   },
   "home": {
+    "resume_game": "Spiel fortsetzen",
+    "btn_library": "Bibliothek",
+    "n_of": "%d von %d",
+    "resume_hint": "A  Fortsetzen",
+    "fav_kind": "Favorit",
+    "recent_kind": "Zuletzt",
+    "in_progress": "Laufendes Spiel",
+    "no_game_title": "Noch kein Spiel",
+    "no_game_text": "Wähle ein Spiel in der Bibliothek.",
+    "favs_count": "%d Favoriten",
+    "theme_now": "Aktuelles Design: %s",
+    "settings_desc": "Bildschirm, Steuerung, WLAN und Updates",
+    "power_desc": "Konsole ausschalten",
+    "title_cards": "Weiterspielen",
+    "title_menu": "Spielhalle",
+    "title_bar": "Mosaik entdecken",
+    "today": "heute, %s",
+    "yesterday": "gestern, %s",
+    "last": "Letztes Spiel",
+    "autosave": "Automatisch gespeichert · %s",
+    "recent": "Zuletzt gespielt",
+    "open_library": "Bibliothek öffnen",
+    "resume": "Fortsetzen",
     "no_games": "Keine Spiele gefunden: ROMs nach Roms/FBNEO oder Roms/MAME2003P kopieren",
     "fav_added": "Zu Favoriten hinzugefügt",
     "fav_removed": "Aus Favoriten entfernt",
     "themes": "Designs",
     "favorites": "Favoriten"
+  },
+  "plat": {
+    "title": "Plattformen",
+    "open": "Bibliothek öffnen",
+    "one": "1 Spiel",
+    "native": "> native Spiele"
+  },
+  "lib": {
+    "confirm": "Bestätigen",
+    "search_short": "Suchen",
+    "settings_short": "Menü",
+    "no_image": "Kein Bild",
+    "count": "Bibliothek · %d Titel",
+    "start_note": "START öffnet Einstellungen, Designs und Ausschalten",
+    "selected": "Ausgewählt",
+    "category": "Kategorie",
+    "search_filters": "Suche und Filter",
+    "empty_title": "Leere Bibliothek",
+    "empty_text": "Kopiere die Spiele in den Ordner Arcade/Roms der SD-Karte.",
+    "empty_text2": "Drücke A, um die Bibliothek zu aktualisieren.",
+    "refresh": "Bibliothek aktualisieren",
+    "nofav_title": "Keine Favoriten",
+    "nofav_text": "Öffne Alle und wähle ein Spiel.",
+    "nofav_text2": "Drücke Y, um es zu den Favoriten hinzuzufügen.",
+    "open_all": "Alle öffnen",
+    "none_title": "Keine Spiele",
+    "autosave": "Automatische Speicherung vorhanden"
   },
   "library": {
     "title": "Bibliothek",
@@ -50,6 +102,8 @@
     "about": "%d Spiele · Prototyp 0.1 · %s"
   },
   "settings": {
+    "restart": "Neu starten",
+    "suspend_now": "Ruhezustand",
     "collections": "Sammlungen",
     "pad_test": "Tastentest",
     "stick_cal": "Sticks kalibrieren",
@@ -96,6 +150,8 @@
     "led_brightness": "LED-Helligkeit"
   },
   "settings_desc": {
+    "restart": "Startet Mosaik neu. Einstellungen und Favoriten sind bereits gespeichert.",
+    "suspend_now": "Schaltet den Bildschirm aus und pausiert die Konsole: Die Ein-/Aus-Taste weckt sie auf.",
     "collections": "Sammlungen umbenennen oder löschen.",
     "pad_test": "Zeigt jede gedrückte Taste und die Position der Sticks: nützlich, um ihre Funktion zu prüfen.",
     "stick_cal": "Verwenden, wenn ein Stick nicht zur Mitte zurückkehrt oder den Rand nicht erreicht.",
@@ -164,9 +220,16 @@
     "ambra": "Bernstein",
     "oceano": "Ozean",
     "tramonto": "Sonnenuntergang",
-    "foresta": "Wald"
+    "foresta": "Wald",
+    "corallo": "Koralle",
+    "salvia": "Salbei",
+    "notte": "Nacht",
+    "fosforo": "Phosphor",
+    "cobalto": "Kobalt",
+    "rubino": "Rubin"
   },
   "dialog": {
+    "restart_title": "Konsole neu starten?",
     "power_title": "Konsole ausschalten?",
     "power_body": "Einstellungen und Favoriten sind bereits gespeichert.",
     "power_body_app": "Beenden kehrt zum TrimUI-Menü zurück.",
@@ -450,15 +513,17 @@
     "none": "Keine Bilder zu löschen"
   },
   "settings_cat": {
+    "power": "Ausschalten",
     "controls": "Steuerung",
     "display": "Bild und Ton",
     "look": "Aussehen",
     "games": "Spiele",
     "system": "System",
-    "tools": "Spiele und Bilder",
-    "updates": "Updates und System"
+    "tools": "Werkzeuge",
+    "updates": "Updates"
   },
   "settings_cat_sum": {
+    "power": "Ruhezustand, Neustart oder Ausschalten",
     "controls": "Controller, Tasten- und Sticktest",
     "display": "Helligkeit, Lautstärke, Musik, LEDs",
     "look": "Thema, Sprache, Bildschirmschoner",
@@ -468,6 +533,7 @@
     "updates": "Update, Kanal, Protokoll, Infos"
   },
   "settings_cat_desc": {
+    "power": "Konsole in den Ruhezustand versetzen, neu starten oder ausschalten.",
     "controls": "Externe Controller, Test von Tasten und Sticks und auf der Brick Pro die Funktion der Zusatztasten.",
     "display": "Bildschirmhelligkeit, Lautstärke, Hintergrundmusik und Konsolenlichter.",
     "look": "Launcher-Thema, Variante, Sprache und Bildschirmschoner.",
@@ -637,6 +703,7 @@
     "controls_body": "Deine Einstellungen für dieses Spiel gehen verloren."
   },
   "saves": {
+    "in_use": "Aktiv",
     "title": "Spielstände",
     "slot": "Platz %d",
     "auto": "Automatisch",

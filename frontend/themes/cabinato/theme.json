@@ -58,6 +58,42 @@
       "tile": "#2A1C0B",
       "shadow": "#00000080",
       "line": "#FFA31A55"
+    },
+    "fosforo": {
+      "background": "#06180C",
+      "background2": "#010603",
+      "surface": "#0B2614",
+      "text": "#C8FFD4",
+      "text_dim": "#5FAE74",
+      "accent": "#33FF77",
+      "accent_text": "#02140A",
+      "tile": "#0B2614",
+      "shadow": "#00000080",
+      "line": "#33FF7755"
+    },
+    "cobalto": {
+      "background": "#0A1840",
+      "background2": "#02061A",
+      "surface": "#12245A",
+      "text": "#E6F0FF",
+      "text_dim": "#8AA2D6",
+      "accent": "#2EC8FF",
+      "accent_text": "#04122A",
+      "tile": "#12245A",
+      "shadow": "#00000080",
+      "line": "#2EC8FF55"
+    },
+    "rubino": {
+      "background": "#2A0A12",
+      "background2": "#0A0205",
+      "surface": "#3A1019",
+      "text": "#FFE6EA",
+      "text_dim": "#C48A96",
+      "accent": "#FF3B4E",
+      "accent_text": "#FFFFFF",
+      "tile": "#3A1019",
+      "shadow": "#00000080",
+      "line": "#FF3B4E55"
     }
   }
 }

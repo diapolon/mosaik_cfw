@@ -11,7 +11,8 @@
 
 ## Reliability
 
-- [ ] Make updates a complete transaction (journal with backups, or A/B slots): today an error or a rollback can leave files from two versions on the card
+- [x] Undo the files already replaced when an update stops with an error
+- [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system
 - [x] Replace `volatile` status fields with atomics or a mutex in the worker threads
 - [ ] Do not grow the card or mount it for writing after a failed disk check, and recover the partition table from its backup copy (needs a new image)
 - [ ] Full ROM check that decompresses the data, as an option next to the quick check

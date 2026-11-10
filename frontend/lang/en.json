@@ -1,11 +1,13 @@
 {
   "_name": "English",
   "common": {
+    "info": "Info",
     "ok": "OK",
     "back": "Back",
     "play": "Play",
     "cancel": "Cancel",
     "change": "Change",
+    "section": "Section",
     "yes": "Yes",
     "no": "No",
     "on": "On",
@@ -28,11 +30,61 @@
     "open": "Open"
   },
   "home": {
+    "resume_game": "Resume game",
+    "btn_library": "Library",
+    "n_of": "%d of %d",
+    "resume_hint": "A  Resume",
+    "fav_kind": "Favorite",
+    "recent_kind": "Recent",
+    "in_progress": "Game in progress",
+    "no_game_title": "No games yet",
+    "no_game_text": "Choose a game from the library.",
+    "favs_count": "%d favorites",
+    "theme_now": "Current theme: %s",
+    "settings_desc": "Display, controls, Wi-Fi and updates",
+    "power_desc": "Turn the console off",
+    "title_cards": "Back to the game",
+    "title_menu": "Arcade hall",
+    "title_bar": "Explore Mosaik",
+    "today": "today, %s",
+    "yesterday": "yesterday, %s",
+    "last": "Last game",
+    "autosave": "Autosave · %s",
+    "recent": "Recent",
+    "open_library": "Open the library",
+    "resume": "Resume",
     "no_games": "No games found: copy ROMs to Roms/FBNEO or Roms/MAME2003P",
     "fav_added": "Added to favorites",
     "fav_removed": "Removed from favorites",
     "themes": "Themes",
     "favorites": "Favorites"
+  },
+  "plat": {
+    "title": "Platforms",
+    "open": "Open library",
+    "one": "1 game",
+    "native": "> native games"
+  },
+  "lib": {
+    "confirm": "Confirm",
+    "search_short": "Search",
+    "settings_short": "Menu",
+    "no_image": "No image",
+    "count": "Library · %d titles",
+    "start_note": "START opens Settings, Themes and Power off",
+    "selected": "Selected",
+    "category": "Category",
+    "search_filters": "Search and filters",
+    "empty_title": "Empty library",
+    "empty_text": "Copy your games to the Arcade/Roms folder on the SD card.",
+    "empty_text2": "Press A to refresh the library.",
+    "refresh": "Refresh library",
+    "nofav_title": "No favorites",
+    "nofav_text": "Open All and select a game.",
+    "nofav_text2": "Press Y to add it to your favorites.",
+    "open_all": "Open All",
+    "none_title": "No games",
+    "autosave": "Autosave available"
   },
   "library": {
     "title": "Library",
@@ -50,6 +102,8 @@
     "about": "%d games · prototype 0.1 · %s"
   },
   "settings": {
+    "restart": "Restart",
+    "suspend_now": "Sleep",
     "collections": "Collections",
     "pad_test": "Button test",
     "stick_cal": "Calibrate sticks",
@@ -96,6 +150,8 @@
     "led_brightness": "LED brightness"
   },
   "settings_desc": {
+    "restart": "Restarts Mosaik. Settings and favorites are already saved.",
+    "suspend_now": "Turns the screen off and pauses the console: the power button wakes it up.",
     "collections": "Rename or delete your collections.",
     "pad_test": "Shows every button you press and the position of the sticks: useful to check that they work.",
     "stick_cal": "Use this if a stick does not return to the centre or does not reach the edge.",
@@ -164,9 +220,16 @@
     "ambra": "Amber",
     "oceano": "Ocean",
     "tramonto": "Sunset",
-    "foresta": "Forest"
+    "foresta": "Forest",
+    "corallo": "Coral",
+    "salvia": "Sage",
+    "notte": "Night",
+    "fosforo": "Phosphor",
+    "cobalto": "Cobalt",
+    "rubino": "Ruby"
   },
   "dialog": {
+    "restart_title": "Restart the console?",
     "power_title": "Power off the console?",
     "power_body": "Settings and favorites are already saved.",
     "power_body_app": "Exit to return to the TrimUI menu.",
@@ -450,15 +513,17 @@
     "none": "No images to delete"
   },
   "settings_cat": {
+    "power": "Power",
     "controls": "Controls",
     "display": "Display and sound",
     "look": "Appearance",
     "games": "Games",
     "system": "System",
-    "tools": "Games and images",
-    "updates": "Updates and system"
+    "tools": "Tools",
+    "updates": "Updates"
   },
   "settings_cat_sum": {
+    "power": "Sleep, restart or power off",
     "controls": "Controllers, button and stick test",
     "display": "Brightness, volume, music, LEDs",
     "look": "Theme, language, screensaver",
@@ -468,6 +533,7 @@
     "updates": "Update, channel, log, information"
   },
   "settings_cat_desc": {
+    "power": "Put the console to sleep, restart it or turn it off.",
     "controls": "External controllers, button and stick test and, on the Brick Pro, what the extra buttons do.",
     "display": "Screen brightness, volume, background music and console lights.",
     "look": "Launcher theme, its variant, language and screensaver.",
@@ -637,6 +703,7 @@
     "controls_body": "Your choices for this game will be lost."
   },
   "saves": {
+    "in_use": "In use",
     "title": "Save states",
     "slot": "Slot %d",
     "auto": "Automatic",

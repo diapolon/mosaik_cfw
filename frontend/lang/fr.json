@@ -1,11 +1,13 @@
 {
   "_name": "Français",
   "common": {
+    "info": "Infos",
     "ok": "OK",
     "back": "Retour",
     "play": "Jouer",
     "cancel": "Annuler",
     "change": "Modifier",
+    "section": "Section",
     "yes": "Oui",
     "no": "Non",
     "on": "Activé",
@@ -28,11 +30,61 @@
     "open": "Ouvrir"
   },
   "home": {
+    "resume_game": "Reprendre la partie",
+    "btn_library": "Bibliothèque",
+    "n_of": "%d sur %d",
+    "resume_hint": "A  Reprendre",
+    "fav_kind": "Favori",
+    "recent_kind": "Récent",
+    "in_progress": "Partie en cours",
+    "no_game_title": "Aucune partie",
+    "no_game_text": "Choisissez un jeu dans la bibliothèque.",
+    "favs_count": "%d favoris",
+    "theme_now": "Thème actuel : %s",
+    "settings_desc": "Écran, commandes, Wi-Fi et mises à jour",
+    "power_desc": "Éteindre la console",
+    "title_cards": "Retour au jeu",
+    "title_menu": "Salle d'arcade",
+    "title_bar": "Explorer Mosaik",
+    "today": "aujourd'hui, %s",
+    "yesterday": "hier, %s",
+    "last": "Dernière partie",
+    "autosave": "Sauvegarde auto · %s",
+    "recent": "Récents",
+    "open_library": "Ouvrir la bibliothèque",
+    "resume": "Reprendre",
     "no_games": "Aucun jeu trouvé : copiez les ROM dans Roms/FBNEO ou Roms/MAME2003P",
     "fav_added": "Ajouté aux favoris",
     "fav_removed": "Retiré des favoris",
     "themes": "Thèmes",
     "favorites": "Favoris"
+  },
+  "plat": {
+    "title": "Plateformes",
+    "open": "Ouvrir la bibliothèque",
+    "one": "1 jeu",
+    "native": "> jeux natifs"
+  },
+  "lib": {
+    "confirm": "Confirmer",
+    "search_short": "Rechercher",
+    "settings_short": "Menu",
+    "no_image": "Sans image",
+    "count": "Bibliothèque · %d titres",
+    "start_note": "START ouvre Réglages, Thèmes et Éteindre",
+    "selected": "Sélection",
+    "category": "Catégorie",
+    "search_filters": "Recherche et filtres",
+    "empty_title": "Bibliothèque vide",
+    "empty_text": "Copiez les jeux dans le dossier Arcade/Roms de la carte SD.",
+    "empty_text2": "Appuyez sur A pour actualiser la bibliothèque.",
+    "refresh": "Actualiser la bibliothèque",
+    "nofav_title": "Aucun favori",
+    "nofav_text": "Ouvrez Tous et choisissez un jeu.",
+    "nofav_text2": "Appuyez sur Y pour l'ajouter aux favoris.",
+    "open_all": "Ouvrir Tous",
+    "none_title": "Aucun jeu",
+    "autosave": "Sauvegarde auto disponible"
   },
   "library": {
     "title": "Bibliothèque",
@@ -50,6 +102,8 @@
     "about": "%d jeux · prototype 0.1 · %s"
   },
   "settings": {
+    "restart": "Redémarrer",
+    "suspend_now": "Veille",
     "collections": "Collections",
     "pad_test": "Test des commandes",
     "stick_cal": "Calibrer les sticks",
@@ -96,6 +150,8 @@
     "led_brightness": "Luminosité des LED"
   },
   "settings_desc": {
+    "restart": "Redémarre Mosaik. Les réglages et favoris sont déjà enregistrés.",
+    "suspend_now": "Éteint l’écran et met la console en pause : le bouton d’alimentation la réveille.",
     "collections": "Renommer ou supprimer les collections.",
     "pad_test": "Affiche chaque touche pressée et la position des sticks : utile pour vérifier leur fonctionnement.",
     "stick_cal": "À utiliser si un stick ne revient pas au centre ou n'atteint pas le bord.",
@@ -164,9 +220,16 @@
     "ambra": "Ambre",
     "oceano": "Océan",
     "tramonto": "Coucher de soleil",
-    "foresta": "Forêt"
+    "foresta": "Forêt",
+    "corallo": "Corail",
+    "salvia": "Sauge",
+    "notte": "Nuit",
+    "fosforo": "Phosphore",
+    "cobalto": "Cobalt",
+    "rubino": "Rubis"
   },
   "dialog": {
+    "restart_title": "Redémarrer la console ?",
     "power_title": "Éteindre la console ?",
     "power_body": "Réglages et favoris sont déjà enregistrés.",
     "power_body_app": "Quitter pour revenir au menu TrimUI.",
@@ -450,15 +513,17 @@
     "none": "Aucune image à supprimer"
   },
   "settings_cat": {
+    "power": "Extinction",
     "controls": "Commandes",
     "display": "Écran et son",
     "look": "Apparence",
     "games": "Jeux",
     "system": "Système",
-    "tools": "Jeux et images",
-    "updates": "Mises à jour et système"
+    "tools": "Outils",
+    "updates": "Mises à jour"
   },
   "settings_cat_sum": {
+    "power": "Veille, redémarrer ou éteindre",
     "controls": "Manettes, test des touches et sticks",
     "display": "Luminosité, volume, musique, LED",
     "look": "Thème, langue, écran de veille",
@@ -468,6 +533,7 @@
     "updates": "Mise à jour, canal, journal, infos"
   },
   "settings_cat_desc": {
+    "power": "Mettre la console en veille, la redémarrer ou l’éteindre.",
     "controls": "Manettes externes, test des touches et des sticks et, sur la Brick Pro, fonction des touches supplémentaires.",
     "display": "Luminosité de l'écran, volume, musique de fond et lumières de la console.",
     "look": "Thème du launcher, sa variante, langue et écran de veille.",
@@ -637,6 +703,7 @@
     "controls_body": "Vos choix pour ce jeu seront perdus."
   },
   "saves": {
+    "in_use": "Actif",
     "title": "Sauvegardes",
     "slot": "Emplacement %d",
     "auto": "Automatique",

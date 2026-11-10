@@ -31,10 +31,9 @@
 #endif
 
 enum { EXIT_QUIT = 0, EXIT_LAUNCH = 10, EXIT_POWEROFF = 20, EXIT_REBOOT = 21 };
-enum { SCR_HOME, SCR_LIBRARY, SCR_SETTINGS, SCR_DETAIL };
+enum { SCR_HOME, SCR_LIBRARY, SCR_SETTINGS, SCR_DETAIL, SCR_PLATFORMS };
 static int detail_idx = -1;   /* gioco mostrato nella scheda */
 static void open_detail(int idx);
-static const char *genre_hint(void);
 static void panel_box(int w, int h, int *x, int *y);
 
 static game_t *games;
@@ -50,16 +49,16 @@ static double last_input;
 
 /* home */
 static int carousel[12], ncarousel;
-static int home_row, home_sel, icon_sel;
-static float home_scroll, home_scroll_target, ring_x, ring_y;
+static int icon_sel;
 static bool ring_init;
 
 /* libreria */
 /* schede: tutti, un emulatore ciascuno (TAB_EMU + indice), Linux, preferiti */
 enum { TAB_ALL, TAB_LINUX, TAB_FAV, TAB_EMU = 100, TAB_COLL = 200 };
 static int tabs[24], ntabs, tab_sel;
+static int plat_sel;   /* categoria scelta nella schermata Piattaforme */
 static int *view, nview, lib_sel;
-static float lib_scroll, lib_scroll_target, lib_hl;
+static float lib_scroll, lib_scroll_target;
 
 /* impostazioni */
 static int set_sel;              /* voce scelta (S_*) */
@@ -67,6 +66,8 @@ static int set_page = -1;        /* -1: elenco delle categorie; altrimenti la ca
 static int set_row;              /* riga scelta nella pagina */
 static float set_scroll, set_hl;
 static void settings_open(int page, int row);
+static void plat_open(int sel);
+static void quit_to_menu(void);
 enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_CONTROLS, SC_SYSTEM, SC_TOOLS, SC_UPDATES, SC_COUNT };
 static char theme_ids[16][64], theme_names[16][64];
 static int nthemes;
@@ -104,6 +105,7 @@ static char wifi_target[33], wifi_pass[64];
 static int dlg_sel;
 
 static bool is_list_layout(void) { return !strcmp(UI.th.layout, "list"); }
+static bool is_bar_layout(void) { return !strcmp(UI.th.layout, "bar"); }
 
 static void go(int scr) {
     if (scr == screen) return;
@@ -178,9 +180,76 @@ static void build_genres(void) {
         if (!strcmp(genres[k], cur)) genre_sel = k;
 }
 
-static void build_cats(void);
+
+/* cartella dei salvataggi di un gioco: Saves/<core senza _libretro> */
+static void save_base(const game_t *g, char *out, size_t n, char *core, size_t cn) {
+    const emulator_t *emu = emulator_find(g->core);
+    snprintf(core, cn, "%s", emu ? emu->core : g->core);
+    char *us = strstr(core, "_libretro");
+    if (us) *us = 0;
+    snprintf(out, n, "%s/Saves/%s", UI.root, core);
+}
+
+static bool game_autosave(int gi, time_t *when);
+
+/* Partita da riprendere: l'ultimo gioco avviato, se ha un salvataggio automatico. Nella home
+   a carosello è la prima scheda, con l'immagine del punto in cui si era rimasti. */
+static int resume_idx = -1;
+static time_t resume_when;
+static char resume_png[1400];
+static int resume_rot;   /* quarti di giro dell'anteprima, come il gioco a schermo */
+
+static void find_resume(void) {
+    resume_idx = -1;
+    for (int i = 0; i < ngames; i++) {
+        const game_t *g = &games[i];
+        if (g->recent != 1 || g->missing || !strcmp(g->core, "linux")) continue;
+        char base[1200], core[80], st[1300];
+        struct stat sb;
+        save_base(g, base, sizeof base, core, sizeof core);
+        snprintf(st, sizeof st, "%s/%s.auto.state", base, g->name);
+        if (stat(st, &sb) != 0 || sb.st_size <= 0) return;
+        resume_idx = i;
+        resume_when = sb.st_mtime;
+        snprintf(resume_png, sizeof resume_png, "%s.png", st);
+        char rp[1400];
+        snprintf(rp, sizeof rp, "%s.rot", st);
+        FILE *rf = fopen(rp, "r");
+        resume_rot = 0;
+        if (rf) { if (fscanf(rf, "%d", &resume_rot) != 1) resume_rot = 0; fclose(rf); }
+        resume_rot &= 3;
+        return;
+    }
+}
+
+/* Home: la partita da riprendere e gli accessi a Libreria, Preferiti, Temi, Impostazioni e
+   Spegni. Le voci del menu (Cabinato, Onda) e i giochi del carosello (Tessera). */
+enum { HK_RESUME, HK_LAST, HK_FAV, HK_RECENT };
+static int hgame[16], hkind[16], nhgames;     /* carosello: giochi e perché ci sono */
+enum { HM_GAME, HM_LIBRARY, HM_FAV, HM_SETTINGS, HM_POWER };   /* i temi si scelgono dalle impostazioni */
+static int hmenu[6], nhmenu;                  /* menu: la prima voce è il gioco, se c'è */
+static int hsel, hrow;                        /* scelta nel carosello o nel menu; riga (Tessera) */
+static int hbtn;                              /* pulsante scelto nella fila (Tessera) */
+
+static void build_home_rows(void) {
+    nhgames = 0;
+    int last = -1;
+    for (int i = 0; i < ngames && last < 0; i++)
+        if (games[i].recent == 1 && !games[i].hidden && !games[i].missing) last = i;
+    if (last >= 0) { hgame[0] = last; hkind[0] = last == resume_idx ? HK_RESUME : HK_LAST; nhgames = 1; }
+    for (int i = 0; i < ngames && nhgames < 12; i++)
+        if (games[i].fav && !games[i].hidden && !games[i].missing && i != last) { hgame[nhgames] = i; hkind[nhgames++] = HK_FAV; }
+    for (int r = 2; r <= 20 && nhgames < 6; r++)
+        for (int i = 0; i < ngames; i++)
+            if (games[i].recent == r && !games[i].hidden && !games[i].missing && !games[i].fav) { hgame[nhgames] = i; hkind[nhgames++] = HK_RECENT; break; }
+    nhmenu = 0;
+    if (last >= 0) hmenu[nhmenu++] = HM_GAME;
+    for (int m = HM_LIBRARY; m <= HM_POWER; m++) hmenu[nhmenu++] = m;
+    if (hsel >= (is_list_layout() || is_bar_layout() ? nhmenu : nhgames)) hsel = 0;
+}
 
 static void build_carousel(void) {
+    find_resume();
     ncarousel = 0;
     for (int r = 1; r <= 20 && ncarousel < 10; r++)
         for (int i = 0; i < ngames; i++)
@@ -193,6 +262,7 @@ static void build_carousel(void) {
         for (int k = 0; k < ncarousel; k++) dup |= carousel[k] == i;
         if (!dup) carousel[ncarousel++] = i;
     }
+    build_home_rows();
 }
 
 static const char *tab_label(int t) {
@@ -308,7 +378,6 @@ static void reload_games(void) {
     romcheck_load(UI.root, games, ngames);
     mark_duplicates();
     build_genres();
-    build_cats();
     build_carousel();
     build_tabs();
     build_view();
@@ -373,7 +442,7 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART };
 static int cfm_kind, cfm_sel;
 static char cfm_ssid[33];
 
@@ -383,26 +452,7 @@ static bool have_games(void) {
     return false;
 }
 
-/* scheda senza giochi: dove copiarli, con le cartelle vere degli emulatori presenti */
-static void empty_guide(int x, int y, int w) {
-    theme_t *t = &UI.th;
-    char dirs[400] = "", step2[600], lines[3][160];
-    for (int e = 0; e < NEMUS && e < 3; e++) {
-        size_t len = strlen(dirs);
-        snprintf(dirs + len, sizeof dirs - len, "%sArcade/%s", e ? ", " : "", EMUS[e].roms);
-    }
-    snprintf(step2, sizeof step2, T("empty.step2"), dirs);
-    const char *steps[3] = { T("empty.step1"), step2, T("empty.step3") };
-    ui_text(UI.f_normal, T("empty.title"), x, y, t->accent, ALIGN_LEFT);
-    y += TTF_FontHeight(UI.f_normal) + M(0.012f);
-    for (int s = 0; s < 3; s++) {
-        int n = ui_wrap(UI.f_small, steps[s], w, lines, 3);
-        for (int i = 0; i < n; i++, y += TTF_FontHeight(UI.f_small)) ui_text(UI.f_small, lines[i], x, y, t->text, ALIGN_LEFT);
-        y += M(0.01f);
-    }
-}
-
-static void launch(game_t *g) {
+static void launch_ex(game_t *g, bool resume) {
     char path[1100], core[1100];
     if (g->missing) {
         const emulator_t *emu = emulator_find(g->core);
@@ -423,7 +473,8 @@ static void launch(game_t *g) {
     FILE *f = fopen(path, "w");
     bool written = f != NULL;
     if (f) {
-        fprintf(f, "%s\t%s\t%s\t%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title);
+        fprintf(f, "%s\t%s\t%s\t%s%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title,
+                resume ? "\tresume" : "");
         written = !ferror(f) && fflush(f) == 0;
         if (fclose(f) != 0) written = false;
     }
@@ -444,6 +495,8 @@ static void launch(game_t *g) {
     ui_shutdown_code(EXIT_LAUNCH);
     exit(EXIT_LAUNCH);
 }
+
+static void launch(game_t *g) { launch_ex(g, false); }
 
 static void leave_system(int code, const char *msg) {
     char p[1100];
@@ -571,387 +624,26 @@ static void selection_ring(int x, int y, int w, int h, int r) {
 
 /* ---------------------------------------------------------- icone */
 
-enum { IC_ALL, IC_FAV, IC_THEMES, IC_SETTINGS, IC_POWER, IC_COUNT };
-static const char *icon_label[IC_COUNT] = { "common.all_games", "home.favorites", "home.themes", "common.settings", "common.power_off" };
-
-static void draw_icon_glyph(int kind, int cx, int cy, int s, color_t c, color_t bg) {
-    int q = s / 6;
-    switch (kind) {
-    case IC_ALL:
-        for (int i = 0; i < 4; i++) ui_rrect(cx - q - q / 4 + (i % 2) * (q + q / 2), cy - q - q / 4 + (i / 2) * (q + q / 2), q, q, q / 4, c);
-        break;
-    case IC_FAV: ui_star(cx, cy, s / 4, c); break;
-    case IC_THEMES:
-        ui_circle(cx - q, cy + q / 2, q * 2 / 3, c);
-        ui_circle(cx + q, cy + q / 2, q * 2 / 3, with_alpha(c, 170));
-        ui_circle(cx, cy - q, q * 2 / 3, with_alpha(c, 110));
-        break;
-    case IC_SETTINGS: ui_gear(cx, cy, s * 27 / 100, c); break;
-    case IC_POWER:
-        ui_ring(cx, cy + q / 6, s / 4, q / 3 + 1, c);
-        ui_rect(cx - q / 2, cy - s / 4 - q / 3, q, q, bg);
-        ui_rrect(cx - q / 6, cy - s / 4 - q / 4, q / 3 + 1, s / 4 + q / 4, q / 6, c);
-        break;
-    }
-}
+enum { IC_ALL, IC_FAV, IC_SETTINGS, IC_POWER, IC_COUNT };
 
 /* ----------------------------------------------------------- home */
 
 static void home_activate_icon(void) {
     switch (icon_sel) {
-    case IC_ALL: tab_sel = 0; build_view(); go(SCR_LIBRARY); break;
+    case IC_ALL: plat_open(tab_sel); break;   /* prima le piattaforme, poi i giochi */
     case IC_FAV:
         for (int i = 0; i < ntabs; i++)
             if (tabs[i] == TAB_FAV) tab_sel = i;
         build_view();
         go(SCR_LIBRARY);
         break;
-    case IC_THEMES: settings_open(SC_LOOK, 0); go(SCR_SETTINGS); break;
     case IC_SETTINGS: settings_open(-1, 0); go(SCR_SETTINGS); break;
     case IC_POWER: dlg_open = true; dlg_suspend = false; dlg_sel = 0; break;
     }
     ui_sound(SND_OK);
 }
 
-static void home_input(void) {
-    input_t *in = &UI.in;
-    int items = ncarousel + 1;
-    if (in->pressed[BTN_UP] && home_row == 1) { home_row = 0; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_DOWN] && home_row == 0) { home_row = 1; ui_sound(SND_MOVE); }
-    if (home_row == 0) {
-        if (in->pressed[BTN_LEFT] && home_sel > 0) { home_sel--; ui_sound(SND_MOVE); }
-        if (in->pressed[BTN_RIGHT] && home_sel < items - 1) { home_sel++; ui_sound(SND_MOVE); }
-        if (in->pressed[BTN_A]) {
-            if (home_sel < ncarousel) launch(&games[carousel[home_sel]]);
-            else { tab_sel = 0; build_view(); go(SCR_LIBRARY); ui_sound(SND_OK); }
-        }
-        if (in->pressed[BTN_X] && home_sel < ncarousel) { open_detail(carousel[home_sel]); return; }
-        if (in->pressed[BTN_Y] && home_sel < ncarousel) {
-            games_toggle_fav(UI.root, &games[carousel[home_sel]]);
-            ui_toast(games[carousel[home_sel]].fav ? T("home.fav_added") : T("home.fav_removed"));
-            build_tabs();
-            ui_sound(SND_OK);
-        }
-    } else {
-        if (in->pressed[BTN_LEFT] && icon_sel > 0) { icon_sel--; ui_sound(SND_MOVE); }
-        if (in->pressed[BTN_RIGHT] && icon_sel < IC_COUNT - 1) { icon_sel++; ui_sound(SND_MOVE); }
-        if (in->pressed[BTN_A]) home_activate_icon();
-    }
-    if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
-}
-
-static void home_draw(void) {
-    theme_t *t = &UI.th;
-    ui_topbar(t->title);
-    static const float home_scale[3] = { 0.8f, 1.0f, 1.2f };
-    int S = (int)(M(t->tile_size) * home_scale[UI.set.home_size % 3]), SW = (int)(S * t->tile_aspect), gap = M(t->tile_gap), mx = M(t->margin), r = M(t->tile_radius);
-    int top = M(t->topbar_h), label_h = TTF_FontHeight(UI.f_normal);
-    int y = top + label_h + M(0.05f);
-    int items = ncarousel + 1;
-    float sx = (float)home_sel * (SW + gap), view_w = (float)(UI.w - 2 * mx);
-    if (sx - home_scroll_target > view_w - SW) home_scroll_target = sx - (view_w - SW);
-    if (sx < home_scroll_target) home_scroll_target = sx;
-    home_scroll = ui_approach(home_scroll, home_scroll_target);
-
-    for (int i = 0; i < items; i++) {
-        int x = mx + (int)(i * (SW + gap) - home_scroll);
-        if (x > UI.w || x + SW < 0) continue;
-        ui_shadow(x, y + M(0.006f), SW, S, r, M(0.018f), t->shadow);
-        if (i < ncarousel) draw_cover(&games[carousel[i]], x, y, SW, S, r);
-        else draw_all_tile(x, y, SW, S, r);
-    }
-    if (ncarousel == 0) {
-        if (!have_games()) empty_guide(mx + SW + gap * 2, y, UI.w - (mx + SW + gap * 2) - mx);
-        else ui_text(UI.f_normal, T("home.no_games"), mx + SW + gap * 2, y + S / 2 - label_h / 2, t->text_dim, ALIGN_LEFT);
-    }
-
-    /* icone */
-    int is = M(t->icon_size), step = is + M(0.045f);
-    int iy = y + S + (UI.h - M(t->hintbar_h) - (y + S)) / 2 - M(0.01f);
-    int ix0 = UI.w / 2 - (IC_COUNT - 1) * step / 2;
-    for (int i = 0; i < IC_COUNT; i++) {
-        int cx = ix0 + i * step;
-        ui_shadow(cx - is / 2, iy - is / 2 + M(0.004f), is, is, is / 2, M(0.012f), t->shadow);
-        ui_circle(cx, iy, is / 2, t->surface);
-        color_t ic = i == IC_POWER ? t->text : t->accent;
-        draw_icon_glyph(i, cx, iy, is, ic, t->surface);
-    }
-
-    /* selezione animata */
-    float tx, ty;
-    int tw, th, tr;
-    if (home_row == 0) {
-        tx = (float)(mx + home_sel * (SW + gap) - home_scroll_target);
-        ty = (float)y;
-        tw = SW;
-        th = S;
-        tr = r;
-    } else {
-        tx = (float)(ix0 + icon_sel * step - is / 2);
-        ty = (float)(iy - is / 2);
-        tw = th = is;
-        tr = is / 2;
-    }
-    if (!ring_init) { ring_x = tx; ring_y = ty; ring_init = true; }
-    ring_x = ui_approach(ring_x, tx);
-    ring_y = ui_approach(ring_y, ty);
-    selection_ring((int)ring_x, (int)ring_y, tw, th, tr);
-
-    if (home_row == 0) {
-        char buf[200];
-        const char *label = home_sel < ncarousel ? games[carousel[home_sel]].title : T("common.all_games");
-        int lx = (int)ring_x;
-        ui_text_fit(UI.f_normal, label, UI.w - mx - lx, buf, sizeof buf);
-        ui_text(UI.f_normal, buf, lx, y - label_h - M(0.018f), t->accent, ALIGN_LEFT);
-    } else {
-        ui_text(UI.f_small, T(icon_label[icon_sel]), ix0 + icon_sel * step, iy + is / 2 + M(0.022f), t->accent, ALIGN_CENTER);
-    }
-
-    if (home_row == 0 && home_sel < ncarousel) {
-        const char *h[] = { "X", T("detail.hint"), "Y", T(games[carousel[home_sel]].fav ? "common.unfavorite" : "common.favorite"), "START", T("common.settings"), "A", T("common.play") };
-        ui_hints(h, 8);
-    } else {
-        const char *h[] = { "START", T("common.settings"), "A", T("common.ok") };
-        ui_hints(h, 4);
-    }
-}
-
-/* ------------------------------------------------------ layout a barre */
-/* Categorie in orizzontale (impostazioni, recenti, preferiti, tutti, generi) e
-   giochi della categoria in verticale, con anteprima a destra. */
-
-enum { CAT_SETTINGS, CAT_RECENT, CAT_FAV, CAT_ALL, CAT_GENRE, CAT_COLL };
-typedef struct { int kind, genre; } cat_t;
-static cat_t cats[64];
-static int ncats, cat_sel = -1, cat_item[64];
-static float cat_anim, item_anim;
-static int bar_list[2048], nbar;
-
-static bool is_bar_layout(void) { return !strcmp(UI.th.layout, "bar"); }
-static void game_info(const game_t *g, char *out, size_t n);
-
-static void build_cats(void) {
-    int prev_kind = cat_sel >= 0 ? cats[cat_sel].kind : CAT_ALL, prev_genre = cat_sel >= 0 ? cats[cat_sel].genre : -1;
-    bool any_recent = false;
-    for (int i = 0; i < ngames; i++) any_recent |= games[i].recent && !games[i].hidden;
-    ncats = 0;
-    cats[ncats++] = (cat_t){ CAT_SETTINGS, -1 };
-    if (any_recent) cats[ncats++] = (cat_t){ CAT_RECENT, -1 };
-    cats[ncats++] = (cat_t){ CAT_FAV, -1 };
-    for (int c = 0; c < NCOLLS && ncats < 32; c++) {
-        bool has = false;
-        for (int i = 0; i < ngames && !has; i++) has = !games[i].hidden && (games[i].colls >> c & 1u);
-        if (has) cats[ncats++] = (cat_t){ CAT_COLL, c };
-    }
-    cats[ncats++] = (cat_t){ CAT_ALL, -1 };
-    for (int g = 0; g < ngenres && ncats < 64; g++) cats[ncats++] = (cat_t){ CAT_GENRE, g };
-    cat_sel = 0;
-    for (int i = 0; i < ncats; i++)
-        if (cats[i].kind == prev_kind && cats[i].genre == prev_genre) cat_sel = i;
-    if (cats[cat_sel].kind == CAT_SETTINGS && prev_kind != CAT_SETTINGS) cat_sel = ncats > 3 ? 3 : 0;
-    cat_anim = (float)cat_sel;
-}
-
 static bool matches_search(const game_t *g);
-
-static void bar_fill(void) {
-    cat_t c = cats[cat_sel];
-    char m[48];
-    nbar = 0;
-    if (c.kind == CAT_RECENT) {
-        for (int r = 1; r <= 20; r++)
-            for (int i = 0; i < ngames; i++)
-                if (games[i].recent == r && visible(&games[i]) && in_coll(&games[i]) && matches_search(&games[i])) bar_list[nbar++] = i;
-        return;
-    }
-    for (int i = 0; i < ngames && nbar < 2048; i++) {
-        if (!visible(&games[i]) || !in_coll(&games[i])) continue;
-        if (c.kind == CAT_FAV && !games[i].fav) continue;
-        if (c.kind == CAT_COLL && !(games[i].colls >> c.genre & 1u)) continue;
-        if (c.kind == CAT_GENRE) {
-            genre_main(games[i].genre, m, sizeof m);
-            if (strcmp(m, genres[c.genre])) continue;
-        }
-        if (c.kind == CAT_SETTINGS || !matches_search(&games[i])) continue;
-        bar_list[nbar++] = i;
-    }
-}
-
-static const char *cat_label(cat_t c, char *buf, size_t n) {
-    switch (c.kind) {
-    case CAT_SETTINGS: return T("common.settings");
-    case CAT_RECENT: return T("bar.recent");
-    case CAT_FAV: return T("home.favorites");
-    case CAT_ALL: return T("common.all_games");
-    case CAT_COLL: return COLLS[c.genre];
-    default: return genre_label(genres[c.genre], buf, n);
-    }
-}
-
-/* Sigla del genere: iniziale più la prima lettera successiva che la rende diversa
-   dalle sigle degli altri generi ("Pi" Picchiaduro, "Pa" Piattaforme). Solo ASCII:
-   una lettera accentata come seconda lettera viene saltata. */
-static void genre_abbr(int gi, char *out, size_t n) {
-    char la[64], lb[64];
-    const char *l = genre_label(genres[gi], la, sizeof la);
-    char first = l[0] >= 'a' && l[0] <= 'z' ? (char)(l[0] - 32) : l[0];
-    for (const char *p = l + 1; *p; p++) {
-        char c = *p >= 'A' && *p <= 'Z' ? (char)(*p + 32) : *p;
-        if (c < 'a' || c > 'z') continue;
-        bool clash = false;
-        for (int k = 0; k < gi && !clash; k++) {
-            char other[16];
-            genre_abbr(k, other, sizeof other);
-            clash = other[0] == first && other[1] == c;
-        }
-        if (!clash) { snprintf(out, n, "%c%c", first, c); return; }
-    }
-    snprintf(out, n, "%c", first);
-    (void)lb;
-}
-
-static void draw_cat_icon(cat_t c, int cx, int cy, int s, color_t col) {
-    switch (c.kind) {
-    case CAT_SETTINGS: ui_gear(cx, cy, s * 32 / 100, col); break;
-    case CAT_FAV: draw_icon_glyph(IC_FAV, cx, cy, s * 13 / 10, col, col); break;
-    case CAT_ALL: draw_icon_glyph(IC_ALL, cx, cy, s * 13 / 10, col, col); break;
-    case CAT_RECENT:
-        /* orologio */
-        ui_ring(cx, cy, s * 30 / 100, s / 16 + 1, col);
-        ui_rrect(cx - s / 32, cy - s / 5, s / 16 + 1, s / 5, s / 32, col);
-        ui_rrect(cx - s / 32, cy - s / 32, s / 7, s / 16 + 1, s / 32, col);
-        break;
-    case CAT_COLL: {
-        /* collezione: due schede sovrapposte con l'iniziale */
-        int q = s * 52 / 100, th = s / 16 + 1;
-        char ini[8];
-        snprintf(ini, sizeof ini, "%.*s", COLLS[c.genre][0] & 0x80 ? 2 : 1, COLLS[c.genre]);
-        ui_rborder(cx - q / 2 + s / 10, cy - q / 2 - s / 10, q, q, s / 10, th, with_alpha(col, 140));
-        ui_rborder(cx - q / 2, cy - q / 2, q, q, s / 10, th, col);
-        ui_text(UI.f_small, ini, cx, cy - TTF_FontHeight(UI.f_small) / 2, col, ALIGN_CENTER);
-        break;
-    }
-    default: {
-        /* genere: sigla di due lettere in un anello */
-        char ab[16];
-        genre_abbr(c.genre, ab, sizeof ab);
-        ui_ring(cx, cy, s * 32 / 100, s / 16 + 1, col);
-        ui_text(UI.f_normal, ab, cx, cy - TTF_FontHeight(UI.f_normal) / 2, col, ALIGN_CENTER);
-    }
-    }
-}
-
-static void bar_input(void) {
-    input_t *in = &UI.in;
-    if (in->pressed[BTN_LEFT] && cat_sel > 0) { cat_sel--; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_RIGHT] && cat_sel < ncats - 1) { cat_sel++; ui_sound(SND_MOVE); }
-    bar_fill();
-    int *it = &cat_item[cat_sel];
-    if (*it >= nbar) *it = nbar ? nbar - 1 : 0;
-    if (in->pressed[BTN_UP] && *it > 0) { (*it)--; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_DOWN] && *it < nbar - 1) { (*it)++; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_L]) { *it = *it - 8 > 0 ? *it - 8 : 0; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_R] && nbar) { *it = *it + 8 < nbar ? *it + 8 : nbar - 1; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_SELECT]) { fpanel_open = true; fpanel_sel = 0; ui_sound(SND_OK); return; }
-    if (in->pressed[BTN_START] || (in->pressed[BTN_A] && cats[cat_sel].kind == CAT_SETTINGS)) {
-        settings_open(-1, 0);
-        go(SCR_SETTINGS);
-        ui_sound(SND_OK);
-        return;
-    }
-    if (in->pressed[BTN_A] && nbar) launch(&games[bar_list[*it]]);
-    if (in->pressed[BTN_X] && nbar) { open_detail(bar_list[cat_item[cat_sel]]); return; }
-    if (in->pressed[BTN_Y] && nbar) {
-        game_t *g = &games[bar_list[*it]];
-        games_toggle_fav(UI.root, g);
-        ui_toast(g->fav ? T("home.fav_added") : T("home.fav_removed"));
-        build_carousel();
-        ui_sound(SND_OK);
-    }
-}
-
-static void bar_draw(void) {
-    theme_t *t = &UI.th;
-    ui_topbar(NULL);
-    bar_fill();
-    int is = M(t->icon_size), step = is * 17 / 10;
-    int anchor = UI.w * 22 / 100, cy = M(0.27f);
-    cat_anim = ui_approach(cat_anim, (float)cat_sel);
-    char buf[200];
-
-    /* categorie */
-    for (int i = 0; i < ncats; i++) {
-        float d = i - cat_anim;
-        int cx = anchor + (int)(d * step);
-        if (cx < -is || cx > UI.w + is) continue;
-        bool sel = i == cat_sel;
-        float k = fmaxf(0, 1 - fabsf(d));       /* 1 sulla categoria scelta, 0 sulle altre */
-        int s = (int)(is * (1 + 0.3f * k));
-        draw_cat_icon(cats[i], cx, cy, s, with_alpha(t->text, (int)(110 + 145 * k)));
-        if (sel) ui_text(UI.f_small, cat_label(cats[i], buf, sizeof buf), cx, cy + s / 2 + M(0.01f), t->text, ALIGN_CENTER);
-    }
-
-    /* giochi della categoria, sotto l'icona scelta */
-    int list_x = anchor - is / 2, list_y = cy + is + M(0.07f), rh = M(t->list_row_h) * 13 / 10;
-    int list_w = UI.w * 52 / 100 - list_x;
-    int *it = &cat_item[cat_sel];
-    item_anim = ui_approach(item_anim, (float)*it);
-    if (cats[cat_sel].kind == CAT_SETTINGS) {
-        ui_text(UI.f_normal, T("bar.open_settings"), list_x, list_y, t->text, ALIGN_LEFT);
-    } else if (!nbar) {
-        if (!have_games()) empty_guide(list_x, list_y, UI.w - list_x - M(t->margin));
-        else ui_text(UI.f_normal, T("library.empty"), list_x, list_y, t->text_dim, ALIGN_LEFT);
-    }
-    int bottom = UI.h - M(t->hintbar_h);
-    ui_clip_push(0, list_y - M(0.01f), UI.w, bottom - list_y);
-    for (int i = 0; i < nbar; i++) {
-        float d = i - item_anim;
-        int y = list_y + (int)(d * rh);
-        if (y + rh < list_y || y > bottom) continue;
-        if (d < -0.5f) continue;                 /* i giochi già passati spariscono sotto le categorie */
-        game_t *g = &games[bar_list[i]];
-        bool sel = i == *it;
-        int th = rh * 8 / 10, tw = th * 4 / 3;
-        SDL_Texture *img = media_image(g, t->cover_types, t->ncover);
-        if (img) ui_image_fill(img, list_x, y + (rh - th) / 2, tw, th, M(0.006f));
-        else ui_rrect(list_x, y + (rh - th) / 2, tw, th, M(0.006f), with_alpha(t->text, 40));
-        TTF_Font *f = sel ? UI.f_title : UI.f_normal;
-        ui_text_fit(f, g->title, list_w - tw - M(0.03f), buf, sizeof buf);
-        int tx = list_x + tw + M(0.025f);
-        if (sel) {
-            ui_text(f, buf, tx, y + rh / 2 - TTF_FontHeight(f) + M(0.008f), t->text, ALIGN_LEFT);
-            char info[300], fit[300];
-            game_info(g, info, sizeof info);
-            ui_text_fit(UI.f_small, info, list_w - tw - M(0.03f), fit, sizeof fit);
-            ui_text(UI.f_small, fit, tx, y + rh / 2 + M(0.004f), t->accent, ALIGN_LEFT);
-        } else {
-            ui_text(f, buf, tx, y + (rh - TTF_FontHeight(f)) / 2, with_alpha(t->text, 170), ALIGN_LEFT);
-        }
-        if (g->fav) ui_star(list_x + tw - M(0.015f), y + (rh - th) / 2 + M(0.015f), M(0.011f), rgba(255, 210, 60, 255));
-    }
-    ui_clip_pop();
-
-    /* anteprima del gioco scelto */
-    if (nbar && cats[cat_sel].kind != CAT_SETTINGS) {
-        game_t *g = &games[bar_list[*it]];
-        int px = UI.w * 56 / 100, pw = UI.w - px - M(t->margin), py = list_y;
-        int ph = pw * 3 / 4;
-        if (py + ph > bottom - M(0.02f)) { ph = bottom - M(0.02f) - py; pw = ph * 4 / 3; }
-        SDL_Texture *shot = media_image(g, t->preview_types, t->npreview);
-        if (shot) {
-            ui_shadow(px, py + M(0.01f), pw, ph, M(t->tile_radius), M(0.03f), t->shadow);
-            ui_rrect(px, py, pw, ph, M(t->tile_radius), rgba(0, 0, 0, 255));
-            ui_image_fit(shot, px, py, pw, ph);
-        }
-        static char marquee_type[1][16] = { "marquee" };
-        SDL_Texture *mq = t->show_marquee ? media_image(g, marquee_type, 1) : NULL;
-        if (mq) ui_image_fit(mq, px, cy - is / 2, pw, is + is / 2);
-    }
-
-    const char *h[] = { "SELECT", genre_hint(), "X", T("detail.hint"), "Y", T("common.favorite"), "A",
-                        T(cats[cat_sel].kind == CAT_SETTINGS ? "common.ok" : "common.play") };
-    ui_hints(h, 8);
-}
 
 /* -------------------------------------------------------- libreria */
 
@@ -978,7 +670,10 @@ static void lib_common_input(int cols) {
         if ((in->pressed[BTN_LEFT] || in->pressed[BTN_L2])) lib_sel = lib_sel - page > 0 ? lib_sel - page : 0;
     }
     if (lib_sel != old) ui_sound(SND_MOVE);
-    if (in->pressed[BTN_A] && nview) launch(&games[view[lib_sel]]);
+    if (in->pressed[BTN_A] && nview) {
+        if (game_autosave(view[lib_sel], NULL)) launch_ex(&games[view[lib_sel]], true);
+        else launch(&games[view[lib_sel]]);
+    }
     if (in->pressed[BTN_X] && nview) { open_detail(view[lib_sel]); return; }
     if (in->pressed[BTN_Y] && nview) {
         game_t *g = &games[view[lib_sel]];
@@ -989,22 +684,7 @@ static void lib_common_input(int cols) {
         ui_sound(SND_OK);
     }
     if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
-    if (in->pressed[BTN_B] && !is_list_layout()) { go(SCR_HOME); ui_sound(SND_BACK); }
-}
-
-static void draw_tabs(int y) {
-    theme_t *t = &UI.th;
-    TTF_Font *f = UI.f_normal;
-    int x = M(t->margin), fh = TTF_FontHeight(f);
-    ui_button_glyph("L", x + M(0.02f), y + fh / 2, M(0.04f));
-    x += M(0.06f);
-    for (int i = 0; i < ntabs; i++) {
-        const char *l = tab_label(tabs[i]);
-        int w = ui_text(f, l, x, y, i == tab_sel ? t->accent : t->text_dim, ALIGN_LEFT);
-        if (i == tab_sel) ui_rrect(x, y + fh + M(0.008f), w, M(0.006f), M(0.003f), t->accent);
-        x += w + M(0.045f);
-    }
-    ui_button_glyph("R", x + M(0.005f), y + fh / 2, M(0.04f));
+    if (in->pressed[BTN_B]) { plat_open(tab_sel); ui_sound(SND_BACK); }
 }
 
 /* Genere: ArcadeDB lo dà in inglese ("Platform / Shooter Scrolling"); la categoria
@@ -1025,204 +705,989 @@ static const char *genre_label(const char *raw, char *out, size_t n) {
     return out;
 }
 
-/* "1996 · Nazca · Neo Geo · Piattaforme · 2 giocatori": solo le parti note */
-static void game_info(const game_t *g, char *out, size_t n) {
-    const char *parts[5];
-    char players[24] = "";
-    int k = 0;
-    char genre[48];
-    if (g->players > 1) snprintf(players, sizeof players, T("info.players"), g->players);
-    /* per MAME il "sistema" è il produttore: non ripeterlo */
-    const char *sys = strncmp(g->maker, g->system, strlen(g->system)) ? g->system : "";
-    const char *src[5] = { g->year, g->maker, sys, genre_label(g->genre, genre, sizeof genre), players };
-    for (int i = 0; i < 5; i++)
-        if (src[i][0]) parts[k++] = src[i];
-    out[0] = 0;
-    for (int i = 0; i < k; i++) {
-        size_t len = strlen(out);
-        snprintf(out + len, n - len, "%s%s", i ? " · " : "", parts[i]);
+/* ------------------------------------------------------------------ libreria */
+/* Struttura comune ai temi (tavole di docs/mockup/revisione): barra in alto col nome del tema,
+   categorie a pulsanti, "LIBRERIA · N TITOLI", contenuto, nota su START e barra dei tasti su
+   due righe. Il contenuto cambia col tema: schede affiancate (Tessera, layout "carousel"),
+   elenco con anteprima (Cabinato, "list"), anteprima grande con riquadri sotto (Onda, "bar"). */
+
+enum { LS_CARDS, LS_LIST, LS_SPOT };
+static int lib_style(void) { return is_list_layout() ? LS_LIST : is_bar_layout() ? LS_SPOT : LS_CARDS; }
+
+static void format_duration(long secs, char *out, size_t n);
+
+/* salvataggio automatico del gioco (per "Riprendi"): si rilegge solo quando cambia gioco */
+static bool game_autosave(int gi, time_t *when) {
+    static int last = -2;
+    static bool has;
+    static time_t at;
+    if (gi != last) {
+        last = gi;
+        has = false;
+        const game_t *g = &games[gi];
+        if (strcmp(g->core, "linux") && !g->missing) {
+            char base[1200], core[80], st[1300];
+            struct stat sb;
+            save_base(g, base, sizeof base, core, sizeof core);
+            snprintf(st, sizeof st, "%s/%s.auto.state", base, g->name);
+            if (stat(st, &sb) == 0 && sb.st_size > 0) { has = true; at = sb.st_mtime; }
+        }
     }
+    if (when) *when = at;
+    return has;
 }
 
-/* "Genere: Tutti" / "Genere: Picchiaduro" per la barra dei tasti */
-/* "Filtri" con il numero di filtri attivi, per la barra dei tasti */
-static const char *genre_hint(void) {
-    static char buf[96];
-    int active = (genre_sel >= 0) + (search[0] != 0) + only_problems + (coll_sel != COLL_ALL);
-    if (active) snprintf(buf, sizeof buf, "%s (%d)", T("filters.hint"), active);
-    else snprintf(buf, sizeof buf, "%s", T("filters.hint"));
-    return buf;
-}
-
-static void lib_footer(const game_t *g, int y) {
+/* copertina, o il riquadro "Senza immagine" che tiene il posto */
+static void cover_box(const game_t *g, int x, int y, int w, int h, int r) {
     theme_t *t = &UI.th;
-    char info[300], fit[300];
-    game_info(g, info, sizeof info);
-    ui_text_fit(UI.f_normal, g->title, UI.w - 2 * M(t->margin), fit, sizeof fit);
-    ui_text(UI.f_normal, fit, M(t->margin), y, t->text, ALIGN_LEFT);
-    ui_text_fit(UI.f_small, info, UI.w - 2 * M(t->margin), fit, sizeof fit);
-    ui_text(UI.f_small, fit, M(t->margin), y + TTF_FontHeight(UI.f_normal), t->text_dim, ALIGN_LEFT);
+    if (media_image(g, t->cover_types, t->ncover)) { draw_cover(g, x, y, w, h, r); return; }
+    ui_rrect(x, y, w, h, r, with_alpha(t->text, 28));
+    char fit[80];
+    ui_text_fit(UI.f_small, T("lib.no_image"), w - M(0.02f), fit, sizeof fit);
+    ui_text(UI.f_small, fit, x + w / 2, y + h / 2 - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_CENTER);
 }
 
-/* misura delle miniature: quella del tema, o ricavata dal numero scelto per riga */
-static void grid_metrics(int *cols, int *tw, int *th) {
+/* riquadro con la sola immagine; senza immagine, il nome del gioco al centro */
+static void cover_tile(const game_t *g, int x, int y, int w, int h, int r) {
     theme_t *t = &UI.th;
-    int gap = M(t->tile_gap), avail = UI.w - 2 * M(t->margin);
-    if (UI.set.grid_columns) {
-        *cols = UI.set.grid_columns;
-        *tw = (avail - gap * (*cols - 1)) / *cols;
-        *th = (int)(*tw / t->tile_aspect);
-        return;
-    }
-    *th = M(t->grid_tile);
-    *tw = (int)(*th * t->tile_aspect);
-    *cols = (avail + gap) / (*tw + gap);
-    if (*cols < 1) *cols = 1;
+    if (media_image(g, t->cover_types, t->ncover)) { draw_cover(g, x, y, w, h, r); return; }
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rborder(x, y, w, h, r, 2, t->line);
+    char lines[3][160];
+    TTF_Font *f = UI.f_small;
+    int n = ui_wrap(f, g->title, w - M(0.03f), lines, 3), fh = TTF_FontHeight(f), ty = y + (h - n * fh) / 2;
+    for (int k = 0; k < n; k++) ui_text(f, lines[k], x + w / 2, ty + k * fh, t->text_dim, ALIGN_CENTER);
 }
 
-static int grid_cols(void) {
-    int c, w, h;
-    grid_metrics(&c, &w, &h);
-    return c;
-}
-
-static void library_grid_draw(void) {
-    theme_t *t = &UI.th;
-    ui_topbar(T("library.title"));
-    int top = M(t->topbar_h);
-    draw_tabs(top);
-    int cols, TW, TH, gap = M(t->tile_gap), r = M(t->tile_radius);
-    grid_metrics(&cols, &TW, &TH);
-    int gx = (UI.w - (cols * (TW + gap) - gap)) / 2;
-    int area_y = top + TTF_FontHeight(UI.f_normal) + M(0.05f);
-    int footer_h = TTF_FontHeight(UI.f_normal) + TTF_FontHeight(UI.f_small) + M(0.02f);
-    int area_h = UI.h - M(t->hintbar_h) - footer_h - area_y;
-    int rows = (area_h + gap) / (TH + gap);
-    if (rows < 1) rows = 1;
-    area_h = rows * (TH + gap) - gap;   /* solo righe intere: niente riquadri tagliati sopra il riepilogo */
-    int row = lib_sel / cols;
-    float ry = (float)row * (TH + gap);
-    if (ry - lib_scroll_target > area_h - TH) lib_scroll_target = ry - (area_h - TH);
-    if (ry < lib_scroll_target) lib_scroll_target = ry;
-    lib_scroll = ui_approach(lib_scroll, lib_scroll_target);
-
-    int ring = M(t->select_border) + M(0.012f);   /* spazio per la cornice di selezione */
-    ui_clip_push(0, area_y - ring, UI.w, area_h + 2 * ring);
-    for (int i = 0; i < nview; i++) {
-        int x = gx + (i % cols) * (TW + gap), y = area_y + (int)((i / cols) * (TH + gap) - lib_scroll);
-        if (y > area_y + area_h || y + TH < area_y - TH) continue;
-        ui_shadow(x, y + M(0.005f), TW, TH, r, M(0.014f), t->shadow);
-        draw_cover(&games[view[i]], x, y, TW, TH, r);
-    }
-    if (nview) {
-        int x = gx + (lib_sel % cols) * (TW + gap), y = area_y + (int)(row * (TH + gap) - lib_scroll);
-        selection_ring(x, y, TW, TH, r);
-    }
-    ui_clip_pop();
-    if (!nview) {
-        if (!have_games()) empty_guide(M(t->margin) * 2, area_y + area_h / 5, UI.w - M(t->margin) * 4);
-        else ui_text(UI.f_normal, T(tabs[tab_sel] == TAB_FAV ? "library.empty_fav" : "library.empty"),
-                     UI.w / 2, area_y + area_h / 2, t->text_dim, ALIGN_CENTER);
-    } else {
-        lib_footer(&games[view[lib_sel]], UI.h - M(t->hintbar_h) - footer_h);
-    }
-    const char *h[] = { "SELECT", genre_hint(), "X", T("detail.hint"), "Y", T("common.favorite"), "A", T("common.play") };
-    ui_hints(h, 8);
-}
-
-static void library_list_draw(void) {
+/* in alto: titolo dell'interfaccia e, accanto, il nome del tema */
+static void topbar_label(const char *label);
+static void topbar_theme(void) { topbar_label(UI.th.name); }
+static void topbar_label(const char *label) {
     theme_t *t = &UI.th;
     ui_topbar(t->title);
-    int top = M(t->topbar_h), mx = M(t->margin);
-    draw_tabs(top);
-    int rh = M(t->list_row_h), list_x = mx, list_w = UI.w * 52 / 100 - mx;
-    int area_y = top + TTF_FontHeight(UI.f_normal) + M(0.05f), area_h = UI.h - M(t->hintbar_h) - area_y - M(0.02f);
-    float ry = (float)lib_sel * rh;
-    if (ry - lib_scroll_target > area_h - rh * 2) lib_scroll_target = ry - (area_h - rh * 2);
-    if (ry < lib_scroll_target + rh && lib_sel > 0) lib_scroll_target = ry - rh;
-    if (lib_scroll_target < 0) lib_scroll_target = 0;
-    lib_scroll = ui_approach(lib_scroll, lib_scroll_target);
-    lib_hl = ui_approach(lib_hl, ry);
+    char tt[128];
+    snprintf(tt, sizeof tt, "%s", t->title);
+    if (t->title_upper)
+        for (char *p = tt; *p; p++)
+            if (*p >= 'a' && *p <= 'z') *p -= 32;
+    int x = M(t->margin) + ui_text_w(UI.f_title, tt) + M(0.035f), cy = M(t->topbar_h) / 2;
+    ui_text(UI.f_normal, label, x, cy - TTF_FontHeight(UI.f_normal) / 2, t->text_dim, ALIGN_LEFT);
+    ui_rect(M(t->margin), M(t->topbar_h) - 1, UI.w - 2 * M(t->margin), 1, t->line);
+}
 
-    ui_clip_push(0, area_y, UI.w, area_h);
-    if (nview) ui_rrect(list_x, area_y + (int)(lib_hl - lib_scroll), list_w, rh, M(t->panel_radius), t->accent);
+/* categorie a pulsanti; quella scelta piena. Se non stanno tutte, scorrono. */
+static int pills(int y) {
+    theme_t *t = &UI.th;
     TTF_Font *f = UI.f_normal;
-    int fh = TTF_FontHeight(f);
-    for (int i = 0; i < nview; i++) {
-        int y = area_y + (int)(i * rh - lib_scroll);
-        if (y + rh < area_y || y > area_y + area_h) continue;
-        game_t *g = &games[view[i]];
-        bool sel = i == lib_sel;
-        char buf[200];
-        int sysw = ui_text_w(UI.f_small, g->system);
-        ui_text_fit(f, g->title, list_w - sysw - M(0.08f), buf, sizeof buf);
-        color_t c = sel ? t->accent_text : g->missing ? with_alpha(t->text, 110) : t->text;
-        ui_text(f, buf, list_x + M(0.02f), y + (rh - fh) / 2, c, ALIGN_LEFT);
-        ui_text(UI.f_small, g->system, list_x + list_w - M(0.02f), y + (rh - TTF_FontHeight(UI.f_small)) / 2,
-                sel ? with_alpha(t->accent_text, 200) : t->text_dim, ALIGN_RIGHT);
-        if (g->fav) ui_star(list_x + list_w - sysw - M(0.045f), y + rh / 2, M(0.012f), sel ? t->accent_text : t->accent);
+    int mx = M(t->margin), fh = TTF_FontHeight(f), h = fh + M(0.022f), pad = M(0.022f), gap = M(0.016f);
+    static float off, off_target;
+    int xs[24], ws[24], tot = 0;
+    for (int i = 0; i < ntabs; i++) {
+        ws[i] = ui_text_w(f, tab_label(tabs[i])) + 2 * pad;
+        xs[i] = tot;
+        tot += ws[i] + gap;
+    }
+    int avail = UI.w - 2 * mx;
+    if (ntabs) {
+        if (xs[tab_sel] + ws[tab_sel] - off_target > avail) off_target = (float)(xs[tab_sel] + ws[tab_sel] - avail);
+        if (xs[tab_sel] < off_target) off_target = (float)xs[tab_sel];
+    }
+    off = ui_approach(off, off_target);
+    ui_clip_push(mx - 2, y - 2, avail + 4, h + 4);
+    for (int i = 0; i < ntabs; i++) {
+        int x = mx + xs[i] - (int)off;
+        bool sel = i == tab_sel;
+        if (sel) ui_rrect(x, y, ws[i], h, M(0.012f), t->accent);
+        else {
+            ui_rrect(x, y, ws[i], h, M(0.012f), t->surface);
+            ui_rborder(x, y, ws[i], h, M(0.012f), 2, t->line);
+        }
+        ui_text(f, tab_label(tabs[i]), x + ws[i] / 2, y + (h - fh) / 2, sel ? t->accent_text : t->text, ALIGN_CENTER);
     }
     ui_clip_pop();
+    return h;
+}
 
-    /* anteprima a destra */
-    int px = UI.w * 55 / 100, pw = UI.w - px - mx;
-    if (nview) {
-        game_t *g = &games[view[lib_sel]];
-        int y = area_y;
-        /* marquee in alto, come l'insegna luminosa del cabinato */
-        static char marquee_type[1][16] = { "marquee" };
-        SDL_Texture *mq = UI.th.show_marquee ? media_image(g, marquee_type, 1) : NULL;
-        if (mq) {
-            int mh = pw / 4;
-            ui_image_fit(mq, px, y, pw, mh);
-            y += mh + M(0.02f);
-        }
-        SDL_Texture *shot = media_image(g, UI.th.preview_types, UI.th.npreview);
-        if (shot) {
-            /* schermata di gioco in un "monitor" 4:3, intera anche per i giochi verticali */
-            int bw = pw, bh = pw * 3 / 4, maxh = (area_y + area_h - y) * 62 / 100;
-            if (bh > maxh) { bh = maxh; bw = bh * 4 / 3; }
-            int bx = px + (pw - bw) / 2;
-            ui_shadow(bx, y + M(0.008f), bw, bh, M(t->tile_radius), M(0.02f), t->shadow);
-            ui_rrect(bx, y, bw, bh, M(t->tile_radius), rgba(0, 0, 0, 255));
-            ui_image_fit(shot, bx, y, bw, bh);
-            y += bh + M(0.03f);
-        } else {
-            int cs = pw < (area_y + area_h - y) * 6 / 10 ? pw : (area_y + area_h - y) * 6 / 10;
-            int cx = px + (pw - cs) / 2;
-            ui_shadow(cx, y + M(0.008f), cs, cs, M(t->tile_radius), M(0.02f), t->shadow);
-            draw_cover(g, cx, y, cs, cs, M(t->tile_radius));
-            y += cs + M(0.03f);
-        }
-        char lines[3][160];
-        int n = ui_wrap(UI.f_title, g->title, pw, lines, 2);
-        for (int i = 0; i < n; i++, y += TTF_FontHeight(UI.f_title)) ui_text(UI.f_title, lines[i], px, y, t->text, ALIGN_LEFT);
-        char info[300], fit[300];
-        game_info(g, info, sizeof info);
-        ui_text_fit(UI.f_small, info, pw, fit, sizeof fit);
-        ui_text(UI.f_small, fit, px, y + M(0.01f), t->text_dim, ALIGN_LEFT);
-        snprintf(info, sizeof info, "%s%s%s", games_core_label(g->core), g->vertical ? " · " : "", g->vertical ? T("info.vertical") : "");
-        ui_text(UI.f_small, info, px, y + M(0.01f) + TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
-    } else {
-        if (!have_games()) empty_guide(px, area_y, UI.w - px - M(t->margin));
-        else ui_text(UI.f_normal, T("library.empty"), px, area_y, t->text_dim, ALIGN_LEFT);
+static void small_caps(const char *s, int x, int y, color_t c) {
+    char up[200];
+    size_t k = 0;
+    for (const char *p = s; *p && k < sizeof up - 1; p++) up[k++] = (*p >= 'a' && *p <= 'z') ? (char)(*p - 32) : *p;
+    up[k] = 0;
+    ui_text(UI.f_small, up, x, y, c, ALIGN_LEFT);
+}
+
+/* riquadro degli stati vuoti: titolo, due righe e l'azione con A */
+static void empty_panel(int x, int y, int w, int h, const char *title, const char *l1, const char *l2, const char *action) {
+    theme_t *t = &UI.th;
+    int r = M(t->panel_radius) * 2, pad = M(0.035f);
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rborder(x, y, w, h, r, 2, t->line);
+    int ty = y + pad;
+    ui_text(UI.f_title, title, x + pad, ty, t->text, ALIGN_LEFT);
+    ty += TTF_FontHeight(UI.f_title) + M(0.025f);
+    char lines[3][160];
+    const char *src[2] = { l1, l2 };
+    for (int s = 0; s < 2; s++) {
+        if (!src[s] || !src[s][0]) continue;
+        int n = ui_wrap(UI.f_normal, src[s], w - 2 * pad, lines, 3);
+        for (int k = 0; k < n; k++, ty += TTF_FontHeight(UI.f_normal)) ui_text(UI.f_normal, lines[k], x + pad, ty, t->text_dim, ALIGN_LEFT);
     }
-    const char *h[] = { "SELECT", genre_hint(), "X", T("detail.hint"), "Y", T("common.favorite"), "START", T("common.settings"), "A", T("common.play") };
-    ui_hints(h, 10);
+    if (action) {
+        int g = M(0.045f);
+        ty += M(0.03f);
+        ui_rrect(x + pad, ty, g, g, M(0.01f), t->accent);
+        ui_text(UI.f_small, "A", x + pad + g / 2, ty + g / 2 - TTF_FontHeight(UI.f_small) / 2, t->accent_text, ALIGN_CENTER);
+        ui_text(UI.f_small, action, x + pad + g + M(0.012f), ty + g / 2 - TTF_FontHeight(UI.f_small) / 2, t->text, ALIGN_LEFT);
+    }
+}
+
+/* che cosa fa A quando la categoria è vuota */
+enum { LE_NONE, LE_REFRESH, LE_OPEN_ALL };
+static int lib_empty_kind(void) {
+    if (nview) return LE_NONE;
+    if (!have_games()) return LE_REFRESH;
+    if (ntabs && tabs[tab_sel] == TAB_FAV) return LE_OPEN_ALL;
+    return LE_NONE;
+}
+
+/* anteprima a destra (Cabinato) o in alto (Onda): immagine, titolo intero, emulatore, giocatori */
+static void game_panel(const game_t *g, int gi, int x, int y, int w, int h, bool image_left) {
+    theme_t *t = &UI.th;
+    int r = M(t->panel_radius) * 2, pad = M(0.018f);
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    char lines[4][160], buf[200];
+    int tx, ty, tw, tmax;
+    if (image_left) {   /* Onda: immagine a sinistra, testo a destra, senza riquadro */
+        int iw = w * 54 / 100, ih = h;
+        if (iw * 3 / 4 < ih) ih = iw * 3 / 4;
+        cover_box(g, x, y, iw, ih, r / 2);
+        tx = x + iw + M(0.03f);
+        tw = x + w - tx;
+        ty = y + M(0.01f);
+        tmax = y + ih;
+    } else {           /* Cabinato: riquadro con l'immagine sopra */
+        ui_rrect(x, y, w, h, r, t->surface);
+        ui_rborder(x, y, w, h, r, 2, t->line);
+        int iw = w - 2 * pad, ih = iw * 3 / 4;
+        if (ih > h * 45 / 100) ih = h * 45 / 100;
+        cover_box(g, x + pad, y + pad, iw, ih, r / 2);
+        tx = x + pad;
+        tw = iw;
+        ty = y + pad + ih + M(0.016f);
+        tmax = y + h - pad;
+    }
+    int bottom_lines = 2 + (gi >= 0 && game_autosave(gi, NULL));
+    int n = ui_wrap(fn, g->title, tw, lines, 4);
+    int room = (tmax - ty - bottom_lines * fsh) / fnh;
+    if (n > room) n = room > 0 ? room : 0;
+    for (int k = 0; k < n; k++, ty += fnh) ui_text(fn, lines[k], tx, ty, t->text, ALIGN_LEFT);
+    int by = tmax - bottom_lines * fsh;
+    ui_text_fit(fs, games_core_label(g->core), tw, buf, sizeof buf);
+    ui_text(fs, buf, tx, by, t->text_dim, ALIGN_LEFT);
+    by += fsh;
+    if (g->players > 1) snprintf(buf, sizeof buf, T("info.players"), g->players);
+    else snprintf(buf, sizeof buf, "%s", g->year);
+    ui_text(fs, buf, tx, by, t->text_dim, ALIGN_LEFT);
+    if (gi >= 0 && game_autosave(gi, NULL)) ui_text(fs, T("lib.autosave"), tx, by + fsh, t->accent, ALIGN_LEFT);
+}
+
+/* griglia di riquadri con la sola immagine (Tessera): quattro per riga, si scorre in verticale */
+enum { GRID_COLS = 4 };
+static void card_grid(int y, int h) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx, gap = M(0.02f), r = M(t->tile_radius) * 2;
+    int cw = (W - (GRID_COLS - 1) * gap) / GRID_COLS, ch = cw * 3 / 4;
+    /* a righe intere: in alto mai una riga tagliata, in basso si intravede la successiva */
+    int vis = (h + gap) / (ch + gap), row = lib_sel / GRID_COLS, first = (int)(lib_scroll_target / (ch + gap) + 0.5f);
+    if (vis < 1) vis = 1;
+    if (row < first) first = row;
+    if (row >= first + vis) first = row - vis + 1;
+    lib_scroll_target = (float)first * (ch + gap);
+    lib_scroll = ui_approach(lib_scroll, lib_scroll_target);
+    int ring = M(t->select_border) + M(0.012f);
+    ui_clip_push(mx - ring, y - ring, W + 2 * ring, h + 2 * ring);
+    for (int i = 0; i < nview; i++) {
+        int x = mx + (i % GRID_COLS) * (cw + gap), yy = y + (int)((i / GRID_COLS) * (ch + gap) - lib_scroll);
+        if (yy + ch < y - ring || yy > y + h + ring) continue;
+        ui_shadow(x, yy + M(0.004f), cw, ch, r, M(0.012f), t->shadow);
+        cover_tile(&games[view[i]], x, yy, cw, ch, r);
+        if (games[view[i]].fav) {   /* stellina dei preferiti nell'angolo */
+            int sr = M(0.022f);
+            ui_circle(x + cw - sr - M(0.008f), yy + sr + M(0.008f), sr, with_alpha(t->surface, 230));
+            ui_star(x + cw - sr - M(0.008f), yy + sr + M(0.008f), sr * 2 / 3, t->accent);
+        }
+    }
+    if (nview) selection_ring(mx + (lib_sel % GRID_COLS) * (cw + gap), y + (int)((lib_sel / GRID_COLS) * (ch + gap) - lib_scroll), cw, ch, r);
+    ui_clip_pop();
+}
+
+/* Onda: elenco verticale come nella prima versione. Il gioco scelto resta in cima, più grande e
+   con le informazioni; quelli già passati spariscono sopra. */
+static void onda_list(int x, int y, int w, int h) {
+    theme_t *t = &UI.th;
+    int rh = M(t->list_row_h) * 13 / 10, r = M(t->panel_radius) * 2;
+    static float anim;
+    if (anim > nview) anim = 0;
+    anim = ui_approach(anim, (float)lib_sel);
+    char buf[200], info[200];
+    ui_clip_push(x - 4, y - 4, w + 8, h + 8);
+    for (int i = 0; i < nview; i++) {
+        float d = i - anim;
+        int yy = y + (int)(d * rh);
+        if (d < -0.5f) continue;
+        if (yy > y + h) break;
+        const game_t *g = &games[view[i]];
+        bool sel = i == lib_sel;
+        if (sel) ui_rrect(x, yy, w, rh, r, t->surface);
+        int th = rh * 78 / 100, tw = th * 4 / 3, ix = x + M(0.012f), iy = yy + (rh - th) / 2;
+        SDL_Texture *img = media_image(g, t->cover_types, t->ncover);
+        if (img) ui_image_fill(img, ix, iy, tw, th, M(0.006f));
+        else ui_rrect(ix, iy, tw, th, M(0.006f), with_alpha(t->text, 40));
+        if (g->fav) ui_star(ix + tw - M(0.015f), iy + M(0.015f), M(0.011f), rgba(255, 210, 60, 255));
+        int tx = ix + tw + M(0.022f), avail = x + w - tx - M(0.012f);
+        if (sel) {
+            TTF_Font *f = UI.f_title;
+            ui_text_fit(f, g->title, avail, buf, sizeof buf);
+            ui_text(f, buf, tx, yy + rh / 2 - TTF_FontHeight(f) + M(0.008f), t->text, ALIGN_LEFT);
+            snprintf(info, sizeof info, "%s", games_core_label(g->core));
+            if (g->year[0]) { size_t l = strlen(info); snprintf(info + l, sizeof info - l, " · %s", g->year); }
+            if (g->players > 1) { size_t l = strlen(info); char pl[48]; snprintf(pl, sizeof pl, T("info.players"), g->players); snprintf(info + l, sizeof info - l, " · %s", pl); }
+            ui_text_fit(UI.f_small, info, avail, buf, sizeof buf);
+            ui_text(UI.f_small, buf, tx, yy + rh / 2 + M(0.004f), t->accent, ALIGN_LEFT);
+        } else {
+            TTF_Font *f = UI.f_normal;
+            ui_text_fit(f, g->title, avail, buf, sizeof buf);
+            ui_text(f, buf, tx, yy + (rh - TTF_FontHeight(f)) / 2, with_alpha(t->text, 170), ALIGN_LEFT);
+        }
+    }
+    ui_clip_pop();
+}
+
+/* elenco dei titoli (Cabinato) */
+static void title_list(int x, int y, int w, int h) {
+    theme_t *t = &UI.th;
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), rh = fnh + fsh + M(0.018f), gap = M(0.01f);
+    int rows = (h + gap) / (rh + gap);
+    if (rows < 1) rows = 1;
+    float ry = (float)lib_sel * (rh + gap), area = (float)(rows * (rh + gap) - gap);
+    if (ry - lib_scroll_target > area - rh) lib_scroll_target = ry - (area - rh);
+    if (ry < lib_scroll_target) lib_scroll_target = ry;
+    lib_scroll = ui_approach(lib_scroll, lib_scroll_target);
+    int r = M(0.008f);
+    ui_clip_push(x - 4, y - 4, w + 8, (int)area + 8);
+    for (int i = 0; i < nview; i++) {
+        int yy = y + (int)(i * (rh + gap) - lib_scroll);
+        if (yy > y + h || yy + rh < y) continue;
+        const game_t *g = &games[view[i]];
+        ui_rrect(x, yy, w, rh, r, t->surface);
+        if (i == lib_sel) ui_rborder(x, yy, w, rh, r, M(0.004f) < 2 ? 2 : M(0.004f), t->accent);
+        else ui_rborder(x, yy, w, rh, r, 1, t->line);
+        char fit[200];
+        ui_text_fit(fn, g->title, w - 2 * M(0.016f), fit, sizeof fit);
+        ui_text(fn, fit, x + M(0.016f), yy + M(0.006f), t->text, ALIGN_LEFT);
+        const char *sub = media_image(g, t->cover_types, t->ncover) ? games_core_label(g->core) : T("lib.no_image");
+        ui_text_fit(fs, sub, w - 2 * M(0.016f), fit, sizeof fit);
+        ui_text(fs, fit, x + M(0.016f), yy + M(0.006f) + fnh, t->text_dim, ALIGN_LEFT);
+    }
+    ui_clip_pop();
+}
+
+/* "oggi, 21:42" / "ieri, 21:42" / "09/11 21:42" */
+static void when_text(time_t when, char *out, size_t n) {
+    struct tm a, b;
+    time_t now = time(NULL);
+    localtime_r(&when, &a);
+    localtime_r(&now, &b);
+    char hm[16];
+    strftime(hm, sizeof hm, "%H:%M", &a);
+    time_t y = now - 86400;
+    struct tm c;
+    localtime_r(&y, &c);
+    if (a.tm_year == b.tm_year && a.tm_yday == b.tm_yday) snprintf(out, n, T("home.today"), hm);
+    else if (a.tm_year == c.tm_year && a.tm_yday == c.tm_yday) snprintf(out, n, T("home.yesterday"), hm);
+    else strftime(out, n, "%d/%m %H:%M", &a);
+}
+
+/* immagine del gioco della home: per la partita da riprendere, il punto in cui si era rimasti */
+static void home_image(int gi, int x, int y, int w, int h, int r) {
+    SDL_Texture *shot = gi == resume_idx ? ui_image(resume_png) : NULL;
+    if (shot && resume_rot) {
+        int tw, th;
+        SDL_QueryTexture(shot, NULL, NULL, &tw, &th);
+        bool odd = resume_rot & 1;
+        float vw = (float)(odd ? th : tw), vh = (float)(odd ? tw : th), sc = fminf(w / vw, h / vh);
+        int dw = (int)(vw * sc), dh = (int)(vh * sc), rw = odd ? dh : dw, rh = odd ? dw : dh;
+        ui_rrect(x, y, w, h, r, rgba(14, 14, 18, 255));
+        SDL_Rect d = { x + (w - rw) / 2, y + (h - rh) / 2, rw, rh };
+        SDL_RenderCopyEx(UI.ren, shot, NULL, &d, -90.0 * resume_rot, NULL, SDL_FLIP_NONE);
+    } else if (shot) ui_image_fill(shot, x, y, w, h, r);
+    else cover_box(&games[gi], x, y, w, h, r);
+}
+
+/* simboli dei pulsanti rotondi della home di Tessera */
+static void draw_icon_glyph(int kind, int cx, int cy, int s, color_t c, color_t bg) {
+    int q = s / 6;
+    switch (kind) {
+    case IC_ALL:
+        for (int i = 0; i < 4; i++) ui_rrect(cx - q - q / 4 + (i % 2) * (q + q / 2), cy - q - q / 4 + (i / 2) * (q + q / 2), q, q, q / 4, c);
+        break;
+    case IC_FAV: ui_star(cx, cy, s / 4, c); break;
+    case IC_SETTINGS: ui_gear(cx, cy, s * 27 / 100, c); break;
+    case IC_POWER:
+        ui_ring(cx, cy + q / 6, s / 4, q / 3 + 1, c);
+        ui_rect(cx - q / 2, cy - s / 4 - q / 3, q, q, bg);
+        ui_rrect(cx - q / 6, cy - s / 4 - q / 4, q / 3 + 1, s / 4 + q / 4, q / 6, c);
+        break;
+    }
+}
+
+static const char *hm_label(int m) {
+    switch (m) {
+    case HM_GAME: return T(resume_idx >= 0 ? "home.resume_game" : "home.last");
+    case HM_LIBRARY: return T("home.btn_library");
+    case HM_FAV: return T("home.favorites");
+    case HM_SETTINGS: return T("common.settings");
+    default: return T("common.power_off");
+    }
+}
+
+static int home_last_game(void) { return nhmenu && hmenu[0] == HM_GAME && nhgames ? hgame[0] : -1; }
+
+static void home_play(int gi) {
+    if (gi == resume_idx) launch_ex(&games[gi], true);
+    else launch(&games[gi]);
+}
+
+static void home_do(int m) {
+    static const int icon_of[] = { 0, IC_ALL, IC_FAV, IC_SETTINGS, IC_POWER };
+    if (m == HM_GAME) { int g = home_last_game(); if (g >= 0) home_play(g); return; }
+    icon_sel = icon_of[m];
+    home_activate_icon();
+}
+
+/* gioco su cui agiscono X e Y nella home, -1 nessuno */
+static int home_focus_game(void) {
+    if (is_list_layout() || is_bar_layout()) return nhmenu && hmenu[hsel] == HM_GAME ? home_last_game() : -1;
+    return hrow == 0 && hsel < nhgames ? hgame[hsel] : -1;
+}
+
+static void home_input(void) {
+    input_t *in = &UI.in;
+    bool cards = !is_list_layout() && !is_bar_layout();
+    int old = hsel * 16 + hrow * 4 + hbtn;
+    if (cards) {
+        if (in->pressed[BTN_UP] && hrow == 1 && nhgames) hrow = 0;
+        if (in->pressed[BTN_DOWN] && hrow == 0) hrow = 1;
+        if (!nhgames) hrow = 1;
+        if (hrow == 0) {
+            if (in->pressed[BTN_LEFT] && hsel > 0) hsel--;
+            if (in->pressed[BTN_RIGHT] && hsel < nhgames - 1) hsel++;
+        } else {
+            if (in->pressed[BTN_LEFT] && hbtn > 0) hbtn--;
+            if (in->pressed[BTN_RIGHT] && hbtn < HM_POWER - HM_LIBRARY) hbtn++;
+        }
+    } else {
+        bool vertical = is_list_layout();
+        if (in->pressed[vertical ? BTN_UP : BTN_LEFT] && hsel > 0) hsel--;
+        if (in->pressed[vertical ? BTN_DOWN : BTN_RIGHT] && hsel < nhmenu - 1) hsel++;
+    }
+    if (hsel * 16 + hrow * 4 + hbtn != old) ui_sound(SND_MOVE);
+    if (in->pressed[BTN_A]) {
+        if (cards && hrow == 0 && hsel < nhgames) home_play(hgame[hsel]);
+        else if (cards) home_do(HM_LIBRARY + hbtn);
+        else if (nhmenu) home_do(hmenu[hsel]);
+        return;
+    }
+    int g = home_focus_game();
+    if (in->pressed[BTN_X] && g >= 0) { open_detail(g); return; }
+    if (in->pressed[BTN_Y] && g >= 0) {
+        games_toggle_fav(UI.root, &games[g]);
+        ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
+        build_tabs();
+        build_carousel();
+        ui_sound(SND_OK);
+    }
+    if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
+}
+
+/* pulsante a pillola: pieno se scelto */
+static int pill_f(TTF_Font *f, const char *label, int x, int y, bool sel) {
+    theme_t *t = &UI.th;
+    int fh = TTF_FontHeight(f), h = fh + M(0.022f), w = ui_text_w(f, label) + 2 * M(f == UI.f_small ? 0.018f : 0.022f);
+    if (sel) ui_rrect(x, y, w, h, M(0.012f), t->accent);
+    else { ui_rrect(x, y, w, h, M(0.012f), t->surface); ui_rborder(x, y, w, h, M(0.012f), 2, t->line); }
+    ui_text(f, label, x + w / 2, y + (h - fh) / 2, sel ? t->accent_text : t->text, ALIGN_CENTER);
+    return w;
+}
+
+static void home_title(const char *s, int y, color_t c) {
+    char up[160];
+    snprintf(up, sizeof up, "%s", s);
+    if (UI.th.title_upper)
+        for (char *p = up; *p; p++)
+            if (*p >= 'a' && *p <= 'z') *p -= 32;
+    ui_text(UI.f_title, up, M(UI.th.margin), y, c, ALIGN_LEFT);
+}
+
+/* sottotitolo del gioco: "Salvataggio automatico · ieri, 21:42" o l'emulatore */
+static void home_game_sub(int gi, char *out, size_t n) {
+    if (gi == resume_idx) {
+        char w[48];
+        when_text(resume_when, w, sizeof w);
+        snprintf(out, n, T("home.autosave"), w);
+    } else snprintf(out, n, "%s", games_core_label(games[gi].core));
+}
+
+static void home_keys(void) {
+    int g = home_focus_game();
+    const char *act = T("lib.confirm");
+    if (g >= 0) act = T(g == resume_idx ? "home.resume" : "common.play");
+    const char *h1[] = { "A", act, NULL, "X", T("common.info"), "", "Y", T(g >= 0 && games[g].fav ? "common.unfavorite" : "common.favorite"), "",
+                         "START", T("common.settings"), NULL };
+    const char *h2[] = { "A", act, NULL, "START", T("common.settings"), NULL };
+    if (g >= 0) ui_keybar(h1, 12); else ui_keybar(h2, 6);
+}
+
+/* Tessera: una fila di riquadri con la sola immagine, il nome del gioco scelto sopra, i pulsanti
+   rotondi sotto */
+static void home_draw_cards(int y, int bottom) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx, r = M(t->tile_radius) * 2;
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    char fit[200];
+    int is = M(t->icon_size), step = is + M(0.06f), nb = HM_POWER - HM_LIBRARY + 1;
+    int iy = bottom - fsh - M(0.02f) - is / 2;
+    int lab_h = fnh + M(0.018f), avail = iy - is / 2 - M(0.05f) - y - lab_h;
+    int tw = W * 36 / 100, th = tw * 3 / 4;
+    if (th > avail) { th = avail; tw = th * 4 / 3; }
+    int ty = y + lab_h + (avail - th) / 2;
+    if (!nhgames) {
+        if (!have_games()) empty_panel(mx, y, W, iy - is / 2 - M(0.05f) - y, T("lib.empty_title"), T("lib.empty_text"), NULL, NULL);
+        else empty_panel(mx, y, W, iy - is / 2 - M(0.05f) - y, T("home.no_game_title"), T("home.no_game_text"), NULL, NULL);
+    } else {
+        /* il gioco scelto è più grande degli altri; le misure cambiano con un'animazione */
+        int gap = M(0.022f), sw = tw * 72 / 100;
+        static float hs, hs_t, grow[16];
+        float pos[16], acc = 0, sel_pos = (float)hsel * (sw + gap);
+        for (int i = 0; i < nhgames && i < 16; i++) {
+            grow[i] = ui_approach(grow[i], i == hsel && hrow == 0 ? 1.0f : 0.0f);
+            pos[i] = acc;
+            acc += sw + (tw - sw) * grow[i] + gap;
+        }
+        if (sel_pos - hs_t > W - tw) hs_t = sel_pos - (W - tw);
+        if (sel_pos < hs_t) hs_t = sel_pos;
+        hs = ui_approach(hs, hs_t);
+        int ring = M(t->select_border) + M(0.012f), sx0 = mx, sel_w = tw, sel_h = th, sel_y = ty;
+        ui_clip_push(0, ty - ring, UI.w, th + 2 * ring);
+        for (int i = 0; i < nhgames && i < 16; i++) {
+            int w = sw + (int)((tw - sw) * grow[i]), h = w * 3 / 4, x = mx + (int)(pos[i] - hs), yy = ty + (th - h) / 2;
+            if (x > UI.w || x + w < 0) continue;
+            ui_shadow(x, yy + M(0.006f), w, h, r, M(0.018f), t->shadow);
+            home_image(hgame[i], x, yy, w, h, r);
+            if (i == hsel) { sx0 = x; sel_w = w; sel_h = h; sel_y = yy; }
+        }
+        if (hrow == 0) selection_ring(sx0, sel_y, sel_w, sel_h, r);
+        ui_clip_pop();
+        if (hrow == 0) {   /* nome del gioco scelto, e accanto perché è qui */
+            const char *sub = hkind[hsel] == HK_RESUME ? T("home.resume_hint") : hkind[hsel] == HK_FAV ? T("home.fav_kind")
+                            : hkind[hsel] == HK_LAST ? T("home.last") : T("home.recent_kind");
+            int lx = sx0 < mx ? mx : sx0, ly = ty - lab_h;
+            ui_text_fit(fn, games[hgame[hsel]].title, mx + W - lx, fit, sizeof fit);
+            int w1 = ui_text(fn, fit, lx, ly, t->accent, ALIGN_LEFT);
+            if (lx + w1 + M(0.02f) + ui_text_w(fs, sub) < mx + W)
+                ui_text(fs, sub, lx + w1 + M(0.02f), ly + fnh - fsh - M(0.003f), t->text_dim, ALIGN_LEFT);
+        }
+    }
+    /* pulsanti rotondi: libreria, preferiti, impostazioni, spegni; il nome sotto quello scelto */
+    static const int icon_of[] = { IC_ALL, IC_FAV, IC_SETTINGS, IC_POWER };
+    int ix0 = UI.w / 2 - (nb - 1) * step / 2;
+    for (int b = 0; b < nb; b++) {
+        int cx = ix0 + b * step;
+        ui_shadow(cx - is / 2, iy - is / 2 + M(0.004f), is, is, is / 2, M(0.012f), t->shadow);
+        ui_circle(cx, iy, is / 2, t->surface);
+        draw_icon_glyph(icon_of[b], cx, iy, is, icon_of[b] == IC_POWER ? t->text : t->accent, t->surface);
+    }
+    if (hrow == 1) {
+        selection_ring(ix0 + hbtn * step - is / 2, iy - is / 2, is, is, is / 2);
+        ui_text(fs, hm_label(HM_LIBRARY + hbtn), ix0 + hbtn * step, iy + is / 2 + M(0.016f), t->accent, ALIGN_CENTER);
+    }
+}
+
+static void home_draw_menu(int y, int bottom) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx, lw = W * 32 / 100, r = M(0.008f);
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    int gap = M(0.012f), rh = (bottom - y - (6 - 1) * gap) / 6;
+    if (rh > fnh + M(0.05f)) rh = fnh + M(0.05f);
+    for (int i = 0; i < nhmenu; i++) {
+        int yy = y + i * (rh + gap);
+        bool sel = i == hsel;
+        if (sel) ui_rrect(mx, yy, lw, rh, r, t->accent);
+        else { ui_rrect(mx, yy, lw, rh, r, t->surface); ui_rborder(mx, yy, lw, rh, r, 2, t->line); }
+        char num[8], fit[120];
+        snprintf(num, sizeof num, "%02d", i + 1);
+        ui_text(fn, num, mx + M(0.016f), yy + (rh - fnh) / 2, sel ? t->accent_text : t->text, ALIGN_LEFT);
+        int lx = mx + M(0.016f) + ui_text_w(fn, "00") + M(0.022f);
+        ui_text_fit(fn, hm_label(hmenu[i]), mx + lw - lx - M(0.012f), fit, sizeof fit);
+        ui_text(fn, fit, lx, yy + (rh - fnh) / 2, sel ? t->accent_text : t->text, ALIGN_LEFT);
+    }
+    int px = mx + lw + M(0.025f), pw = mx + W - px, ph = bottom - y, pad = M(0.018f);
+    ui_rrect(px, y, pw, ph, r, t->surface);
+    ui_rborder(px, y, pw, ph, r, 2, t->line);
+    int gi = home_last_game();
+    if (gi < 0) {
+        ui_text(fn, T(have_games() ? "home.no_game_title" : "lib.empty_title"), px + pad, y + pad, t->text, ALIGN_LEFT);
+        return;
+    }
+    small_caps(T(gi == resume_idx ? "home.in_progress" : "home.last"), px + pad, y + pad, t->accent);
+    int iy = y + pad + fsh + M(0.012f), iw = pw - 2 * pad, ih = ph - (iy - y) - pad - fnh - fsh - M(0.03f);
+    if (ih > iw * 3 / 4) ih = iw * 3 / 4;
+    home_image(gi, px + pad, iy, iw, ih, r);
+    char up[200], fit[200], sub[120];
+    snprintf(up, sizeof up, "%s", games[gi].title);
+    for (char *p = up; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+    ui_text_fit(fn, up, iw, fit, sizeof fit);
+    int ty = iy + ih + M(0.016f);
+    ui_text(fn, fit, px + pad, ty, t->text, ALIGN_LEFT);
+    home_game_sub(gi, sub, sizeof sub);
+    ui_text_fit(fs, sub, iw, fit, sizeof fit);
+    ui_text(fs, fit, px + pad, ty + fnh, t->text_dim, ALIGN_LEFT);
+}
+
+static void home_draw_bar(int y, int bottom) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx;
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    /* sezioni in orizzontale: col carattere normale, o col piccolo se non stanno in una riga */
+    TTF_Font *pf = fn;
+    int need = 0;
+    for (int i = 0; i < nhmenu; i++)
+        need += ui_text_w(fn, hmenu[i] == HM_GAME ? T("home.resume") : hm_label(hmenu[i])) + 2 * M(0.022f) + M(0.014f);
+    if (need > W) pf = fs;
+    int x = mx;
+    for (int i = 0; i < nhmenu; i++)
+        x += pill_f(pf, hmenu[i] == HM_GAME ? T(resume_idx >= 0 ? "home.resume" : "home.last") : hm_label(hmenu[i]), x, y, i == hsel) + M(0.014f);
+    y += TTF_FontHeight(pf) + M(0.022f) + M(0.03f);
+    int iw = W * 61 / 100, ih = bottom - y;
+    if (ih > iw * 2 / 3) ih = iw * 2 / 3;
+    int gi = home_last_game(), m = nhmenu ? hmenu[hsel] : HM_LIBRARY;
+    if (gi >= 0 && m != HM_LIBRARY) home_image(gi, mx, y, iw, ih, M(0.008f));
+    else draw_all_tile(mx, y, iw, ih, M(0.008f));
+    int tx = mx + iw + M(0.025f), tw = mx + W - tx, ty = y + M(0.006f);
+    char buf[200], lines[4][160];
+    small_caps(hm_label(m), tx, ty, t->accent);
+    ty += fsh + M(0.02f);
+    const char *title = NULL, *sub = NULL, *action = T("lib.confirm");
+    char subbuf[160];
+    switch (m) {
+    case HM_GAME: title = games[gi].title; home_game_sub(gi, subbuf, sizeof subbuf); sub = subbuf; action = T(gi == resume_idx ? "home.resume" : "common.play"); break;
+    case HM_LIBRARY: title = T("home.btn_library"); snprintf(subbuf, sizeof subbuf, T("info.games"), ngames); sub = subbuf; break;
+    case HM_FAV: {
+        int nf = 0;
+        for (int i = 0; i < ngames; i++) nf += games[i].fav && !games[i].hidden;
+        title = T("home.favorites"); snprintf(subbuf, sizeof subbuf, T("home.favs_count"), nf); sub = subbuf; break;
+    }
+    case HM_SETTINGS: title = T("common.settings"); sub = T("home.settings_desc"); break;
+    default: title = T("common.power_off"); sub = T("home.power_desc"); break;
+    }
+    int n = ui_wrap(fn, title, tw, lines, 3);
+    for (int k = 0; k < n; k++, ty += fnh) ui_text(fn, lines[k], tx, ty, t->text, ALIGN_LEFT);
+    ty += M(0.012f);
+    n = ui_wrap(fs, sub, tw, lines, 3);
+    for (int k = 0; k < n; k++, ty += fsh) ui_text(fs, lines[k], tx, ty, t->text_dim, ALIGN_LEFT);
+    int g = M(0.045f), ay = y + ih - g;
+    ui_rrect(tx, ay, g, g, M(0.01f), t->accent);
+    ui_text(fs, "A", tx + g / 2, ay + g / 2 - fsh / 2, t->accent_text, ALIGN_CENTER);
+    ui_text(fs, action, tx + g + M(0.012f), ay + g / 2 - fsh / 2, t->text, ALIGN_LEFT);
+    (void)buf;
+}
+
+static void home_draw(void) {
+    theme_t *t = &UI.th;
+    topbar_theme();
+    int y = M(t->topbar_h) + M(0.025f), bottom = UI.h - ui_keybar_h() - M(0.03f);
+    bool cards = !is_list_layout() && !is_bar_layout();
+    if (is_bar_layout()) {   /* Tessera e Cabinato senza titolo: si va subito ai giochi */
+        home_title(T("home.title_bar"), y, t->text);
+        y += TTF_FontHeight(UI.f_title) + M(0.03f);
+    }
+    if (cards) home_draw_cards(y, bottom);
+    else if (is_list_layout()) home_draw_menu(y, bottom);
+    else home_draw_bar(y, bottom);
+    home_keys();
+}
+
+/* ------------------------------------------------------ piattaforme */
+/* Prima della libreria: le categorie (Tutti, emulatori, Linux, Preferiti, collezioni) come
+   illustrazioni disegnate. Tessera e Onda: schede colorate a righe; Cabinato: una vetrina di
+   cabinati con la barra del nome in basso. */
+
+static float plat_anim;
+
+static color_t hexc(unsigned c) { return rgba(c >> 16 & 255, c >> 8 & 255, c & 255, 255); }
+
+static color_t plat_color(int tab) {
+    if (tab == TAB_ALL) return hexc(0x3A4E5C);
+    if (tab == TAB_LINUX) return hexc(0x4B3C86);
+    if (tab == TAB_FAV) return hexc(0x8C5A1C);
+    if (tab >= TAB_COLL) { static const unsigned pal[] = { 0x2F6B45, 0x6B2F5E, 0x2F4F6B, 0x6B5A2F }; return hexc(pal[(tab - TAB_COLL) % 4]); }
+    const char *id = EMUS[tab - TAB_EMU].id;
+    if (strstr(id, "fbneo")) return hexc(0x0E6A6C);
+    if (strstr(id, "mame")) return hexc(0x8E2A45);
+    static const unsigned pal[] = { 0x2A5C8E, 0x5C7A2A, 0x8E5C2A };
+    return hexc(pal[(tab - TAB_EMU) % 3]);
+}
+
+static int plat_count(int tab) {
+    int n = 0;
+    for (int i = 0; i < ngames; i++) n += in_tab(&games[i], tab);
+    return n;
+}
+static void plat_count_text(int tab, char *out, size_t sz) {
+    int n = plat_count(tab);
+    if (n == 1) snprintf(out, sz, "%s", T("plat.one"));
+    else snprintf(out, sz, T("info.games"), n);
+}
+
+static void plat_line(int x1, int y1, int x2, int y2, int th, color_t c) {
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(UI.ren, c.r, c.g, c.b, c.a);
+    for (int k = 0; k < th; k++) SDL_RenderDrawLine(UI.ren, x1 + k, y1, x2 + k, y2);
+}
+
+static void plat_quad(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, color_t c) {
+    ui_triangle(x1, y1, x2, y2, x3, y3, c);
+    ui_triangle(x1, y1, x3, y3, x4, y4, c);
+}
+
+static void plat_text(const char *s, int cx, int y, int maxw, int maxh, color_t c) {
+    TTF_Font *f = TTF_FontHeight(UI.f_normal) <= maxh && ui_text_w(UI.f_normal, s) <= maxw ? UI.f_normal : UI.f_small;
+    if (TTF_FontHeight(f) > maxh + maxh / 3) return;   /* troppo piccolo per leggerlo: meglio niente */
+    char fit[100];
+    ui_text_fit(f, s, maxw, fit, sizeof fit);
+    ui_text(f, fit, cx, y + (maxh - TTF_FontHeight(f)) / 2, rgba(0xF6, 0xEC, 0xE2, 255), ALIGN_CENTER);
+}
+
+/* cabinato da sala giochi: fianco a righe, insegna col nome, schermo con un tramonto, comandi */
+static void draw_cabinet(int x, int y, int w, int h, color_t c, const char *name) {
+    color_t dark = hexc(0x161A24), side = mix(c, rgba(0, 0, 0, 255), 0.3f), gold = hexc(0xF2C05C);
+    int bw = w * 80 / 100, st = h / 70 + 1, r = w / 28 + 1;
+    int sx0 = x + bw - st, sx1 = x + w;
+    plat_quad(sx0, y + h * 3 / 100, sx1, y + h * 8 / 100, sx1, y + h * 96 / 100, sx0, y + h, side);
+    for (int k = 0; k < 10; k++) {
+        int ly = y + h * 13 / 100 + k * h * 8 / 100;
+        plat_line(sx0 + (sx1 - sx0) / 4, ly, sx1 - (sx1 - sx0) / 6, ly + h / 45, 1, with_alpha(gold, 180));
+    }
+    ui_rrect(x, y, bw, h, r, c);
+    ui_rrect(x + st, y + st, bw - 2 * st, h - 2 * st, r, dark);
+    /* insegna */
+    int mp = bw * 7 / 100, mx = x + mp, mw = bw - 2 * mp, my = y + h * 4 / 100, mh = h * 11 / 100;
+    ui_rrect(mx, my, mw, mh, r / 2 + 1, c);
+    char up[64];
+    snprintf(up, sizeof up, "%s", name);
+    for (char *p = up; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+    plat_text(up, mx + mw / 2, my, mw - mw / 10, mh, rgba(255, 255, 255, 255));
+    /* schermo */
+    int scy = my + mh + h * 4 / 100, sch = h * 31 / 100, ip = mw * 6 / 100;
+    ui_rrect(mx, scy, mw, sch, r / 2 + 1, hexc(0x30353F));
+    int ix = mx + ip, iy = scy + ip, iw = mw - 2 * ip, ih = sch - 2 * ip;
+    ui_rect(ix, iy, iw, ih, hexc(0x1B172C));
+    int dot = iw / 80 + 1;
+    for (int k = 0; k < 12; k++) ui_rect(ix + (k * 37 % 97) * iw / 100, iy + (k * 53 % 47) * ih / 100, dot, dot, with_alpha(gold, 190));
+    int sr = ih * 22 / 100, scx = ix + iw * 68 / 100, scy2 = iy + ih * 38 / 100;
+    ui_circle(scx, scy2, sr, mix(gold, c, 0.12f));
+    for (int k = 1; k <= 3; k++) ui_rect(scx - sr, scy2 + k * sr / 3, 2 * sr + 1, sr / 7 + 1, hexc(0x1B172C));
+    color_t mtn = mix(c, hexc(0xFF8C5A), 0.35f);
+    ui_triangle(ix, iy + ih * 80 / 100, ix + iw * 24 / 100, iy + ih * 56 / 100, ix + iw * 48 / 100, iy + ih * 80 / 100, mtn);
+    ui_triangle(ix + iw * 34 / 100, iy + ih * 80 / 100, ix + iw * 62 / 100, iy + ih * 50 / 100, ix + iw, iy + ih * 80 / 100, mtn);
+    ui_rect(ix, iy + ih * 80 / 100, iw, ih - ih * 80 / 100, hexc(0x14121F));
+    for (int yy = iy; yy < iy + ih; yy += 3) ui_rect(ix, yy, iw, 1, rgba(0, 0, 0, 55));
+    /* comandi */
+    int py0 = scy + sch + h * 4 / 100, ph = h * 12 / 100;
+    plat_quad(mx, py0, mx + mw, py0, x + bw - st, py0 + ph, x + st, py0 + ph, c);
+    ui_rect(x + st, py0 + ph, bw - 2 * st, h * 4 / 100, side);
+    int jx = mx + mw * 22 / 100, jy = py0 + ph * 62 / 100, jr = ph * 22 / 100 + 1;
+    ui_circle(jx, jy, jr, hexc(0x111111));
+    plat_line(jx, jy, jx - jr / 3, py0 - ph * 25 / 100, st / 2 + 1, hexc(0xB8B8C0));
+    ui_circle(jx - jr / 3, py0 - ph * 25 / 100, jr * 8 / 10 + 1, gold);
+    for (int k = 0; k < 6; k++)
+        ui_circle(mx + mw * (54 + (k % 3) * 13) / 100 + (k / 3) * mw * 4 / 100, py0 + ph * (35 + (k / 3) * 32) / 100, ph / 9 + 1, gold);
+    /* porta delle monete */
+    int dw = bw * 30 / 100, dh = h * 13 / 100, dx = x + (bw - dw) / 2, dy = py0 + ph + h * 10 / 100;
+    ui_rrect(dx, dy, dw, dh, r / 2 + 1, hexc(0x2A2E38));
+    ui_rborder(dx, dy, dw, dh, r / 2 + 1, 1, hexc(0x5A5F6A));
+    for (int k = 0; k < 2; k++) ui_rrect(dx + dw * (24 + k * 34) / 100, dy + dh * 28 / 100, dw * 18 / 100 + 1, dh * 26 / 100 + 1, 1, hexc(0xC03A4A));
+}
+
+/* portatile per i giochi Linux */
+static void draw_laptop(int x, int y, int w, int h) {
+    color_t shell = hexc(0xB9AE9C), shell_d = hexc(0x8E8474), scr = hexc(0x1C1A28);
+    int r = w / 30 + 1, lx = x + w * 9 / 100, lw = w * 82 / 100, lh = h * 64 / 100;
+    ui_rrect(lx, y, lw, lh, r, shell);
+    int bx = lx + lw * 8 / 100, by = y + lh * 10 / 100, bw = lw * 84 / 100, bh = lh * 76 / 100;
+    ui_rrect(bx, by, bw, bh, r, hexc(0x3A3646));
+    ui_rrect(bx + bw / 30 + 1, by + bh / 25 + 1, bw - 2 * (bw / 30 + 1), bh - 2 * (bh / 25 + 1), r / 2 + 1, scr);
+    int fh = bh * 26 / 100;
+    TTF_Font *f = TTF_FontHeight(UI.f_title) <= fh ? UI.f_title : TTF_FontHeight(UI.f_normal) <= fh ? UI.f_normal : UI.f_small;
+    ui_text(f, "LINUX", bx + bw / 10, by + bh * 16 / 100, hexc(0xD0C8E8), ALIGN_LEFT);
+    if (TTF_FontHeight(UI.f_small) < bh * 42 / 100) {
+        char fit[64];
+        ui_text_fit(UI.f_small, T("plat.native"), bw * 8 / 10, fit, sizeof fit);
+        ui_text(UI.f_small, fit, bx + bw / 10, by + bh * 16 / 100 + TTF_FontHeight(f) + bh / 20, hexc(0x9AE6A0), ALIGN_LEFT);
+    }
+    int ky = y + lh, kh = h * 24 / 100;
+    plat_quad(lx - w * 2 / 100, ky, lx + lw + w * 2 / 100, ky, x + w, ky + kh, x, ky + kh, shell);
+    for (int row = 0; row < 3; row++) {
+        float tt = (row + 0.5f) / 3.5f;
+        int rx0 = (int)(lx + (x - lx) * tt) + w * 6 / 100, rx1 = (int)(lx + lw + (x + w - lx - lw) * tt) - w * 6 / 100;
+        int ry = ky + kh * (14 + row * 27) / 100, kw = (rx1 - rx0) / 13;
+        for (int k = 0; k < 12; k++) ui_rect(rx0 + k * (rx1 - rx0) / 12, ry, kw, kh / 6 + 1, hexc(0x4A4652));
+    }
+    ui_rrect(x, ky + kh, w, h * 5 / 100 + 1, 2, shell_d);
+}
+
+/* icone in un riquadro: tutti (quattro quadrati), preferiti (stella), collezione (schede) */
+static void draw_plat_icon(int kind, int x, int y, int w, int h, color_t c) {
+    int s = (w < h ? w : h) * 70 / 100, bx = x + (w - s) / 2, by = y + (h - s) / 2, r = s / 10;
+    color_t beige = hexc(0xD2BC92), panel = mix(c, rgba(255, 255, 255, 255), 0.08f);
+    ui_rrect(bx, by, s, s, r, panel);
+    ui_rborder(bx, by, s, s, r, s / 60 + 1, mix(c, beige, 0.45f));
+    int cx = bx + s / 2, cy = by + s / 2;
+    if (kind == TAB_ALL) {
+        int q = s * 22 / 100, g = s * 6 / 100;
+        for (int k = 0; k < 4; k++) ui_rrect(cx - q - g / 2 + (k % 2) * (q + g), cy - q - g / 2 + (k / 2) * (q + g), q, q, q / 6 + 1, beige);
+    } else if (kind == TAB_FAV) {
+        ui_star(cx, cy, s * 34 / 100, beige);
+    } else {
+        for (int k = 2; k >= 0; k--) {
+            int cw = s * 50 / 100, ch = s * 36 / 100;
+            ui_rrect(cx - cw / 2 + k * s / 14, cy - ch / 2 - k * s / 14, cw, ch, s / 30 + 1, k ? mix(beige, c, 0.35f * k) : beige);
+        }
+    }
+}
+
+/* l'illustrazione di una categoria dentro il riquadro dato, con le sue proporzioni */
+static void draw_plat_art(int tab, int x, int y, int w, int h) {
+    color_t c = plat_color(tab);
+    if (tab >= TAB_EMU && tab < TAB_COLL) {
+        int ah = h, aw = h * 62 / 100;
+        if (aw > w) { aw = w; ah = w * 100 / 62; }
+        draw_cabinet(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, tab_label(tab));
+    } else if (tab == TAB_LINUX) {
+        int aw = w, ah = w * 80 / 100;
+        if (ah > h * 70 / 100) { ah = h * 70 / 100; aw = ah * 100 / 80; }
+        draw_laptop(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah);
+    } else draw_plat_icon(tab == TAB_ALL || tab == TAB_FAV ? tab : TAB_COLL, x, y, w, h, c);
+}
+
+/* Tessera e Onda: schede colorate a righe, quella scelta più grande */
+static void plat_draw_cards(int y, int bottom) {
+    theme_t *t = &UI.th;
+    int avail = bottom - y, ch = avail * 94 / 100, cw = ch * 82 / 100;
+    if (cw > UI.w * 30 / 100) { cw = UI.w * 30 / 100; ch = cw * 100 / 82; }
+    int sw = cw * 64 / 100, gap = M(0.02f), cy = y + avail / 2;
+    int order[24], n = ntabs < 24 ? ntabs : 24;
+    for (int i = 0; i < n; i++) order[i] = i;
+    for (int a = 0; a < n; a++)   /* prima i lontani, poi i vicini: la scelta sta sopra */
+        for (int b = a + 1; b < n; b++)
+            if (fabsf(order[b] - plat_anim) > fabsf(order[a] - plat_anim)) { int tmp = order[a]; order[a] = order[b]; order[b] = tmp; }
+    char cnt[48];
+    for (int o = 0; o < n; o++) {
+        int i = order[o];
+        float d = i - plat_anim, ad = fabsf(d), k = ad < 1 ? 1 - ad : 0;
+        int w = sw + (int)((cw - sw) * k), h = w * 100 / 82;
+        float off = ad <= 1 ? ad * ((cw + sw) / 2.0f + gap) : (cw + sw) / 2.0f + gap + (ad - 1) * (sw + gap);
+        int x = UI.w / 2 + (int)(d < 0 ? -off : off) - w / 2, yy = cy - h / 2;
+        if (x > UI.w || x + w < 0) continue;
+        color_t c = plat_color(tabs[i]);
+        ui_shadow(x, yy + M(0.008f), w, h, M(0.006f), M(0.02f), t->shadow);
+        ui_rect(x, yy, w, h, c);
+        ui_clip_push(x, yy, w, h);
+        int sp = M(0.032f), lt = M(0.005f) + 1;
+        for (int s = -h; s < w; s += sp) plat_line(x + s, yy, x + s + h, yy + h, lt, mix(c, rgba(0, 0, 0, 255), 0.32f));
+        ui_clip_pop();
+        int fh = h * 23 / 100, pad = w * 8 / 100;
+        draw_plat_art(tabs[i], x + pad, yy + pad, w - 2 * pad, h - fh - pad - pad / 2);
+        ui_rect(x, yy + h - fh, w, fh, hexc(0x151822));
+        TTF_Font *fnm = k > 0.5f ? UI.f_normal : UI.f_small;
+        char fit[120];
+        ui_text_fit(fnm, tab_label(tabs[i]), w - pad, fit, sizeof fit);
+        int ty = yy + h - fh + (fh - TTF_FontHeight(fnm) - TTF_FontHeight(UI.f_small)) / 2;
+        ui_text(fnm, fit, x + w / 2, ty, rgba(0xF2, 0xF2, 0xF2, 255), ALIGN_CENTER);
+        plat_count_text(tabs[i], cnt, sizeof cnt);
+        ui_text(UI.f_small, cnt, x + w / 2, ty + TTF_FontHeight(fnm), rgba(0xC8, 0xCC, 0xD4, 255), ALIGN_CENTER);
+        /* il raggio del bordo non può essere più piccolo dello spessore */
+        int bt = M(0.006f) + 1, o = M(0.004f);
+        if (i == plat_sel) ui_rborder(x - o, yy - o, w + 2 * o, h + 2 * o, bt + 2, bt, t->accent);
+        else ui_rborder(x, yy, w, h, 3, 2, with_alpha(rgba(255, 255, 255, 255), 70));
+    }
+}
+
+/* Cabinato: vetrina di cabinati, i nomi sotto quelli di lato, la barra della scelta in basso */
+static void plat_draw_showcase(int y, int bottom) {
+    theme_t *t = &UI.th;
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int mx = M(t->margin), W = UI.w - 2 * mx, fsh = TTF_FontHeight(fs), fth = TTF_FontHeight(ft);
+    char buf[64];
+    snprintf(buf, sizeof buf, "%d / %d", plat_sel + 1, ntabs);
+    ui_text(fs, buf, mx, y, t->text_dim, ALIGN_LEFT);
+    int bar_h = fth + M(0.035f), bar_y = bottom - bar_h, top = y + fsh + M(0.01f), art_b = bar_y - M(0.03f);
+    int ah = art_b - top, step = UI.w * 34 / 100;
+    for (int pass = 0; pass < 2; pass++)
+        for (int i = 0; i < ntabs; i++) {
+            float d = i - plat_anim, ad = fabsf(d), k = ad < 1 ? 1 - ad : 0;
+            if ((pass == 1) != (k > 0.5f)) continue;   /* la scelta per ultima, sopra le altre */
+            int h = (int)(ah * (0.58f + 0.42f * k)) - (k > 0.5f ? 0 : fsh + M(0.015f));
+            int w = h * 62 / 100;
+            if (tabs[i] == TAB_LINUX || tabs[i] < TAB_EMU || tabs[i] >= TAB_COLL) w = h;
+            int cx = UI.w / 2 + (int)(d * step), x = cx - w / 2, yy = art_b - h - (k > 0.5f ? 0 : fsh + M(0.015f));
+            if (x > UI.w || x + w < 0) continue;
+            draw_plat_art(tabs[i], x, yy, w, h);
+            if (k <= 0.5f) {
+                char fit[100];
+                ui_text_fit(fs, tab_label(tabs[i]), step - M(0.02f), fit, sizeof fit);
+                ui_text(fs, fit, cx, art_b - fsh, t->text, ALIGN_CENTER);
+            }
+        }
+    color_t c = plat_color(tabs[plat_sel]);
+    ui_rrect(mx, bar_y, W, bar_h, M(t->panel_radius), c);
+    char fit[120], cnt[48];
+    plat_count_text(tabs[plat_sel], cnt, sizeof cnt);
+    int cwid = ui_text_w(fn, cnt);
+    ui_text_fit(ft, tab_label(tabs[plat_sel]), W - cwid - M(0.08f), fit, sizeof fit);
+    ui_text(ft, fit, mx + M(0.025f), bar_y + (bar_h - fth) / 2, rgba(0xF6, 0xEC, 0xE2, 255), ALIGN_LEFT);
+    ui_text(fn, cnt, mx + W - M(0.025f), bar_y + (bar_h - TTF_FontHeight(fn)) / 2, rgba(0xF6, 0xEC, 0xE2, 255), ALIGN_RIGHT);
+}
+
+static void plat_open(int sel) {
+    plat_sel = sel >= 0 && sel < ntabs ? sel : 0;
+    plat_anim = (float)plat_sel;
+    go(SCR_PLATFORMS);
+}
+
+static void plat_draw(void) {
+    theme_t *t = &UI.th;
+    topbar_label(T("plat.title"));
+    if (plat_sel >= ntabs) plat_sel = ntabs ? ntabs - 1 : 0;
+    plat_anim = ui_approach(plat_anim, (float)plat_sel);
+    int y = M(t->topbar_h) + M(0.03f), bottom = UI.h - ui_keybar_h() - M(0.03f);
+    if (ntabs) {
+        if (is_list_layout()) plat_draw_showcase(y, bottom);
+        else plat_draw_cards(y, bottom);
+    }
+    const char *h[] = { "A", T("plat.open"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
+    ui_keybar(h, 9);
+}
+
+static void plat_input(void) {
+    input_t *in = &UI.in;
+    int old = plat_sel;
+    if ((in->pressed[BTN_LEFT] || in->pressed[BTN_L]) && plat_sel > 0) plat_sel--;
+    if ((in->pressed[BTN_RIGHT] || in->pressed[BTN_R]) && plat_sel < ntabs - 1) plat_sel++;
+    if (plat_sel != old) ui_sound(SND_MOVE);
+    if (in->pressed[BTN_A] && ntabs) {
+        tab_sel = plat_sel;
+        lib_sel = 0;
+        lib_scroll = lib_scroll_target = 0;
+        build_view();
+        go(SCR_LIBRARY);
+        ui_sound(SND_OK);
+    } else if (in->pressed[BTN_B]) { go(SCR_HOME); ui_sound(SND_BACK); }
+    else if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
+}
+
+static void library_draw(void) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx;
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    topbar_theme();
+    int y = M(t->topbar_h) + M(0.016f);
+    y += pills(y) + M(0.022f);
+    char label[200];
+    snprintf(label, sizeof label, T("lib.count"), nview);
+    if (search[0]) { size_t l = strlen(label); snprintf(label + l, sizeof label - l, " · «%s»", search); }
+    if (lib_style() == LS_CARDS) {   /* Tessera: il nome del gioco scelto, e a destra quanti sono */
+        int cwid = ui_text_w(fs, label), lh = fnh;
+        ui_text(fs, label, mx + W, y + (lh - fsh) / 2, t->text_dim, ALIGN_RIGHT);
+        if (nview) {
+            char fit[300];
+            ui_text_fit(fn, games[view[lib_sel]].title, W - cwid - M(0.03f), fit, sizeof fit);
+            ui_text(fn, fit, mx, y, t->accent, ALIGN_LEFT);
+        }
+        y += lh + M(0.018f);
+    } else {
+        small_caps(label, mx, y, t->text_dim);
+        y += fsh + M(0.02f);
+    }
+    int bottom = UI.h - ui_keybar_h() - M(0.025f), area_h = bottom - y;
+    int style = lib_style(), empty = lib_empty_kind();
+
+    if (!nview) {
+        if (empty == LE_REFRESH) empty_panel(mx, y, W, area_h, T("lib.empty_title"), T("lib.empty_text"), T("lib.empty_text2"), T("lib.refresh"));
+        else if (empty == LE_OPEN_ALL) empty_panel(mx, y, W, area_h, T("lib.nofav_title"), T("lib.nofav_text"), T("lib.nofav_text2"), T("lib.open_all"));
+        else empty_panel(mx, y, W, area_h, T("lib.none_title"), T("library.empty"), NULL, NULL);
+    } else if (style == LS_CARDS) {
+        card_grid(y, area_h);
+    } else if (style == LS_LIST) {
+        int lw = W * 47 / 100;
+        title_list(mx, y, lw, area_h);
+        game_panel(&games[view[lib_sel]], view[lib_sel], mx + lw + M(0.025f), y, W - lw - M(0.025f), area_h, false);
+    } else {
+        int lw = W * 52 / 100;   /* elenco verticale a sinistra, a destra il gioco scelto */
+        onda_list(mx, y, lw, area_h);
+        game_panel(&games[view[lib_sel]], view[lib_sel], mx + lw + M(0.03f), y, W - lw - M(0.03f), area_h, false);
+    }
+
+    if (nview) {
+        bool resume = game_autosave(view[lib_sel], NULL);
+        const char *h[] = { "A", T(resume ? "home.resume" : "common.play"), NULL, "B", T("common.back"), "",
+                            "X", T("common.info"), NULL, "Y", T(games[view[lib_sel]].fav ? "common.unfavorite" : "common.favorite"), NULL,
+                            "L/R", T("lib.category"), "", "SELECT", T("lib.search_filters"), T("lib.search_short"),
+                            "START", T("common.settings"), NULL };
+        ui_keybar(h, 21);
+    } else {
+        const char *h[] = { "A", T("lib.confirm"), NULL, "B", T("common.back"), "", "L/R", T("lib.category"), "",
+                            "SELECT", T("lib.search_filters"), T("lib.search_short"), "START", T("common.settings"), NULL };
+        ui_keybar(empty == LE_NONE ? h + 3 : h, empty == LE_NONE ? 12 : 15);
+    }
+}
+
+static void library_input(void) {
+    input_t *in = &UI.in;
+    int empty = lib_empty_kind();
+    if (in->pressed[BTN_A] && empty == LE_REFRESH) {
+        reload_games();
+        build_tabs();
+        build_view();
+        build_carousel();
+        char m[64];
+        snprintf(m, sizeof m, T("info.games"), ngames);
+        ui_toast(m);
+        ui_sound(SND_OK);
+        return;
+    }
+    if (in->pressed[BTN_A] && empty == LE_OPEN_ALL) { tab_sel = 0; lib_sel = 0; build_view(); ui_sound(SND_OK); return; }
+    lib_common_input(lib_style() == LS_CARDS ? GRID_COLS : 1);
 }
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "power",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power",
 };
 
-/* Categorie delle impostazioni: nella prima pagina le categorie e "Spegni la console" */
-static const char *cat_key[SC_COUNT] = { "display", "look", "games", "controls", "system", "tools", "updates" };
+/* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
+static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "updates", "power" };
 static const int cat_items[SC_COUNT][10] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
@@ -1253,24 +1718,32 @@ static bool has_extra_keys(void) {
 }
 
 /* righe della pagina corrente: voci S_* oppure ROW_CAT + categoria */
-static int page_rows(int *rows) {
+#define SC_POWERPAGE SC_COUNT   /* pagina "Spegni": in Onda è una sezione come le altre */
+static int page_rows_of(int page, int *rows) {
     int n = 0;
-    if (set_page < 0) {
-        for (int c = 0; c < SC_COUNT; c++) rows[n++] = ROW_CAT + c;
+    if (page < 0) {
+        for (int c = 0; c <= SC_COUNT; c++) rows[n++] = ROW_CAT + c;
+        return n;
+    }
+    if (page >= SC_COUNT) {   /* sospendi solo nel sistema su SD; nell'app sul firmware TrimUI "riavvia" torna al suo menu */
+        if (plat_standalone()) rows[n++] = S_SUSPENDNOW;
+        if (plat_standalone() || plat_is_device()) rows[n++] = S_RESTART;
         rows[n++] = S_POWER;
         return n;
     }
-    for (int k = 0; k < 10 && cat_items[set_page][k] >= 0; k++) {
-        int it = cat_items[set_page][k];
+    for (int k = 0; k < 10 && cat_items[page][k] >= 0; k++) {
+        int it = cat_items[page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
         if (it == S_WIFINETS && !wifi_supported()) continue;
         if (it == S_STICKCAL && !sc_available()) continue;
+        if (it == S_GRIDCOLS) continue;   /* la libreria ora ha una misura fissa per tema */
         if ((it == S_KEYF1 || it == S_KEYF2 || it == S_KEYHOME) && !has_extra_keys()) continue;
         if ((it == S_UPDATE || it == S_CHANNEL || it == S_UPDNOTIFY) && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
         rows[n++] = it;
     }
     return n;
 }
+static int page_rows(int *rows) { return page_rows_of(set_page, rows); }
 
 /* voci che in questo momento non possono fare nulla: in grigio, con la descrizione che resta leggibile */
 static bool set_disabled(int i) {
@@ -1285,6 +1758,7 @@ static bool set_disabled(int i) {
 }
 
 static void settings_open(int page, int row) {
+    if (page < 0 && is_bar_layout()) { page = row >= 0 && row <= SC_POWERPAGE ? row : 0; row = 0; }   /* Onda: le sezioni sono pulsanti in alto */
     set_page = page;
     set_row = row;
     int rows[16], n = page_rows(rows);
@@ -1296,6 +1770,7 @@ static void settings_open(int page, int row) {
 
 static const char *set_text(const char *group, int item) {
     char k[64];
+    if (item == S_RESTART && !plat_standalone() && !strcmp(group, "settings")) return T("common.quit_menu");
     snprintf(k, sizeof k, "%s.%s", group, set_key[item]);
     return T(k);
 }
@@ -1500,7 +1975,6 @@ static void set_change(int item, int dir) {
         s->dup_mode = (s->dup_mode + dir + NEMUS + 1) % (NEMUS + 1);
         mark_duplicates();
         build_genres();
-        build_cats();
         build_carousel();
         build_tabs();
         build_view();
@@ -2383,14 +2857,35 @@ static void gp_draw(void) {
 
 static void settings_input(void) {
     input_t *in = &UI.in;
+    if (set_page < 0 && is_bar_layout()) settings_open(-1, 0);   /* tema cambiato mentre si era qui */
     int rows[16], n = page_rows(rows);
-    if (in->pressed[BTN_UP]) { set_row = (set_row + n - 1) % n; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_DOWN]) { set_row = (set_row + 1) % n; ui_sound(SND_MOVE); }
+    bool grid = set_page < 0 && !is_list_layout();   /* Tessera: sezioni su due colonne */
+    if (grid) {
+        int old = set_row;
+        if (in->pressed[BTN_UP]) set_row = set_row >= 2 ? set_row - 2 : set_row + ((n - 1 - set_row) / 2) * 2;
+        if (in->pressed[BTN_DOWN]) set_row = set_row + 2 < n ? set_row + 2 : set_row % 2;
+        if (in->pressed[BTN_LEFT] && set_row % 2) set_row--;
+        if (in->pressed[BTN_RIGHT] && set_row % 2 == 0 && set_row + 1 < n) set_row++;
+        if (set_row != old) ui_sound(SND_MOVE);
+    } else {
+        if (in->pressed[BTN_UP]) { set_row = (set_row + n - 1) % n; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_DOWN]) { set_row = (set_row + 1) % n; ui_sound(SND_MOVE); }
+    }
+    if (set_page >= 0 && is_bar_layout() && (in->pressed[BTN_L] || in->pressed[BTN_R])) {   /* Onda: sezione */
+        settings_open((set_page + (in->pressed[BTN_L] ? SC_POWERPAGE : 1)) % (SC_POWERPAGE + 1), 0);
+        ui_sound(SND_MOVE);
+        return;
+    }
     if (set_row >= n) set_row = n - 1;
     set_sel = rows[set_row];
+    if (grid) {
+        if (in->pressed[BTN_A]) { settings_open(set_sel - ROW_CAT, 0); ui_sound(SND_OK); }
+        else if (in->pressed[BTN_B] || in->pressed[BTN_START]) { go(back_screen == SCR_SETTINGS ? SCR_HOME : back_screen); ui_sound(SND_BACK); }
+        return;
+    }
     if (in->pressed[BTN_B] || in->pressed[BTN_START]) {
-        if (set_page >= 0 && in->pressed[BTN_B]) { settings_open(-1, set_page); ui_sound(SND_BACK); return; }
-        go(is_list_layout() ? SCR_LIBRARY : (back_screen == SCR_SETTINGS ? SCR_HOME : back_screen));
+        if (set_page >= 0 && in->pressed[BTN_B] && !is_bar_layout()) { settings_open(-1, set_page); ui_sound(SND_BACK); return; }
+        go(back_screen == SCR_SETTINGS ? SCR_HOME : back_screen);
         ui_sound(SND_BACK);
         return;
     }
@@ -2409,6 +2904,11 @@ static void settings_input(void) {
     if (in->pressed[BTN_RIGHT]) set_change(set_sel, +1);
     if (in->pressed[BTN_A]) {
         if (set_sel == S_POWER) { dlg_open = true; dlg_suspend = false; dlg_sel = 0; ui_sound(SND_OK); }
+        else if (set_sel == S_SUSPENDNOW) { ui_sound(SND_OK); ui_suspend(); last_input = UI.t; }
+        else if (set_sel == S_RESTART) {
+            if (plat_standalone()) { cfm_kind = CFM_RESTART; cfm_sel = 0; ui_sound(SND_OK); }
+            else quit_to_menu();
+        }
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
         else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_UPDATE) upd_start();
@@ -2448,119 +2948,258 @@ static void draw_switch(int x, int y, int h, bool on) {
     ui_circle(on ? x + w - h / 2 : x + h / 2, y + h / 2, h / 2 - h / 8, rgba(255, 255, 255, 255));
 }
 
-static void settings_draw(void) {
-    theme_t *t = &UI.th;
-    char ttl[128];
-    if (set_page < 0) snprintf(ttl, sizeof ttl, "%s", T("settings.title"));
-    else { char k[64]; snprintf(k, sizeof k, "settings_cat.%s", cat_key[set_page]); snprintf(ttl, sizeof ttl, "%s", T(k)); }
-    ui_topbar(ttl);
-    int rows[16], nrows = page_rows(rows);
-    int mx = M(t->margin), top = M(t->topbar_h) + M(0.02f), rh = M(t->list_row_h) + M(0.01f);
-    int desc_h = TTF_FontHeight(UI.f_small) * 2 + M(0.03f);
-    int area_h = UI.h - M(t->hintbar_h) - desc_h - top;
-    area_h -= area_h % rh;   /* solo righe intere: niente voci tagliate a metà */
-    float ry = (float)set_row * rh;
-    float target = set_scroll;
-    if (ry - target > area_h - rh) target = ry - (area_h - rh);
-    if (ry < target) target = ry;
-    set_scroll = ui_approach(set_scroll, target);
-    set_hl = ui_approach(set_hl, ry);
-    int w = UI.w - 2 * mx;
-    TTF_Font *f = UI.f_normal;
-    int fh = TTF_FontHeight(f);
+/* --- impostazioni: sezioni (schede in Tessera, menu numerato in Cabinato, pulsanti in Onda) e voci in riquadri --- */
+static const char *set_cat_title(int row) {
+    static char k[64];
+    snprintf(k, sizeof k, "settings_cat.%s", cat_key[row - ROW_CAT]);
+    return T(k);
+}
+static const char *set_cat_sub(int row) {
+    static char k[64];
+    snprintf(k, sizeof k, "settings_cat_sum.%s", cat_key[row - ROW_CAT]);
+    return T(k);
+}
+static bool set_has_value(int i) { return i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
+static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
+static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL; }
 
-    ui_clip_push(0, top - M(0.01f), UI.w, area_h + M(0.02f));
-    int hy = top + (int)(set_hl - set_scroll);
-    ui_shadow(mx, hy + M(0.004f), w, rh - M(0.01f), M(t->panel_radius), M(0.012f), t->shadow);
-    ui_rrect(mx, hy, w, rh - M(0.01f), M(t->panel_radius), t->surface);
-    selection_ring(mx, hy, w, rh - M(0.01f), M(t->panel_radius));
-    for (int k = 0; k < nrows; k++) {
-        int i = rows[k];
-        int y = top + (int)(k * rh - set_scroll), cy = y + (rh - M(0.01f)) / 2;
-        if (y + rh < top - rh || y > top + area_h) continue;
+/* riquadro di una voce: bordo del colore del tema se scelto */
+static void set_box(int x, int y, int w, int h, int r, bool sel) {
+    theme_t *t = &UI.th;
+    ui_rrect(x, y, w, h, r, t->surface);
+    int b = M(0.004f) < 3 ? 3 : M(0.004f);
+    if (sel) ui_rborder(x, y, w, h, r, b, t->accent);
+    else ui_rborder(x, y, w, h, r, 2, t->line);
+}
+
+/* valore di una voce: cursore, interruttore o testo (con le frecce se si può cambiare).
+   right: x è il bordo destro; altrimenti il bordo sinistro. maxw: spazio disponibile. */
+static void set_draw_value(int i, TTF_Font *f, int x, int cy, int maxw, bool sel, bool right) {
+    theme_t *t = &UI.th;
+    int fh = TTF_FontHeight(f);
+    char val[160], fit[160];
+    set_value(i, val, sizeof val);
+    if (set_disabled(i)) {
+        if (i == S_SCRAPE) return;
+        ui_text_fit(f, val, maxw, fit, sizeof fit);
+        ui_text(f, fit, x, cy - fh / 2, with_alpha(t->text_dim, 120), right ? ALIGN_RIGHT : ALIGN_LEFT);
+        return;
+    }
+    if (!set_has_value(i)) return;
+    if (set_slider(i)) {
+        int nw = ui_text_w(f, "20"), bh = M(0.012f), kr = bh * 3 / 2, bw = M(0.26f);
+        if (bw > maxw - nw - M(0.03f) - 2 * kr) bw = maxw - nw - M(0.03f) - 2 * kr;
+        int tot = kr + bw + M(0.03f) + nw, x0 = (right ? x - tot : x) + kr;
+        int mn = i == S_VOLUME ? 0 : 1, mxv = i == S_VOLUME ? 20 : 10;
+        int v = i == S_BRIGHT ? UI.set.brightness : i == S_VOLUME ? UI.set.volume : UI.set.led_bright;
+        ui_rrect(x0, cy - bh / 2, bw, bh, bh / 2, with_alpha(t->text_dim, 80));
+        int fw = bw * (v - mn) / (mxv - mn);
+        ui_rrect(x0, cy - bh / 2, fw, bh, bh / 2, t->accent);
+        ui_circle(x0 + fw, cy, kr, sel ? t->accent : t->surface);
+        ui_ring(x0 + fw, cy, kr, 2, t->accent);
+        ui_text(f, val, x0 + bw + M(0.03f) + nw, cy - fh / 2, t->text, ALIGN_RIGHT);
+        return;
+    }
+    if (set_switch(i)) {
+        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : UI.set.resume_last;
+        int sh = f == UI.f_small ? M(0.032f) : M(0.04f), sw = sh * 9 / 5;
+        draw_switch(right ? x - sw : x, cy - sh / 2, sh, on);
+        return;
+    }
+    color_t vc = sel ? t->accent : t->text_dim;
+    bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_STICKCAL && i != S_WIFINETS;
+    int aw = arrows ? ui_text_w(f, "‹") + M(0.015f) : 0, rr = fh / 3, dw = i == S_LEDCOLOR ? 2 * rr + M(0.015f) : 0;
+    ui_text_fit(f, val, maxw - 2 * aw - dw, fit, sizeof fit);
+    int tw = ui_text_w(f, fit), x0 = right ? x - (2 * aw + dw + tw) : x;
+    if (arrows) ui_text(f, "‹", x0, cy - fh / 2, vc, ALIGN_LEFT);
+    int cx = x0 + aw;
+    if (i == S_LEDCOLOR) {   /* pallino del colore (per "tema": il colore principale del tema) */
+        unsigned c = UI.set.led_color ? LED_COLORS[UI.set.led_color % NLED_COLORS].rgb
+                                      : (unsigned)t->accent.r << 16 | t->accent.g << 8 | t->accent.b;
+        ui_circle(cx + rr, cy, rr, rgba(c >> 16 & 255, c >> 8 & 255, c & 255, 255));
+        ui_ring(cx + rr, cy, rr, 1, with_alpha(t->text_dim, 120));
+        cx += dw;
+    }
+    ui_text(f, fit, cx, cy - fh / 2, vc, ALIGN_LEFT);
+    if (arrows) ui_text(f, "›", cx + tw + M(0.015f), cy - fh / 2, vc, ALIGN_LEFT);
+}
+
+static color_t set_label_color(int i, bool sel) {
+    theme_t *t = &UI.th;
+    if (set_disabled(i)) return with_alpha(t->text_dim, 120);
+    if (i == S_POWER && sel) return rgba(220, 70, 70, 255);
+    return t->text;
+}
+
+/* Tessera: sezioni in schede su due colonne, con nome e cosa contengono */
+static void settings_draw_grid(int y, int bottom) {
+    theme_t *t = &UI.th;
+    int rows[16], n = page_rows(rows);
+    int mx = M(t->margin), W = UI.w - 2 * mx, gap = M(0.02f), r = M(t->panel_radius) * 2, pad = M(0.022f);
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    int nr = (n + 1) / 2, cw = (W - gap) / 2, ch = (bottom - y - (nr - 1) * gap) / nr;
+    if (ch > fnh + 2 * fsh + 3 * pad) ch = fnh + 2 * fsh + 3 * pad;
+    for (int k = 0; k < n; k++) {
+        int x = mx + (k % 2) * (cw + gap), yy = y + (k / 2) * (ch + gap);
         bool sel = k == set_row;
-        if (i >= ROW_CAT) {   /* categoria: nome, voci in breve e freccia */
-            char key[64];
-            snprintf(key, sizeof key, "settings_cat.%s", cat_key[i - ROW_CAT]);
-            int lw = ui_text(f, T(key), mx + M(0.03f), cy - fh / 2, t->text, ALIGN_LEFT);
-            snprintf(key, sizeof key, "settings_cat_sum.%s", cat_key[i - ROW_CAT]);
-            char fit[160];
-            int vx2 = mx + w - M(0.03f) - ui_text_w(f, "›") - M(0.02f);
-            ui_text_fit(UI.f_small, T(key), vx2 - (mx + M(0.06f) + lw), fit, sizeof fit);
-            ui_text(UI.f_small, fit, vx2, cy - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_RIGHT);
-            ui_text(f, "›", mx + w - M(0.03f), cy - fh / 2, sel ? t->accent : t->text_dim, ALIGN_RIGHT);
-            continue;
-        }
-        if (set_disabled(i)) {
-            color_t grey = with_alpha(t->text_dim, 120);
-            ui_text(f, set_text("settings", i), mx + M(0.03f), cy - fh / 2, grey, ALIGN_LEFT);
-            if (i != S_SCRAPE) {
-                char off[160];
-                set_value(i, off, sizeof off);
-                ui_text(f, off, mx + w - M(0.03f), cy - fh / 2, grey, ALIGN_RIGHT);
-            }
-            continue;
-        }
-        color_t lc = i == S_POWER ? (sel ? rgba(220, 70, 70, 255) : t->text) : t->text;
-        ui_text(f, set_text("settings", i), mx + M(0.03f), cy - fh / 2, lc, ALIGN_LEFT);
-        if (i == S_POWER || i == S_SCRAPE || i == S_ROMCHECK || i == S_CLEANMEDIA) continue;
-        int vx = mx + w - M(0.03f);
-        char val[160];
+        set_box(x, yy, cw, ch, r, sel);
+        char fit[160], lines[2][160];
+        ui_text_fit(fn, set_cat_title(rows[k]), cw - 2 * pad, fit, sizeof fit);
+        int nl = ui_wrap(fs, set_cat_sub(rows[k]), cw - 2 * pad, lines, 2);
+        int ty = yy + (ch - fnh - nl * fsh - M(0.008f)) / 2;
+        ui_text(fn, fit, x + pad, ty, t->text, ALIGN_LEFT);
+        for (int l = 0; l < nl; l++) ui_text(fs, lines[l], x + pad, ty + fnh + M(0.008f) + l * fsh, t->text_dim, ALIGN_LEFT);
+    }
+}
+
+/* Cabinato: menu numerato a sinistra, a destra le voci della sezione con i valori */
+static void settings_draw_menu(int y, int bottom) {
+    theme_t *t = &UI.th;
+    int rows[16], n = page_rows(rows);
+    int mx = M(t->margin), W = UI.w - 2 * mx, lw = W * 40 / 100, r = M(t->panel_radius), gap = M(0.012f);
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    int rh = (bottom - y - (n - 1) * gap) / n;
+    if (rh > fnh + M(0.045f)) rh = fnh + M(0.045f);
+    for (int k = 0; k < n; k++) {
+        int yy = y + k * (rh + gap);
+        bool sel = k == set_row;
+        set_box(mx, yy, lw, rh, r, sel);
+        char num[8], fit[120];
+        snprintf(num, sizeof num, "%02d", k + 1);
+        ui_text(fn, num, mx + M(0.016f), yy + (rh - fnh) / 2, sel ? t->accent : t->text, ALIGN_LEFT);
+        int lx = mx + M(0.016f) + ui_text_w(fn, "00") + M(0.022f);
+        ui_text_fit(fn, set_cat_title(rows[k]), mx + lw - lx - M(0.012f), fit, sizeof fit);
+        ui_text(fn, fit, lx, yy + (rh - fnh) / 2, t->text, ALIGN_LEFT);
+    }
+    int px = mx + lw + M(0.025f), pw = mx + W - px, ph = n * (rh + gap) - gap, pad = M(0.022f);
+    set_box(px, y, pw, ph, r, false);
+    int sel = rows[set_row], ty = y + pad, iw = pw - 2 * pad;
+    small_caps(set_cat_title(sel), px + pad, ty, t->accent);
+    ty += fsh + M(0.02f);
+    int items[16], ni = page_rows_of(sel - ROW_CAT, items);
+    /* sempre la stessa misura: se le voci non ci stanno tutte, l'ultima riga dice che ce ne sono altre */
+    TTF_Font *f = fn;
+    int lh = fnh + M(0.014f), fh = fnh, fit_rows = (y + ph - pad - ty - fh) / lh + 1;
+    for (int k = 0; k < ni && k < fit_rows; k++, ty += lh) {
+        int i = items[k];
+        if (k == fit_rows - 1 && ni > fit_rows) { ui_text(f, "…", px + pad, ty, t->text_dim, ALIGN_LEFT); break; }
+        char fit[160], val[160];
+        ui_text_fit(f, set_text("settings", i), iw * 58 / 100, fit, sizeof fit);
+        int lw2 = ui_text(f, fit, px + pad, ty, set_disabled(i) ? with_alpha(t->text_dim, 120) : t->text, ALIGN_LEFT);
+        if (!set_has_value(i) || (set_disabled(i) && i == S_SCRAPE)) continue;
         set_value(i, val, sizeof val);
-        if (i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT) {
-            int bw = M(0.32f), bh = M(0.012f), mn = i == S_VOLUME ? 0 : 1, mxv = i == S_VOLUME ? 20 : 10;
-            int v = i == S_BRIGHT ? UI.set.brightness : i == S_VOLUME ? UI.set.volume : UI.set.led_bright;
-            int nx = vx - ui_text_w(f, "20") - M(0.03f) - bw;
-            ui_rrect(nx, cy - bh / 2, bw, bh, bh / 2, with_alpha(t->text_dim, 80));
-            int fw = bw * (v - mn) / (mxv - mn);
-            ui_rrect(nx, cy - bh / 2, fw, bh, bh / 2, t->accent);
-            ui_circle(nx + fw, cy, bh * 3 / 2, sel ? t->accent : t->surface);
-            ui_ring(nx + fw, cy, bh * 3 / 2, 2, t->accent);
-            ui_text(f, val, vx, cy - fh / 2, t->text, ALIGN_RIGHT);
-        } else if (i == S_WIFI || i == S_RESUME || i == S_BEZEL) {
-            bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : UI.set.resume_last;
-            int sh = M(0.04f);
-            draw_switch(vx - sh * 9 / 5, cy - sh / 2, sh, on);
-        } else {
-            color_t vc = sel ? t->accent : t->text_dim;
-            bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_STICKCAL && i != S_WIFINETS;
-            int tw = ui_text(f, val, vx - (arrows ? M(0.035f) : 0), cy - fh / 2, vc, ALIGN_RIGHT);
-            if (i == S_LEDCOLOR) {
-                /* pallino del colore (per "tema": il colore principale del tema) */
-                unsigned c = UI.set.led_color ? LED_COLORS[UI.set.led_color % NLED_COLORS].rgb
-                                              : (unsigned)t->accent.r << 16 | t->accent.g << 8 | t->accent.b;
-                int rr = fh / 3, px = vx - (arrows ? M(0.035f) : 0) - tw - M(0.015f) - rr;
-                ui_circle(px, cy, rr, rgba(c >> 16 & 255, c >> 8 & 255, c & 255, 255));
-                ui_ring(px, cy, rr, 1, with_alpha(t->text_dim, 120));
-                tw += 2 * rr + M(0.015f);
-            }
-            if (arrows) {
-                ui_text(f, "‹", vx - M(0.035f) - tw - M(0.02f), cy - fh / 2, vc, ALIGN_RIGHT);
-                ui_text(f, "›", vx, cy - fh / 2, vc, ALIGN_RIGHT);
-            }
-        }
+        ui_text_fit(f, val, iw - lw2 - M(0.03f), fit, sizeof fit);
+        ui_text(f, fit, px + pw - pad, ty, t->text_dim, ALIGN_RIGHT);
+    }
+}
+
+/* Onda: le sezioni sono pulsanti in alto, L e R le cambiano */
+static int settings_draw_tabs(int y) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), avail = UI.w - 2 * mx, gap = M(0.014f);
+    static float off, off_target;
+    const char *lab[SC_POWERPAGE + 1];
+    for (int c = 0; c <= SC_POWERPAGE; c++) lab[c] = set_cat_title(ROW_CAT + c);
+    TTF_Font *f = UI.f_normal;
+    int tot = 0;
+    for (int c = 0; c <= SC_POWERPAGE; c++) tot += ui_text_w(f, lab[c]) + 2 * M(0.022f) + gap;
+    if (tot - gap > avail) f = UI.f_small;
+    int xs[SC_POWERPAGE + 1], ws[SC_POWERPAGE + 1];
+    tot = 0;
+    for (int c = 0; c <= SC_POWERPAGE; c++) {
+        ws[c] = ui_text_w(f, lab[c]) + 2 * M(f == UI.f_small ? 0.018f : 0.022f);
+        xs[c] = tot;
+        tot += ws[c] + gap;
+    }
+    int cur = set_page < 0 ? 0 : set_page;
+    if (xs[cur] + ws[cur] - off_target > avail)   /* si parte sempre dall'inizio di un pulsante */
+        for (int c = 0; c <= cur; c++)
+            if (xs[cur] + ws[cur] - xs[c] <= avail) { off_target = (float)xs[c]; break; }
+    if (xs[cur] < off_target) off_target = (float)xs[cur];
+    off = ui_approach(off, off_target);
+    int h = TTF_FontHeight(f) + M(0.022f);
+    ui_clip_push(mx - 2, y - 2, avail + 4, h + 4);
+    for (int c = 0; c <= SC_POWERPAGE; c++) {   /* solo pulsanti interi: quelli tagliati compaiono scorrendo */
+        int x = mx + xs[c] - (int)off;
+        if (x >= mx - M(0.004f) && x + ws[c] <= mx + avail + M(0.004f)) pill_f(f, lab[c], x, y, c == cur);
     }
     ui_clip_pop();
-    char lines[2][160];
-    const char *desc;
-    if (set_sel >= ROW_CAT) { char k[64]; snprintf(k, sizeof k, "settings_cat_desc.%s", cat_key[set_sel - ROW_CAT]); desc = T(k); }
-    else desc = set_text("settings_desc", set_sel);
-    int n = ui_wrap(UI.f_small, desc, w, lines, 2);
-    int dy = UI.h - M(t->hintbar_h) - desc_h + M(0.01f);
-    for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], mx, dy + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
-    if (set_page < 0 && update_supported()) {   /* versione: utile quando si segnala un problema */
+    return h;
+}
+
+static void settings_draw(void) {
+    theme_t *t = &UI.th;
+    topbar_theme();
+    int mx = M(t->margin), W = UI.w - 2 * mx, y = M(t->topbar_h) + M(0.025f);
+    int bottom = UI.h - ui_keybar_h() - M(0.03f);
+    bool onda = is_bar_layout();
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    home_title(set_page < 0 || onda ? T("settings.title") : set_cat_title(ROW_CAT + set_page), y, t->text);
+    y += TTF_FontHeight(UI.f_title) + M(0.03f);
+    if (set_page < 0) {
+        if (is_list_layout()) settings_draw_menu(y, bottom); else settings_draw_grid(y, bottom);
+    } else {
+        if (onda) y += settings_draw_tabs(y) + M(0.03f);
+        int rows[16], nrows = page_rows(rows);
+        int r = is_list_layout() ? M(t->panel_radius) : M(t->panel_radius) * 2, pad = M(0.022f), gap = M(0.014f);
+        int rh = onda ? fnh + fsh + M(0.03f) : fnh + M(0.032f), step = rh + gap;
+        int desc_h = 2 * fsh + M(0.012f);
+        int area_h = bottom - desc_h - y;
+        area_h -= (area_h + gap) % step;   /* solo riquadri interi: niente voci tagliate a metà */
+        float ry = (float)set_row * step, target = set_scroll;
+        if (ry - target > area_h - rh) target = ry - (area_h - rh);
+        if (ry < target) target = ry;
+        set_scroll = ui_approach(set_scroll, target);
+        ui_clip_push(0, y - M(0.008f), UI.w, area_h + M(0.016f));
+        for (int k = 0; k < nrows; k++) {
+            int i = rows[k], yy = y + (int)(k * step - set_scroll);
+            if (yy + rh < y - step || yy > y + area_h) continue;
+            bool sel = k == set_row;
+            set_box(mx, yy, W, rh, r, sel);
+            char fit[160];
+            if (onda) {   /* nome in alto, valore sotto (cursori e interruttori a destra) */
+                ui_text_fit(fn, set_text("settings", i), W - 2 * pad, fit, sizeof fit);
+                bool one = !set_has_value(i) && !set_disabled(i);   /* senza valore: nome al centro */
+                int ty = one ? yy + (rh - fnh) / 2 : yy + (rh - fnh - fsh) / 2;
+                ui_text(fn, fit, mx + pad, ty, set_label_color(i, sel), ALIGN_LEFT);
+                if (set_slider(i) || set_switch(i)) set_draw_value(i, fs, mx + pad, ty + fnh + fsh / 2 + M(0.006f), W / 2, sel, false);
+                else set_draw_value(i, fs, mx + pad, ty + fnh + fsh / 2, W - 2 * pad, sel, false);
+            } else {
+                int cy = yy + rh / 2;
+                ui_text_fit(fn, set_text("settings", i), W * 55 / 100, fit, sizeof fit);
+                int lw = ui_text(fn, fit, mx + pad, cy - fnh / 2, set_label_color(i, sel), ALIGN_LEFT);
+                set_draw_value(i, fn, mx + W - pad, cy, W - 2 * pad - lw - M(0.03f), sel, true);
+            }
+        }
+        ui_clip_pop();
+        /* a cosa serve la voce scelta */
+        char lines[2][160];
+        int n = ui_wrap(fs, set_text("settings_desc", set_sel), W, lines, 2);
+        for (int k = 0; k < n; k++) ui_text(fs, lines[k], mx, bottom - desc_h + M(0.012f) + k * fsh, t->text_dim, ALIGN_LEFT);
+    }
+    /* con una finestra aperta, la barra dei tasti è quella della finestra */
+    if (clock_open || sdinfo_open || wpanel_open || clean_open) return;
+    int end;
+    if (set_page < 0) {
+        const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
+        end = ui_keybar(h, 6);
+    } else {
+        bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
+                   set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
+                   set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO;
+        const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
+                            "L/R", T("common.section"), "" };
+        end = ui_keybar(h, onda ? 9 : 6);
+    }
+    if ((set_page < 0 || onda) && update_supported()) {   /* versione: utile quando si segnala un problema */
         char ver[96];
         snprintf(ver, sizeof ver, "Mosaik %s", update_current());
-        ui_text(UI.f_small, ver, mx + w, UI.h - M(t->hintbar_h) - desc_h - TTF_FontHeight(UI.f_small) - M(0.01f), t->text_dim, ALIGN_RIGHT);
-    }
-    /* con la finestra di data e ora aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || wpanel_open || clean_open) return;
-    if (set_page < 0) {
-        const char *h[] = { "B", T("common.back"), "A", T("common.open") };
-        ui_hints(h, 4);
-    } else {
-        const char *h[] = { "B", T("common.back"), "<>", T("common.change") };
-        ui_hints(h, 4);
+        int vw = ui_text_w(fs, ver);
+        if (mx + vw + M(0.03f) < end)
+            ui_text(fs, ver, mx, UI.h - ui_keybar_h() / 2 - fsh / 2, t->text_dim, ALIGN_LEFT);
     }
 }
 
@@ -3217,6 +3856,8 @@ static void cfm_input(void) {
         if (!NCOLLS) cp_open = false;
     } else if (k == CFM_STICKS) {
         sc_restore_factory();
+    } else if (k == CFM_RESTART) {
+        restart_system();
     } else if (k == CFM_FORGET) {
         char m[160];
         snprintf(m, sizeof m, T("wifi.forgot"), cfm_ssid);
@@ -3231,7 +3872,8 @@ static void cfm_input(void) {
 }
 
 static void cfm_draw(void) {
-    if (cfm_kind == CFM_STICKS) ui_confirm_draw(T("confirm.sticks_title"), T("confirm.sticks_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
+    if (cfm_kind == CFM_RESTART) ui_confirm_draw(T("dialog.restart_title"), T("dialog.power_body"), T("common.cancel"), T("common.restart"), cfm_sel);
+    else if (cfm_kind == CFM_STICKS) ui_confirm_draw(T("confirm.sticks_title"), T("confirm.sticks_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
     else if (cfm_kind == CFM_COLL) ui_confirm_draw(T("confirm.coll_title"), T("confirm.coll_body"), T("common.cancel"), T("coll.delete"), cfm_sel);
     else if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
     else ui_confirm_draw(T("confirm.genres_title"), T("confirm.genres_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
@@ -3253,16 +3895,12 @@ static void reset_remove(const char *dir, const char *rom, const char *ext) {
 }
 
 static void game_reset(const game_t *g, bool states) {
-    const emulator_t *emu = emulator_find(g->core);
     char core[80], base[1200], sub[1300];
-    snprintf(core, sizeof core, "%s", emu ? emu->core : g->core);
-    char *us = strstr(core, "_libretro");
-    if (us) *us = 0;
-    snprintf(base, sizeof base, "%s/Saves/%s", UI.root, core);
+    save_base(g, base, sizeof base, core, sizeof core);
     reset_remove(base, g->name, "cfg");
     reset_remove(base, g->name, "opt");
     if (states) {
-        static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev",
+        static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev", "auto.state.rot",
                                            "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png" };
         for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->name, ext[i]);
     }
@@ -3308,7 +3946,6 @@ static void reset_draw(void) {
 
 static void lists_changed(void) {
     mark_duplicates();
-    build_cats();
     build_carousel();
     build_tabs();
     build_view();
@@ -3430,131 +4067,119 @@ static void detail_draw(void) {
     theme_t *t = &UI.th;
     if (detail_idx < 0) return;
     game_t *g = &games[detail_idx];
-    ui_topbar(T("detail.title"));
-    int mx = M(t->margin), top = M(t->topbar_h) + M(0.01f), bottom = UI.h - M(t->hintbar_h) - M(0.02f);
-    int lw = UI.w * 40 / 100;
-
-    /* sinistra: un cabinato, con il marquee illuminato in alto e lo schermo sotto */
-    int r = M(t->tile_radius), cw = lw, cx = mx, cy = top;
-    static char marquee_type[1][16] = { "marquee" };
-    SDL_Texture *mq = media_image(g, marquee_type, 1);
+    topbar_theme();
+    int mx = M(t->margin), W = UI.w - 2 * mx, y = M(t->topbar_h) + M(0.025f);
+    home_title(T("detail.title"), y, t->text);
+    y += TTF_FontHeight(UI.f_title) + M(0.03f);
+    int bottom = UI.h - ui_keybar_h() - M(0.03f), r = M(t->panel_radius) * 2;
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
     SDL_Texture *shot = media_image(g, t->preview_types, t->npreview);
-    int mh = 0, strip = mq ? M(0.006f) : 0;
-    if (mq) {
-        /* altezza dell'insegna dalle proporzioni del marquee, entro limiti ragionevoli */
-        int qw, qh;
-        SDL_QueryTexture(mq, NULL, NULL, &qw, &qh);
-        mh = qw > 0 ? cw * qh / qw : cw / 4;
-        if (mh < cw / 5) mh = cw / 5;
-        if (mh > cw * 30 / 100) mh = cw * 30 / 100;
-    }
-    int iw = g->vertical ? 3 : 4, ih = g->vertical ? 4 : 3;
-    if (shot) SDL_QueryTexture(shot, NULL, NULL, &iw, &ih);
-    int avail = bottom - cy - mh - strip;
-    int sh = iw >= ih ? cw * ih / iw : avail;   /* i giochi verticali usano tutta l'altezza */
-    if (sh > avail) sh = avail;
-    int ch = mh + strip + sh, cut = mq ? r : 0;   /* sotto il marquee lo schermo ha gli angoli squadrati */
-    ui_shadow(cx, cy + M(0.012f), cw, ch, r, M(0.035f), t->shadow);
-    ui_rrect(cx, cy, cw, ch, r, rgba(16, 16, 20, 255));
-    if (mq) {
-        /* il logo resta intero; ai lati lo stesso marquee sfocato fa da insegna luminosa */
-        ui_clip_push(cx, cy, cw, mh);
-        ui_image_fill(ui_image_blur(mq), cx, cy, cw, mh + r, r);
-        ui_rect(cx, cy, cw, mh, rgba(0, 0, 0, 140));
-        ui_image_fit(mq, cx, cy, cw, mh);
-        ui_clip_pop();
-        ui_rect(cx, cy + mh, cw, strip, t->accent);
-    }
-    int sy = cy + mh + strip;
-    ui_clip_push(cx, sy, cw, sh);
-    if (shot && iw * sh / ih >= cw - 2) {
-        ui_image_fill(shot, cx, sy - cut, cw, sh + cut, r);
-    } else if (shot) {
-        /* schermo verticale o più stretto del riquadro: ai lati la stessa immagine sfocata */
-        ui_image_fill(ui_image_blur(shot), cx, sy - cut, cw, sh + cut, r);
-        ui_rect(cx, sy, cw, sh, rgba(0, 0, 0, 120));
-        ui_image_fit(shot, cx, sy, cw, sh);
-    } else {
-        draw_cover(g, cx, sy - cut, cw, sh + cut, r);
-    }
-    ui_vgradient(cx, sy, cw, sh / 3, rgba(255, 255, 255, 16), rgba(255, 255, 255, 0));   /* riflesso del vetro */
-    ui_clip_pop();
+    if (!shot) shot = media_image(g, t->cover_types, t->ncover);
+    /* Le schermate dei giochi sono 4:3 o verticali: in una fascia panoramica, come nella tavola di
+       Onda, resterebbero minuscole o tagliate. Onda usa l'impaginazione con l'immagine a sinistra. */
+    bool pano = false, arcade = is_list_layout() || is_bar_layout();
 
-    /* destra: titolo, etichette, statistiche e storia */
-    int rx = mx + lw + M(0.045f), rw = UI.w - rx - mx, ry = top - M(0.008f);
-    char lines[2][160], buf[300], fit[300];
-    int n = ui_wrap(UI.f_title, g->title, rw, lines, 2);
-    for (int i = 0; i < n; i++, ry += TTF_FontHeight(UI.f_title)) ui_text(UI.f_title, lines[i], rx, ry, t->text, ALIGN_LEFT);
-    ry += M(0.012f);
-    {
-        char players[32] = "", genre[48];
-        if (g->players > 1) snprintf(players, sizeof players, T("info.players"), g->players);
-        const char *sys = strncmp(g->maker, g->system, strlen(g->system)) ? g->system : "";
-        const char *tags[8] = { games_core_label(g->core), g->year, g->maker, sys, genre_label(g->genre, genre, sizeof genre), players,
-                                g->vertical ? T("info.vertical") : "", g->user_hidden ? T("coll.hidden_tag") : "" };
-        int fh = TTF_FontHeight(UI.f_small), ph = fh + M(0.006f), gap = M(0.012f), px = rx, rows = 0;
-        for (int i = 0; i < 8; i++) {
-            if (!tags[i] || !tags[i][0]) continue;
-            ui_text_fit(UI.f_small, tags[i], rw - M(0.04f), fit, sizeof fit);
-            int pw = ui_text_w(UI.f_small, fit) + M(0.036f);
-            if (px > rx && px + pw > rx + rw) {
-                if (++rows == 2) break;
-                px = rx;
-                ry += ph + gap;
-            }
-            bool core = i == 0;
-            ui_rrect(px, ry, pw, ph, ph / 2, core ? t->accent : with_alpha(t->text, 20));
-            ui_text(UI.f_small, fit, px + M(0.018f), ry + (ph - fh) / 2, core ? t->accent_text : t->text_dim, ALIGN_LEFT);
-            px += pw + gap;
-        }
-        ry += ph + M(0.02f);
+    /* immagine: panoramica in alto (Onda) o a sinistra (Tessera larga, Cabinato stretta) */
+    int ix = mx, iy = y, iw, ih, tx, ty, tw, tbot;
+    if (pano) { iw = W; ih = (bottom - y) * 30 / 100; }
+    else { iw = W * (arcade ? 38 : 52) / 100; ih = bottom - y; }
+    if (shot) {
+        ui_rrect(ix, iy, iw, ih, r / 2, rgba(14, 14, 18, 255));
+        ui_clip_push(ix, iy, iw, ih);
+        /* immagine intera, con ai lati la stessa sfocata: anche i giochi verticali si riconoscono */
+        ui_image_fill(ui_image_blur(shot), ix, iy, iw, ih, r / 2);
+        ui_rect(ix, iy, iw, ih, rgba(0, 0, 0, 110));
+        ui_image_fit(shot, ix, iy, iw, ih);
+        ui_clip_pop();
+    } else cover_box(g, ix, iy, iw, ih, r / 2);
+    if (pano) {
+        tx = mx; ty = iy + ih + M(0.025f); tw = W; tbot = bottom;
+    } else {
+        int px = mx + iw + M(0.025f), pw = mx + W - px, pad = M(0.022f);
+        ui_rrect(px, y, pw, bottom - y, r, t->surface);
+        ui_rborder(px, y, pw, bottom - y, r, 2, t->line);
+        tx = px + pad; ty = y + pad; tw = pw - 2 * pad; tbot = bottom - pad;
     }
-    /* statistiche */
+
+    /* testi: emulatore, titolo intero, giocatori, salvataggio, partite, ROM */
+    char buf[300], fit[300], lines[4][160];
+    if (!pano) {
+        if (is_list_layout()) snprintf(buf, sizeof buf, "%s / %s", strcmp(g->core, "linux") ? "Arcade" : "Linux", games_core_label(g->core));
+        else snprintf(buf, sizeof buf, "%s", games_core_label(g->core));
+        if (is_list_layout()) small_caps(buf, tx, ty, t->accent);
+        else { ui_text_fit(fs, buf, tw, fit, sizeof fit); ui_text(fs, fit, tx, ty, t->accent, ALIGN_LEFT); }
+        ty += fsh + M(0.018f);
+    }
+    int n = ui_wrap(ft, g->title, tw, lines, pano ? 2 : 4);
+    for (int k = 0; k < n; k++, ty += fth) ui_text(ft, lines[k], tx, ty, t->text, ALIGN_LEFT);
+    ty += M(0.02f);
+    char players[48] = "", genre[48];
+    if (g->players > 1) snprintf(players, sizeof players, T("info.players"), g->players);
+    genre_label(g->genre, genre, sizeof genre);
+    const char *parts[5] = { pano ? games_core_label(g->core) : "", g->year, g->maker, genre, players };
+    buf[0] = 0;
+    for (int k = 0; k < 5; k++) {
+        if (!parts[k][0]) continue;
+        size_t l = strlen(buf);
+        snprintf(buf + l, sizeof buf - l, "%s%s", l ? " · " : "", parts[k]);
+    }
+    n = ui_wrap(fs, buf, tw, lines, 2);
+    for (int k = 0; k < n; k++, ty += fsh) ui_text(fs, lines[k], tx, ty, t->text_dim, ALIGN_LEFT);
+    ty += M(0.012f);
+    time_t when;
+    if (game_autosave(detail_idx, &when)) {
+        char w[48];
+        when_text(when, w, sizeof w);
+        snprintf(buf, sizeof buf, "%s · %s", T("lib.autosave"), w);
+        ui_text_fit(fs, buf, tw, fit, sizeof fit);
+        ui_text(fs, fit, tx, ty, t->accent, ALIGN_LEFT);
+        ty += fsh;
+    }
     if (g->missing) {
         const emulator_t *emu = emulator_find(g->core);
         snprintf(buf, sizeof buf, T("missing.toast"), g->name, emu ? emu->roms : "Roms");
     } else if (g->plays) {
-        char dur[64], when[64];
+        char dur[64], day[64];
         format_duration(g->seconds, dur, sizeof dur);
         time_t lp = (time_t)g->last_played;
         struct tm tmv;
         localtime_r(&lp, &tmv);
-        strftime(when, sizeof when, "%d/%m/%Y", &tmv);
-        snprintf(buf, sizeof buf, T("detail.stats"), g->plays, dur, when);
-    } else {
-        snprintf(buf, sizeof buf, "%s", T("detail.never"));
-    }
-    ui_text_fit(UI.f_small, buf, rw, fit, sizeof fit);
-    ui_text(UI.f_small, fit, rx, ry, t->accent, ALIGN_LEFT);
-    ry += TTF_FontHeight(UI.f_small);
+        strftime(day, sizeof day, "%d/%m/%Y", &tmv);
+        snprintf(buf, sizeof buf, T("detail.stats"), g->plays, dur, day);
+    } else snprintf(buf, sizeof buf, "%s", T("detail.never"));
+    n = ui_wrap(fs, buf, tw, lines, 2);
+    for (int k = 0; k < n; k++, ty += fsh) ui_text(fs, lines[k], tx, ty, t->text_dim, ALIGN_LEFT);
     if (g->romstatus != RC_NONE) {
         char key[32], detail[300];
         snprintf(key, sizeof key, "rom.status%d", g->romstatus);
         romcheck_detail(UI.root, g, detail, sizeof detail);
         snprintf(buf, sizeof buf, "%s%s%s", T(key), detail[0] ? ": " : "", detail);
-        ui_text_fit(UI.f_small, buf, rw, fit, sizeof fit);
-        ui_text(UI.f_small, fit, rx, ry, rom_problem(g) ? rgba(230, 130, 20, 255) : t->text_dim, ALIGN_LEFT);
-        ry += TTF_FontHeight(UI.f_small);
+        ui_text_fit(fs, buf, tw, fit, sizeof fit);
+        ui_text(fs, fit, tx, ty, rom_problem(g) ? rgba(230, 130, 20, 255) : t->text_dim, ALIGN_LEFT);
+        ty += fsh;
     }
-    ry += M(0.02f);
-    ui_rect(rx, ry, rw, 1, t->line);
-    ry += M(0.015f);
 
-    /* storia, scorrevole */
-    wrap_history(g, rw - M(0.02f));
-    int lh = TTF_FontHeight(UI.f_small);
-    detail_scroll = ui_approach(detail_scroll, detail_scroll_target);
-    ui_clip_push(rx, ry, rw, bottom - ry);
-    if (!ndlines) ui_text(UI.f_small, T("detail.no_history"), rx, ry, t->text_dim, ALIGN_LEFT);
-    for (int i = 0; i < ndlines; i++) {
-        int ly = ry + (int)((i - detail_scroll) * lh);
-        if (ly + lh < ry || ly > bottom) continue;
-        ui_text(UI.f_small, dlines[i], rx, ly, t->text, ALIGN_LEFT);
+    /* storia del gioco nello spazio che resta, scorrevole */
+    ty += M(0.018f);
+    if (tbot - ty > fsh * 2) {
+        ui_rect(tx, ty, tw, 1, t->line);
+        ty += M(0.014f);
+        wrap_history(g, tw - M(0.01f));
+        detail_scroll = ui_approach(detail_scroll, detail_scroll_target);
+        ui_clip_push(tx, ty, tw, tbot - ty);
+        if (!ndlines) ui_text(fs, T("detail.no_history"), tx, ty, t->text_dim, ALIGN_LEFT);
+        for (int k = 0; k < ndlines; k++) {
+            int ly = ty + (int)((k - detail_scroll) * fsh);
+            if (ly + fsh < ty || ly > tbot) continue;
+            ui_text(fs, dlines[k], tx, ly, t->text, ALIGN_LEFT);
+        }
+        ui_clip_pop();
     }
-    ui_clip_pop();
-    const char *h[] = { "^v", T("detail.scroll"), "X", T("coll.hint"), "Y", T(g->fav ? "common.unfavorite" : "common.favorite"), "B", T("common.back"),
-                        "A", T("common.play") };
-    ui_hints(h, 10);
+    (void)fnh;
+    const char *h[] = { "A", T("common.play"), NULL, "B", T("common.back"), NULL, "X", T("coll.hint"), NULL,
+                        "Y", T(g->fav ? "common.unfavorite" : "common.favorite"), NULL, "^v", T("detail.scroll"), "" };
+    ui_keybar(h, ndlines ? 15 : 12);
 }
 
 /* ------------------------------------------------------ verifica ROM */
@@ -3611,7 +4236,6 @@ static void filters_changed(void) {
     lib_sel = 0;
     lib_scroll_target = 0;
     build_view();
-    for (int i = 0; i < ncats; i++) cat_item[i] = 0;
 }
 
 static void fpanel_input(void) {
@@ -4036,7 +4660,10 @@ int main(int argc, char **argv) {
     ui_mark("giochi pronti");
     music_init(UI.root);
     ui_mark("musica");
-    screen = is_list_layout() ? SCR_LIBRARY : SCR_HOME;
+    screen = SCR_HOME;
+#ifndef TRIMUI_DEVICE
+    if (getenv("TRIMUI_START_LIBRARY")) screen = SCR_LIBRARY;   /* prove sul Mac: si parte dalla libreria */
+#endif
     screen_t0 = -1;
     diag_check_failure();
     if (!UI.set.setup_done) setup_step = 1;
@@ -4075,11 +4702,10 @@ int main(int argc, char **argv) {
             cfm_kind = CFM_NONE;
             cp_open = false;
             diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
-            go(is_list_layout() ? SCR_LIBRARY : SCR_HOME);
+            go(SCR_HOME);
             ui_sound(SND_BACK);
         }
         /* il layout può cambiare col tema: la home a carosello non esiste nel layout a elenco */
-        if (is_list_layout() && screen == SCR_HOME) screen = SCR_LIBRARY;
 
         /* controllo degli aggiornamenti: una volta per avvio, appena il Wi-Fi è collegato */
         static bool notify_started;
@@ -4111,10 +4737,10 @@ int main(int argc, char **argv) {
         else if (wpanel_open) wpanel_input();
         else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
-        else if (screen == SCR_HOME && is_bar_layout()) bar_input();
         else if (screen == SCR_HOME) home_input();
-        else if (screen == SCR_LIBRARY) lib_common_input(is_list_layout() ? 1 : grid_cols());
+        else if (screen == SCR_LIBRARY) library_input();
         else if (screen == SCR_DETAIL) detail_input();
+        else if (screen == SCR_PLATFORMS) plat_input();
         else settings_input();
 
         /* Fermo sullo schermo da qualche secondo: CPU bassa e meno disegni, la console scalda
@@ -4150,12 +4776,11 @@ int main(int argc, char **argv) {
         }
 
         ui_begin();
-        if (screen == SCR_HOME && is_bar_layout()) bar_draw();
-        else if (screen == SCR_HOME) home_draw();
+        if (screen == SCR_HOME) home_draw();
         else if (screen == SCR_LIBRARY) {
-            if (is_list_layout()) library_list_draw();
-            else library_grid_draw();
+            library_draw();
         } else if (screen == SCR_DETAIL) detail_draw();
+        else if (screen == SCR_PLATFORMS) plat_draw();
         else settings_draw();
         if (dlg_open && !dlg_suspend) dialog_draw();
         if (clock_open) clock_draw();

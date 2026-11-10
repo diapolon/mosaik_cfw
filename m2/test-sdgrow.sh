@@ -80,6 +80,35 @@ set +e; ./sdgrow card.img -; rc=$?; set -e
 [ $rc -eq 0 ] && ok "solo GPT allargata, FAT lasciato com'era" || ko "uscita $rc"
 check card.img ""
 
+# copia settori da un'immagine all'altra: $1 da, $2 a, $3 primo settore, $4 quanti
+copysec() { dd if=$1 of=$2 bs=512 skip=$3 seek=$3 count=$4 conv=notrunc status=none; }
+ENT=$(python3 -c "import struct;f=open('base.img','rb');f.seek(512);print(struct.unpack_from('<Q',f.read(92),72)[0])")
+
+echo "--- corrente mancata dopo la copia di riserva, voci principali a metà"
+cp --sparse=always base.img ref.img; truncate -s 16G ref.img; ./sdgrow ref.img - >/dev/null
+cp --sparse=always ref.img card.img
+copysec base.img card.img $ENT 32
+set +e; ./sdgrow card.img -; rc=$?; set -e
+[ $rc -eq 0 ] && ok "ricostruita dalla copia di riserva" || ko "uscita $rc"
+dd if=card.img of=a.bin bs=512 count=$((ENT + 32)) status=none; dd if=ref.img of=b.bin bs=512 count=$((ENT + 32)) status=none
+cmp -s a.bin b.bin && ok "GPT principale uguale a quella completa" || ko "GPT principale diversa"
+check card.img 15
+
+echo "--- corrente mancata con le voci nuove e l'intestazione vecchia"
+cp --sparse=always ref.img card.img
+copysec base.img card.img 1 1
+set +e; ./sdgrow card.img -; rc=$?; set -e
+[ $rc -eq 0 ] && ok "ricostruita dalla copia di riserva" || ko "uscita $rc"
+check card.img 15
+
+echo "--- principale e copia di riserva rovinate: niente modifiche"
+cp --sparse=always ref.img card.img
+copysec base.img card.img $ENT 32
+dd if=/dev/zero of=card.img bs=512 seek=$(( $(stat -c %s card.img) / 512 - 1 )) count=1 conv=notrunc status=none
+before=$(md5sum card.img | cut -d" " -f1)
+set +e; ./sdgrow card.img -; rc=$?; set -e
+[ $rc -eq 2 ] && [ "$(md5sum card.img | cut -d" " -f1)" = "$before" ] && ok "rifiutato, immagine intatta" || ko "uscita $rc"
+
 echo "--- schema sconosciuto: niente modifiche"
 mkimg card.img fat.img; sgdisk -c 4:altro card.img >/dev/null; truncate -s 16G card.img
 before=$(md5sum card.img | cut -d" " -f1)

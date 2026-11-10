@@ -635,6 +635,15 @@ static bool state_save(bool autosave) {
             snprintf(png, sizeof png, "%s.png", p);
             if (thumb) IMG_SavePNG(thumb, png);
             else remove(png);   /* l'anteprima di prima non sarebbe più di questo salvataggio */
+            if (autosave) {
+                /* l'anteprima è il fotogramma non ruotato: la home deve sapere come girarla */
+                char rp[1450];
+                unsigned total = (rotation + (unsigned)gcfg.rotate) & 3;
+                snprintf(rp, sizeof rp, "%s.rot", p);
+                FILE *rf = total ? fopen(rp, "w") : NULL;
+                if (rf) { fprintf(rf, "%u\n", total); fclose(rf); }
+                else remove(rp);
+            }
         }
     }
     free(buf);
@@ -1081,13 +1090,28 @@ static void ask_start(int kind) {
 
 /* ----------------------------------------- pagina Salvataggi */
 
-static SDL_Texture *sv_tex;
-static int sv_row = -1;
+/* Anteprime degli stati: la pagina ne mostra più d'una insieme, si caricano una volta */
+static SDL_Texture *sv_texs[SAVE_ROWS];
+static bool sv_loaded[SAVE_ROWS];
 
 static void sv_forget(void) {
-    if (sv_tex) SDL_DestroyTexture(sv_tex);
-    sv_tex = NULL;
-    sv_row = -1;
+    for (int i = 0; i < SAVE_ROWS; i++) {
+        if (sv_texs[i]) SDL_DestroyTexture(sv_texs[i]);
+        sv_texs[i] = NULL;
+        sv_loaded[i] = false;
+    }
+}
+
+static SDL_Texture *sv_image(int row) {
+    if (!sv_loaded[row]) {
+        char p[1400], png[1450];
+        game_file(p, sizeof p, save_ext[row]);
+        snprintf(png, sizeof png, "%s.png", p);
+        struct stat st;
+        sv_texs[row] = stat(p, &st) == 0 ? IMG_LoadTexture(UI.ren, png) : NULL;
+        sv_loaded[row] = true;
+    }
+    return sv_texs[row];
 }
 
 static bool save_exists(int row, time_t *when) {
@@ -1121,34 +1145,200 @@ static void saves_load(int row) {
     sv_forget();
 }
 
-static void saves_preview(int x, int y, int w, int h, int row) {
+/* --- pagina Salvataggi: schede in Tessera, elenco con anteprima in Cabinato, pulsanti in Onda --- */
+enum { SVL_GRID, SVL_LIST, SVL_TABS };
+static int saves_layout(void) {
+    if (!strcmp(UI.th.layout, "list")) return SVL_LIST;
+    if (!strcmp(UI.th.layout, "bar")) return SVL_TABS;
+    return SVL_GRID;
+}
+
+static const char *saves_name(int row, char *out, size_t n) {
+    if (row < NSLOTS) snprintf(out, n, T("saves.slot"), row + 1);
+    else snprintf(out, n, "%s", T(row == SAVE_AUTO ? "saves.auto" : "saves.prev"));
+    return out;
+}
+
+/* "Oggi, 18:14", "Ieri, 22:05" o la data; "Vuoto" se non c'è */
+static const char *saves_when(int row, char *out, size_t n) {
+    time_t when;
+    if (!save_exists(row, &when)) { snprintf(out, n, "%s", T("saves.empty")); return out; }
+    struct tm a, b, c;
+    time_t now = time(NULL), y = now - 86400;
+    localtime_r(&when, &a);
+    localtime_r(&now, &b);
+    localtime_r(&y, &c);
+    char hm[16];
+    strftime(hm, sizeof hm, "%H:%M", &a);
+    if (a.tm_year == b.tm_year && a.tm_yday == b.tm_yday) snprintf(out, n, T("home.today"), hm);
+    else if (a.tm_year == c.tm_year && a.tm_yday == c.tm_yday) snprintf(out, n, T("home.yesterday"), hm);
+    else strftime(out, n, "%d/%m %H:%M", &a);
+    if (out[0] >= 'a' && out[0] <= 'z') out[0] -= 32;
+    return out;
+}
+
+/* anteprima intera, girata come il gioco; senza: la scritta al centro */
+static void saves_image(int row, int x, int y, int w, int h, int r) {
     theme_t *t = &UI.th;
-    if (row != sv_row) {
-        sv_forget();
-        sv_row = row;
-        char p[1400], png[1450];
-        game_file(p, sizeof p, save_ext[row]);
-        snprintf(png, sizeof png, "%s.png", p);
-        sv_tex = IMG_LoadTexture(UI.ren, png);
-    }
-    ui_rrect(x, y, w, h, M(t->panel_radius), rgba(0, 0, 0, 120));
-    if (!sv_tex) {
-        ui_text(UI.f_small, T("saves.no_preview"), x + w / 2, y + h / 2 - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_CENTER);
+    SDL_Texture *tex = sv_image(row);
+    if (!tex) {
+        ui_rrect(x, y, w, h, r, with_alpha(t->text_dim, 60));
+        const char *s = T(save_exists(row, NULL) ? "saves.no_preview" : "lib.no_image");
+        ui_text(UI.f_small, s, x + w / 2, y + h / 2 - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_CENTER);
         return;
     }
-    int tw, th, m = M(0.01f);
-    SDL_QueryTexture(sv_tex, NULL, NULL, &tw, &th);
+    ui_rrect(x, y, w, h, r, rgba(10, 10, 14, 255));
+    int tw, th;
+    SDL_QueryTexture(tex, NULL, NULL, &tw, &th);
     unsigned total = (rotation + (unsigned)gcfg.rotate) & 3;
     bool odd = total & 1;
-    float vw = (float)(odd ? th : tw), vh = (float)(odd ? tw : th), s = fminf((w - 2 * m) / vw, (h - 2 * m) / vh);
+    float vw = (float)(odd ? th : tw), vh = (float)(odd ? tw : th), s = fminf(w / vw, h / vh);
     int dw = (int)(vw * s), dh = (int)(vh * s), x0 = x + (w - dw) / 2, y0 = y + (h - dh) / 2;
     int rw = odd ? dh : dw, rh = odd ? dw : dh;
     SDL_Rect d = { x0 + (dw - rw) / 2, y0 + (dh - rh) / 2, rw, rh };
-    SDL_RenderCopyEx(UI.ren, sv_tex, NULL, &d, -90.0 * total, NULL, SDL_FLIP_NONE);
+    SDL_RenderCopyEx(UI.ren, tex, NULL, &d, -90.0 * total, NULL, SDL_FLIP_NONE);
+}
+
+static void saves_box(int x, int y, int w, int h, int r, bool sel) {
+    theme_t *t = &UI.th;
+    ui_rrect(x, y, w, h, r, t->surface);
+    int b = M(0.004f) < 3 ? 3 : M(0.004f);
+    if (sel) ui_rborder(x, y, w, h, r, b, t->accent);
+    else ui_rborder(x, y, w, h, r, 2, t->line);
+}
+
+static void saves_draw(void) {
+    theme_t *t = &UI.th;
+    ui_background();
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    int mx = M(t->margin), W = UI.w - 2 * mx, *s = &sel[PAGE_SAVES];
+    char buf[300], fit[300], name[64], when[64];
+
+    /* in alto: Mosaik e, accanto, il gioco */
+    ui_topbar(t->title);
+    snprintf(buf, sizeof buf, "%s", t->title);
+    if (t->title_upper)
+        for (char *p = buf; *p; p++)
+            if (*p >= 'a' && *p <= 'z') *p -= 32;
+    int gx = mx + ui_text_w(ft, buf) + M(0.035f), cy = M(t->topbar_h) / 2;
+    ui_text_fit(fn, title, UI.w * 45 / 100 - gx, fit, sizeof fit);
+    ui_text(fn, fit, gx, cy - fnh / 2, t->text_dim, ALIGN_LEFT);
+    ui_rect(mx, M(t->topbar_h) - 1, W, 1, t->line);
+
+    int y = M(t->topbar_h) + M(0.025f), bottom = UI.h - ui_keybar_h() - M(0.03f);
+    snprintf(buf, sizeof buf, "%s", T("saves.title"));
+    if (t->title_upper)
+        for (char *p = buf; *p; p++)
+            if (*p >= 'a' && *p <= 'z') *p -= 32;
+    ui_text(ft, buf, mx, y, t->text, ALIGN_LEFT);
+    y += fth + M(0.03f);
+    int lay = saves_layout(), r = lay == SVL_LIST ? M(t->panel_radius) : M(t->panel_radius) * 2, pad = M(0.016f);
+    int note_y = bottom - fsh + M(0.012f);
+    if (lay != SVL_TABS) bottom -= fsh + M(0.025f);   /* posto per la nota in fondo */
+
+    if (lay == SVL_GRID) {   /* tre schede per riga: anteprima, nome, quando */
+        int gap = M(0.02f), cw = (W - 2 * gap) / 3, ch = (bottom - y - gap) / 2;
+        int th = fnh + fsh + 2 * pad;
+        if (ch > (cw - 2 * pad) * 3 / 4 + th + pad) ch = (cw - 2 * pad) * 3 / 4 + th + pad;
+        for (int i = 0; i < SAVE_ROWS; i++) {
+            int x = mx + (i % 3) * (cw + gap), yy = y + (i / 3) * (ch + gap);
+            bool sel = i == *s;
+            saves_box(x, yy, cw, ch, r, sel);
+            saves_image(i, x + pad, yy + pad, cw - 2 * pad, ch - th - pad, r / 2);
+            int ty = yy + ch - th + pad / 2;
+            ui_text_fit(fn, saves_name(i, name, sizeof name), cw - 2 * pad, fit, sizeof fit);
+            int nw = ui_text(fn, fit, x + pad, ty, t->text, ALIGN_LEFT);
+            if (i == gcfg.slot && i < NSLOTS && nw + M(0.02f) + ui_text_w(fs, T("saves.in_use")) < cw - 2 * pad)
+                ui_text(fs, T("saves.in_use"), x + cw - pad, ty + (fnh - fsh) / 2, t->accent, ALIGN_RIGHT);
+            ui_text_fit(fs, saves_when(i, when, sizeof when), cw - 2 * pad, fit, sizeof fit);
+            ui_text(fs, fit, x + pad, ty + fnh, t->text_dim, ALIGN_LEFT);
+        }
+    } else if (lay == SVL_LIST) {   /* elenco a sinistra, anteprima grande a destra */
+        int lw = W * 44 / 100, gap = M(0.012f), rh = fnh + fsh + 2 * pad;
+        if (rh > (bottom - y - (SAVE_ROWS - 1) * gap) / SAVE_ROWS) rh = (bottom - y - (SAVE_ROWS - 1) * gap) / SAVE_ROWS;
+        for (int i = 0; i < SAVE_ROWS; i++) {
+            int yy = y + i * (rh + gap), ty = yy + (rh - fnh - fsh) / 2;
+            bool sel = i == *s;
+            saves_box(mx, yy, lw, rh, r, sel);
+            ui_text_fit(fn, saves_name(i, name, sizeof name), lw - 2 * pad, fit, sizeof fit);
+            ui_text(fn, fit, mx + pad, ty, sel ? t->accent : t->text, ALIGN_LEFT);
+            ui_text_fit(fs, saves_when(i, when, sizeof when), lw - 2 * pad, fit, sizeof fit);
+            ui_text(fs, fit, mx + pad, ty + fnh, t->text_dim, ALIGN_LEFT);
+        }
+        int px = mx + lw + M(0.03f), pw = mx + W - px, ph = pw * 3 / 4;
+        if (ph > bottom - y - fsh - M(0.04f)) ph = bottom - y - fsh - M(0.04f);
+        saves_image(*s, px, y, pw, ph, r);
+        snprintf(buf, sizeof buf, "%s  /  %s", saves_name(*s, name, sizeof name),
+                 *s == gcfg.slot && *s < NSLOTS ? T("saves.in_use") : saves_when(*s, when, sizeof when));
+        for (char *p = buf; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+        ui_text_fit(fs, buf, pw, fit, sizeof fit);
+        ui_text(fs, fit, px, y + ph + M(0.02f), t->accent, ALIGN_LEFT);
+    } else {   /* pulsanti in alto, anteprima a sinistra e dati a destra */
+        int x = mx, gap = M(0.014f), ph = fnh + M(0.022f);
+        TTF_Font *pf = fn;
+        int tot = 0;
+        for (int i = 0; i < SAVE_ROWS; i++) tot += ui_text_w(fn, saves_name(i, name, sizeof name)) + 2 * M(0.022f) + gap;
+        if (tot - gap > W) { pf = fs; ph = fsh + M(0.022f); }
+        for (int i = 0; i < SAVE_ROWS; i++) {
+            saves_name(i, name, sizeof name);
+            int pw = ui_text_w(pf, name) + 2 * M(pf == fs ? 0.018f : 0.022f);
+            bool sel = i == *s;
+            if (sel) ui_rrect(x, y, pw, ph, M(0.012f), t->accent);
+            else { ui_rrect(x, y, pw, ph, M(0.012f), t->surface); ui_rborder(x, y, pw, ph, M(0.012f), 2, t->line); }
+            ui_text(pf, name, x + pw / 2, y + (ph - TTF_FontHeight(pf)) / 2, sel ? t->accent_text : t->text, ALIGN_CENTER);
+            x += pw + gap;
+        }
+        y += ph + M(0.03f);
+        int iw = W * 60 / 100, ih = bottom - y;
+        saves_image(*s, mx, y, iw, ih, r / 2);
+        int tx = mx + iw + M(0.03f), tw = mx + W - tx, ty = y;
+        ui_text_fit(ft, saves_name(*s, name, sizeof name), tw, fit, sizeof fit);
+        ui_text(ft, fit, tx, ty, t->text, ALIGN_LEFT);
+        ty += fth + M(0.012f);
+        ui_text_fit(fn, saves_when(*s, when, sizeof when), tw, fit, sizeof fit);
+        ui_text(fn, fit, tx, ty, t->text_dim, ALIGN_LEFT);
+        ty += fnh + M(0.02f);
+        if (*s == gcfg.slot && *s < NSLOTS) { ui_text(fn, T("saves.in_use"), tx, ty, t->accent, ALIGN_LEFT); ty += fnh + M(0.02f); }
+        char lines[5][160];
+        int nl = ui_wrap(fs, T("saves.note"), tw, lines, 5);
+        for (int k = 0; k < nl; k++) ui_text(fs, lines[k], tx, ty + M(0.01f) + k * fsh, t->text_dim, ALIGN_LEFT);
+    }
+    if (lay != SVL_TABS) {   /* la nota: in Onda è accanto all'anteprima */
+        ui_text_fit(fs, T("saves.note"), W, fit, sizeof fit);
+        ui_text(fs, fit, mx, note_y, t->text_dim, ALIGN_LEFT);
+    }
+    const char *h[] = { "A", T("saves.load"), NULL, "B", T("common.back"), NULL, "X", T("saves.save"), NULL };
+    ui_keybar(h, *s < NSLOTS ? 9 : 6);
+}
+
+static void saves_input(void) {
+    input_t *in = &UI.in;
+    int *s = &sel[PAGE_SAVES], old = *s, n = SAVE_ROWS, lay = saves_layout();
+    if (lay == SVL_GRID) {
+        if (in->pressed[BTN_UP] && *s >= 3) *s -= 3;
+        if (in->pressed[BTN_DOWN]) *s = *s + 3 < n ? *s + 3 : *s < 3 ? n - 1 : *s;
+        if (in->pressed[BTN_LEFT] && *s % 3) (*s)--;
+        if (in->pressed[BTN_RIGHT] && *s % 3 < 2 && *s + 1 < n) (*s)++;
+    } else {
+        bool prev = in->pressed[BTN_UP] || in->pressed[BTN_L] || (lay == SVL_TABS && in->pressed[BTN_LEFT]);
+        bool next = in->pressed[BTN_DOWN] || in->pressed[BTN_R] || (lay == SVL_TABS && in->pressed[BTN_RIGHT]);
+        if (prev) *s = (*s + n - 1) % n;
+        if (next) *s = (*s + 1) % n;
+    }
+    if (*s != old) ui_sound(SND_MOVE);
+    if (in->pressed[BTN_B]) { page = PAGE_MAIN; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_MENU]) { menu_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_A]) saves_load(*s);
+    else if (in->pressed[BTN_X] && *s < NSLOTS) {
+        if (save_exists(*s, NULL)) { ask_row = *s; ask_start(ASK_OVERWRITE); }
+        else saves_write(*s);
+    }
 }
 
 static void menu_input(void) {
     input_t *in = &UI.in;
+    if (page == PAGE_SAVES) { saves_input(); return; }
     int n = page_rows(), *s = &sel[page];
     if (in->pressed[BTN_UP]) { *s = (*s + n - 1) % n; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { *s = (*s + 1) % n; ui_sound(SND_MOVE); }
@@ -1176,13 +1366,6 @@ static void menu_input(void) {
         if (page == PAGE_CONTROLS) {
             if (dir || (ok && *s < NREMAP)) remap_change(*s, dir ? dir : 1);
             else if (ok && *s == NREMAP) ask_start(ASK_CONTROLS);
-        }
-        if (page == PAGE_SAVES) {
-            if (ok) saves_load(*s);
-            else if (in->pressed[BTN_X] && *s < NSLOTS) {
-                if (save_exists(*s, NULL)) { ask_row = *s; ask_start(ASK_OVERWRITE); }
-                else saves_write(*s);
-            }
         }
         return;
     }
@@ -1269,6 +1452,7 @@ static bool row_changeable(int i) {
 
 static void menu_draw(void) {
     theme_t *t = &UI.th;
+    if (page == PAGE_SAVES) { saves_draw(); return; }   /* pagina intera, non un pannello sopra il gioco */
     menu_anim = ui_approach(menu_anim, 1);
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, (Uint8)(150 * menu_anim)));
     int hb = M(t->hintbar_h), my = M(0.035f);
@@ -1336,7 +1520,6 @@ static void menu_draw(void) {
         ui_text(f, buf, px + M(0.05f), ty, c, ALIGN_LEFT);
     }
     ui_clip_pop();
-    if (page == PAGE_SAVES) saves_preview(px + list_w + M(0.01f), y, pw - list_w - pad, area_h, *s);
 
     ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, (int)(235 * menu_anim)));
     if (page == PAGE_MAIN) {

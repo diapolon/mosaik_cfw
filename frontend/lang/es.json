@@ -1,11 +1,13 @@
 {
   "_name": "Español",
   "common": {
+    "info": "Info",
     "ok": "OK",
     "back": "Atrás",
     "play": "Jugar",
     "cancel": "Cancelar",
     "change": "Cambiar",
+    "section": "Sección",
     "yes": "Sí",
     "no": "No",
     "on": "Activado",
@@ -28,11 +30,61 @@
     "open": "Abrir"
   },
   "home": {
+    "resume_game": "Continuar partida",
+    "btn_library": "Biblioteca",
+    "n_of": "%d de %d",
+    "resume_hint": "A  Continuar",
+    "fav_kind": "Favorito",
+    "recent_kind": "Reciente",
+    "in_progress": "Partida en curso",
+    "no_game_title": "Ninguna partida",
+    "no_game_text": "Elige un juego de la biblioteca.",
+    "favs_count": "%d favoritos",
+    "theme_now": "Tema actual: %s",
+    "settings_desc": "Pantalla, controles, Wi-Fi y actualizaciones",
+    "power_desc": "Apagar la consola",
+    "title_cards": "Vuelve a jugar",
+    "title_menu": "Salón recreativo",
+    "title_bar": "Explora Mosaik",
+    "today": "hoy, %s",
+    "yesterday": "ayer, %s",
+    "last": "Última partida",
+    "autosave": "Guardado automático · %s",
+    "recent": "Recientes",
+    "open_library": "Abrir la biblioteca",
+    "resume": "Continuar",
     "no_games": "No hay juegos: copia las ROM en Roms/FBNEO o Roms/MAME2003P",
     "fav_added": "Añadido a favoritos",
     "fav_removed": "Quitado de favoritos",
     "themes": "Temas",
     "favorites": "Favoritos"
+  },
+  "plat": {
+    "title": "Plataformas",
+    "open": "Abrir biblioteca",
+    "one": "1 juego",
+    "native": "> juegos nativos"
+  },
+  "lib": {
+    "confirm": "Confirmar",
+    "search_short": "Buscar",
+    "settings_short": "Menú",
+    "no_image": "Sin imagen",
+    "count": "Biblioteca · %d títulos",
+    "start_note": "START abre Ajustes, Temas y Apagar",
+    "selected": "Seleccionado",
+    "category": "Categoría",
+    "search_filters": "Búsqueda y filtros",
+    "empty_title": "Biblioteca vacía",
+    "empty_text": "Copia los juegos en la carpeta Arcade/Roms de la tarjeta SD.",
+    "empty_text2": "Pulsa A para actualizar la biblioteca.",
+    "refresh": "Actualizar biblioteca",
+    "nofav_title": "Ningún favorito",
+    "nofav_text": "Abre Todos y elige un juego.",
+    "nofav_text2": "Pulsa Y para añadirlo a favoritos.",
+    "open_all": "Abrir Todos",
+    "none_title": "Ningún juego",
+    "autosave": "Guardado automático disponible"
   },
   "library": {
     "title": "Biblioteca",
@@ -50,6 +102,8 @@
     "about": "%d juegos · prototipo 0.1 · %s"
   },
   "settings": {
+    "restart": "Reiniciar",
+    "suspend_now": "Suspender",
     "collections": "Colecciones",
     "pad_test": "Prueba de controles",
     "stick_cal": "Calibrar palancas",
@@ -96,6 +150,8 @@
     "led_brightness": "Brillo de los LED"
   },
   "settings_desc": {
+    "restart": "Reinicia Mosaik. Los ajustes y favoritos ya están guardados.",
+    "suspend_now": "Apaga la pantalla y pausa la consola: se despierta con el botón de encendido.",
     "collections": "Renombra o elimina las colecciones.",
     "pad_test": "Muestra cada botón pulsado y la posición de las palancas: útil para comprobar que funcionan.",
     "stick_cal": "Úsalo si una palanca no vuelve al centro o no llega hasta el final.",
@@ -164,9 +220,16 @@
     "ambra": "Ámbar",
     "oceano": "Océano",
     "tramonto": "Atardecer",
-    "foresta": "Bosque"
+    "foresta": "Bosque",
+    "corallo": "Coral",
+    "salvia": "Salvia",
+    "notte": "Noche",
+    "fosforo": "Fósforo",
+    "cobalto": "Cobalto",
+    "rubino": "Rubí"
   },
   "dialog": {
+    "restart_title": "¿Reiniciar la consola?",
     "power_title": "¿Apagar la consola?",
     "power_body": "Los ajustes y favoritos ya están guardados.",
     "power_body_app": "Salir para volver al menú de TrimUI.",
@@ -450,15 +513,17 @@
     "none": "No hay imágenes que borrar"
   },
   "settings_cat": {
+    "power": "Apagado",
     "controls": "Controles",
     "display": "Pantalla y sonido",
     "look": "Apariencia",
     "games": "Juegos",
     "system": "Sistema",
-    "tools": "Juegos e imágenes",
-    "updates": "Actualizaciones y sistema"
+    "tools": "Herramientas",
+    "updates": "Actualizaciones"
   },
   "settings_cat_sum": {
+    "power": "Suspender, reiniciar o apagar",
     "controls": "Mandos, prueba de botones y palancas",
     "display": "Brillo, volumen, música, LED",
     "look": "Tema, idioma, salvapantallas",
@@ -468,6 +533,7 @@
     "updates": "Actualizar, canal, registro, información"
   },
   "settings_cat_desc": {
+    "power": "Suspende la consola, reiníciala o apágala.",
     "controls": "Mandos externos, prueba de botones y palancas y, en la Brick Pro, función de los botones adicionales.",
     "display": "Brillo de la pantalla, volumen, música de fondo y luces de la consola.",
     "look": "Tema del launcher, su variante, idioma y salvapantallas.",
@@ -637,6 +703,7 @@
     "controls_body": "Se perderán tus ajustes para este juego."
   },
   "saves": {
+    "in_use": "En uso",
     "title": "Partidas guardadas",
     "slot": "Ranura %d",
     "auto": "Automático",

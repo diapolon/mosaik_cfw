@@ -32,6 +32,7 @@ static void game_file(char *out, size_t n, const char *ext) { snprintf(out, n, "
 typedef struct SDL_Surface SDL_Surface;
 static SDL_Surface *thumb;
 static const char *payload = "";
+static unsigned rotation;
 static size_t ser_size(void) { return strlen(payload); }
 static bool ser(void *b, size_t n) { memcpy(b, payload, n); return true; }
 static struct { size_t (*serialize_size)(void); bool (*serialize)(void *, size_t); } core = { ser_size, ser };

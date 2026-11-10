@@ -7,7 +7,9 @@
  * numero di settori nel settore di avvio, senza spostare dati. Passi:
  *   1. GPT: l'ultima partizione (boot-resource, la ARCADE) arriva in fondo alla scheda e la
  *      copia di riserva della GPT si sposta alla fine. Prima la copia nuova in fondo, poi la
- *      principale: se manca la corrente a metà, almeno una delle due resta valida.
+ *      principale: se manca la corrente a metà, almeno una delle due resta valida. Alla volta
+ *      dopo, se la principale ha le voci rovinate ma l'intestazione buona, si ricostruisce
+ *      dalla copia di riserva (stesso disco, voci integre).
  *   2. Il kernel rilegge le partizioni (BLKRRPART). Se non ci riesce serve un riavvio, e il
  *      FAT si allarga all'avvio dopo: mai un FAT più grande della partizione che il kernel vede.
  *   3. FAT32: nuovo numero di settori (anche nella copia del settore di avvio) e spazio libero
@@ -69,6 +71,20 @@ static void wr(uint64_t lba, const void *buf, size_t n) {
     if (pwrite(fd, buf, n, (off_t)(lba * SEC)) != (ssize_t)n) die("scrittura non riuscita");
 }
 
+/* Copia di riserva della GPT in "lba", se è integra e appartiene allo stesso disco della
+   principale "ph": intestazione in b, voci in e */
+static int backup_ok(uint64_t lba, const uint8_t *ph, uint32_t hsize, uint8_t *b, uint8_t *e, size_t esec, size_t ebytes) {
+    uint8_t c[SEC];
+    if (pread(fd, b, SEC, (off_t)(lba * SEC)) != SEC || memcmp(b, "EFI PART", 8)) return 0;
+    if (g32(b + 12) != hsize || g64(b + 24) != lba) return 0;
+    memcpy(c, b, SEC);
+    p32(c + 16, 0);
+    if (crc32(c, hsize) != g32(b + 16)) return 0;
+    if (memcmp(b + 56, ph + 56, 16) || g32(b + 80) != g32(ph + 80) || g32(b + 84) != g32(ph + 84)) return 0;
+    if (pread(fd, e, esec * SEC, (off_t)(g64(b + 72) * SEC)) != (ssize_t)(esec * SEC)) return 0;
+    return crc32(e, ebytes) == g32(b + 88);
+}
+
 static uint64_t dev_sectors(int f) {
     struct stat st;
     if (fstat(f, &st) != 0) die("stat non riuscita");
@@ -104,7 +120,27 @@ int main(int argc, char **argv) {
     uint8_t *e = calloc(esec, SEC);
     if (!e) die("memoria");
     rd(ent_lba, e, esec * SEC);
-    if (crc32(e, ebytes) != g32(h + 88)) die("voci GPT danneggiate");
+    if (crc32(e, ebytes) != g32(h + 88)) {
+        /* corrente mancata mentre si scriveva la principale: si rifà dalla copia di riserva,
+           prima quella in fondo alla scheda (la più recente), poi quella indicata */
+        uint8_t b[SEC];
+        uint64_t cand[2] = { total - 1, g64(h + 32) }, from = 0;
+        for (int i = 0; i < 2 && !from; i++)
+            if (cand[i] > ent_lba && backup_ok(cand[i], h, hsize, b, e, esec, ebytes)) from = cand[i];
+        if (!from) die("voci GPT danneggiate e copia di riserva non utilizzabile");
+        notify();
+        printf("GPT principale ricostruita dalla copia di riserva (settore %" PRIu64 ")\n", from);
+        p64(h + 32, from);
+        p64(h + 40, g64(b + 40));
+        p64(h + 48, g64(b + 48));
+        p32(h + 88, g32(b + 88));
+        p32(h + 16, 0);
+        p32(h + 16, crc32(h, hsize));
+        wr(ent_lba, e, esec * SEC);
+        wr(1, h, SEC);
+        fsync(fd);
+        changed = 1;
+    }
 
     /* la partizione da allargare è l'ultima sul disco e deve chiamarsi boot-resource */
     int last = -1;

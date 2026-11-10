@@ -44,7 +44,7 @@ typedef struct {
     float anim_speed;
     bool pulse, scanlines, title_upper, waves;
     char sound_style[16];
-    char variants[4][16];
+    char variants[8][16];
     int nvariants;
     /* immagini dei giochi (Media/<tipo>/<rom>.png), in ordine di preferenza */
     char cover_types[4][16], preview_types[4][16];
@@ -163,6 +163,11 @@ float ui_approach(float v, float target);
 /* elementi comuni del tema */
 void ui_topbar(const char *title);
 void ui_hints(const char *const *items, int n);   /* coppie tasto, etichetta */
+/* barra dei tasti su una riga: terne tasto, etichetta, etichetta corta (NULL: resta sempre;
+   "": si toglie se manca spazio). Restituisce dove finisce. */
+int ui_keybar(const char *const *items, int n);
+int ui_keybar_h(void);
+void ui_background(void);
 void ui_button_glyph(const char *btn, int cx, int cy, int size);
 void ui_toast(const char *msg);
 /* salva il prossimo frame del canvas in un PNG */
