@@ -574,6 +574,7 @@
     "err5": "Fichier différent de l'original après écriture",
     "err6": "Échec de l'écriture sur la carte",
     "err7": "Mise à jour annulée",
+    "battery_low": "Batterie à %d%% : branchez le chargeur pour mettre à jour",
     "err_safe": "Le système en service n'a pas été touché.",
     "channel_stable": "Stable",
     "channel_dev": "Développement",

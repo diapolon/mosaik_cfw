@@ -574,6 +574,7 @@
     "err5": "Ficheiro diferente do original após a escrita",
     "err6": "Falha ao escrever no cartão",
     "err7": "Atualização cancelada",
+    "battery_low": "Bateria em %d%%: liga o carregador para atualizar",
     "err_safe": "O sistema em uso não foi tocado.",
     "channel_stable": "Estável",
     "channel_dev": "Desenvolvimento",

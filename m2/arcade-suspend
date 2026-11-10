@@ -28,7 +28,9 @@ if [ "$1" = mute ]; then mute; exit 0; fi
 
 wifi=0
 pidof wpa_supplicant > /dev/null && wifi=1
-step "inizio (wi-fi $([ $wifi = 1 ] && echo acceso || echo spento))"
+# batteria nei passi: con quella del risveglio si misura quanto consuma lo standby
+battery() { cat /sys/class/power_supply/axp2202-battery/capacity 2> /dev/null || echo "?"; }
+step "inizio (wi-fi $([ $wifi = 1 ] && echo acceso || echo spento), batteria $(battery)%)"
 # Wi-Fi: una ricerca di reti in corso fa rifiutare la sospensione al driver ("phy0 failed to
 # suspend: error -16"): si interrompe, si spegne e si blocca la radio (rfkill) come keymon
 if [ $wifi = 1 ]; then
@@ -44,7 +46,28 @@ if grep -q '^xradio_wlan ' /proc/modules; then
     if timeout -s KILL 5 rmmod xradio_wlan 2> /dev/null; then step "driver Wi-Fi tolto"
     else step "driver Wi-Fi non tolto"; fi
 fi
-echo 0 > /sys/class/led_anim/enable 2> /dev/null
+# LED in standby (prova): invece di spegnerli tutti, una sola zona con un respiro lento al
+# minimo, per far capire che la console dorme e non è spenta. Il respiro lo calcola il driver
+# led_anim: la prova dice se continua a console sospesa, se resta fisso o se si spegne, e
+# quanto costa in batteria. Con i LED spenti nelle impostazioni (led_mode 0) restano spenti.
+led_standby() {
+    d=/sys/class/led_anim
+    [ -e $d/effect_enable ] || return 1
+    grep -q '"led_mode": *0' "$ROOT/System/settings.json" 2> /dev/null && return 1
+    z=
+    for c in m lr; do [ -e $d/effect_$c ] && { z=$c; break; }; done
+    [ -n "$z" ] || return 1
+    for c in lr m f1 f2 rear; do
+        [ "$c" != "$z" ] && [ -e $d/effect_$c ] && echo 0 > $d/effect_$c
+    done
+    for m in max_scale max_scale_lr max_scale_f1f2 max_scale_rear; do echo 4 > $d/$m 2> /dev/null; done
+    echo "FFFFFF " > $d/effect_rgb_hex_$z
+    echo 30000 > $d/effect_cycles_$z
+    echo 4000 > $d/effect_duration_$z
+    echo 2 > $d/effect_$z
+    step "LED in standby: respiro lento sulla zona $z"
+}
+led_standby || echo 0 > /sys/class/led_anim/enable 2> /dev/null
 # audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
 mute
 touch /tmp/system_suspend
@@ -111,6 +134,6 @@ if [ "$(cat "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
 fi
 # si riapre solo quando il codec si è assestato, altrimenti si sente il crack
 if [ -z "$ARCADE_KEEP_MUTE" ]; then sleep 0.4; unmute; fi
-step "risveglio (sospensione $r, tentativi $tries)"
+step "risveglio (sospensione $r, tentativi $tries, batteria $(battery)%)"
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
 [ "$r" != "non riuscita" ]

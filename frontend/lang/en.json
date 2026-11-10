@@ -574,6 +574,7 @@
     "err5": "File differs from the original after writing",
     "err6": "Writing to the card failed",
     "err7": "Update cancelled",
+    "battery_low": "Battery at %d%%: connect the charger to update",
     "err_safe": "The system in use was not touched.",
     "channel_stable": "Stable",
     "channel_dev": "Development",

@@ -574,6 +574,7 @@
     "err5": "File diverso dall'originale dopo la scrittura",
     "err6": "Scrittura sulla scheda non riuscita",
     "err7": "Aggiornamento annullato",
+    "battery_low": "Batteria al %d%%: collega il caricatore per aggiornare",
     "err_safe": "Il sistema in uso non è stato toccato.",
     "channel_stable": "Stabile",
     "channel_dev": "Sviluppo",

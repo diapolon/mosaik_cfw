@@ -574,6 +574,7 @@
     "err5": "Datei weicht nach dem Schreiben vom Original ab",
     "err6": "Schreiben auf die Karte fehlgeschlagen",
     "err7": "Update abgebrochen",
+    "battery_low": "Akku bei %d%%: zum Aktualisieren das Ladegerät anschließen",
     "err_safe": "Das laufende System wurde nicht verändert.",
     "channel_stable": "Stabil",
     "channel_dev": "Entwicklung",

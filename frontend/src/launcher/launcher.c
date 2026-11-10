@@ -2580,6 +2580,22 @@ static void upd_reboot(void) {
     ui_exit_now(EXIT_REBOOT);
 }
 
+/* Si aggiorna solo con il caricatore o con abbastanza batteria: se la corrente manca mentre i
+   file si sostituiscono, sulla SD restano file vecchi e nuovi mescolati (TODO.md). Si controlla
+   prima di scaricare e di nuovo prima di sostituire, perché lo scaricamento consuma. Livello
+   sconosciuto: si lascia fare, un sensore che non risponde non deve bloccare gli aggiornamenti. */
+enum { UPD_MIN_BATTERY = 30 };
+static bool upd_battery_ok(void) {
+    bool charging;
+    int pct = ui_battery(&charging);
+    if (charging || pct < 0 || pct >= UPD_MIN_BATTERY) return true;
+    char m[160];
+    snprintf(m, sizeof m, T("update.battery_low"), pct);
+    ui_toast(m);
+    ui_log("aggiornamento: batteria al %d%% senza caricatore, fermo", pct);
+    return false;
+}
+
 static void upd_input(void) {
     input_t *in = &UI.in;
     const update_status_t *s = update_status();
@@ -2588,9 +2604,15 @@ static void upd_input(void) {
         if (in->pressed[BTN_B] && s->phase != UPD_INSTALL) { update_cancel(); ui_sound(SND_BACK); }
         return;
     }
-    if (s->phase == UPD_AVAILABLE && in->pressed[BTN_A]) { update_install(); ui_sound(SND_OK); return; }
+    if (s->phase == UPD_AVAILABLE && in->pressed[BTN_A]) {
+        if (!upd_battery_ok()) { ui_sound(SND_ERROR); return; }
+        update_install(); ui_sound(SND_OK); return;
+    }
     if (s->phase == UPD_READY) {
-        if (in->pressed[BTN_A]) { update_apply(); ui_sound(SND_OK); }
+        if (in->pressed[BTN_A]) {
+            if (!upd_battery_ok()) { ui_sound(SND_ERROR); return; }
+            update_apply(); ui_sound(SND_OK);
+        }
         else if (in->pressed[BTN_B]) { update_discard(); ui_sound(SND_BACK); }
         return;
     }
