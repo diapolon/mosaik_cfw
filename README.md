@@ -5,7 +5,7 @@
 <h3 align="center">All your games, in your pocket.</h3>
 
 <p align="center">
-  A gaming system for <b>TrimUI Smart Pro</b> and <b>Brick Pro</b>: arcade and Linux games.<br>
+  A gaming system for <b>TrimUI Smart Pro</b> and <b>Brick Pro</b>: arcade, consoles and Linux games.<br>
   It runs from the microSD and leaves the console's internal storage alone.
 </p>
 
@@ -23,11 +23,12 @@
   <img src="docs/images/home.png" width="640" alt="The Mosaik home screen">
 </p>
 
-> **Status:** version 0.9. **Smart Pro and Brick Pro: tested.**
+> **Status:** version 0.9. **Smart Pro and Brick Pro: tested.** The consoles (NES, Super Nintendo, Mega Drive, Game Boy, GBA) are in the Development channel for now and come with the next version.
 
 ## What's inside
 
 - **FinalBurn Neo and MAME 2003-Plus**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
+- **NES, Super Nintendo, Mega Drive, Game Boy, Game Boy Color and Game Boy Advance**, with battery saves (also the clock of the Pokémon games) and zipped ROMs. More consoles are on the way.
 - **Linux games**, with an in-game menu and sleep.
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
@@ -97,13 +98,15 @@ Turn the console off and connect the card to your computer. Everything is in the
 |---|---|
 | `Roms/FBNEO` | ROMs for FinalBurn Neo (current FBNeo set), subfolders allowed |
 | `Roms/MAME2003P` | ROMs for MAME 2003-Plus (0.78-plus set) |
+| `Roms/NES`, `Roms/SNES`, `Roms/MD` | NES, Super Nintendo and Mega Drive games |
+| `Roms/GB`, `Roms/GBC`, `Roms/GBA` | Game Boy, Game Boy Color and Game Boy Advance games |
 | `Bios` | `neogeo.zip` and other BIOS files |
 | `Linux` | Linux games, one per folder |
 | `Media` | Game images |
 | `Music` | Background music (MP3, OGG, FLAC, WAV) |
 | `Saves` | Saves |
 
-Keep ROMs as `.zip` and don't rename them. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
+Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
 
 For covers and information, connect to Wi-Fi and use **Settings → Tools → Download images**.
 
@@ -143,10 +146,10 @@ Arcade/Linux/MyGame/
 | Start | Settings |
 | Select | Filters and sorting (in the library) |
 | L / R | Switch tabs in the library |
-| Menu (arcade games) | Game menu: save and load state, aspect ratio, filter, controls, exit |
+| Menu (arcade and console games) | Game menu: save and load state, aspect ratio, filter, controls, exit |
 | Menu held 1 s (Linux games) | Menu over the paused game |
 
-**Shortcuts in arcade games (hold Menu):**
+**Shortcuts in arcade and console games (hold Menu):**
 
 | Combination | What it does |
 |---|---|
@@ -185,6 +188,6 @@ The build uses Docker and needs components extracted from the official TrimUI fi
 
 The code written for Mosaik is under the [GNU LGPL v3](COPYING.LESSER). It does not cover third-party components, which keep their own licenses: see [`licenses/THIRD-PARTY.md`](licenses/THIRD-PARTY.md), which also links the emulator sources.
 
-FinalBurn Neo and MAME 2003-Plus are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases).
+FinalBurn Neo, MAME 2003-Plus, Genesis Plus GX and Snes9x are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases), together with the source of the GPL and MPL emulators (FCEUmm, Gambatte, mGBA) in the releases that include them.
 
 Independent project, not affiliated with TrimUI.
