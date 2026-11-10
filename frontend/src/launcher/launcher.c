@@ -2630,10 +2630,10 @@ static void upd_reboot(void) {
     ui_exit_now(EXIT_REBOOT);
 }
 
-/* Si aggiorna solo con il caricatore o con abbastanza batteria: se la corrente manca mentre i
-   file si sostituiscono, sulla SD restano file vecchi e nuovi mescolati (TODO.md). Si controlla
-   prima di scaricare e di nuovo prima di sostituire, perché lo scaricamento consuma. Livello
-   sconosciuto: si lascia fare, un sensore che non risponde non deve bloccare gli aggiornamenti. */
+/* Si installa solo con il caricatore o con abbastanza batteria: se la corrente manca mentre i
+   file si sostituiscono, sulla SD restano file vecchi e nuovi mescolati (TODO.md). Scaricare
+   invece si può sempre: i file arrivano con nome provvisorio e quelli in uso non si toccano.
+   Livello sconosciuto: si lascia fare, un sensore che non risponde non deve bloccare. */
 enum { UPD_MIN_BATTERY = 30 };
 static bool upd_battery_ok(void) {
     bool charging;
@@ -2654,10 +2654,7 @@ static void upd_input(void) {
         if (in->pressed[BTN_B] && s->phase != UPD_INSTALL) { update_cancel(); ui_sound(SND_BACK); }
         return;
     }
-    if (s->phase == UPD_AVAILABLE && in->pressed[BTN_A]) {
-        if (!upd_battery_ok()) { ui_sound(SND_ERROR); return; }
-        update_install(); ui_sound(SND_OK); return;
-    }
+    if (s->phase == UPD_AVAILABLE && in->pressed[BTN_A]) { update_install(); ui_sound(SND_OK); return; }
     if (s->phase == UPD_READY) {
         if (in->pressed[BTN_A]) {
             if (!upd_battery_ok()) { ui_sound(SND_ERROR); return; }

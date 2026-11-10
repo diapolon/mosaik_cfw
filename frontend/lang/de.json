@@ -579,7 +579,7 @@
     "err5": "Kopieren auf die Karte fehlgeschlagen: versuche es erneut",
     "err6": "Schreiben auf die Karte nicht möglich",
     "err7": "Update abgebrochen",
-    "battery_low": "Akku bei %d%%: zum Aktualisieren das Ladegerät anschließen",
+    "battery_low": "Akku bei %d%%: zum Installieren das Ladegerät anschließen",
     "err_safe": "Deine Konsole ist unverändert.",
     "channel_stable": "Stabil",
     "channel_dev": "Entwicklung",

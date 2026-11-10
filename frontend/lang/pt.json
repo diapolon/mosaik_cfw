@@ -579,7 +579,7 @@
     "err5": "Falha ao copiar para o cartão: tenta de novo",
     "err6": "Não foi possível escrever no cartão",
     "err7": "Atualização cancelada",
-    "battery_low": "Bateria em %d%%: liga o carregador para atualizar",
+    "battery_low": "Bateria em %d%%: liga o carregador para instalar",
     "err_safe": "A consola ficou como estava.",
     "channel_stable": "Estável",
     "channel_dev": "Desenvolvimento",

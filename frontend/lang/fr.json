@@ -579,7 +579,7 @@
     "err5": "Échec de la copie sur la carte : réessayez",
     "err6": "Impossible d'écrire sur la carte",
     "err7": "Mise à jour annulée",
-    "battery_low": "Batterie à %d%% : branchez le chargeur pour mettre à jour",
+    "battery_low": "Batterie à %d%% : branchez le chargeur pour installer",
     "err_safe": "Votre console n'a pas été modifiée.",
     "channel_stable": "Stable",
     "channel_dev": "Développement",

@@ -579,7 +579,7 @@
     "err5": "Copia sulla scheda non riuscita: riprova",
     "err6": "Non è stato possibile scrivere sulla scheda",
     "err7": "Aggiornamento annullato",
-    "battery_low": "Batteria al %d%%: collega il caricatore per aggiornare",
+    "battery_low": "Batteria al %d%%: collega il caricatore per installare",
     "err_safe": "La console è rimasta com'era.",
     "channel_stable": "Stabile",
     "channel_dev": "Sviluppo",

@@ -579,7 +579,7 @@
     "err5": "Copy to the card failed: try again",
     "err6": "Couldn't write to the card",
     "err7": "Update cancelled",
-    "battery_low": "Battery at %d%%: connect the charger to update",
+    "battery_low": "Battery at %d%%: connect the charger to install",
     "err_safe": "Your console is unchanged.",
     "channel_stable": "Stable",
     "channel_dev": "Development",

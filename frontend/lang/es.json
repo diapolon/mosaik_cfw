@@ -579,7 +579,7 @@
     "err5": "Error al copiar en la tarjeta: inténtalo de nuevo",
     "err6": "No se ha podido escribir en la tarjeta",
     "err7": "Actualización cancelada",
-    "battery_low": "Batería al %d%%: conecta el cargador para actualizar",
+    "battery_low": "Batería al %d%%: conecta el cargador para instalar",
     "err_safe": "La consola sigue como estaba.",
     "channel_stable": "Estable",
     "channel_dev": "Desarrollo",
