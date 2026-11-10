@@ -1,0 +1,9 @@
+{
+  "name": "Nintendo NES",
+  "core": "fceumm_libretro",
+  "roms": "Roms/NES",
+  "extensions": ["nes", "fds", "unf", "unif", "zip"],
+  "kind": "console",
+  "thumbnails": "Nintendo - Nintendo Entertainment System",
+  "order": 30
+}

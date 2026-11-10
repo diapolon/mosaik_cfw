@@ -4,14 +4,14 @@
 # Si compila in una copia pulita dentro il volume Docker: il Mac ha i suoi file oggetto
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
-#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p]
+#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p}
+WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -40,6 +40,24 @@ for core in $WHICH; do
             > "$SRC/mame2003p.log" 2>&1 \
             || { tail -30 "$SRC/mame2003p.log"; exit 1; }
         cp "$SRC/mame2003-plus/mame2003_plus_libretro.so" "$OUT/"
+        ;;
+    fceumm)
+        clone libretro-fceumm fceumm
+        echo "== FCEUmm (NES)"
+        make -C "$SRC/fceumm" -f Makefile.libretro -j"$JOBS" platform=unix \
+            CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+            > "$SRC/fceumm.log" 2>&1 \
+            || { tail -30 "$SRC/fceumm.log"; exit 1; }
+        cp "$SRC/fceumm/fceumm_libretro.so" "$OUT/"
+        ;;
+    genesis_plus_gx)
+        clone Genesis-Plus-GX genesis_plus_gx
+        echo "== Genesis Plus GX (Mega Drive)"
+        make -C "$SRC/genesis_plus_gx" -f Makefile.libretro -j"$JOBS" platform=unix \
+            CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+            > "$SRC/genesis_plus_gx.log" 2>&1 \
+            || { tail -30 "$SRC/genesis_plus_gx.log"; exit 1; }
+        cp "$SRC/genesis_plus_gx/genesis_plus_gx_libretro.so" "$OUT/"
         ;;
     esac
 done

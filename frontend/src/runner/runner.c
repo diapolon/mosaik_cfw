@@ -8,6 +8,7 @@
 #include "../common/filters.h"
 #include "../common/json.h"
 #include "../common/durable.h"
+#include "romzip.h"
 #include <SDL_image.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -53,6 +54,7 @@ static SDL_Texture *frame_tex;
 static int tex_w, tex_h, frame_w, frame_h;
 static bool have_frame;
 static void *rom_data;
+static char rom_tmp[1200];   /* ROM estratta da uno zip, in /tmp (in RAM sulla console) */
 
 /* ---------------------------------------------------------- opzioni core */
 /* Il core dichiara le opzioni come "Descrizione; valore1|valore2|...": il primo è il
@@ -123,6 +125,47 @@ static void opts_load_file(const char *path) {
 
 static void game_file(char *out, size_t n, const char *ext) {
     snprintf(out, n, "%s/%s.%s", save_dir, rom_name, ext);
+}
+
+/* ------------------------------------------------- salvataggi a batteria */
+/* La memoria che la cartuccia tiene con la pila (Zelda, Phantasy Star...) va in
+   Saves/<core>/<rom>.srm: si legge appena caricato il gioco e si scrive quando cambia
+   (controllo ogni 10 s) e a ogni uscita, anche per batteria scarica e prima della sospensione.
+   FBNeo e MAME non ne hanno: per loro non succede nulla. */
+static size_t (*mem_size)(unsigned);
+static void *(*mem_data)(unsigned);
+static unsigned char *sram_copy;   /* contenuto già sulla scheda */
+static size_t sram_len;
+
+static void sram_load(void) {
+    if (!mem_size || !mem_data) return;
+    size_t len = mem_size(RETRO_MEMORY_SAVE_RAM);
+    unsigned char *m = mem_data(RETRO_MEMORY_SAVE_RAM);
+    if (!len || !m || !(sram_copy = malloc(len))) return;
+    sram_len = len;
+    char p[1200];
+    game_file(p, sizeof p, "srm");
+    FILE *f = fopen(p, "rb");
+    if (f) {
+        size_t n = fread(m, 1, len, f);
+        fclose(f);
+        ui_log("salvataggio a batteria: %zu di %zu byte letti", n, len);
+    }
+    memcpy(sram_copy, m, len);
+}
+
+static void sram_save(void) {
+    if (!sram_len) return;
+    unsigned char *m = mem_data(RETRO_MEMORY_SAVE_RAM);
+    if (!m || !memcmp(m, sram_copy, sram_len)) return;
+    char p[1200], t[1300];
+    game_file(p, sizeof p, "srm");
+    snprintf(t, sizeof t, "%s.tmp", p);
+    FILE *f = fopen(t, "wb");
+    bool ok = f && fwrite(m, 1, sram_len, f) == sram_len;
+    if (f) { ok = fflush(f) == 0 && fsync(fileno(f)) == 0 && ok; if (fclose(f) != 0) ok = false; }
+    if (ok && durable_replace(t, p) == 0) { memcpy(sram_copy, m, sram_len); ui_log("salvataggio a batteria scritto"); }
+    else { remove(t); ui_log("impossibile scrivere %s", p); }
 }
 
 static void opts_load_overrides(void) {
@@ -528,6 +571,8 @@ static bool load_core(void) {
     SYM(serialize_size, "retro_serialize_size"); SYM(serialize, "retro_serialize"); SYM(unserialize, "retro_unserialize");
     SYM(load_game, "retro_load_game"); SYM(unload_game, "retro_unload_game");
 #undef SYM
+    *(void **)&mem_size = dlsym(core.h, "retro_get_memory_size");
+    *(void **)&mem_data = dlsym(core.h, "retro_get_memory_data");
     core.set_environment(environment);
     core.init();
     core.set_video_refresh(video_refresh);
@@ -542,7 +587,33 @@ static bool load_game(void) {
     struct retro_system_info si = { 0 };
     core.get_system_info(&si);
     struct retro_game_info gi = { .path = rom_path };
-    if (!si.need_fullpath) {
+    if (romzip_is_zip(rom_path) && !romzip_ext_ok(rom_path, si.valid_extensions)) {
+        /* il core non legge gli zip (NES, Mega Drive...): la ROM si estrae in /tmp e il core la
+           riceve con il suo nome, che alcuni usano per riconoscere il tipo di cartuccia */
+        void *d;
+        size_t n;
+        char inner[256];
+        int zr = romzip_extract(rom_path, si.valid_extensions, &d, &n, inner, sizeof inner);
+        if (zr != ROMZIP_OK) {
+            static const char *why[] = { "", "non si apre", "non è uno zip valido", "nessun file adatto all'emulatore", "file rovinato", "memoria insufficiente" };
+            ui_log("zip %s: %s", rom_path, why[zr]);
+            note_error(why[zr]);
+            return false;
+        }
+        const char *tmp = getenv("TMPDIR");
+        snprintf(rom_tmp, sizeof rom_tmp, "%s/mosaik-rom", tmp && *tmp ? tmp : "/tmp");
+        mkdir(rom_tmp, 0700);
+        size_t len = strlen(rom_tmp);
+        snprintf(rom_tmp + len, sizeof rom_tmp - len, "/%s", inner);
+        FILE *f = fopen(rom_tmp, "wb");
+        bool ok = f && fwrite(d, 1, n, f) == n;
+        if (f && fclose(f) != 0) ok = false;
+        if (!ok) { ui_log("impossibile scrivere %s", rom_tmp); free(d); rom_tmp[0] = 0; return false; }
+        ui_log("zip: %s, %zu byte", inner, n);
+        gi.path = rom_tmp;
+        if (si.need_fullpath) free(d);
+        else { rom_data = d; gi.data = d; gi.size = n; }
+    } else if (!si.need_fullpath) {
         FILE *f = fopen(rom_path, "rb");
         if (!f) return false;
         fseek(f, 0, SEEK_END);
@@ -556,6 +627,7 @@ static bool load_game(void) {
     }
     ui_log("core %s %s", si.library_name, si.library_version);
     if (!core.load_game(&gi)) return false;
+    sram_load();
     core.get_system_av_info(&av);
     for (unsigned p = 0; p < 4; p++) core.set_controller_port_device(p, RETRO_DEVICE_JOYPAD);
     ui_log("video %ux%u (max %ux%u) aspetto %.3f, %.2f fps, audio %.0f Hz, rotazione %u, %d opzioni del core",
@@ -1017,6 +1089,7 @@ static bool suspend_ask;
 static int ask_sel = 1;
 
 static void power_off_from_game(void) {
+    sram_save();
     if (state_save(true)) write_resume();
     exit_code = EXIT_POWEROFF;
 }
@@ -1636,6 +1709,7 @@ static void battery_watch(void) {
         ui_toast(m);
         warned = true;
     }
+    if (pct <= 4 && !saved) sram_save();
     if (pct <= 4 && !saved && state_save(true)) {
         write_resume();
         ui_toast(T("battery.saved"));
@@ -1782,7 +1856,7 @@ int main(int argc, char **argv) {
         if (suspend_ask) {
             int r = ui_confirm_input(&ask_sel);
             if (r >= 0) suspend_ask = false;
-            if (r == 1) { ui_suspend(); next = SDL_GetPerformanceCounter(); continue; }
+            if (r == 1) { sram_save(); ui_suspend(); next = SDL_GetPerformanceCounter(); continue; }
         } else if (UI.in.power) {
             suspend_ask = true;
             ask_sel = 1;
@@ -1859,12 +1933,17 @@ int main(int argc, char **argv) {
             else next = now;
         }
     }
+    /* uscendo al menu (menu in gioco o HOME) la partita va nel salvataggio automatico, se
+       l'impostazione è accesa: in home la si riprende con "Riprendi" */
+    if (exit_code == EXIT_MENU && UI.set.autosave_exit && state_save(true)) ui_log("salvataggio automatico all'uscita");
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
     ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : "common.leaving"), 0.35);
     stats_update();
+    sram_save();
     core.unload_game();
     core.deinit();
     free(rom_data);
+    if (rom_tmp[0]) remove(rom_tmp);
     ui_shutdown_code(exit_code);
     return exit_code;
 }

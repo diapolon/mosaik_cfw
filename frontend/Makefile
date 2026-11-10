@@ -18,10 +18,10 @@ LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c 
 $(BUILD)/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDLIBS) $(shell pkg-config --libs SDL2_mixer) -lcurl
 
-RUNNER := src/runner/runner.c src/runner/glshader.c
+RUNNER := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
 $(BUILD)/runner: $(COMMON) $(RUNNER) src/runner/*.h src/common/*.h | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $(COMMON) $(RUNNER) $(LDLIBS) -ldl
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(RUNNER) $(LDLIBS) -ldl -lz
 
 $(BUILD)/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) src/tools/gamemenu.c $(LDLIBS)

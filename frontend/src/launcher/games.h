@@ -3,8 +3,12 @@
 #pragma once
 #include <stdbool.h>
 
+/* nomi delle ROM: i set No-Intro delle console superano spesso i 64 caratteri */
+#define ROM_NAME 128
+#define LIST_KEY 160    /* riga "core<TAB>rom" di preferiti, recenti, collezioni, nascosti */
+
 typedef struct {
-    char name[64];       /* nome ROM senza estensione, o cartella del gioco Linux */
+    char name[ROM_NAME]; /* nome ROM senza estensione, o cartella del gioco Linux */
     char title[160];
     char year[8];
     char maker[64];
@@ -29,11 +33,15 @@ typedef struct {
 /* Emulatori: un file Emulators/<id>.json per ciascuno.
    { "name": "FinalBurn Neo", "core": "fbneo_libretro", "roms": "Roms/FBNEO",
      "extensions": ["zip", "7z"], "index": "Dats/fbneo.tsv", "order": 10 }
-   Tutti i campi tranne "name" sono facoltativi. */
+   Tutti i campi tranne "name" sono facoltativi. Per le console di casa:
+   "kind": "console" (niente ArcadeDB, doppioni né cabinato) e "thumbnails": il nome della
+   raccolta di miniature libretro, es. "Sega - Mega Drive - Genesis"; "short": la sigla sulla
+   cartuccia della schermata Piattaforme (predefinita: l'id in maiuscolo). */
 typedef struct {
-    char id[16], name[48], core[64], roms[256], index[256];
+    char id[16], name[48], core[64], roms[256], index[256], thumbs[64], shortname[16];
     char exts[8][12];
     int nexts, order;
+    bool console;
 } emulator_t;
 
 extern emulator_t EMUS[16];

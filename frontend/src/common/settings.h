@@ -30,6 +30,7 @@ typedef struct {
     bool show_missing;   /* libreria: anche i giochi del catalogo senza ROM */
     int dup_mode;        /* giochi doppi: 0 tutti, 1 preferisci FBNeo, 2 preferisci MAME */
     bool resume_last;
+    bool autosave_exit;  /* salvataggio automatico anche uscendo al menu (spento di base) */
     bool wifi;
     int music_vol;       /* musica del launcher: 0 spenta, 1..10 */
     bool ext_p1;         /* controller esterno come giocatore 1 (la console diventa il 2) */

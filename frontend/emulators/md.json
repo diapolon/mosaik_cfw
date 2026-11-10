@@ -1,0 +1,10 @@
+{
+  "name": "Sega Mega Drive",
+  "core": "genesis_plus_gx_libretro",
+  "roms": "Roms/MD",
+  "extensions": ["md", "gen", "smd", "bin", "zip"],
+  "kind": "console",
+  "short": "Sega MD",
+  "thumbnails": "Sega - Mega Drive - Genesis",
+  "order": 40
+}

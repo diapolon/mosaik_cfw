@@ -274,7 +274,7 @@ static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn, b
 
 /* -------------------------------------------------------------- thread */
 
-typedef struct { char name[64], core[16], *path; } job_t;
+typedef struct { char name[ROM_NAME], core[16], *path; } job_t;
 
 static romcheck_status_t st;
 static SDL_Thread *thread;
@@ -412,9 +412,9 @@ int romcheck_load(const char *root, game_t *g, int n) {
     if (!f) return 0;
     int loaded = 0;
     while (fgets(line, sizeof line, f)) {
-        char core[16], name[64];
+        char core[16], name[ROM_NAME];
         int rc;
-        if (sscanf(line, "%15[^\t]\t%63[^\t]\t%d", core, name, &rc) != 3) continue;
+        if (sscanf(line, "%15[^\t]\t%127[^\t]\t%d", core, name, &rc) != 3) continue;
         for (int i = 0; i < n; i++)
             if (!strcmp(g[i].core, core) && !strcmp(g[i].name, name)) { g[i].romstatus = rc; loaded++; break; }
     }
@@ -430,9 +430,9 @@ bool romcheck_detail(const char *root, const game_t *g, char *out, int outn) {
     if (!f) return false;
     bool found = false;
     while (!found && fgets(line, sizeof line, f)) {
-        char core[16], name[64], detail[300] = "";
+        char core[16], name[ROM_NAME], detail[300] = "";
         int rc;
-        if (sscanf(line, "%15[^\t]\t%63[^\t]\t%d\t%299[^\n]", core, name, &rc, detail) < 3) continue;
+        if (sscanf(line, "%15[^\t]\t%127[^\t]\t%d\t%299[^\n]", core, name, &rc, detail) < 3) continue;
         if (!strcmp(core, g->core) && !strcmp(name, g->name)) {
             snprintf(out, (size_t)outn, "%s", detail);
             found = true;

@@ -1,5 +1,6 @@
 #include "scraper.h"
 #include "../common/json.h"
+#include "games.h"
 #include <SDL.h>
 #include <SDL_image.h>
 #include <curl/curl.h>
@@ -18,8 +19,8 @@ static const char *ADB_FIELDS[] = { "url_image_ingame", "url_image_title", "url_
 static const char *LIBRETRO_KINDS[] = { "Named_Snaps", "Named_Titles", NULL };
 #define NTYPES 3
 
-typedef struct { char name[64], title[160], core[16]; } item_t;
-typedef struct { char name[64], genre[64], players[8]; } meta_t;
+typedef struct { char name[ROM_NAME], title[160], core[16], thumbs[64]; bool console; } item_t;
+typedef struct { char name[ROM_NAME], genre[64], players[8]; } meta_t;
 
 static scrape_status_t st;
 static SDL_Thread *thread;
@@ -225,7 +226,7 @@ static void nf_save(void) {
 }
 
 static bool missing(const item_t *it, int type) {
-    char p[1200], key[96];
+    char p[1200], key[LIST_KEY];
     snprintf(key, sizeof key, "%s/%s", TYPES[type], it->name);
     if (nf_has(key)) return false;
     media_path(p, sizeof p, type, it->name);
@@ -234,7 +235,39 @@ static bool missing(const item_t *it, int type) {
 
 /* -------------------------------------------------------- lavoro */
 
-typedef struct { char name[64], urls[NTYPES][512]; } adb_t;
+typedef struct { char name[ROM_NAME], urls[NTYPES][512]; } adb_t;
+
+/* Console: nomi da provare nelle miniature libretro, che usano i nomi No-Intro. Il titolo è il
+   nome del file: così com'è, senza le note fra parentesi quadre dei set GoodTools ("[!]",
+   "[T+Ita]"), e con le regioni GoodTools scritte come in No-Intro ("(E)" -> "(Europe)"). */
+static int console_names(const char *title, char out[3][160]) {
+    int n = 0;
+    snprintf(out[n++], 160, "%s", title);
+    char b[160];
+    size_t k = 0;
+    int depth = 0;
+    for (const char *c = title; *c && k < sizeof b - 1; c++) {
+        if (*c == '[') depth++;
+        else if (*c == ']') { if (depth) depth--; }
+        else if (!depth) b[k++] = *c;
+    }
+    b[k] = 0;
+    while (k && b[k - 1] == ' ') b[--k] = 0;
+    if (strcmp(b, out[0])) snprintf(out[n++], 160, "%s", b);
+    static const char *reg[][2] = { { "(U)", "(USA)" }, { "(E)", "(Europe)" }, { "(J)", "(Japan)" }, { "(W)", "(World)" },
+        { "(UE)", "(USA, Europe)" }, { "(EU)", "(USA, Europe)" }, { "(JU)", "(Japan, USA)" }, { "(UJ)", "(Japan, USA)" },
+        { "(JUE)", "(World)" }, { "(UEJ)", "(World)" }, { "(F)", "(France)" }, { "(G)", "(Germany)" }, { "(K)", "(Korea)" },
+        { "(B)", "(Brazil)" }, { "(A)", "(Australia)" } };
+    for (unsigned i = 0; i < sizeof reg / sizeof *reg; i++) {
+        char *at = strstr(b, reg[i][0]);
+        if (!at) continue;
+        char r[160];
+        snprintf(r, sizeof r, "%.*s%s%s", (int)(at - b), b, reg[i][1], at + strlen(reg[i][0]));
+        snprintf(out[n++], 160, "%s", r);
+        break;
+    }
+    return n;
+}
 
 static int worker(void *arg) {
     (void)arg;
@@ -249,21 +282,25 @@ static int worker(void *arg) {
     /* giochi da completare: immagini mancanti o informazioni assenti */
     int *todo = malloc(sizeof(int) * (size_t)(nitems + 1)), ntodo = 0;
     for (int i = 0; i < nitems; i++) {
-        bool need = !meta_find(items[i].name);
+        /* le console non hanno informazioni ArcadeDB: contano solo le immagini */
+        bool need = !items[i].console && !meta_find(items[i].name);
         for (int t = 0; t < NTYPES && !need; t++) need = missing(&items[i], t);
         if (need) todo[ntodo++] = i;
     }
     st.total = ntodo;
     adb_t *adb = calloc((size_t)ntodo + 1, sizeof(adb_t));
 
-    /* 1. informazioni ArcadeDB, 20 giochi per richiesta */
+    /* 1. informazioni ArcadeDB (solo arcade), 20 giochi per richiesta */
     st.phase = SCRAPE_INFO;
-    for (int i = 0; i < ntodo && !st.cancel; i += 20) {
+    int *arc = malloc(sizeof(int) * (size_t)(ntodo + 1)), narc = 0;
+    for (int k = 0; k < ntodo; k++)
+        if (!items[todo[k]].console) arc[narc++] = k;
+    for (int i = 0; i < narc && !st.cancel; i += 20) {
         char url[4096] = ADB;
-        for (int k = i; k < ntodo && k < i + 20; k++) {
+        for (int q = i; q < narc && q < i + 20; q++) {
             size_t len = strlen(url);
-            char *esc = curl_easy_escape(NULL, items[todo[k]].name, 0);
-            snprintf(url + len, sizeof url - len, "%s%s", k > i ? "%3B" : "", esc ? esc : "");
+            char *esc = curl_easy_escape(NULL, items[todo[arc[q]]].name, 0);
+            snprintf(url + len, sizeof url - len, "%s%s", q > i ? "%3B" : "", esc ? esc : "");
             curl_free(esc);
         }
         buf_t b;
@@ -277,7 +314,7 @@ static int worker(void *arg) {
             const char *name = json_str(r, "game_name", "");
             /* solo i giochi chiesti: il nome arriva dalla rete e finisce nel percorso di un file */
             bool asked = false;
-            for (int k = i; k < ntodo && k < i + 20 && !asked; k++) asked = !strcmp(items[todo[k]].name, name);
+            for (int q = i; q < narc && q < i + 20 && !asked; q++) asked = !strcmp(items[todo[arc[q]]].name, name);
             if (!asked) continue;
             char players[8];
             snprintf(players, sizeof players, "%d", json_int(r, "players", 0));
@@ -296,21 +333,27 @@ static int worker(void *arg) {
                     fclose(hf);
                 }
             }
-            for (int k = i; k < ntodo && k < i + 20; k++)
+            for (int q = i; q < narc && q < i + 20; q++) {
+                int k = arc[q];
                 if (!strcmp(items[todo[k]].name, name)) {
                     snprintf(adb[k].name, sizeof adb[k].name, "%s", name);
                     for (int t = 0; t < NTYPES; t++) snprintf(adb[k].urls[t], sizeof adb[k].urls[t], "%s", json_str(r, ADB_FIELDS[t], ""));
                 }
+            }
         }
         json_free(j);
         free(b.data);
     }
+    free(arc);
     meta_save();
 
     /* 2. immagini: ArcadeDB, poi miniature libretro per titolo */
     st.phase = SCRAPE_IMAGES;
     for (int k = 0; k < ntodo && !st.cancel; k++) {
         item_t *it = &items[todo[k]];
+        char names[3][160];
+        int nnames = it->console ? console_names(it->title, names) : 1, first = 0;
+        if (!it->console) snprintf(names[0], sizeof names[0], "%s", it->title);
         for (int t = 0; t < NTYPES && !st.cancel; t++) {
             if (!missing(it, t)) continue;
             media_path(p, sizeof p, t, it->name);
@@ -321,16 +364,21 @@ static int worker(void *arg) {
                 ok = !strncmp(ctype, "image/", 6) && b.len > 200 && save_image(&b, p);
                 free(b.data);
             }
-            for (int repo = 0; !ok && LIBRETRO_KINDS[t] && repo < 2; repo++) {
+            /* arcade: due raccolte con il titolo; console: la sua raccolta con più nomi possibili,
+               cominciando da quello che ha già funzionato per un altro tipo d'immagine */
+            int ntries = it->console ? (it->thumbs[0] ? nnames : 0) : 2;
+            for (int try = 0; !ok && LIBRETRO_KINDS[t] && try < ntries; try++) {
+                int ni = it->console ? (first + try) % nnames : 0;
                 /* convenzione delle miniature libretro: questi caratteri diventano "_" */
                 char safe[160];
-                snprintf(safe, sizeof safe, "%s", it->title);
+                snprintf(safe, sizeof safe, "%s", names[ni]);
                 for (char *c = safe; *c; c++)
                     if (strchr("&*/:`<>?\\|\"", *c)) *c = '_';
                 const char *repos[2] = { "FBNeo - Arcade Games", "MAME" };
                 if (!strcmp(it->core, "mame2003p")) { repos[0] = "MAME"; repos[1] = "FBNeo - Arcade Games"; }
+                const char *repo_name = it->console ? it->thumbs : repos[try];
                 CURL *c = curl_easy_init();
-                char *er = curl_easy_escape(c, repos[repo], 0), *en = curl_easy_escape(c, safe, 0);
+                char *er = curl_easy_escape(c, repo_name, 0), *en = curl_easy_escape(c, safe, 0);
                 char url[1024];
                 snprintf(url, sizeof url, "https://thumbnails.libretro.com/%s/%s/%s.png", er, LIBRETRO_KINDS[t], en);
                 curl_free(er);
@@ -339,11 +387,12 @@ static int worker(void *arg) {
                 if (http_get(url, &b, NULL, 0)) {
                     ok = b.len > 200 && save_image(&b, p);
                     free(b.data);
+                    if (ok && it->console) first = ni;
                 }
             }
             if (ok) st.saved++;
             else {
-                char key[96];
+                char key[LIST_KEY];
                 snprintf(key, sizeof key, "%s/%s", TYPES[t], it->name);
                 if (last_code == 404 || last_code == 200) nf_add(key);   /* non un errore di rete: si riproverà */
                 st.missing++;
@@ -376,6 +425,9 @@ bool scraper_start(const char *root, const game_t *games, int n) {
         snprintf(it->name, sizeof it->name, "%s", games[i].name);
         snprintf(it->title, sizeof it->title, "%s", games[i].title);
         snprintf(it->core, sizeof it->core, "%s", games[i].core);
+        const emulator_t *e = emulator_find(games[i].core);
+        it->console = e && e->console;
+        snprintf(it->thumbs, sizeof it->thumbs, "%s", e ? e->thumbs : "");
     }
     curl_global_init(CURL_GLOBAL_DEFAULT);
     st.phase = SCRAPE_INFO;

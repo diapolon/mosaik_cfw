@@ -27,6 +27,8 @@ static void test_sync(void) { syncs++; }
 #define sync test_sync
 #define fsync test_fsync
 #include "/trimui/frontend/src/common/durable.h"
+#define LIST_KEY 160
+#define RETRO_MEMORY_SAVE_RAM 0
 enum { BTN_COUNT = 20, ROT_NONE = 0 };
 static const int default_map[16] = { 0 };
 static struct { struct { int aspect, bezel; char filter[32]; } set; } UI;
@@ -49,6 +51,9 @@ for f in gamecfg_load state_path; do fn $R "^static void $f"; done
 fn $R '^static bool copy_whole'
 fn $R '^static void auto_keep_previous'
 fn $R '^static bool state_save'
+sed -n '/^\/\* -* salvataggi a batteria \*\/$/,/^static void sram_load/p' $R | sed '$d'
+fn $R '^static void sram_load'
+fn $R '^static void sram_save'
 fn $R '^static void write_resume'
 fn $G '^static void commit_file'
 fn $G '^static void write_list'
@@ -111,7 +116,7 @@ int main(void) {
     snprintf(q, sizeof q, "%s.tmp", p); same("nessun provvisorio", get(q), "(manca)");
 
     puts("--- preferiti, recenti, collezioni, nascosti");
-    char keys[2][96] = { "uno", "due" };
+    char keys[2][LIST_KEY] = { "uno", "due" };
     snprintf(p, sizeof p, "%s/lista.txt", root); snprintf(q, sizeof q, "%s.tmp", p);
     put(p, "vecchia\n");
     int s1 = syncs;
@@ -126,6 +131,39 @@ int main(void) {
     fail_rename_to = p; write_list(p, keys, 2); fail_rename_to = NULL;
     same("sostituzione fallita: resta quella di prima", get(p), "vecchia\n");
     same("nessun provvisorio", get(q), "(manca)");
+
+    puts("--- salvataggi a batteria (.srm)");
+    static unsigned char ram[16];
+    size_t fsz(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? sizeof ram : 0; }
+    void *fdat(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? ram : NULL; }
+    mem_size = fsz; mem_data = fdat;
+    game_file(p, sizeof p, "srm");
+    sram_load();
+    sram_save();
+    same("memoria mai cambiata: nessun file", get(p), "(manca)");
+    int s2 = syncs;
+    ram[0] = 'Z'; ram[1] = 'e';
+    sram_save();
+    { char b[8]; FILE *f = fopen(p, "rb"); size_t k = f ? fread(b, 1, 2, f) : 0; if (f) fclose(f); b[k] = 0; same("memoria cambiata: file scritto", b, "Ze"); }
+    if (syncs > s2) puts("  ok: scritto sulla scheda dopo la sostituzione"); else { puts("  ERRORE: nessun sync"); errors++; }
+    remove(p); sram_save();
+    same("nessun cambiamento: non si riscrive", get(p), "(manca)");
+    ram[2] = 'l'; sram_save();
+    memset(ram, 0, sizeof ram); free(sram_copy); sram_copy = NULL; sram_len = 0;
+    sram_load();
+    same("partita dopo: memoria ricaricata dal file", (char[]){ (char)ram[0], (char)ram[1], (char)ram[2], 0 }, "Zel");
+    put(p, "AB"); memset(ram, 'x', sizeof ram); free(sram_copy); sram_copy = NULL; sram_len = 0;
+    sram_load();
+    same("file più corto: si legge quello che c'è", (char[]){ (char)ram[0], (char)ram[1], (char)ram[2], 0 }, "ABx");
+    ram[5] = 'q'; fail_rename_to = p; sram_save(); fail_rename_to = NULL;
+    same("sostituzione fallita: resta il file di prima", get(p), "AB");
+    snprintf(q, sizeof q, "%s.tmp", p); same("nessun provvisorio", get(q), "(manca)");
+    sram_save();
+    { char b[8] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 6, f) != 6) b[5] = 0; fclose(f); }
+      same("al tentativo dopo si scrive", b[5] == 'q' ? "q" : "vecchio", "q"); }
+    mem_size = NULL; mem_data = NULL; free(sram_copy); sram_copy = NULL; sram_len = 0;
+    sram_load(); sram_save();
+    puts("  ok: core senza memoria a batteria (FBNeo, MAME): niente da fare");
     return errors != 0;
 }
 C
@@ -159,6 +197,28 @@ check "ricerca delle reti non affidata al driver" grep -q 'wpa_supplicant -B .*-
 check "file delle reti vuoto: si ricrea" grep -q 'if \[ ! -s "$CONF" \]; then' $CTL
 check "impostazione scritta nel file aggiuntivo" grep -q 'disable_scan_offload=1 > /run/wpa-overlay.conf' $CTL
 check "attesa prima di wpa_supplicant" grep -q '^    sleep 0.5' $CTL
+
+echo "--- trimui_inputd fermo mentre il Wi-Fi si accende"
+sed -n '/^INPUTD_PAUSE=/,/^case "\$1" in/p' $CTL | sed '$d' > $W/led.sh
+: > $W/i2c-3; rm -f $W/inputd-pausa $W/kill.log
+inp() { (WIFI_I2C=$W/i2c-3 WIFI_INPUTD_PAUSE=$W/inputd-pausa; pidof() { echo 4242; }; kill() { echo "$*" >> $W/kill.log; }; . $W/led.sh; "$@"); }
+inp inputd_pause A
+[ "$(cat $W/kill.log)" = "-STOP 4242" ] && [ -e $W/inputd-pausa ] && ok "accensione: trimui_inputd fermo" || ko "non fermato: $(cat $W/kill.log)"
+inp inputd_pause B; : > $W/kill.log
+inp inputd_resume A
+[ ! -s $W/kill.log ] && ok "il timer di un'accensione vecchia non lo fa ripartire" || ko "ripartito dal timer vecchio"
+inp inputd_resume B
+[ "$(cat $W/kill.log)" = "-CONT 4242" ] && [ ! -e $W/inputd-pausa ] && ok "riparte al collegamento" || ko "non ripartito: $(cat $W/kill.log)"
+: > $W/kill.log; inp inputd_resume ""
+[ ! -s $W/kill.log ] && ok "senza pausa in corso non succede nulla" || ko "ripresa senza pausa"
+rm -f $W/i2c-3; inp inputd_pause C
+[ ! -s $W/kill.log ] && [ ! -e $W/inputd-pausa ] && ok "senza bus I2C 3 (Smart Pro) non lo ferma" || ko "fermato senza bus I2C 3"
+awk '/exec "\$0" resume "\$tok"/{t=NR} /inputd_pause "\$tok"/{p=NR} END{exit !(t&&p>t)}' $CTL && ok "il timer parte prima della pausa" || ko "timer dopo la pausa"
+awk '/^off\)/{o=1} o&&/inputd_resume ""/{f=1} END{exit !f}' $CTL && ok "spegnendo il Wi-Fi riparte comunque" || ko "off non lo fa ripartire"
+grep -q 'wifi-ctl resume' /trimui/m2/wifi-event && ok "wifi-event lo fa ripartire al collegamento" || ko "wifi-event non lo riprende"
+awk '/inputd_pause "\$tok"/{p=NR} /insmod/{if(p&&!i)i=NR} END{exit !(p&&i>p)}' $CTL && ok "pausa prima di caricare il driver" || ko "pausa dopo il driver"
+grep -q 'exec "\$0" resume "\$tok" ) > /dev/null 2>&1 9>&- &' $CTL && ok "il timer non tiene il blocco" || ko "timer con il blocco"
+! grep -q 'led_pause\|led-anim\|led_anim' $CTL && ok "LED non toccati dal Wi-Fi" || ko "pausa dei LED ancora presente"
 
 echo "--- avvio ritardato del Wi-Fi"
 mkdir -p $W/fake; printf '#!/bin/sh\necho "$*" >> %s/sleep.log\n' $W > $W/fake/sleep; printf '#!/bin/sh\necho "$*" >> %s/ctl.log\n' $W > $W/fake/wifi-ctl; chmod +x $W/fake/*

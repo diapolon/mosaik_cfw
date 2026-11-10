@@ -22,7 +22,7 @@ SDLLIBS := -Wl,-Bstatic -lSDL2_ttf -lSDL2_image -Wl,-Bdynamic -lSDL2 -lm -lpthre
 
 COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c
-RUNNER   := src/runner/runner.c src/runner/glshader.c
+RUNNER   := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
 all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu
 
@@ -30,7 +30,7 @@ $(OUT)/bin/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h | $(O
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
 
 $(OUT)/bin/runner: $(COMMON) $(RUNNER) src/common/*.h src/runner/*.h | $(OUT)/bin
-	$(CC) $(CFLAGS) -o $@ $(COMMON) $(RUNNER) $(LDFLAGS) $(SDLLIBS)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(RUNNER) $(LDFLAGS) $(SDLLIBS) -lz
 
 $(OUT)/bin/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(OUT)/bin
 	$(CC) $(CFLAGS) -o $@ $(COMMON) src/tools/gamemenu.c $(LDFLAGS) $(SDLLIBS)

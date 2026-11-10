@@ -24,10 +24,11 @@ chmod +x "$APP/launch.sh" "$APP/bin/"*
 
 # dati del sistema (i file dell'utente, come settings.json e i salvataggi, non ci sono:
 # aggiornando non vengono sovrascritti)
-mkdir -p "$DATA/Cores" "$DATA/Roms/FBNEO" "$DATA/Roms/MAME2003P" "$DATA/Bios" "$DATA/Saves" "$DATA/System" \
+mkdir -p "$DATA/Cores" "$DATA/Roms/FBNEO" "$DATA/Roms/MAME2003P" "$DATA/Roms/NES" "$DATA/Roms/MD" "$DATA/Bios" "$DATA/Saves" "$DATA/System" \
          "$DATA/Logs" "$DATA/Music" "$DATA/Linux" "$DATA/Media"
 cp "$DIST/cores/fbneo_libretro.so" "$DATA/Cores/fbneo_libretro.so"
 cp "$DIST/cores/mame2003_plus_libretro.so" "$DATA/Cores/mame2003p_libretro.so"
+cp "$DIST/cores/fceumm_libretro.so" "$DIST/cores/genesis_plus_gx_libretro.so" "$DATA/Cores/"
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"
@@ -46,6 +47,8 @@ cp "$TOP/deps/cacert.pem" "$DATA/System/cacert.pem"
 cat > "$DATA/Roms/LEGGIMI.txt" <<'EOF'
 FBNEO: ROM per FinalBurn Neo (romset FBNeo attuale), anche in sottocartelle (neogeo/, cps2/...).
 MAME2003P: ROM per MAME 2003-Plus (romset 0.78-plus).
+NES: giochi NES/Famicom (.nes, .fds, .unf), anche zippati, uno per zip.
+MD: giochi Mega Drive/Genesis (.md, .gen, .smd, .bin), anche zippati, uno per zip.
 Il BIOS Neo Geo (neogeo.zip) va in Bios/ oppure accanto ai giochi Neo Geo.
 Le ROM possono stare anche altrove: in Emulators/<id>.json "roms" accetta un percorso
 assoluto, per esempio "/mnt/SDCARD/Roms/FBNEO".

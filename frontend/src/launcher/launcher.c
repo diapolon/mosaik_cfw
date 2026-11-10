@@ -118,7 +118,13 @@ static void go(int scr) {
 /* ------------------------------------------------------------ dati */
 
 /* Giochi doppi: lo stesso nome ROM nel set FBNeo e in quello MAME. Secondo
-   l'impostazione si mostrano entrambi o solo quello del core preferito. */
+   l'impostazione si mostrano entrambi o solo quello del core preferito. Solo fra gli arcade:
+   un gioco NES e uno Mega Drive con lo stesso nome file sono giochi diversi. */
+static bool core_console(const char *core) {
+    const emulator_t *e = emulator_find(core);
+    return e && e->console;
+}
+
 static int name_cmp(const void *a, const void *b) {
     return strcmp(games[*(const int *)a].name, games[*(const int *)b].name);
 }
@@ -138,7 +144,8 @@ static void mark_duplicates(void) {
         while (b < ngames && !strcmp(games[ix[b]].name, games[ix[a]].name)) has_keep |= !strcmp(games[ix[b++]].core, keep);
         if (b - a > 1 && has_keep)
             for (int k = a; k < b; k++)
-                if (strcmp(games[ix[k]].core, keep) && strcmp(games[ix[k]].core, "linux")) games[ix[k]].hidden = true;
+                if (strcmp(games[ix[k]].core, keep) && strcmp(games[ix[k]].core, "linux") && !core_console(games[ix[k]].core))
+                    games[ix[k]].hidden = true;
         a = b;
     }
     free(ix);
@@ -1339,6 +1346,8 @@ static color_t plat_color(int tab) {
     const char *id = EMUS[tab - TAB_EMU].id;
     if (strstr(id, "fbneo")) return hexc(0x0E6A6C);
     if (strstr(id, "mame")) return hexc(0x8E2A45);
+    if (!strcmp(id, "nes")) return hexc(0xA8322D);
+    if (!strcmp(id, "md")) return hexc(0x2B4C9B);
     static const unsigned pal[] = { 0x2A5C8E, 0x5C7A2A, 0x8E5C2A };
     return hexc(pal[(tab - TAB_EMU) % 3]);
 }
@@ -1424,6 +1433,39 @@ static void draw_cabinet(int x, int y, int w, int h, color_t c, const char *name
     for (int k = 0; k < 2; k++) ui_rrect(dx + dw * (24 + k * 34) / 100, dy + dh * 28 / 100, dw * 18 / 100 + 1, dh * 26 / 100 + 1, 1, hexc(0xC03A4A));
 }
 
+/* console da casa: cartuccia inserita con il nome sull'etichetta, corpo con fessura e spia,
+   controller davanti */
+static void draw_console(int x, int y, int w, int h, color_t c, const char *name) {
+    color_t body = hexc(0x2B2E38), body_l = hexc(0x454A58), cart = hexc(0xCFC6B4), pad = hexc(0x1E2028);
+    int r = w / 24 + 1;
+    /* cartuccia: la parte bassa entra nella fessura */
+    int cw = w * 66 / 100, ch = h * 46 / 100, cx = x + (w - cw) / 2, cy = y;
+    ui_rrect(cx, cy, cw, ch, r, cart);
+    for (int k = 0; k < 3; k++)
+        ui_rect(cx + cw * 12 / 100, cy + ch * (7 + k * 6) / 100, cw * 76 / 100, ch / 40 + 1, mix(cart, rgba(0, 0, 0, 255), 0.18f));
+    int lx = cx + cw * 6 / 100, ly = cy + ch * 30 / 100, lw = cw * 88 / 100, lh = ch * 40 / 100;
+    ui_rrect(lx, ly, lw, lh, r / 2 + 1, c);
+    char up[64];
+    snprintf(up, sizeof up, "%s", name);
+    for (char *p = up; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+    plat_text(up, lx + lw / 2, ly, lw - lw / 10, lh, rgba(255, 255, 255, 255));
+    /* corpo */
+    int by = y + h * 38 / 100, bh = h * 42 / 100;
+    ui_rrect(x, by, w, bh, r, body);
+    ui_rect(cx - w * 2 / 100, by, cw + w * 4 / 100, bh * 10 / 100 + 1, hexc(0x14161C));
+    ui_rect(x + w * 6 / 100, by + bh * 60 / 100, w * 88 / 100, bh * 7 / 100 + 1, c);
+    ui_circle(x + w * 10 / 100, by + bh * 32 / 100, bh / 14 + 1, hexc(0xE04848));
+    for (int k = 0; k < 2; k++) ui_rrect(x + w * (66 + k * 13) / 100, by + bh * 24 / 100, w * 10 / 100, bh * 15 / 100, 2, body_l);
+    /* controller collegato col cavo */
+    int pw = w * 46 / 100, ph = h * 22 / 100, px = x + w * 48 / 100, py = y + h - ph;
+    plat_line(x + w * 30 / 100, by + bh, px + pw * 20 / 100, py + ph / 3, w / 120 + 1, pad);
+    ui_rrect(px, py, pw, ph, ph / 3, pad);
+    int dx = px + pw * 24 / 100, dy = py + ph / 2, arm = ph * 30 / 100, th = arm * 2 / 3 + 1;
+    ui_rect(dx - arm, dy - th / 2, 2 * arm, th, body_l);
+    ui_rect(dx - th / 2, dy - arm, th, 2 * arm, body_l);
+    for (int k = 0; k < 2; k++) ui_circle(px + pw * (66 + k * 16) / 100, dy + (k ? -1 : 1) * ph / 10, ph / 7 + 1, c);
+}
+
 /* portatile per i giochi Linux */
 static void draw_laptop(int x, int y, int w, int h) {
     color_t shell = hexc(0xB9AE9C), shell_d = hexc(0x8E8474), scr = hexc(0x1C1A28);
@@ -1474,7 +1516,11 @@ static void draw_plat_icon(int kind, int x, int y, int w, int h, color_t c) {
 /* l'illustrazione di una categoria dentro il riquadro dato, con le sue proporzioni */
 static void draw_plat_art(int tab, int x, int y, int w, int h) {
     color_t c = plat_color(tab);
-    if (tab >= TAB_EMU && tab < TAB_COLL) {
+    if (tab >= TAB_EMU && tab < TAB_COLL && EMUS[tab - TAB_EMU].console) {
+        int aw = w, ah = w * 86 / 100;
+        if (ah > h * 80 / 100) { ah = h * 80 / 100; aw = ah * 100 / 86; }
+        draw_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, EMUS[tab - TAB_EMU].shortname);
+    } else if (tab >= TAB_EMU && tab < TAB_COLL) {
         int ah = h, aw = h * 62 / 100;
         if (aw > w) { aw = w; ah = w * 100 / 62; }
         draw_cabinet(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, tab_label(tab));
@@ -1678,20 +1724,20 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
 static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "updates", "power" };
-static const int cat_items[SC_COUNT][10] = {
+static const int cat_items[SC_COUNT][12] = {
     { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_SAVER, -1 },
-    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, -1 },
+    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },
@@ -1731,7 +1777,7 @@ static int page_rows_of(int page, int *rows) {
         rows[n++] = S_POWER;
         return n;
     }
-    for (int k = 0; k < 10 && cat_items[page][k] >= 0; k++) {
+    for (int k = 0; k < 12 && cat_items[page][k] >= 0; k++) {
         int it = cat_items[page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
         if (it == S_WIFINETS && !wifi_supported()) continue;
@@ -1904,6 +1950,7 @@ static void set_value(int item, char *buf, size_t n) {
         else snprintf(buf, n, "%s", T("common.never"));
         break;
     case S_RESUME: snprintf(buf, n, "%s", T(s->resume_last ? "common.yes" : "common.no")); break;
+    case S_AUTOSAVE: snprintf(buf, n, "%s", T(s->autosave_exit ? "common.yes" : "common.no")); break;
     case S_CLOCK: {
         time_t now = time(NULL);
         struct tm tmv;
@@ -1972,7 +2019,9 @@ static void set_change(int item, int dir) {
     case S_KEYF2: s->key_f2 = (s->key_f2 + dir + 4) % 4; break;
     case S_KEYHOME: s->key_home = (s->key_home + dir + 3) % 3; break;
     case S_DUP:
-        s->dup_mode = (s->dup_mode + dir + NEMUS + 1) % (NEMUS + 1);
+        /* si sceglie fra gli emulatori arcade: le console non hanno doppioni */
+        do s->dup_mode = (s->dup_mode + dir + NEMUS + 1) % (NEMUS + 1);
+        while (s->dup_mode > 0 && EMUS[s->dup_mode - 1].console);
         mark_duplicates();
         build_genres();
         build_carousel();
@@ -2008,6 +2057,7 @@ static void set_change(int item, int dir) {
         if (s->update_channel) ui_toast(T("update.channel_warn"));
         break;
     case S_RESUME: s->resume_last = !s->resume_last; break;
+    case S_AUTOSAVE: s->autosave_exit = !s->autosave_exit; break;
     case S_LED: s->led_mode = (s->led_mode + dir + 4) % 4; break;
     case S_LEDCOLOR: s->led_color = (s->led_color + dir + NLED_COLORS) % NLED_COLORS; break;
     case S_LOGLEVEL: s->log_level = (s->log_level + dir + 4) % 4; break;
@@ -2718,7 +2768,7 @@ static int gp_rows(void) {
 
 /* dopo una modifica: si rileggono i giochi e si resta sul gioco aperto */
 static void genres_changed(void) {
-    char core[16] = "", name[64] = "";
+    char core[16] = "", name[ROM_NAME] = "";
     if (detail_idx >= 0 && detail_idx < ngames) {
         snprintf(core, sizeof core, "%s", games[detail_idx].core);
         snprintf(name, sizeof name, "%s", games[detail_idx].name);
@@ -2730,7 +2780,7 @@ static void genres_changed(void) {
 }
 
 static void gp_set_game(const char *genre) {
-    char rom[64], l[48], m[120];
+    char rom[ROM_NAME], l[48], m[120];
     snprintf(rom, sizeof rom, "%s", games[detail_idx].name);
     games_set_genre(UI.root, rom, genre);
     genres_changed();
@@ -2983,7 +3033,7 @@ static const char *set_cat_sub(int row) {
 }
 static bool set_has_value(int i) { return i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
-static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL; }
+static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE; }
 
 /* riquadro di una voce: bordo del colore del tema se scelto */
 static void set_box(int x, int y, int w, int h, int r, bool sel) {
@@ -3023,7 +3073,7 @@ static void set_draw_value(int i, TTF_Font *f, int x, int cy, int maxw, bool sel
         return;
     }
     if (set_switch(i)) {
-        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : UI.set.resume_last;
+        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : i == S_AUTOSAVE ? UI.set.autosave_exit : UI.set.resume_last;
         int sh = f == UI.f_small ? M(0.032f) : M(0.04f), sw = sh * 9 / 5;
         draw_switch(right ? x - sw : x, cy - sh / 2, sh, on);
         return;
@@ -3916,14 +3966,18 @@ static void reset_remove(const char *dir, const char *rom, const char *ext) {
     else if (errno != ENOENT) { reset_failed++; ui_log("reimposta: impossibile togliere %s: %s", p, strerror(errno)); }
 }
 
+static int detail_slots_for = -2;   /* scheda del gioco: slot già cercati per questo gioco */
+
 static void game_reset(const game_t *g, bool states) {
+    detail_slots_for = -2;
     char core[80], base[1200], sub[1300];
     save_base(g, base, sizeof base, core, sizeof core);
     reset_remove(base, g->name, "cfg");
     reset_remove(base, g->name, "opt");
     if (states) {
+        /* con gli stati anche il salvataggio a batteria delle console (.srm): è la partita */
         static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev", "auto.state.rot",
-                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png" };
+                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png", "srm" };
         for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->name, ext[i]);
     }
     /* FBNeo: memoria interna e punteggi */
@@ -4127,7 +4181,7 @@ static void detail_draw(void) {
     /* testi: emulatore, titolo intero, giocatori, salvataggio, partite, ROM */
     char buf[300], fit[300], lines[4][160];
     if (!pano) {
-        if (is_list_layout()) snprintf(buf, sizeof buf, "%s / %s", strcmp(g->core, "linux") ? "Arcade" : "Linux", games_core_label(g->core));
+        if (is_list_layout()) snprintf(buf, sizeof buf, "%s / %s", !strcmp(g->core, "linux") ? "Linux" : core_console(g->core) ? T("plat.console") : "Arcade", games_core_label(g->core));
         else snprintf(buf, sizeof buf, "%s", games_core_label(g->core));
         if (is_list_layout()) small_caps(buf, tx, ty, t->accent);
         else { ui_text_fit(fs, buf, tw, fit, sizeof fit); ui_text(fs, fit, tx, ty, t->accent, ALIGN_LEFT); }
@@ -4158,6 +4212,32 @@ static void detail_draw(void) {
         ui_text(fs, fit, tx, ty, t->accent, ALIGN_LEFT);
         ty += fsh;
     }
+    /* stati salvati a mano negli slot del menu in gioco (come li chiama il runner):
+       si cercano una volta per gioco, non a ogni fotogramma */
+    static char slots[16];
+    if (detail_slots_for != detail_idx) {
+        detail_slots_for = detail_idx;
+        slots[0] = 0;
+        if (strcmp(g->core, "linux") && !g->missing) {
+            static const char *const sl[] = { "state", "2.state", "3.state" };
+            char base[1200], core[80], st[1400];
+            struct stat sb;
+            save_base(g, base, sizeof base, core, sizeof core);
+            for (int k = 0; k < 3; k++) {
+                snprintf(st, sizeof st, "%s/%s.%s", base, g->name, sl[k]);
+                if (stat(st, &sb) == 0 && sb.st_size > 0) {
+                    size_t len = strlen(slots);
+                    snprintf(slots + len, sizeof slots - len, "%s%d", len ? ", " : "", k + 1);
+                }
+            }
+        }
+    }
+    if (slots[0]) {
+        snprintf(buf, sizeof buf, T("detail.states"), slots);
+        ui_text_fit(fs, buf, tw, fit, sizeof fit);
+        ui_text(fs, fit, tx, ty, t->accent, ALIGN_LEFT);
+        ty += fsh;
+    }
     if (g->missing) {
         const emulator_t *emu = emulator_find(g->core);
         snprintf(buf, sizeof buf, T("missing.toast"), g->name, emu ? emu->roms : "Roms");
@@ -4168,7 +4248,7 @@ static void detail_draw(void) {
         struct tm tmv;
         localtime_r(&lp, &tmv);
         strftime(day, sizeof day, "%d/%m/%Y", &tmv);
-        snprintf(buf, sizeof buf, T("detail.stats"), g->plays, dur, day);
+        snprintf(buf, sizeof buf, T(g->plays == 1 ? "detail.stats1" : "detail.stats"), g->plays, dur, day);
     } else snprintf(buf, sizeof buf, "%s", T("detail.never"));
     n = ui_wrap(fs, buf, tw, lines, 2);
     for (int k = 0; k < n; k++, ty += fsh) ui_text(fs, lines[k], tx, ty, t->text_dim, ALIGN_LEFT);
@@ -4190,7 +4270,8 @@ static void detail_draw(void) {
         wrap_history(g, tw - M(0.01f));
         detail_scroll = ui_approach(detail_scroll, detail_scroll_target);
         ui_clip_push(tx, ty, tw, tbot - ty);
-        if (!ndlines) ui_text(fs, T("detail.no_history"), tx, ty, t->text_dim, ALIGN_LEFT);
+        /* la descrizione viene da ArcadeDB: per le console non c'è da suggerire nulla */
+        if (!ndlines && !core_console(g->core)) ui_text(fs, T("detail.no_history"), tx, ty, t->text_dim, ALIGN_LEFT);
         for (int k = 0; k < ndlines; k++) {
             int ly = ty + (int)((k - detail_scroll) * fsh);
             if (ly + fsh < ty || ly > tbot) continue;

@@ -10,6 +10,8 @@ Included without changes to their code.
 |---|---|---|
 | FinalBurn Neo | `fbneo.txt` | https://github.com/libretro/FBNeo/tree/d15071abf14191eebb4a5d7c7147398edcf237c8 |
 | MAME 2003-Plus | `mame2003-plus.txt` | https://github.com/libretro/mame2003-plus-libretro/tree/d41198a39d3325cbab613a21e8226f6c94b90059 |
+| FCEUmm (NES) | `GPL-2.0.txt` | https://github.com/libretro/libretro-fceumm/tree/e0f3086a8104f8fbbe49a2615b10401504a9533f (source also attached to each release) |
+| Genesis Plus GX (Mega Drive) | `genesis-plus-gx.txt` | https://github.com/libretro/Genesis-Plus-GX/tree/b9c2316441978d4015ba30e9a95d9b0e6f8ee981 |
 
 ## Built for the launcher
 

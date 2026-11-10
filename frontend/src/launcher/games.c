@@ -49,6 +49,9 @@ int emulators_load(const char *root) {
         snprintf(def, sizeof def, "Dats/%s.tsv", m->id);
         snprintf(m->index, sizeof m->index, "%s", json_str(j, "index", def));
         m->order = json_int(j, "order", 100);
+        m->console = !strcmp(json_str(j, "kind", ""), "console");
+        snprintf(m->thumbs, sizeof m->thumbs, "%s", json_str(j, "thumbnails", ""));
+        snprintf(m->shortname, sizeof m->shortname, "%s", json_str(j, "short", upper));
         jval *ex = json_get(j, "extensions");
         for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v && m->nexts < 8; v = v->next)
             if (v->t == J_STR) snprintf(m->exts[m->nexts++], sizeof m->exts[0], ".%s", v->s);
@@ -174,7 +177,7 @@ static void scan_dir(list_t *l, index_t *ix, const emulator_t *emu, const char *
         bool ok = false;
         for (int i = 0; i < emu->nexts && !ok; i++) ok = has_ext(e->d_name, emu->exts[i]);
         if (!ok) continue;
-        char name[64];
+        char name[ROM_NAME];
         snprintf(name, sizeof name, "%.*s", (int)(strrchr(e->d_name, '.') - e->d_name), e->d_name);
         entry_t *en = index_find(ix, name);
         if (en && en->bios) continue;   /* i BIOS servono ai giochi, non si avviano */
@@ -187,6 +190,20 @@ static void scan_dir(list_t *l, index_t *ix, const emulator_t *emu, const char *
         else {
             snprintf(g->title, sizeof g->title, "%s", name);
             snprintf(g->system, sizeof g->system, "%s", emu->name);
+            /* console senza indice: il titolo è il nome del file, senza le note dei set
+               GoodTools fra parentesi quadre ("[!]", "[T+Ita]"); la regione resta */
+            if (emu->console) {
+                char *w = g->title;
+                int depth = 0;
+                for (const char *c = g->title; *c; c++) {
+                    if (*c == '[') depth++;
+                    else if (*c == ']') { if (depth) depth--; }
+                    else if (!depth) *w++ = *c;
+                }
+                *w = 0;
+                while (w > g->title && w[-1] == ' ') *--w = 0;
+                if (!g->title[0]) snprintf(g->title, sizeof g->title, "%s", name);
+            }
         }
     }
     closedir(d);
@@ -221,7 +238,7 @@ static void scan_linux(list_t *l, const char *root) {
 }
 
 /* Genere e giocatori scritti dallo scraper: "nome<TAB>genere<TAB>giocatori", ordinato per nome. */
-typedef struct { char name[64], genre[32]; int players; } meta_t;
+typedef struct { char name[ROM_NAME], genre[32]; int players; } meta_t;
 
 static int meta_cmp(const void *a, const void *b) {
     return strcmp(((const meta_t *)a)->name, ((const meta_t *)b)->name);
@@ -418,20 +435,20 @@ void games_free(game_t *g, int n) {
 
 /* ------------------------------------------------ preferiti e recenti */
 
-static int read_list(const char *path, char keys[][96], int max) {
+static int read_list(const char *path, char keys[][LIST_KEY], int max) {
     FILE *f = fopen(path, "r");
     int n = 0;
     if (!f) return 0;
     char line[256];
     while (n < max && fgets(line, sizeof line, f)) {
         line[strcspn(line, "\r\n")] = 0;
-        if (*line) snprintf(keys[n++], 96, "%s", line);
+        if (*line) snprintf(keys[n++], LIST_KEY, "%s", line);
     }
     fclose(f);
     return n;
 }
 
-static void write_list(const char *path, char keys[][96], int n) {
+static void write_list(const char *path, char keys[][LIST_KEY], int n) {
     char tmp[1200];
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
     FILE *f = fopen(tmp, "w");
@@ -440,7 +457,17 @@ static void write_list(const char *path, char keys[][96], int n) {
     commit_file(f, tmp, path);
 }
 
-static void key_of(const game_t *g, char *k) { snprintf(k, 96, "%s\t%s", g->core, g->name); }
+static void key_of(const game_t *g, char *k) { snprintf(k, LIST_KEY, "%s\t%s", g->core, g->name); }
+
+/* Il runner scrive le statistiche con il nome del core senza "_libretro" (lo stesso della
+   cartella Saves/): "genesis_plus_gx" per l'emulatore "md". Per FBNeo e MAME coincide con l'id. */
+static bool stats_core_is(const game_t *g, const char *c) {
+    if (!strcmp(g->core, c)) return true;
+    const emulator_t *e = emulator_find(g->core);
+    if (!e) return false;
+    size_t len = strlen(c);
+    return !strncmp(e->core, c, len) && (!e->core[len] || !strcmp(e->core + len, "_libretro"));
+}
 
 static void load_stats(const char *root, game_t *g, int n) {
     char p[1100], line[512];
@@ -453,7 +480,7 @@ static void load_stats(const char *root, game_t *g, int n) {
         long plays, secs, last;
         if (sscanf(line, "%63[^\t]\t%127[^\t]\t%ld\t%ld\t%ld", c, name, &plays, &secs, &last) != 5) continue;
         for (int i = 0; i < n; i++)
-            if (!strcmp(g[i].core, c) && !strcmp(g[i].name, name)) {
+            if (!strcmp(g[i].name, name) && stats_core_is(&g[i], c)) {
                 g[i].plays = (int)plays;
                 g[i].seconds = secs;
                 g[i].last_played = last;
@@ -487,19 +514,19 @@ static void load_collections(const char *root) {
 
 /* elenco su file ordinato, per cercare ogni gioco con una ricerca binaria */
 enum { LIST_MAX = 8192 };
-static char (*sorted_list(const char *path, int *n))[96] {
-    char (*keys)[96] = malloc(sizeof *keys * LIST_MAX);
+static char (*sorted_list(const char *path, int *n))[LIST_KEY] {
+    char (*keys)[LIST_KEY] = malloc(sizeof *keys * LIST_MAX);
     *n = keys ? read_list(path, keys, LIST_MAX) : 0;
-    if (*n) qsort(keys, (size_t)*n, 96, key_cmp);
+    if (*n) qsort(keys, (size_t)*n, LIST_KEY, key_cmp);
     return keys;
 }
 
 static void mark_from(const char *path, game_t *g, int n, void (*set)(game_t *, void *), void *arg) {
     int nk;
-    char (*keys)[96] = sorted_list(path, &nk), k[96];
+    char (*keys)[LIST_KEY] = sorted_list(path, &nk), k[LIST_KEY];
     for (int i = 0; i < n && nk; i++) {
         key_of(&g[i], k);
-        if (bsearch(k, keys, (size_t)nk, 96, key_cmp)) set(&g[i], arg);
+        if (bsearch(k, keys, (size_t)nk, LIST_KEY, key_cmp)) set(&g[i], arg);
     }
     free(keys);
 }
@@ -508,13 +535,13 @@ static void set_hidden(game_t *g, void *arg) { (void)arg; g->user_hidden = true;
 static void set_coll(game_t *g, void *arg) { g->colls |= 1u << *(int *)arg; }
 
 static void list_set(const char *path, const game_t *g, bool add) {
-    char (*keys)[96] = malloc(sizeof *keys * LIST_MAX), k[96];
+    char (*keys)[LIST_KEY] = malloc(sizeof *keys * LIST_MAX), k[LIST_KEY];
     if (!keys) return;
     int n = read_list(path, keys, LIST_MAX - 1), w = 0;
     key_of(g, k);
     for (int i = 0; i < n; i++)
-        if (strcmp(keys[i], k)) memcpy(keys[w++], keys[i], 96);
-    if (add) memcpy(keys[w++], k, 96);
+        if (strcmp(keys[i], k)) memcpy(keys[w++], keys[i], LIST_KEY);
+    if (add) memcpy(keys[w++], k, LIST_KEY);
     write_list(path, keys, w);
     free(keys);
 }
@@ -599,7 +626,7 @@ void games_mark_lists(const char *root, game_t *g, int n) {
         snprintf(lp, sizeof lp, "%s/System/collections/%s.txt", root, COLLS[c]);
         mark_from(lp, g, n, set_coll, &c);
     }
-    char favp[1100], recp[1100], favs[512][96], recs[32][96], k[96];
+    char favp[1100], recp[1100], favs[512][LIST_KEY], recs[32][LIST_KEY], k[LIST_KEY];
     snprintf(favp, sizeof favp, "%s/System/favorites.txt", root);
     snprintf(recp, sizeof recp, "%s/System/recent.txt", root);
     int nf = read_list(favp, favs, 512), nr = read_list(recp, recs, 32);
@@ -615,24 +642,24 @@ void games_mark_lists(const char *root, game_t *g, int n) {
 }
 
 void games_toggle_fav(const char *root, game_t *g) {
-    char path[1100], favs[512][96], k[96];
+    char path[1100], favs[512][LIST_KEY], k[LIST_KEY];
     snprintf(path, sizeof path, "%s/System/favorites.txt", root);
     int n = read_list(path, favs, 511), w = 0;
     key_of(g, k);
     for (int i = 0; i < n; i++)
-        if (strcmp(favs[i], k)) memcpy(favs[w++], favs[i], 96);
+        if (strcmp(favs[i], k)) memcpy(favs[w++], favs[i], LIST_KEY);
     g->fav = !g->fav;
-    if (g->fav) memcpy(favs[w++], k, 96);
+    if (g->fav) memcpy(favs[w++], k, LIST_KEY);
     write_list(path, favs, w);
 }
 
 void games_add_recent(const char *root, game_t *g) {
-    char path[1100], recs[33][96], k[96];
+    char path[1100], recs[33][LIST_KEY], k[LIST_KEY];
     snprintf(path, sizeof path, "%s/System/recent.txt", root);
     int n = read_list(path, recs + 1, 32), w = 1;
     key_of(g, k);
-    memcpy(recs[0], k, 96);
+    memcpy(recs[0], k, LIST_KEY);
     for (int i = 1; i <= n && w < 20; i++)
-        if (strcmp(recs[i], k)) memcpy(recs[w++], recs[i], 96);
+        if (strcmp(recs[i], k)) memcpy(recs[w++], recs[i], LIST_KEY);
     write_list(path, recs, w);
 }

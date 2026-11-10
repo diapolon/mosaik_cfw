@@ -1,12 +1,15 @@
 #!/bin/sh
 # Prepara la SD simulata (./sdcard) sul Mac: temi, core, indici dei giochi, cartelle ROM.
-# Le ROM non vengono copiate: si collegano le cartelle indicate in FBNEO_ROMS e MAME_ROMS.
+# Le ROM non vengono copiate: si collegano le cartelle indicate in FBNEO_ROMS, MAME_ROMS,
+# NES_ROMS e MD_ROMS.
 set -e
 cd "$(dirname "$0")"
 DEPS="${DEPS:-$PWD/../deps}"
 SD="$PWD/sdcard"
 FBNEO_ROMS="${FBNEO_ROMS:-}"
 MAME_ROMS="${MAME_ROMS:-}"
+NES_ROMS="${NES_ROMS:-}"
+MD_ROMS="${MD_ROMS:-}"
 
 mkdir -p "$SD"/Roms "$SD"/Bios "$SD"/Saves "$SD"/Cores "$SD"/Dats "$SD"/Media "$SD"/System "$SD"/Logs "$SD"/Linux "$SD"/Themes "$SD"/Music
 
@@ -34,6 +37,8 @@ done
 # core compilati per macOS
 ln -sf "$DEPS/fbneo/src/burner/libretro/fbneo_libretro.dylib" "$SD/Cores/fbneo_libretro.dylib"
 ln -sf "$DEPS/mame2003-plus/mame2003_plus_libretro.dylib" "$SD/Cores/mame2003p_libretro.dylib"
+ln -sf "$DEPS/libretro-fceumm/fceumm_libretro.dylib" "$SD/Cores/fceumm_libretro.dylib"
+ln -sf "$DEPS/Genesis-Plus-GX/genesis_plus_gx_libretro.dylib" "$SD/Cores/genesis_plus_gx_libretro.dylib"
 
 # indici dei titoli dai DAT ufficiali
 python3 -I tools/build_index.py fbneo "$DEPS/fbneo/dats/FinalBurn Neo (ClrMame Pro XML, Arcade only).dat" "$SD/Dats/fbneo.tsv"
@@ -42,7 +47,9 @@ python3 -I tools/build_index.py mame2003p "$DEPS/mame2003-plus/metadata/mame2003
 # cartelle ROM: collegamenti in sola lettura alle raccolte già presenti sul Mac
 [ -n "$FBNEO_ROMS" ] && ln -sfn "$FBNEO_ROMS" "$SD/Roms/FBNEO"
 [ -n "$MAME_ROMS" ] && ln -sfn "$MAME_ROMS" "$SD/Roms/MAME2003P"
-mkdir -p "$SD/Roms/FBNEO" "$SD/Roms/MAME2003P" 2>/dev/null || true
+[ -n "$NES_ROMS" ] && ln -sfn "$NES_ROMS" "$SD/Roms/NES"
+[ -n "$MD_ROMS" ] && ln -sfn "$MD_ROMS" "$SD/Roms/MD"
+mkdir -p "$SD/Roms/FBNEO" "$SD/Roms/MAME2003P" "$SD/Roms/NES" "$SD/Roms/MD" 2>/dev/null || true
 
 # esempio di gioco Linux: una cartella con launch.sh (e facoltativi game.json, cover.png)
 mkdir -p "$SD/Linux/esempio"
