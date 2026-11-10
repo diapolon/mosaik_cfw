@@ -1,8 +1,14 @@
 {
   "name": "Game Gear",
+  "core": "genesis_plus_gx_libretro",
+  "roms": "Roms/GG",
+  "extensions": [
+    "gg",
+    "zip"
+  ],
   "kind": "console",
-  "planned": true,
   "art": "handheld-wide",
   "short": "Game Gear",
-  "order": 62
+  "thumbnails": "Sega - Game Gear",
+  "order": 42
 }

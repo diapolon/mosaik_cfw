@@ -1,7 +1,14 @@
 {
   "name": "Master System",
+  "core": "genesis_plus_gx_libretro",
+  "roms": "Roms/SMS",
+  "extensions": [
+    "sms",
+    "sg",
+    "zip"
+  ],
   "kind": "console",
-  "planned": true,
   "short": "SMS",
-  "order": 61
+  "thumbnails": "Sega - Master System - Mark III",
+  "order": 41
 }

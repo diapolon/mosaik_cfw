@@ -11,10 +11,12 @@ Included without changes to their code.
 | FinalBurn Neo | `fbneo.txt` | https://github.com/libretro/FBNeo/tree/d15071abf14191eebb4a5d7c7147398edcf237c8 |
 | MAME 2003-Plus | `mame2003-plus.txt` | https://github.com/libretro/mame2003-plus-libretro/tree/d41198a39d3325cbab613a21e8226f6c94b90059 |
 | FCEUmm (NES) | `GPL-2.0.txt` | https://github.com/libretro/libretro-fceumm/tree/e0f3086a8104f8fbbe49a2615b10401504a9533f (source also attached to each release) |
-| Genesis Plus GX (Mega Drive) | `genesis-plus-gx.txt` | https://github.com/libretro/Genesis-Plus-GX/tree/b9c2316441978d4015ba30e9a95d9b0e6f8ee981 |
+| Genesis Plus GX (Mega Drive, Master System, Game Gear) | `genesis-plus-gx.txt` | https://github.com/libretro/Genesis-Plus-GX/tree/b9c2316441978d4015ba30e9a95d9b0e6f8ee981 |
 | Snes9x (Super Nintendo) | `snes9x.txt` | https://github.com/libretro/snes9x/tree/fae2fea08f74180759ef540ee94259213f503480 |
 | Gambatte (Game Boy, Game Boy Color) | `GPL-2.0.txt` | https://github.com/libretro/gambatte-libretro/tree/77f2567d718b8973d02caa2daa8dce4953faf811 (source also attached to each release) |
 | mGBA (Game Boy Advance) | `MPL-2.0.txt` | https://github.com/libretro/mgba/tree/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6 (source also attached to each release) |
+| Beetle PCE Fast (PC Engine) | `GPL-2.0.txt` | https://github.com/libretro/beetle-pce-fast-libretro/tree/2de1ce1c3f237b161c126c54ba407990bb86d1e9 (source also attached to each release) |
+| Beetle NeoPop (Neo Geo Pocket) | `GPL-2.0.txt` | https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227 (source also attached to each release) |
 
 ## Built for the launcher
 

@@ -4,14 +4,14 @@
 # Si compila in una copia pulita dentro il volume Docker: il Mac ha i suoi file oggetto
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
-#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x]
+#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx gambatte mgba snes9x}
+WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -96,6 +96,24 @@ for core in $WHICH; do
             > "$SRC/snes9x.log" 2>&1 \
             || { tail -30 "$SRC/snes9x.log"; exit 1; }
         cp "$SRC/snes9x/libretro/snes9x_libretro.so" "$OUT/"
+        ;;
+    pce_fast)
+        clone beetle-pce-fast-libretro pce_fast
+        echo "== Beetle PCE Fast (PC Engine)"
+        make -C "$SRC/pce_fast" -j"$JOBS" platform=unix \
+            CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+            > "$SRC/pce_fast.log" 2>&1 \
+            || { tail -30 "$SRC/pce_fast.log"; exit 1; }
+        cp "$SRC/pce_fast/mednafen_pce_fast_libretro.so" "$OUT/"
+        ;;
+    ngp)
+        clone beetle-ngp-libretro ngp
+        echo "== Beetle NeoPop (Neo Geo Pocket)"
+        make -C "$SRC/ngp" -j"$JOBS" platform=unix \
+            CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+            > "$SRC/ngp.log" 2>&1 \
+            || { tail -30 "$SRC/ngp.log"; exit 1; }
+        cp "$SRC/ngp/mednafen_ngp_libretro.so" "$OUT/"
         ;;
     esac
 done

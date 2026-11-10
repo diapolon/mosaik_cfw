@@ -1,7 +1,13 @@
 {
   "name": "PC Engine",
+  "core": "mednafen_pce_fast_libretro",
+  "roms": "Roms/PCE",
+  "extensions": [
+    "pce",
+    "zip"
+  ],
   "kind": "console",
-  "planned": true,
   "short": "PCE",
-  "order": 63
+  "thumbnails": "NEC - PC Engine - TurboGrafx 16",
+  "order": 45
 }

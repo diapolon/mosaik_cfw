@@ -46,6 +46,8 @@ ln -sf "$DEPS/Genesis-Plus-GX/genesis_plus_gx_libretro.dylib" "$SD/Cores/genesis
 ln -sf "$DEPS/snes9x/libretro/snes9x_libretro.dylib" "$SD/Cores/snes9x_libretro.dylib"
 ln -sf "$DEPS/gambatte-libretro/gambatte_libretro.dylib" "$SD/Cores/gambatte_libretro.dylib"
 ln -sf "$DEPS/mgba/build-mac/mgba_libretro.dylib" "$SD/Cores/mgba_libretro.dylib"
+ln -sf "$DEPS/beetle-pce-fast-libretro/mednafen_pce_fast_libretro.dylib" "$SD/Cores/mednafen_pce_fast_libretro.dylib"
+ln -sf "$DEPS/beetle-ngp-libretro/mednafen_ngp_libretro.dylib" "$SD/Cores/mednafen_ngp_libretro.dylib"
 
 # indici dei titoli dai DAT ufficiali
 python3 -I tools/build_index.py fbneo "$DEPS/fbneo/dats/FinalBurn Neo (ClrMame Pro XML, Arcade only).dat" "$SD/Dats/fbneo.tsv"
@@ -60,7 +62,7 @@ python3 -I tools/build_index.py mame2003p "$DEPS/mame2003-plus/metadata/mame2003
 [ -n "$GB_ROMS" ] && ln -sfn "$GB_ROMS" "$SD/Roms/GB"
 [ -n "$GBC_ROMS" ] && ln -sfn "$GBC_ROMS" "$SD/Roms/GBC"
 [ -n "$GBA_ROMS" ] && ln -sfn "$GBA_ROMS" "$SD/Roms/GBA"
-for d in FBNEO MAME2003P NES MD SNES GB GBC GBA; do mkdir -p "$SD/Roms/$d" 2>/dev/null || true; done
+for d in FBNEO MAME2003P NES MD SMS GG PCE SNES GB GBC GBA NGP; do mkdir -p "$SD/Roms/$d" 2>/dev/null || true; done
 
 # esempio di gioco Linux: una cartella con launch.sh (e facoltativi game.json, cover.png)
 mkdir -p "$SD/Linux/esempio"

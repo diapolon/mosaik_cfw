@@ -14,7 +14,7 @@
 ## Reliability
 
 - [x] Undo the files already replaced when an update stops with an error
-- [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system
+- [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system ([#3](https://github.com/diapolon/mosaik_cfw/issues/3))
 - [x] Replace `volatile` status fields with atomics or a mutex in the worker threads
 - [x] Do not grow the card or mount it for writing after a failed disk check, and recover the partition table from its backup copy (new images since 0.9.15)
 - [ ] Full ROM check that decompresses the data, as an option next to the quick check

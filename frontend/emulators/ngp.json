@@ -1,8 +1,17 @@
 {
   "name": "Neo Geo Pocket",
+  "core": "mednafen_ngp_libretro",
+  "roms": "Roms/NGP",
+  "extensions": [
+    "ngp",
+    "ngc",
+    "ngpc",
+    "npc",
+    "zip"
+  ],
   "kind": "console",
-  "planned": true,
   "art": "handheld-wide",
   "short": "NGP",
-  "order": 64
+  "thumbnails": "SNK - Neo Geo Pocket Color",
+  "order": 53
 }

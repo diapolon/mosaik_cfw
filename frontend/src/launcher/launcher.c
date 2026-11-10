@@ -1375,6 +1375,10 @@ static color_t plat_color(int tab) {
     if (strstr(id, "mame")) return hexc(0x8E2A45);
     if (!strcmp(id, "nes")) return hexc(0xA8322D);
     if (!strcmp(id, "md")) return hexc(0x2B4C9B);
+    if (!strcmp(id, "sms")) return hexc(0x8A2F3B);
+    if (!strcmp(id, "gg")) return hexc(0x2F6F8F);
+    if (!strcmp(id, "pce")) return hexc(0xA4471F);
+    if (!strcmp(id, "ngp")) return hexc(0x2D6A4F);
     if (!strcmp(id, "gb")) return hexc(0x6F7F2C);
     if (!strcmp(id, "gbc")) return hexc(0x1E7F86);
     if (!strcmp(id, "gba")) return hexc(0x4A3FA0);
