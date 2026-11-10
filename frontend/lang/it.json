@@ -20,6 +20,7 @@
     "power_off": "Spegni",
     "restart": "Riavvia",
     "restarting": "Riavvio…",
+    "restart_charger": "Il caricatore è collegato: la console si spegne invece di riavviarsi. Riaccendila con il tasto di accensione.",
     "all_games": "Tutti i giochi",
     "launch_error": "Il gioco non si è avviato",
     "quit_menu": "Esci",

@@ -73,7 +73,11 @@ void ui_busy(const char *msg, double seconds) {
             int age = (head - i + 8) % 8;
             ui_circle(cx + (int)(cos(a) * r), cy + (int)(sin(a) * r), dot, with_alpha(th->accent, 255 - age * 28));
         }
-        if (msg && *msg) ui_text(UI.f_normal, msg, cx, cy + r + M(0.05f), th->text, ALIGN_CENTER);
+        if (msg && *msg) {   /* i messaggi lunghi vanno a capo, fino a tre righe */
+            char lines[3][160];
+            int n = ui_wrap(UI.f_normal, msg, UI.w * 85 / 100, lines, 3), fh = TTF_FontHeight(UI.f_normal);
+            for (int k = 0; k < n; k++) ui_text(UI.f_normal, lines[k], cx, cy + r + M(0.05f) + k * fh, th->text, ALIGN_CENTER);
+        }
         ui_end();
         SDL_Delay(16);
     } while ((SDL_GetTicks() - t0) / 1000.0 < seconds);

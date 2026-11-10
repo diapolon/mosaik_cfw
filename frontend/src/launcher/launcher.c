@@ -524,8 +524,26 @@ static void leave_system(int code, const char *msg) {
     exit(code);
 }
 
+/* Col caricatore collegato U-Boot del firmware, ripartendo, entra nella sua modalità di sola
+   carica e il sistema non parte (schermo nero, serve il reset forzato): provato sulla Smart Pro.
+   Al posto del riavvio la console si spegne e si riaccende con il tasto. system-init fa lo
+   stesso controllo, per chi arriva al riavvio da un'altra strada. */
+static bool on_charger(void) {
+    bool c = false;
+    ui_battery(&c);   /* TRIMUI_FAKE_CHARGING lo simula sul Mac */
+    return c;
+}
+
 static void power_off(void) { leave_system(EXIT_POWEROFF, T("common.shutting_down")); }
-static void restart_system(void) { leave_system(EXIT_REBOOT, T("common.restarting")); }
+static void restart_system(void) {
+    if (on_charger()) {
+        ui_log("riavvio con il caricatore collegato: la console si spegne");
+        settings_save(&UI.set, UI.root);
+        ui_busy(T("common.restart_charger"), 4);
+        leave_system(EXIT_POWEROFF, T("common.shutting_down"));
+    }
+    leave_system(EXIT_REBOOT, T("common.restarting"));
+}
 
 /* --------------------------------------------------------- copertine */
 
@@ -2739,9 +2757,11 @@ static void upd_start(void) {
 
 static void upd_reboot(void) {
     settings_save(&UI.set, UI.root);
-    ui_busy(T("update.restarting"), 0.5);
+    bool charger = on_charger();
+    if (charger) ui_log("aggiornamento installato con il caricatore collegato: la console si spegne");
+    ui_busy(charger ? T("common.restart_charger") : T("update.restarting"), charger ? 4 : 0.5);
     music_quit();
-    ui_exit_now(EXIT_REBOOT);
+    ui_exit_now(charger ? EXIT_POWEROFF : EXIT_REBOOT);
 }
 
 /* Si installa solo con il caricatore o con abbastanza batteria: se la corrente manca mentre i

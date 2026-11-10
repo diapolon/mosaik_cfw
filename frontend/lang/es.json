@@ -20,6 +20,7 @@
     "power_off": "Apagar",
     "restart": "Reiniciar",
     "restarting": "Reiniciando…",
+    "restart_charger": "El cargador está conectado: la consola se apaga en lugar de reiniciarse. Vuelve a encenderla con el botón de encendido.",
     "all_games": "Todos los juegos",
     "launch_error": "El juego no se ha iniciado",
     "quit_menu": "Salir",

@@ -20,6 +20,7 @@
     "power_off": "Power off",
     "restart": "Restart",
     "restarting": "Restarting…",
+    "restart_charger": "The charger is connected: the console powers off instead of restarting. Turn it back on with the power button.",
     "all_games": "All games",
     "launch_error": "The game didn't start",
     "quit_menu": "Exit",

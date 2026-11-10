@@ -5,7 +5,7 @@
 - [x] Full test on the Brick Pro
 - [x] Automatic return to the previous system on a Smart Pro (broken system, three failed boots)
 - [ ] Power loss during an update, on a real console
-- [ ] Smart Pro: restart with the charger connected (once it stayed black after an update and needed a forced reset)
+- [ ] Restart with the charger connected: U-Boot enters its charging-only mode and the system never starts (Smart Pro, confirmed; [#2](https://github.com/diapolon/mosaik_cfw/issues/2)). Mosaik now powers off instead: check that power off with the charger connected, then the power button, starts normally; check the Brick Pro
 - [ ] Wi-Fi password containing quotes, on a real console
 - [ ] First run on a brand new card
 - [ ] Brick Pro freeze when Wi-Fi starts (I2C bus 3 race, trimui/firmware_brickpro#4): interrupts on separate CPUs and `trimui_inputd` paused while Wi-Fi starts, 0 freezes in 200 rounds; 500-round confirmation running

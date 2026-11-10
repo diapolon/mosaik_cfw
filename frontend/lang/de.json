@@ -20,6 +20,7 @@
     "power_off": "Ausschalten",
     "restart": "Neu starten",
     "restarting": "Neustart…",
+    "restart_charger": "Das Ladegerät ist angeschlossen: Die Konsole schaltet sich aus, statt neu zu starten. Schalte sie mit der Ein-/Aus-Taste wieder ein.",
     "all_games": "Alle Spiele",
     "launch_error": "Das Spiel ist nicht gestartet",
     "quit_menu": "Beenden",

@@ -20,6 +20,7 @@
     "power_off": "Desligar",
     "restart": "Reiniciar",
     "restarting": "A reiniciar…",
+    "restart_charger": "O carregador está ligado: a consola desliga-se em vez de reiniciar. Volta a ligá-la com o botão de ligar.",
     "all_games": "Todos os jogos",
     "launch_error": "O jogo não arrancou",
     "quit_menu": "Sair",

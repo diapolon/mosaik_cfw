@@ -304,8 +304,16 @@ fi
     wpa_cli -p /run/wpa -i wlan0 status 2>/dev/null; ip route; cat /run/resolv.conf 2>/dev/null
     echo; ls -l /dev/pvr* /dev/dri 2>/dev/null; echo; dmesg | tail -80; } > "$ROOT/Logs/sistema.txt" 2>&1; sync ) &
 
-# finish: chiude tutto e spegne; "finish reboot" riavvia (dopo un aggiornamento)
+# finish: chiude tutto e spegne; "finish reboot" riavvia (dopo un aggiornamento).
+# Col caricatore collegato U-Boot del firmware, ripartendo, entra nella sua modalità di sola
+# carica e il sistema non parte (schermo nero, serve il reset forzato): allora si spegne, e si
+# riaccende con il tasto. Lo fa già il launcher; qui vale per ogni altra strada.
+charger_online() { [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ]; }
 finish() {
+    if [ "${1:-}" = reboot ] && charger_online; then
+        step "riavvio con il caricatore collegato: spengo (U-Boot resterebbe nella carica)"
+        set -- poweroff
+    fi
     step "${1:-spegnimento}"
     # Wi-Fi e SD lavorano fino all'ultimo: con l'altoparlante acceso si sentirebbe un ronzio
     arcade-suspend mute 2> /dev/null

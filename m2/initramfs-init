@@ -84,8 +84,14 @@ fi
 if [ $GROW = 3 ]; then
     # partizione allargata ma il kernel vede ancora la misura vecchia: il FAT si allarga al
     # prossimo avvio
-    fbmsg show blu 3 "SD ALLARGATA" "RIAVVIO" 2>/dev/null
+    # col caricatore collegato U-Boot, ripartendo, resterebbe nella modalità di sola carica:
+    # si spegne e si riaccende con il tasto
     sync
+    if [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ]; then
+        fbmsg show blu 8 "SD ALLARGATA" "RIACCENDI LA CONSOLE" 2>/dev/null
+        poweroff -f
+    fi
+    fbmsg show blu 3 "SD ALLARGATA" "RIAVVIO" 2>/dev/null
     reboot -f
 fi
 # flush: i dati vanno sulla scheda appena un file è chiuso, non restano in memoria

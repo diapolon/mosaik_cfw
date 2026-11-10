@@ -20,6 +20,7 @@
     "power_off": "Éteindre",
     "restart": "Redémarrer",
     "restarting": "Redémarrage…",
+    "restart_charger": "Le chargeur est branché : la console s'éteint au lieu de redémarrer. Rallume-la avec le bouton d'alimentation.",
     "all_games": "Tous les jeux",
     "launch_error": "Le jeu n'a pas démarré",
     "quit_menu": "Quitter",
