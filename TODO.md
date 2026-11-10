@@ -9,7 +9,7 @@
 - [ ] Wi-Fi password containing quotes, on a real console
 - [ ] First run on a brand new card
 - [x] Brick Pro freeze when Wi-Fi starts (I2C bus 3 race, trimui/firmware_brickpro#4, [#1](https://github.com/diapolon/mosaik_cfw/issues/1)): interrupts on separate CPUs and `trimui_inputd` paused while Wi-Fi starts, 0 freezes in 700 starts (200 + 500)
-- [ ] Brick Pro: long session with Wi-Fi on and traffic (the upstream report also has freezes there; only the CPU separation applies after connecting)
+- [x] Brick Pro: long session with Wi-Fi on and traffic: 60 minutes with ping and 20 minutes with 217 MB of downloads, no freeze ([#1](https://github.com/diapolon/mosaik_cfw/issues/1))
 
 ## Reliability
 
