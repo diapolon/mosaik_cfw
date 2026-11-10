@@ -5,6 +5,15 @@
 # moduli tolti (il chip si spegne), moduli caricati, wlan0, wpa_supplicant, collegamento.
 #
 #   prova-wifi FILE      FILE contiene "DRIVER GIRI [led-spenti|led-fissi] [senza-pausa]"
+#                        oppure "sessione MINUTI [URL]"
+#
+# sessione: il Wi-Fi si accende una volta sola, come all'uso (wifi-ctl con la pausa di
+# trimui_inputd), e resta collegato per MINUTI (60 se manca, al massimo 600) con traffico:
+# ping al router 5 volte al secondo e ogni 3 minuti lo scaricamento di URL (predefinito: il file
+# del sistema dal canale Sviluppo, circa 30 MB, scartato). Ogni minuto si scrivono stato del
+# collegamento, byte ricevuti e inviati, scaricamenti riusciti, ping persi, trimui_inputd,
+# interruzioni del bus I2C 3 e alimentazione. Il rapporto TrimUI (trimui/firmware_brickpro#4)
+# parla di blocchi ogni 10-15 minuti col Wi-Fi acceso, anche scaricando.
 #
 # led-spenti: prima di cominciare si spengono tutte le zone LED e le loro animazioni (la Brick
 # Pro ne ha molte più della Smart Pro). Lo stato dei LED all'inizio si scrive comunque.
@@ -31,13 +40,21 @@ KLOG=$ROOT/Logs/prova-wifi-kernel.txt
 CTRL=/run/wpa
 
 read -r DRIVER GIRI REST < "$1" 2> /dev/null
+SESSIONE=
 case "$DRIVER" in
+    sessione) SESSIONE=1; MOD=/run/fw/modules ;;
     brickpro|"") DRIVER=brickpro; MOD=/run/fw/modules ;;
     brick|smartpro) MOD=/run/fw/modules-$DRIVER ;;
     *) MOD=/nessuno ;;
 esac
-case "$GIRI" in ''|*[!0-9]*) GIRI=40 ;; esac
-[ "$GIRI" -gt 500 ] && GIRI=500
+if [ -n "$SESSIONE" ]; then
+    case "$GIRI" in ''|*[!0-9]*) GIRI=60 ;; esac
+    [ "$GIRI" -gt 600 ] && GIRI=600
+    URL=${REST:-https://github.com/diapolon/mosaik_cfw/releases/download/testing/file-0}
+else
+    case "$GIRI" in ''|*[!0-9]*) GIRI=40 ;; esac
+    [ "$GIRI" -gt 500 ] && GIRI=500
+fi
 
 say() { echo "$(cut -d' ' -f1 /proc/uptime)s $*" >> "$LOG"; sync; }
 battery() { cat /sys/class/power_supply/axp2202-battery/capacity 2> /dev/null || echo "?"; }
@@ -51,7 +68,12 @@ screen() { fbmsg show blu 0 "$1" "$2" 2> /dev/null; }
 # stato di trimui_inputd: T = fermo da wifi-ctl, S o R = al lavoro
 inputd() { p=$(pidof trimui_inputd) && awk '{ print $3 }' /proc/$p/stat 2> /dev/null || echo "-"; }
 
-{ echo; echo "=== $(date) · driver $DRIVER · $GIRI giri · $REST · $(power)"; } >> "$LOG"; sync
+if [ -n "$SESSIONE" ]; then
+    { echo; echo "=== $(date) · sessione di $GIRI minuti col Wi-Fi acceso · $URL · $(power)"; } >> "$LOG"
+else
+    { echo; echo "=== $(date) · driver $DRIVER · $GIRI giri · $REST · $(power)"; } >> "$LOG"
+fi
+sync
 case " $REST " in *" senza-pausa "*) export WIFI_INPUTD=0 ;; esac
 if [ ! -f "$MOD/xradio_core.ko" ]; then
     say "ERRORE: moduli $DRIVER non trovati in $MOD"
@@ -102,6 +124,65 @@ esac
 # messaggi del kernel ogni secondo, finché dura la prova
 ( while :; do { dmesg | tail -60; echo "--- $(cut -d' ' -f1 /proc/uptime)s $(power)"; } > "$KLOG"; sync; sleep 1; done ) > /dev/null 2>&1 &
 KPID=$!
+
+# ---------------------------------------------------------------- sessione lunga
+if [ -n "$SESSIONE" ]; then
+    NET=/sys/class/net/wlan0/statistics
+    mb() { echo $(( $(cat $NET/$1 2> /dev/null || echo 0) / 1048576 )); }
+    wstate() { wpa_cli -p "$CTRL" -i wlan0 status 2> /dev/null | sed -n 's/^wpa_state=//p'; }
+    twi3() { irqs > /tmp/irq.a; sleep 3; irqs > /tmp/irq.b
+             awk 'NR == FNR { a[$1] = $2; next } $1 ~ /^twi3/ { printf "%.0f/s", ($2 - a[$1]) / 3 }' /tmp/irq.a /tmp/irq.b; }
+    screen "PROVA WI-FI: SESSIONE" "ACCENDO IL WI-FI"
+    wifi-ctl off > /dev/null 2>&1
+    say "accendo il Wi-Fi come all'uso ($(power))"
+    wifi-ctl on > /dev/null 2>&1
+    say "wifi-ctl on finito · trimui_inputd $(inputd)"
+    t=0
+    while [ $t -lt 60 ] && [ "$(wstate)" != COMPLETED ]; do sleep 1; t=$((t + 1)); done
+    say "stato $(wstate) dopo ${t}s"
+    t=0   # l'indirizzo arriva da udhcpc poco dopo il collegamento
+    while [ $t -lt 30 ] && ! ip route | grep -q '^default'; do sleep 1; t=$((t + 1)); done
+    GW=$(ip route | awk '/^default/ { print $3; exit }')
+    sleep 12   # wifi-ctl rimette trimui_inputd al lavoro al collegamento o dopo 10 s
+    say "router ${GW:-non trovato} · trimui_inputd $(inputd) · interruzioni: $(rates)"
+    say "processori: $(grep -E 'CPU0|twi|ledc|mmc|xradio' /proc/interrupts | tr -s ' ' | tr '\n' '|')"
+    PINGLOG=/tmp/prova-ping.txt
+    [ -n "$GW" ] && { ping -i 0.2 "$GW" > $PINGLOG 2>&1 & PPID2=$!; }
+    scarica() {   # in sottofondo: un solo scaricamento alla volta
+        ( s=$(cut -d' ' -f1 /proc/uptime)
+          if wget -q -O /dev/null "$URL" 2> /tmp/prova-wget.txt; then r=ok; else r="errore $(head -c 80 /tmp/prova-wget.txt)"; fi
+          echo "$r $s $(cut -d' ' -f1 /proc/uptime)" > /tmp/prova-scarica.esito ) > /dev/null 2>&1 &
+        DPID=$!
+    }
+    nok=0 nerr=0 DPID=
+    m=1
+    while [ $m -le "$GIRI" ]; do
+        screen "PROVA WI-FI: SESSIONE" "MINUTO $m DI $GIRI"
+        if [ $(( (m - 1) % 3 )) = 0 ]; then
+            if [ -n "$DPID" ] && kill -0 $DPID 2> /dev/null; then say "minuto $m: scaricamento precedente ancora in corso"
+            else rm -f /tmp/prova-scarica.esito; scarica; say "minuto $m: scarico $URL"; fi
+        fi
+        sleep 50
+        if [ -f /tmp/prova-scarica.esito ]; then
+            read -r r s e rest < /tmp/prova-scarica.esito
+            if [ "$r" = ok ]; then nok=$((nok + 1)); say "minuto $m: scaricamento riuscito in $(awk -v s="$s" -v e="$e" 'BEGIN { printf "%.0f", e - s }')s"
+            else nerr=$((nerr + 1)); say "minuto $m: scaricamento non riuscito: $r $s $e $rest"; fi
+            rm -f /tmp/prova-scarica.esito
+        fi
+        sent=$(grep -c 'bytes from' $PINGLOG 2> /dev/null)
+        say "minuto $m: $(wstate) · ricevuti $(mb rx_bytes) MB, inviati $(mb tx_bytes) MB · scaricamenti $nok ok, $nerr non riusciti · risposte al ping $sent · twi3 $(twi3) · trimui_inputd $(inputd) · $(power)"
+        m=$((m + 1))
+    done
+    [ -n "${PPID2:-}" ] && kill $PPID2 2> /dev/null
+    [ -n "$DPID" ] && kill $DPID 2> /dev/null
+    kill $KPID 2> /dev/null
+    say "FINE: $GIRI minuti col Wi-Fi acceso senza blocchi, $nok scaricamenti riusciti, $nerr non riusciti"
+    wifi-ctl off > /dev/null 2>&1
+    echo 1 2> /dev/null > $LED/enable
+    screen "PROVA WI-FI FINITA" "$GIRI MINUTI SENZA BLOCCHI"
+    sleep 3
+    exit 0
+fi
 
 ok=0
 i=1
