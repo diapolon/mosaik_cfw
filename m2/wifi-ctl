@@ -30,9 +30,10 @@ case "$1" in
 on)
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
     # dopo una sospensione manca solo xradio_wlan: si carica ciò che non c'è
+    # (WIFI_MODULES: un'altra compilazione dello stesso driver, solo per m2/prova-wifi)
     for m in xradio_mac xradio_core xradio_wlan; do
         grep -q "^$m " /proc/modules && continue
-        insmod /run/fw/modules/$m.ko >> "$LOG" 2>&1 || log "insmod $m: errore"
+        insmod "${WIFI_MODULES:-/run/fw/modules}/$m.ko" >> "$LOG" 2>&1 || log "insmod $m: errore"
     done
     for i in $(seq 50); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.2; done
     if [ ! -e /sys/class/net/wlan0 ]; then

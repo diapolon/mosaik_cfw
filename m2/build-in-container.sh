@@ -37,7 +37,7 @@ cp /sbin/fsck.fat $R/usr/sbin/fsck.fat
 cp /lib/ld-musl-aarch64.so.1 $R/lib/
 ln -sf ld-musl-aarch64.so.1 $R/lib/libc.musl-aarch64.so.1
 # Wi-Fi: servizio (wifi-ctl), eventi di wpa_cli e script di udhcpc
-cp $T/m2/wifi-ctl $T/m2/wifi-event $T/m2/udhcpc-script $T/m2/arcade-suspend $R/usr/arcade/bin/
+cp $T/m2/wifi-ctl $T/m2/wifi-event $T/m2/udhcpc-script $T/m2/arcade-suspend $T/m2/prova-wifi $R/usr/arcade/bin/
 # la SDL2 di TrimUI chiama "setterm" per nascondere il cursore: basta che esista
 rm -f $R/usr/bin/setterm
 printf "#!/bin/sh\nexit 0\n" > $R/usr/bin/setterm
@@ -85,6 +85,15 @@ models | while IFS="|" read -r id fw name file; do
        $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw $L/bin/
     # moduli del kernel: GPU e Wi-Fi (compilati per il kernel di ogni modello)
     cp $F/lib/modules/4.9.191/pvrsrvkm.ko $F/lib/modules/4.9.191/dc_sunxi.ko $F/lib/modules/4.9.191/xradio_*.ko $L/modules/
+    # Brick Pro: lo stesso driver Wi-Fi compilato per i kernel di Brick e Smart Pro, per la prova
+    # del blocco all'accensione del Wi-Fi (m2/prova-wifi; kernel della Brick con la stessa
+    # configurazione, della Smart Pro con 3 voci diverse e nessuna del Wi-Fi)
+    if [ $id = tg4040 ]; then
+        for o in brick:tg3040 smartpro:tg5040; do
+            mkdir -p $L/modules-${o%%:*}
+            cp /build/fw/${o#*:}/root/lib/modules/4.9.191/xradio_*.ko $L/modules-${o%%:*}/
+        done
+    fi
     cp -a $F/usr/share/alsa $L/alsa
     cp $F/etc/asound.conf $L/asound.conf
     mkdir -p $L/udev $L/etc-udev

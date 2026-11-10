@@ -1,0 +1,73 @@
+#!/bin/sh
+# Prova a ripetizione dell'accensione del Wi-Fi, per il blocco della Brick Pro: la console si
+# ferma del tutto subito dopo che il driver ha acceso wlan0 (circa 1 accensione su 10-20, a
+# freddo e a caldo, con o senza attesa). Ogni giro rifà da zero quello che succede all'avvio:
+# moduli tolti (il chip si spegne), moduli caricati, wlan0, wpa_supplicant, collegamento.
+#
+#   prova-wifi FILE      FILE contiene "DRIVER GIRI", es. "brick 40"
+#
+# DRIVER: brickpro (quello dello strato, /run/fw/modules), brick o smartpro (stessa versione
+# del driver, compilata per i kernel di quei modelli: /run/fw/modules-brick, -smartpro).
+# Ogni passo va in Logs/prova-wifi.txt con sync prima di proseguire: dopo un blocco l'ultima
+# riga dice a che punto si era. I messaggi del kernel si salvano ogni secondo in
+# Logs/prova-wifi-kernel.txt. La chiama system-init solo con System/prova-wifi.txt, che rinomina
+# prima: un blocco non fa ripartire la prova al riavvio.
+ROOT=${ROOT:-/mnt/SDCARD/Arcade}
+LOG=$ROOT/Logs/prova-wifi.txt
+KLOG=$ROOT/Logs/prova-wifi-kernel.txt
+CTRL=/run/wpa
+
+read -r DRIVER GIRI REST < "$1" 2> /dev/null
+case "$DRIVER" in
+    brickpro|"") DRIVER=brickpro; MOD=/run/fw/modules ;;
+    brick|smartpro) MOD=/run/fw/modules-$DRIVER ;;
+    *) MOD=/nessuno ;;
+esac
+case "$GIRI" in ''|*[!0-9]*) GIRI=40 ;; esac
+[ "$GIRI" -gt 500 ] && GIRI=500
+
+say() { echo "$(cut -d' ' -f1 /proc/uptime)s $*" >> "$LOG"; sync; }
+battery() { cat /sys/class/power_supply/axp2202-battery/capacity 2> /dev/null || echo "?"; }
+screen() { fbmsg show blu 0 "$1" "$2" 2> /dev/null; }
+
+{ echo; echo "=== $(date) · driver $DRIVER · $GIRI giri · batteria $(battery)%"; } >> "$LOG"; sync
+if [ ! -f "$MOD/xradio_core.ko" ]; then
+    say "ERRORE: moduli $DRIVER non trovati in $MOD"
+    exit 2
+fi
+for m in xradio_mac xradio_core xradio_wlan; do say "$m: $(md5sum < "$MOD/$m.ko" | cut -c1-12)"; done
+
+# messaggi del kernel ogni secondo, finché dura la prova
+( while :; do dmesg | tail -60 > "$KLOG"; sync; sleep 1; done ) > /dev/null 2>&1 &
+KPID=$!
+
+ok=0
+i=1
+while [ $i -le "$GIRI" ]; do
+    screen "PROVA WI-FI ($DRIVER)" "GIRO $i DI $GIRI"
+    wifi-ctl off > /dev/null 2>&1
+    for m in xradio_wlan xradio_core xradio_mac; do
+        grep -q "^$m " /proc/modules && rmmod $m 2>> "$LOG"
+    done
+    sleep 1
+    say "giro $i: carico i moduli (batteria $(battery)%)"
+    WIFI_MODULES=$MOD wifi-ctl on > /dev/null 2>&1
+    say "giro $i: wifi-ctl on finito"
+    t=0
+    state=
+    while [ $t -lt 20 ]; do
+        state=$(wpa_cli -p "$CTRL" -i wlan0 status 2> /dev/null | sed -n 's/^wpa_state=//p')
+        [ "$state" = COMPLETED ] && break
+        sleep 1
+        t=$((t + 1))
+    done
+    say "giro $i: stato $state dopo ${t}s"
+    [ "$state" = COMPLETED ] && ok=$((ok + 1))
+    i=$((i + 1))
+done
+kill $KPID 2> /dev/null
+say "FINE: $GIRI giri senza blocchi, collegato $ok volte"
+wifi-ctl off > /dev/null 2>&1
+for m in xradio_wlan xradio_core xradio_mac; do grep -q "^$m " /proc/modules && rmmod $m; done
+screen "PROVA WI-FI FINITA" "$GIRI GIRI SENZA BLOCCHI"
+sleep 3
