@@ -22,7 +22,7 @@
 
 ## Hardware
 
-- [ ] Brick Pro: speaker hiss at idle and chirps after UI sounds (amplifier always on, trimui/firmware_brickpro#5): switch `HpSpeaker Switch` off when nothing plays and on before sounds, music and games; check the pops by ear
+- [ ] Brick Pro: speaker hiss at idle and chirps after UI sounds (amplifier always on, trimui/firmware_brickpro#5): switch `HpSpeaker Switch` off when nothing plays and on before sounds, music and games; check the pops by ear ([#4](https://github.com/diapolon/mosaik_cfw/issues/4))
 - [ ] Bluetooth controllers
 - [ ] Support for the original TrimUI Brick (TG3040)
 - [x] Settings page for the Brick Pro's extra buttons (side HOME, F1, F2): list them on the console, choose what each one does, show the page only on models that have them
