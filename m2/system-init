@@ -110,6 +110,20 @@ if [ -f "$ROOT/System/controlla-sd" ]; then
     step "controllo della SD: Logs/fsck-controllo.txt"
 fi
 
+# nomi corti doppi lasciati dal driver FAT di macOS (m2/fatnomi.c): al primo spegnimento brusco
+# fsck.fat ne rinominerebbe uno in FSCK0000.000 e il gioco perderebbe quel file. Solo dopo che
+# la scheda è passata da un Mac (macOS crea .fseventsd a ogni montaggio) e prima del launcher,
+# che non deve trovare un file a metà rinomina. Poi la cartella si toglie: il Mac la ricrea.
+if [ -d /mnt/SDCARD/.fseventsd ]; then
+    out=$(fatnomi /mnt/SDCARD 2>&1); rc=$?
+    if [ -n "$out" ]; then
+        { echo "=== $(date)"; echo "$out"; echo "esito $rc"; } >> "$ROOT/Logs/nomi-corti.txt"
+        sync
+    fi
+    [ $rc != 2 ] && rm -rf /mnt/SDCARD/.fseventsd
+    step "nomi corti controllati: esito $rc, riparati $(printf '%s\n' "$out" | grep -c '^riparato:')"
+fi
+
 # pulizia dei file che macOS lascia sulla SD copiando (._nome, .DS_Store; il launcher li
 # ignora): in sottofondo e solo quando il launcher è già partito. Fatta durante l'avvio,
 # centinaia di cancellazioni rallentavano i "sync" successivi (16 s al primo avvio).
