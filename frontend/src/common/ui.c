@@ -1118,11 +1118,13 @@ typedef struct {
     SDL_Joystick *js;    /* joystick senza mappatura SDL (i tasti integrati della TrimUI) */
     SDL_JoystickID id;
     bool builtin, down[BTN_COUNT], stick[4];
+    int axis[4];         /* levette: sinistra x y, destra x y */
     char name[64];
 } pad_t;
 static pad_t pads[4];
 static int npads;
 static bool kb_down[BTN_COUNT], auto_down[BTN_COUNT];
+static int auto_axis[4];   /* levette mosse dall'automazione (prove sul Mac) */
 
 /* nome vero del dispositivo (SDL rinomina i controller noti: il gamepad di trimui_inputd
    si presenta come Xbox 360 e SDL lo chiama "X360 Controller") */
@@ -1200,14 +1202,19 @@ int ui_pads(char names[][64], int *ports, int max) {
 static void ports_update(void) {
     memset(UI.port_down, 0, sizeof UI.port_down);
     int kp = port_of(-1);
+    memset(UI.port_axis, 0, sizeof UI.port_axis);
     for (int b = 0; b < BTN_COUNT; b++) UI.port_down[kp][b] = kb_down[b] || auto_down[b];
+    for (int k = 0; k < 4; k++) UI.port_axis[kp][k] = auto_axis[k];
     for (int i = 0; i < npads; i++) {
         int p = port_of(i);
         for (int b = 0; b < BTN_COUNT; b++) {
             bool d = pads[i].down[b];
-            if (b <= BTN_RIGHT) d = d || pads[i].stick[b - BTN_UP];
+            /* la levetta sinistra fa da croce, tranne nei giochi che leggono le levette */
+            if (b <= BTN_RIGHT && !UI.analog_game) d = d || pads[i].stick[b - BTN_UP];
             UI.port_down[p][b] = UI.port_down[p][b] || d;
         }
+        for (int k = 0; k < 4; k++)   /* due controller sullo stesso giocatore: vale il più spostato */
+            if (abs(pads[i].axis[k]) > abs(UI.port_axis[p][k])) UI.port_axis[p][k] = pads[i].axis[k];
     }
 }
 
@@ -1320,6 +1327,12 @@ static void auto_step(void) {
     if (!strncmp(tok, "shot:", 5)) { snprintf(shot_path, sizeof shot_path, "%s", tok + 5); return; }
     if (!strcmp(tok, "quit")) { auto_quit = true; return; }
     if (!strcmp(tok, "power")) { UI.in.power = true; return; }
+    if (!strncmp(tok, "stick:", 6)) {   /* stick:lx:32767 (lx ly rx ry), per provare le levette */
+        static const char *ax[4] = { "lx", "ly", "rx", "ry" };
+        for (int k = 0; k < 4; k++)
+            if (!strncmp(tok + 6, ax[k], 2) && tok[8] == ':') UI.in.axis[k] = auto_axis[k] = atoi(tok + 9);
+        return;
+    }
     if (!strncmp(tok, "down:", 5) || !strncmp(tok, "up:", 3)) {
         bool d = tok[0] == 'd';
         int b = btn_by_name(tok + (d ? 5 : 3));
@@ -1426,8 +1439,8 @@ void ui_poll(void) {
             pad_t *pd = pad_by_id(ev.jaxis.which);
             if (!pd || !pd->js) break;
             int a = ev.jaxis.axis, v = ev.jaxis.value;
-            if (a == 0 || a == 1) UI.in.axis[a] = v;
-            else if (a == 3 || a == 4) UI.in.axis[a - 1] = v;
+            if (a == 0 || a == 1) UI.in.axis[a] = pd->axis[a] = v;
+            else if (a == 3 || a == 4) UI.in.axis[a - 1] = pd->axis[a - 1] = v;
             if (a == joy_axis_l2 || a == joy_axis_r2) {
                 int b = a == joy_axis_l2 ? BTN_L2 : BTN_R2;
                 if ((v > 16000) != pd->down[b]) source_set(pd->down, b, v > 16000);
@@ -1463,7 +1476,7 @@ void ui_poll(void) {
             pad_t *pd = pad_by_id(ev.caxis.which);
             if (!pd) break;
             int a = ev.caxis.axis, v = ev.caxis.value;
-            if (a >= SDL_CONTROLLER_AXIS_LEFTX && a <= SDL_CONTROLLER_AXIS_RIGHTY) UI.in.axis[a] = v;
+            if (a >= SDL_CONTROLLER_AXIS_LEFTX && a <= SDL_CONTROLLER_AXIS_RIGHTY) UI.in.axis[a] = pd->axis[a] = v;
             if ((getenv("TRIMUI_JOYDEBUG") || ui_debug_on(2)) && (v > 16000 || v < -16000)) ui_log("controller: asse SDL %d = %d", a, v);
             if (a == SDL_CONTROLLER_AXIS_TRIGGERLEFT || a == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) {
                 int b = a == SDL_CONTROLLER_AXIS_TRIGGERLEFT ? BTN_L2 : BTN_R2;

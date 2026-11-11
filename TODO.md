@@ -36,7 +36,7 @@
 
 ## Emulators
 
-- [ ] PlayStation with PCSX ReARMed (`Roms/PS`: .chd, .cue, .pbp, .m3u for several discs, disc change in the game menu): to test on console with real games; analog sticks (DualShock) not passed to the cores yet; release sources must include the libpicofe submodule and `pcsx-rearmed-lr.patch`
+- [ ] PlayStation with PCSX ReARMed (`Roms/PS`: .chd, .cue, .pbp, .m3u for several discs, disc change in the game menu): to test on console with real games; analog sticks passed to the cores (DualShock chosen from the core's controller list, left stick stops acting as D-pad when the game reads the sticks), to test on console with an analog game; release sources must include the libpicofe submodule and `pcsx-rearmed-lr.patch`
 - [ ] Dreamcast (shown greyed as "coming soon" on the Platforms screen: `"planned": true` in `Emulators/dc.json`)
 - [ ] MAME 2010 core, for games missing from FinalBurn Neo and MAME 2003-Plus
 - [ ] Flycast core for Naomi and Atomiswave (check performance first)

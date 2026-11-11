@@ -371,6 +371,8 @@ static unsigned retro_language(void) {
 /* nomi dei comandi dichiarati dal core per la porta 1 ("Light Punch", "Coin"...) */
 static char input_desc[16][64];
 
+/* tipo di controller per porta, scelto da SET_CONTROLLER_INFO (DualShock per la PlayStation) */
+static unsigned port_dev[4] = { RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD };
 static bool environment(unsigned cmd, void *data) {
     switch (cmd) {
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
@@ -440,7 +442,17 @@ static bool environment(unsigned cmd, void *data) {
     case RETRO_ENVIRONMENT_GET_LANGUAGE:
         *(unsigned *)data = retro_language();
         return true;
-    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+    case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: {
+        /* tipi di controller che il core offre: se c'è un DualShock (PlayStation) si usa quello,
+           così le levette arrivano al gioco; altrimenti il controller normale */
+        const struct retro_controller_info *ci = data;
+        for (unsigned p = 0; ci && ci[p].types && p < 4; p++)
+            for (unsigned k = 0; k < ci[p].num_types; k++) {
+                const char *d = ci[p].types[k].desc;
+                if (d && strcasestr(d, "dualshock")) port_dev[p] = ci[p].types[k].id;
+            }
+        return true;
+    }
     case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME:
     case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
     case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
@@ -567,10 +579,26 @@ static bool retro_pressed(int port, int id) {
     return b >= 0 && down[b];
 }
 
+/* levetta per il gioco (index 0 sinistra, 1 destra; id 0 x, 1 y): una piccola zona morta al
+   centro, e con lo schermo ruotato gira come la croce */
+static int16_t analog_value(unsigned port, unsigned index, unsigned id) {
+    int x = UI.port_axis[port][index * 2], y = UI.port_axis[port][index * 2 + 1];
+    if (x < -32767) x = -32767;
+    if (y < -32767) y = -32767;
+    if (abs(x) < 2000 && abs(y) < 2000) x = y = 0;
+    for (int r = 0; r < (gcfg.rotate & 3); r++) { int t = x; x = -y; y = t; }
+    return (int16_t)(id ? y : x);
+}
+
 static int16_t input_state(unsigned port, unsigned device, unsigned index, unsigned id) {
-    (void)index;
     /* con Menu premuto i tasti servono alle scorciatoie, non al gioco */
-    if (port > 3 || device != RETRO_DEVICE_JOYPAD || menu_open || UI.in.down[BTN_MENU]) return 0;
+    if (port > 3 || menu_open || UI.in.down[BTN_MENU]) return 0;
+    if ((device & RETRO_DEVICE_MASK) == RETRO_DEVICE_ANALOG) {
+        if (!UI.analog_game) { UI.analog_game = true; ui_log("il gioco legge le levette: la sinistra non fa più da croce"); }
+        if (index == RETRO_DEVICE_INDEX_ANALOG_BUTTON) return id < 16 && retro_pressed((int)port, (int)id) ? 0x7FFF : 0;
+        return index <= RETRO_DEVICE_INDEX_ANALOG_RIGHT && id <= RETRO_DEVICE_ID_ANALOG_Y ? analog_value(port, index, id) : 0;
+    }
+    if ((device & RETRO_DEVICE_MASK) != RETRO_DEVICE_JOYPAD) return 0;
     if (id == RETRO_DEVICE_ID_JOYPAD_MASK) {
         int16_t mask = 0;
         for (int i = 0; i < 16; i++)
@@ -661,7 +689,8 @@ static bool load_game(void) {
     if (!core.load_game(&gi)) return false;
     sram_load();
     core.get_system_av_info(&av);
-    for (unsigned p = 0; p < 4; p++) core.set_controller_port_device(p, RETRO_DEVICE_JOYPAD);
+    for (unsigned p = 0; p < 4; p++) core.set_controller_port_device(p, port_dev[p]);
+    if (port_dev[0] != RETRO_DEVICE_JOYPAD) ui_log("controller con levette (tipo %u)", port_dev[0]);
     ui_log("video %ux%u (max %ux%u) aspetto %.3f, %.2f fps, audio %.0f Hz, rotazione %u, %d opzioni del core",
            av.geometry.base_width, av.geometry.base_height, av.geometry.max_width, av.geometry.max_height,
            av.geometry.aspect_ratio, av.timing.fps, av.timing.sample_rate, rotation, ncopts);

@@ -61,6 +61,8 @@ typedef struct {
     double t, dt;
     input_t in;
     bool port_down[4][BTN_COUNT];   /* tasti premuti per giocatore (porte 1-4) */
+    int port_axis[4][4];            /* levette per giocatore: sinistra x y, destra x y (-32768..32767) */
+    bool analog_game;               /* il gioco legge le levette: la sinistra non fa più anche da croce */
     theme_t th;
     settings_t set;
     char root[1024];
