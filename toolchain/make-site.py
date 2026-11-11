@@ -95,6 +95,46 @@ for lang, c in conf.items():
             pager += f'<a class="next" href="{guides[n + 1]}.html"><small>{c["next"]}</small>{c["guides"][guides[n + 1]][0]}</a>'
         body = f'<div class="doc"><aside class="side"><ul>{side}</ul></aside><main class="article"><h1>{c["guides"][g][0]}</h1>' + read(g) + f'<nav class="pager">{pager}</nav></main></div>'
         write(g, c["guides"][g][0], body, "guide")
+# --- provenienza della build (audit prelancio R09): commit di Mosaik e dei core, immagine del
+# kit, SHA-256 di quello che si distribuisce. Va allegato alla release insieme alle immagini.
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+def run(cmd, strip=True):
+    try:
+        out_ = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=top).stdout
+        return out_.strip() if strip else out_.rstrip("\n")
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+info = [f"Mosaik {version} {stamp}"]
+commit = run(["git", "rev-parse", "HEAD"])
+changed = [l[3:] for l in run(["git", "status", "--porcelain", "--untracked-files=no"], strip=False).splitlines() if len(l) > 3]
+info.append(f"commit {commit}" + (f" (file modificati non nel commit: {', '.join(changed)})" if changed else ""))
+kit = run(["docker", "image", "inspect", "trimui-tg5040", "--format", "{{.Id}}"])
+info.append(f"kit di compilazione trimui-tg5040 {kit or '?'}")
+cores = run(["docker", "run", "--rm", "--platform", "linux/amd64", "-v", "trimui-build:/build", "trimui-tg5040", "sh", "-c",
+             'for d in /build/src/*/; do [ -d "$d/.git" ] && echo "$(basename $d) $(git -C $d rev-parse HEAD)"; done'])
+info.append("")
+info.append("core (commit compilato, da /build/src):")
+info += [f"  {l}" for l in cores.splitlines()] or ["  ?"]
+info.append("")
+info.append("SHA-256:")
+files = [os.path.join(out, "download", n) for n in sorted(os.listdir(os.path.join(out, "download"))) if n.endswith(".img.gz")]
+files.append(os.path.join(dist, "arcade-system.squashfs"))
+cores_dir = os.path.join(dist, "SD", "Arcade", "Cores")
+files += [os.path.join(cores_dir, n) for n in sorted(os.listdir(cores_dir)) if n.endswith(".so")]
+upd = os.path.join(out, "update")
+files += [os.path.join(upd, n) for n in ("update.txt", "update.sig")]
+for f in files:
+    info.append(f"{sha256(f)}  {os.path.relpath(f, dist)}")
+n_upd = len([n for n in os.listdir(upd) if n.startswith("file-")])
+info.append(f"(più {n_upd} file-N, con il loro SHA-256 nell'elenco firmato update.txt)")
+with open(os.path.join(out, "download", "build-info.txt"), "w") as f:
+    f.write("\n".join(info) + "\n")
+print("build-info.txt:", commit[:12], "e", len(cores.splitlines()), "core")
 total = sum(os.path.getsize(os.path.join(d, n)) for d, _, ns in os.walk(out) for n in ns)
 biggest = max(os.path.getsize(os.path.join(d, n)) for d, _, ns in os.walk(out) for n in ns)
 print(f"sito pronto in {out}: {human(total)}, file più grande {human(biggest)}")
