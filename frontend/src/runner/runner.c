@@ -748,7 +748,11 @@ static bool state_load_file(const char *p) {
     size_t n = sz > 0 ? (size_t)sz : 0;
     void *buf = n && n <= (256u << 20) ? malloc(n) : NULL;
     if (!buf) { fclose(f); return false; }
-    bool ok = fread(buf, 1, n, f) == n && core.unserialize(buf, n);
+    bool ok = fread(buf, 1, n, f) == n;
+    if (ok && !core.unserialize(buf, n)) {
+        ok = false;
+        ui_log("stato non caricato, il core lo rifiuta (rovinato o troncato): %s", p);
+    }
     fclose(f);
     free(buf);
     return ok;

@@ -16,7 +16,7 @@ Included without changes to their code.
 | Gambatte (Game Boy, Game Boy Color) | `GPL-2.0.txt` | https://github.com/libretro/gambatte-libretro/tree/77f2567d718b8973d02caa2daa8dce4953faf811 (source also attached to each release) |
 | mGBA (Game Boy Advance) | `MPL-2.0.txt` | https://github.com/libretro/mgba/tree/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6 (source also attached to each release) |
 | Beetle PCE Fast (PC Engine) | `GPL-2.0.txt` | https://github.com/libretro/beetle-pce-fast-libretro/tree/2de1ce1c3f237b161c126c54ba407990bb86d1e9 (source also attached to each release) |
-| Beetle NeoPop (Neo Geo Pocket) | `GPL-2.0.txt` | https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227 (source also attached to each release) |
+| Beetle NeoPop (Neo Geo Pocket) | `GPL-2.0.txt` | https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227 with `toolchain/patches/beetle-ngp-saveram.patch` (source and patch also attached to each release) |
 
 ## Data downloaded by the console
 

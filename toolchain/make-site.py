@@ -116,7 +116,7 @@ info.append(f"commit {commit}" + (f" (file modificati non nel commit: {', '.join
 kit = run(["docker", "image", "inspect", "trimui-tg5040", "--format", "{{.Id}}"])
 info.append(f"kit di compilazione trimui-tg5040 {kit or '?'}")
 cores = run(["docker", "run", "--rm", "--platform", "linux/amd64", "-v", "trimui-build:/build", "trimui-tg5040", "sh", "-c",
-             'for d in /build/src/*/; do [ -d "$d/.git" ] && echo "$(basename $d) $(git -C $d rev-parse HEAD)"; done'])
+             'for d in /build/src/*/; do [ -d "$d/.git" ] && echo "$(basename $d) $(git -C $d rev-parse HEAD)$(git -C $d diff --quiet || echo " + toolchain/patches")"; done'])
 info.append("")
 info.append("core (commit compilato, da /build/src):")
 info += [f"  {l}" for l in cores.splitlines()] or ["  ?"]

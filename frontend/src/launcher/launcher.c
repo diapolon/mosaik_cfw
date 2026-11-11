@@ -4342,9 +4342,10 @@ static void game_reset(const game_t *g, bool states) {
     reset_remove(base, g->key, "cfg");
     reset_remove(base, g->key, "opt");
     if (states) {
-        /* con gli stati anche il salvataggio a batteria delle console (.srm e .rtc): è la partita */
+        /* con gli stati anche il salvataggio a batteria delle console (.srm e .rtc, .flash del
+           Neo Geo Pocket fino alla 0.9.17): è la partita */
         static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev", "auto.state.rot",
-                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png", "srm", "rtc" };
+                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png", "srm", "rtc", "flash" };
         for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->key, ext[i]);
     }
     /* FBNeo: memoria interna e punteggi */

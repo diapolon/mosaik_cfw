@@ -108,6 +108,8 @@ for core in $WHICH; do
         ;;
     ngp)
         clone beetle-ngp-libretro ngp
+        # flash come memoria di salvataggio, stati controllati (audit R05, issue #6)
+        git -C "$SRC/ngp" apply /trimui/toolchain/patches/beetle-ngp-saveram.patch
         echo "== Beetle NeoPop (Neo Geo Pocket)"
         make -C "$SRC/ngp" -j"$JOBS" platform=unix \
             CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \

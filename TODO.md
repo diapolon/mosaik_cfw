@@ -15,7 +15,7 @@
 ## Reliability
 
 - [ ] Games with the same file name on two platforms that share a core (MD/SMS/GG, GB/GBC) share saves, states, statistics and pictures: keep each platform apart and move existing files ([#5](https://github.com/diapolon/mosaik_cfw/issues/5))
-- [ ] Neo Geo Pocket: Beetle NeoPop writes its `.flash` only when the game closes; a forced power-off loses the progress ([#6](https://github.com/diapolon/mosaik_cfw/issues/6))
+- [ ] Neo Geo Pocket: flash save now goes through the frontend as `.srm` (`toolchain/patches/beetle-ngp-saveram.patch`, [#6](https://github.com/diapolon/mosaik_cfw/issues/6)); to test on console with a real game that saves to flash: forced power-off, sleep, low battery, 0.9.17 `.flash` migration
 - [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system ([#3](https://github.com/diapolon/mosaik_cfw/issues/3))
 - [ ] Full ROM check that decompresses the data, as an option next to the quick check
 - [ ] On restart the card was once not closed cleanly: a process still had `Logs/passi.txt` open as its output ("SD non chiusa" in `passi.txt`, Smart Pro, 10 Nov 22:02), so the next start ran the card check. Find which process and close it in `finish`
