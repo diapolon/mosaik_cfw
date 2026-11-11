@@ -336,11 +336,15 @@ finish() {
     # hanno file aperti sulla SD (trimui_inputd scrive il suo log, un gioco può essere rimasto
     # in sottofondo): con un file aperto in scrittura il kernel non la chiude.
     wifi-ctl off > /dev/null 2>&1
+    : > /tmp/fermati.txt
     for sig in TERM KILL; do
         for p in /proc/[0-9]*; do
             pid=${p#/proc/}
             [ "$pid" = 1 ] || [ "$pid" = $$ ] && continue
-            ls -l "$p/fd" 2>/dev/null | grep -q /mnt/SDCARD && kill -$sig "$pid" 2>/dev/null
+            if ls -l "$p/fd" 2>/dev/null | grep -q /mnt/SDCARD; then
+                echo "$sig $pid $(cat "$p/comm" 2>/dev/null)" >> /tmp/fermati.txt
+                kill -$sig "$pid" 2>/dev/null
+            fi
         done
         sleep 0.3
     done
@@ -349,11 +353,24 @@ finish() {
     # che non può smontarla perché il sistema (squashfs) è un file sulla SD. Smontare solo
     # /mnt/SDCARD non basta: il kernel toglie il segno "in uso" quando il FAT diventa di sola
     # lettura o quando sparisce l'ultimo montaggio, e quello dell'initramfs resta.
-    if mount -o remount,ro /mnt/SDCARD 2>/dev/null; then
+    # Un programma appena fermato può metterci un attimo a chiudere i suoi file: la sola lettura
+    # si riprova per 2 secondi (il 9 e il 10 novembre era fallita subito, e un attimo dopo non
+    # c'era più nessun file aperto).
+    tries=0
+    until mount -o remount,ro /mnt/SDCARD 2>/dev/null; do
+        tries=$((tries + 1))
+        [ $tries -ge 10 ] && break
+        sleep 0.2
+    done
+    if [ $tries -lt 10 ]; then
         umount /mnt/SDCARD 2>/dev/null
     else
+        # l'elenco va prima in /tmp: scritto direttamente in passi.txt, mostrava solo se stesso
+        ls -l /proc/[0-9]*/fd 2>/dev/null | grep /mnt/SDCARD > /tmp/aperti.txt
         { echo "SD non chiusa: controllo al prossimo avvio. File aperti:"
-          ls -l /proc/[0-9]*/fd 2>/dev/null | grep /mnt/SDCARD; } >> "$STEPS"
+          cat /tmp/aperti.txt
+          echo "programmi fermati:"
+          cat /tmp/fermati.txt; } >> "$STEPS"
         sync
     fi
     # col caricatore: interruzioni del chip spente e cancellate, poi spegnimento dal chip

@@ -19,7 +19,7 @@
 - [ ] Neo Geo Pocket: flash save now goes through the frontend as `.srm` (`toolchain/patches/beetle-ngp-saveram.patch`, [#6](https://github.com/diapolon/mosaik_cfw/issues/6)); to test on console with a real game that saves to flash: forced power-off, sleep, low battery, 0.9.17 `.flash` migration
 - [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system ([#3](https://github.com/diapolon/mosaik_cfw/issues/3))
 - [ ] Full ROM check that decompresses the data, as an option next to the quick check
-- [ ] On restart the card was once not closed cleanly: a process still had `Logs/passi.txt` open as its output ("SD non chiusa" in `passi.txt`, Smart Pro, 10 Nov 22:02), so the next start ran the card check. Find which process and close it in `finish`
+- [ ] SD not closed cleanly on restart (9 and 10 Nov, Smart Pro): the logged open file was the listing itself (its output went to `passi.txt`), so most likely the stopped programs had not closed their files yet. `finish` now retries the read-only remount for 2 s and, if it still fails, logs the real open files and the stopped programs: to confirm on a console (no "SD non chiusa" in `passi.txt` and no card check after restarts)
 - [x] Undo the files already replaced when an update stops with an error
 - [x] Replace `volatile` status fields with atomics or a mutex in the worker threads
 - [x] Do not grow the card or mount it for writing after a failed disk check, and recover the partition table from its backup copy (new images since 0.9.15)
