@@ -256,7 +256,7 @@ static void scan_linux(list_t *l, const char *root) {
 }
 
 /* Genere e giocatori scritti dallo scraper: "nome<TAB>genere<TAB>giocatori", ordinato per nome. */
-typedef struct { char name[ROM_NAME], genre[32]; int players; } meta_t;
+typedef struct { char name[ROM_NAME + 20], genre[32]; int players; } meta_t;
 
 static int meta_cmp(const void *a, const void *b) {
     return strcmp(((const meta_t *)a)->name, ((const meta_t *)b)->name);
@@ -285,9 +285,15 @@ static void load_genres(const char *root, game_t *g, int n) {
     fclose(f);
     qsort(meta, (size_t)m, sizeof(meta_t), meta_cmp);
     for (int i = 0; i < n; i++) {
-        meta_t key, *hit;
+        meta_t key, *hit = NULL;
+        /* console: "<console>/<nome>" (issue #5), poi il solo nome scritto dalle versioni prima */
+        const emulator_t *e = emulator_find(g[i].core);
+        if (e && e->console) {
+            snprintf(key.name, sizeof key.name, "%s/%s", g[i].core, g[i].name);
+            hit = bsearch(&key, meta, (size_t)m, sizeof(meta_t), meta_cmp);
+        }
         snprintf(key.name, sizeof key.name, "%s", g[i].name);
-        if ((hit = bsearch(&key, meta, (size_t)m, sizeof(meta_t), meta_cmp))) {
+        if (hit || (hit = bsearch(&key, meta, (size_t)m, sizeof(meta_t), meta_cmp))) {
             snprintf(g[i].genre, sizeof g[i].genre, "%s", hit->genre);
             g[i].players = hit->players;
         }

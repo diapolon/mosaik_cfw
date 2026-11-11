@@ -31,12 +31,14 @@ static const char *LIBRETRO_KINDS[] = { "Named_Snaps", "Named_Titles", NULL, "Na
 
 /* exts: le estensioni delle ROM dell'emulatore senza zip ("nes|fds"), per leggere gli zip;
    canon: il nome No-Intro trovato col CRC nel database libretro */
+/* key: il nome per immagini, genere e giocatori; per le console "<console>/<nome>", perché due
+   console possono avere un gioco con lo stesso nome (issue #5) */
 typedef struct {
-    char name[ROM_NAME], title[160], core[16], thumbs[64], exts[64], sysname[48], index[256], canon[160];
+    char name[ROM_NAME], key[ROM_NAME + 20], title[160], core[16], thumbs[64], exts[64], sysname[48], index[256], canon[160];
     char *path;
     bool console;
 } item_t;
-typedef struct { char name[ROM_NAME], genre[64], players[8]; } meta_t;
+typedef struct { char name[ROM_NAME + 20], genre[64], players[8]; } meta_t;
 
 static scrape_status_t st;
 static SDL_Thread *thread;
@@ -243,10 +245,10 @@ static void nf_save(void) {
 
 static bool missing(const item_t *it, int type) {
     if (type == T_BOX && !it->console) return false;
-    char p[1200], key[LIST_KEY];
-    snprintf(key, sizeof key, "%s/%s", TYPES[type], it->name);
+    char p[1200], key[LIST_KEY + 20];
+    snprintf(key, sizeof key, "%s/%s", TYPES[type], it->key);
     if (nf_has(key)) return false;
-    media_path(p, sizeof p, type, it->name);
+    media_path(p, sizeof p, type, it->key);
     return !exists(p);
 }
 
@@ -502,7 +504,7 @@ static void console_info(const int *todo, int ntodo) {
             snprintf(genre, sizeof genre, "%s", v[LR_GENRE] ? v[LR_GENRE]->val : "");
             snprintf(players, sizeof players, "%s", v[LR_USERS] ? v[LR_USERS]->val : "");
             clean_field(genre);
-            meta_set(it->name, genre, players);
+            meta_set(it->key, genre, players);
         }
         if (nrows) index_update(first->index, rows, nrows);
         ui_log("scraper: %s, %d giochi su %d trovati nel database libretro", first->thumbs, found, total);
@@ -525,7 +527,7 @@ static int worker(void *arg) {
     int *todo = malloc(sizeof(int) * (size_t)(nitems + 1)), ntodo = 0;
     for (int i = 0; i < nitems; i++) {
         /* arcade: informazioni ArcadeDB; console: dati libretro, trovati se c'è il genere */
-        bool need = !meta_find(items[i].name);
+        bool need = !meta_find(items[i].key);
         for (int t = 0; t < NTYPES && !need; t++) need = missing(&items[i], t);
         if (need) todo[ntodo++] = i;
     }
@@ -605,7 +607,12 @@ static int worker(void *arg) {
         }
         for (int t = 0; t < NTYPES && !st.cancel; t++) {
             if (!missing(it, t)) continue;
-            media_path(p, sizeof p, t, it->name);
+            media_path(p, sizeof p, t, it->key);
+            if (it->console) {   /* Media/<tipo>/<console>/ */
+                char d[1200];
+                snprintf(d, sizeof d, "%s/Media/%s/%s", root_dir, TYPES[t], it->core);
+                mkdir(d, 0755);
+            }
             bool ok = false;
             buf_t b;
             char ctype[128];
@@ -641,8 +648,8 @@ static int worker(void *arg) {
             }
             if (ok) st.saved++;
             else {
-                char key[LIST_KEY];
-                snprintf(key, sizeof key, "%s/%s", TYPES[t], it->name);
+                char key[LIST_KEY + 20];
+                snprintf(key, sizeof key, "%s/%s", TYPES[t], it->key);
                 if (last_code == 404 || last_code == 200) nf_add(key);   /* non un errore di rete: si riproverà */
                 st.missing++;
             }
@@ -668,11 +675,16 @@ bool scraper_start(const char *root, const game_t *games, int n) {
     nitems = 0;
     for (int i = 0; i < n; i++) {
         if (!strcmp(games[i].core, "linux") || games[i].missing) continue;
+        const emulator_t *ge = emulator_find(games[i].core);
+        char key[ROM_NAME + 20];
+        if (ge && ge->console) snprintf(key, sizeof key, "%s/%s", games[i].core, games[i].name);
+        else snprintf(key, sizeof key, "%s", games[i].name);
         bool dup = false;
-        for (int k = 0; k < nitems && !dup; k++) dup = !strcmp(items[k].name, games[i].name);
+        for (int k = 0; k < nitems && !dup; k++) dup = !strcmp(items[k].key, key);
         if (dup) continue;
         item_t *it = &items[nitems++];
         snprintf(it->name, sizeof it->name, "%s", games[i].name);
+        snprintf(it->key, sizeof it->key, "%s", key);
         snprintf(it->title, sizeof it->title, "%s", games[i].title);
         snprintf(it->core, sizeof it->core, "%s", games[i].core);
         const emulator_t *e = emulator_find(games[i].core);

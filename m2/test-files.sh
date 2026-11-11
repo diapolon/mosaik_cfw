@@ -44,6 +44,7 @@ static size_t ser_size(void) { return strlen(payload); }
 static bool ser(void *b, size_t n) { memcpy(b, payload, n); return true; }
 static struct { size_t (*serialize_size)(void); bool (*serialize)(void *, size_t); } core = { ser_size, ser };
 static char root[512], core_path[8] = "c", rom_path[8] = "r", title[8] = "t";
+static char system_id[32];   /* vuoto: un gioco arcade */
 static void IMG_SavePNG(SDL_Surface *s, const char *p) { (void)s; FILE *f = fopen(p, "w"); fputs(payload, f); fclose(f); }
 C
 awk '/^static struct \{$/ {s=""; on=1} on {s=s $0 "\n"} /^} [a-z_]*;/ {if ($2=="gcfg;") {printf "%s", s; exit} on=0}' $R
@@ -111,7 +112,7 @@ int main(void) {
     snprintf(p, sizeof p, "%s/System", root); mkdir(p, 0755);
     snprintf(p, sizeof p, "%s/System/resume.txt", root);
     write_resume();
-    same("scritta", get(p), "libretro\tc\tr\tt\tresume\n");
+    same("scritta, con la console (\"-\" per gli arcade)", get(p), "libretro\tc\tr\tt\tresume\t-\n");
     put(p, "vecchia"); fail_fsync = 1; write_resume(); fail_fsync = 0;
     same("scrittura fallita: resta quella di prima", get(p), "vecchia");
     snprintf(q, sizeof q, "%s.tmp", p); same("nessun provvisorio", get(q), "(manca)");

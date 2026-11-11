@@ -3,6 +3,7 @@
 #include "../common/ui.h"
 #include "../common/json.h"
 #include "../common/filters.h"
+#include "savesplit.h"
 #include "games.h"
 #include "scraper.h"
 #include "romcheck.h"
@@ -192,13 +193,14 @@ static void build_genres(void) {
 }
 
 
-/* cartella dei salvataggi di un gioco: Saves/<core senza _libretro> */
+/* cartella dei salvataggi di un gioco: Saves/<core senza _libretro> per gli arcade,
+   Saves/<console> per le console (due console possono usare lo stesso core, issue #5) */
 static void save_base(const game_t *g, char *out, size_t n, char *core, size_t cn) {
     const emulator_t *emu = emulator_find(g->core);
     snprintf(core, cn, "%s", emu ? emu->core : g->core);
     char *us = strstr(core, "_libretro");
     if (us) *us = 0;
-    snprintf(out, n, "%s/Saves/%s", UI.root, core);
+    snprintf(out, n, "%s/Saves/%s", UI.root, emu && emu->console ? g->core : core);
 }
 
 static bool game_autosave(int gi, time_t *when);
@@ -389,6 +391,10 @@ static void reload_games(void) {
     emulators_load(UI.root);
     ngames = games_scan(UI.root, &games, UI.set.show_missing);
     ui_mark("lettura dei giochi");
+    /* salvataggi delle console da Saves/<core> a Saves/<console> (issue #5): una volta per
+       avvio, prima di cercare la partita da riprendere e gli slot */
+    static bool split_done;
+    if (!split_done) { saves_split(UI.root, games, ngames); split_done = true; }
     games_mark_lists(UI.root, games, ngames);
     romcheck_load(UI.root, games, ngames);
     mark_duplicates();
@@ -488,8 +494,9 @@ static void launch_ex(game_t *g, bool resume) {
     FILE *f = fopen(path, "w");
     bool written = f != NULL;
     if (f) {
-        fprintf(f, "%s\t%s\t%s\t%s%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title,
-                resume ? "\tresume" : "");
+        /* ultimo campo: la console, per i salvataggi in Saves/<console> (issue #5); "-" per gli arcade */
+        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title,
+                resume ? "resume" : "-", core_console(g->core) ? g->core : "-");
         written = !ferror(f) && fflush(f) == 0;
         if (fclose(f) != 0) written = false;
     }
@@ -564,6 +571,20 @@ static unsigned hash(const char *s) {
    poi Media/<tipo>/<rom>.png nei tipi scelti dal tema (snap, title, marquee, flyer), poi
    Media/<core>/<rom>.png messa a mano; per Linux cover.png. *box dice se è la scatola, che
    va mostrata intera (è verticale) e non ritagliata come le schermate. */
+/* Media/<tipo>/<console>/<rom>.png per le console (issue #5: due console possono avere un gioco
+   con lo stesso nome), poi Media/<tipo>/<rom>.png, dove le scaricavano le versioni prima della
+   0.9.18 e dove stanno quelle degli arcade */
+static SDL_Texture *media_typed(const game_t *g, const char *type, bool console) {
+    char p[1400];
+    if (console) {
+        snprintf(p, sizeof p, "%s/Media/%s/%s/%s.png", UI.root, type, g->core, g->name);
+        SDL_Texture *img = ui_image(p);
+        if (img) return img;
+    }
+    snprintf(p, sizeof p, "%s/Media/%s/%s.png", UI.root, type, g->name);
+    return ui_image(p);
+}
+
 static SDL_Texture *media_image_ex(const game_t *g, char types[][16], int n, bool *box) {
     char p[1400];
     if (box) *box = false;
@@ -571,14 +592,13 @@ static SDL_Texture *media_image_ex(const game_t *g, char types[][16], int n, boo
         snprintf(p, sizeof p, "%.*s/cover.png", (int)(strrchr(g->path, '/') - g->path), g->path);
         return ui_image(p);
     }
-    if (UI.set.box_covers && core_console(g->core)) {
-        snprintf(p, sizeof p, "%s/Media/box/%s.png", UI.root, g->name);
-        SDL_Texture *img = ui_image(p);
+    bool console = core_console(g->core);
+    if (UI.set.box_covers && console) {
+        SDL_Texture *img = media_typed(g, "box", true);
         if (img) { if (box) *box = true; return img; }
     }
     for (int i = 0; i < n; i++) {
-        snprintf(p, sizeof p, "%s/Media/%s/%s.png", UI.root, types[i], g->name);
-        SDL_Texture *img = ui_image(p);
+        SDL_Texture *img = media_typed(g, types[i], console);
         if (img) return img;
     }
     snprintf(p, sizeof p, "%s/Media/%s/%s.png", UI.root, g->core, g->name);
@@ -2799,11 +2819,55 @@ static long long clean_bytes;
 
 static int cmp_name(const void *a, const void *b) { return strcmp(*(const char *const *)a, *(const char *const *)b); }
 
+/* conta (e con del toglie) le immagini senza gioco in un elenco di file; prefix: "" in
+   Media/<tipo>/, "<console>/" nelle sottocartelle per console (issue #5) */
+static int orphans_in(const char *dirp, const char *prefix, char **names, int nn, bool del, long long *bytes) {
+    int count = 0;
+    DIR *d2 = opendir(dirp);
+    struct dirent *f;
+    while (d2 && (f = readdir(d2))) {
+        if (f->d_name[0] == '.') continue;
+        char path[1700];
+        snprintf(path, sizeof path, "%s/%s", dirp, f->d_name);
+        struct stat st;
+        if (stat(path, &st) != 0) continue;
+        if (S_ISDIR(st.st_mode)) {
+            /* Media/<tipo>/<console>/: solo un livello, e solo se è una console */
+            if (!*prefix && core_console(f->d_name)) {
+                char pre[64];
+                snprintf(pre, sizeof pre, "%s/", f->d_name);
+                count += orphans_in(path, pre, names, nn, del, bytes);
+            }
+            continue;
+        }
+        if (!S_ISREG(st.st_mode)) continue;
+        char stem[300];
+        snprintf(stem, sizeof stem, "%s%s", prefix, f->d_name);
+        char *dot = strrchr(stem, '.');
+        if (dot) *dot = 0;
+        const char *key = stem;
+        if (bsearch(&key, names, (size_t)nn, sizeof *names, cmp_name)) continue;
+        count++;
+        *bytes += st.st_size;
+        if (del) unlink(path);
+    }
+    if (d2) closedir(d2);
+    return count;
+}
+
 static int media_orphans(bool del, long long *bytes) {
-    const char **names = malloc(sizeof *names * (size_t)(ngames ? ngames : 1));
+    /* nomi dei giochi presenti; per le console anche "<console>/<nome>" */
+    char **names = malloc(sizeof *names * (size_t)(2 * ngames + 1));
     int nn = 0, count = 0;
-    for (int i = 0; i < ngames; i++)
-        if (!games[i].missing) names[nn++] = games[i].name;
+    for (int i = 0; i < ngames; i++) {
+        if (games[i].missing) continue;
+        names[nn++] = strdup(games[i].name);
+        if (core_console(games[i].core)) {
+            char k[ROM_NAME + 20];
+            snprintf(k, sizeof k, "%s/%s", games[i].core, games[i].name);
+            names[nn++] = strdup(k);
+        }
+    }
     qsort(names, (size_t)nn, sizeof *names, cmp_name);
     *bytes = 0;
     char dir[1100];
@@ -2816,26 +2880,10 @@ static int media_orphans(bool del, long long *bytes) {
         snprintf(sub, sizeof sub, "%s/%s", dir, e->d_name);
         struct stat st;
         if (stat(sub, &st) != 0 || !S_ISDIR(st.st_mode)) continue;
-        DIR *d2 = opendir(sub);
-        struct dirent *f;
-        while (d2 && (f = readdir(d2))) {
-            if (f->d_name[0] == '.') continue;
-            char stem[256];
-            snprintf(stem, sizeof stem, "%s", f->d_name);
-            char *dot = strrchr(stem, '.');
-            if (dot) *dot = 0;
-            const char *key = stem;
-            if (bsearch(&key, names, (size_t)nn, sizeof *names, cmp_name)) continue;
-            char path[1700];
-            snprintf(path, sizeof path, "%s/%s", sub, f->d_name);
-            if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) continue;
-            count++;
-            *bytes += st.st_size;
-            if (del) unlink(path);
-        }
-        if (d2) closedir(d2);
+        count += orphans_in(sub, "", names, nn, del, bytes);
     }
     if (d) closedir(d);
+    for (int i = 0; i < nn; i++) free(names[i]);
     free(names);
     return count;
 }

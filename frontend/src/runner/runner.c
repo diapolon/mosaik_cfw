@@ -46,6 +46,9 @@ static struct {
 } core;
 
 static char root[1024], core_path[1024], rom_path[1024], title[256], core_id[64], rom_name[128];
+/* console del gioco (id dell'emulatore, "md", "sms"...): salvataggi e statistiche separati per
+   console anche quando due console usano lo stesso core (issue #5). Vuoto per gli arcade. */
+static char system_id[32];
 static char sys_dir[1100], save_dir[1100];
 static struct retro_system_av_info av;
 static enum retro_pixel_format pixfmt = RETRO_PIXEL_FORMAT_0RGB1555;
@@ -1031,14 +1034,14 @@ static void stats_update(void) {
         char c[64], n[128];
         long plays = 0, secs = 0, last = 0;
         if (sscanf(line, "%63[^\t]\t%127[^\t]\t%ld\t%ld\t%ld", c, n, &plays, &secs, &last) == 5 &&
-            !strcmp(c, core_id) && !strcmp(n, rom_name)) {
+            !strcmp(c, system_id[0] ? system_id : core_id) && !strcmp(n, rom_name)) {
             fprintf(out, "%s\t%s\t%ld\t%ld\t%ld\n", c, n, plays + 1, secs + (long)played, (long)time(NULL));
             found = true;
         } else {
             fputs(line, out);
         }
     }
-    if (!found) fprintf(out, "%s\t%s\t1\t%ld\t%ld\n", core_id, rom_name, (long)played, (long)time(NULL));
+    if (!found) fprintf(out, "%s\t%s\t1\t%ld\t%ld\n", system_id[0] ? system_id : core_id, rom_name, (long)played, (long)time(NULL));
     if (in) fclose(in);
     /* come le altre scritture: o resta l'elenco di prima o arriva tutto quello nuovo */
     bool ok = !ferror(out) && fflush(out) == 0 && fsync(fileno(out)) == 0;
@@ -1052,7 +1055,7 @@ static void write_resume(void) {
     snprintf(t, sizeof t, "%s.tmp", p);
     FILE *f = fopen(t, "w");
     if (!f) { ui_log("impossibile scrivere %s", t); return; }
-    fprintf(f, "libretro\t%s\t%s\t%s\tresume\n", core_path, rom_path, title);
+    fprintf(f, "libretro\t%s\t%s\t%s\tresume\t%s\n", core_path, rom_path, title, system_id[0] ? system_id : "-");
     bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
     if (!ok || durable_replace(t, p) != 0) { ui_log("impossibile scrivere %s", p); remove(t); }
@@ -1797,6 +1800,10 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--title") && i + 1 < argc) snprintf(title, sizeof title, "%s", argv[++i]);
         else if (!strcmp(argv[i], "--auto") && i + 1 < argc) auto_script = argv[++i];
         else if (!strcmp(argv[i], "--resume")) resume = true;
+        else if (!strcmp(argv[i], "--system") && i + 1 < argc) {
+            snprintf(system_id, sizeof system_id, "%s", argv[++i]);
+            if (strchr(system_id, '/') || strstr(system_id, "..")) system_id[0] = 0;   /* finisce in un percorso */
+        }
     }
     const char *base = strrchr(rom_path, '/');
     snprintf(rom_name, sizeof rom_name, "%s", base ? base + 1 : rom_path);
@@ -1811,7 +1818,7 @@ int main(int argc, char **argv) {
     snprintf(save_dir, sizeof save_dir, "%s/Saves", root);
     mkdir(sys_dir, 0755);
     mkdir(save_dir, 0755);
-    snprintf(save_dir, sizeof save_dir, "%s/Saves/%s", root, core_id);
+    snprintf(save_dir, sizeof save_dir, "%s/Saves/%s", root, system_id[0] ? system_id : core_id);
     mkdir(save_dir, 0755);
 
     settings_t early;
