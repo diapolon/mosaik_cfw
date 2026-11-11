@@ -2,7 +2,8 @@
 
 ## Testing
 
-- [ ] Power loss during an update, on a real console
+- [x] Power loss during an update, on a real console (Smart Pro, forced power-off during the install with the test pause: the previous files came back, 0.9.18)
+- [ ] "Update downloaded" question at start (power off after downloading, before installing), on a real console
 - [ ] Wi-Fi password containing quotes, on a real console
 - [ ] First run on a brand new card
 - [ ] Test matrix per console and feature, with version and date (the ten console cores included)
@@ -25,7 +26,8 @@
 
 ## Hardware
 
-- [ ] Brick Pro: speaker hiss at idle and chirps after UI sounds (amplifier always on, trimui/firmware_brickpro#5): switch `HpSpeaker Switch` off when nothing plays and on before sounds, music and games; check the pops by ear ([#4](https://github.com/diapolon/mosaik_cfw/issues/4))
+- [ ] Brick Pro: speaker hiss at idle ([#4](https://github.com/diapolon/mosaik_cfw/issues/4), trimui/firmware_brickpro#5). In test: Settings → Display and sound → Speaker at rest (`speaker_rest`), amplifier off after 4 s without sound in the launcher, method A `/sys/class/speaker/mute` or B `HpSpeaker Switch`. To decide by ear which pops less (A seemed fine at first, the hiss showed mostly during downloads), then keep one and choose the default
+- [ ] SD not answering after waking from sleep (Smart Pro, seen once, not reproduced): `arcade-suspend` now checks the card after waking and the launcher offers to restart (`/run/sd-guasta`); if it happens again, look at the kernel messages it saves
 - [ ] Bluetooth controllers
 - [ ] Support for the original TrimUI Brick (TG3040)
 - [x] Settings page for the Brick Pro's extra buttons (side HOME, F1, F2): list them on the console, choose what each one does, show the page only on models that have them
