@@ -1704,6 +1704,16 @@ static bool hotkeys(void) {
     return false;
 }
 
+/* Salvataggi a batteria durante il gioco: ogni 10 s si confronta la memoria con quella già
+   sulla scheda e, solo se è cambiata, si scrive (audit prelancio R06: prima si scriveva solo
+   all'uscita, in sospensione e con la batteria scarica, e un blocco perdeva i progressi). */
+static void sram_tick(void) {
+    static double next;
+    if (UI.t < next) return;
+    next = UI.t + 10;
+    sram_save();
+}
+
 /* ------------------------------------------------------- batteria */
 /* Sotto il 10% un avviso; sotto il 4% la partita viene salvata (stato automatico e
    ripresa all'accensione), così non si perde nulla se la console si spegne da sola. */
@@ -1899,6 +1909,7 @@ int main(int argc, char **argv) {
             menu_input();
         }
         battery_watch();
+        sram_tick();
         Uint64 pf0 = SDL_GetPerformanceCounter();
         if (!menu_open && !suspend_ask) {
             for (int k = 0; k < (fast_forward ? 3 : 1); k++) core.run();

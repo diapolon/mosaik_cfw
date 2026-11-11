@@ -6,11 +6,15 @@
  * stati e salvataggio automatico. Ora ogni console ha Saves/<id della console>/.
  *
  * All'avvio del launcher i file vecchi di ogni gioco per console si copiano nella cartella
- * della sua console (con la scrittura sicura: file provvisorio, fsync, rename); se due console
- * hanno un gioco con lo stesso nome ricevono una copia ciascuna, perché il file era di
- * entrambe. Il file vecchio si toglie solo quando tutte le copie sono riuscite. Si spostano solo
- * i file con un'estensione dei salvataggi (sotto), così un gioco "A" non prende i file di "A.B";
- * quelli di giochi che non sono più sulla scheda restano dove sono. */
+ * della sua console (scrittura sicura: file provvisorio, fsync, rename); se due console hanno
+ * un gioco con lo stesso nome ricevono una copia ciascuna, perché il file era di entrambe.
+ * Gli originali restano dove sono (si può tornare alla versione di prima con i salvataggi) e
+ * Saves/<core>/.spostati-per-console.txt registra ogni copia ("<console><TAB><file>"): una
+ * copia già fatta non si rifà, così un salvataggio tolto con "Reimposta il gioco" non torna.
+ * Se la console ha già un file con quel nome e contenuto diverso non si sovrascrive nulla: il
+ * conflitto si registra (anche nel log) e restano tutti e due. Si copiano solo i file con
+ * un'estensione dei salvataggi (sotto), così un gioco "A" non prende i file di "A.B". Audit
+ * prelancio 0.9.17, R01. */
 #include "savesplit.h"
 #include "../common/durable.h"
 #include <dirent.h>
@@ -62,8 +66,59 @@ static void core_dir_name(const emulator_t *e, char *out, size_t n) {
     if (us) *us = 0;
 }
 
+/* il registro delle copie di una cartella del core, in memoria */
+typedef struct { char **line; int n, cap; FILE *out; } journal_t;
+
+static void journal_open(journal_t *j, const char *old_dir) {
+    char p[1200], line[600];
+    memset(j, 0, sizeof *j);
+    snprintf(p, sizeof p, "%s/.spostati-per-console.txt", old_dir);
+    FILE *f = fopen(p, "r");
+    while (f && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (j->n == j->cap) j->line = realloc(j->line, sizeof(char *) * (size_t)(j->cap = j->cap ? j->cap * 2 : 64));
+        j->line[j->n++] = strdup(line);
+    }
+    if (f) fclose(f);
+    j->out = fopen(p, "a");
+}
+
+static bool journal_has(const journal_t *j, const char *console, const char *file) {
+    char k[600];
+    snprintf(k, sizeof k, "%s\t%s", console, file);
+    for (int i = 0; i < j->n; i++)
+        if (!strncmp(j->line[i], k, strlen(k)) && (j->line[i][strlen(k)] == 0 || j->line[i][strlen(k)] == '\t')) return true;
+    return false;
+}
+
+static void journal_add(journal_t *j, const char *console, const char *file, const char *note) {
+    if (!j->out) return;
+    fprintf(j->out, "%s\t%s%s%s\n", console, file, note ? "\t" : "", note ? note : "");
+    fflush(j->out);
+    fsync(fileno(j->out));
+}
+
+static void journal_close(journal_t *j) {
+    for (int i = 0; i < j->n; i++) free(j->line[i]);
+    free(j->line);
+    if (j->out) fclose(j->out);
+}
+
+static bool same_content(const char *a, const char *b) {
+    FILE *x = fopen(a, "rb"), *y = fopen(b, "rb");
+    bool same = x && y;
+    while (same) {
+        int c1 = fgetc(x), c2 = fgetc(y);
+        if (c1 != c2) same = false;
+        if (c1 == EOF || c2 == EOF) break;
+    }
+    if (x) fclose(x);
+    if (y) fclose(y);
+    return same;
+}
+
 int saves_split(const char *root, const game_t *games, int ngames) {
-    int moved = 0, failed = 0;
+    int copied = 0, failed = 0, conflicts = 0;
     for (int e = 0; e < NEMUS; e++) {
         const emulator_t *emu = &EMUS[e];
         if (!emu->console) continue;
@@ -72,44 +127,45 @@ int saves_split(const char *root, const game_t *games, int ngames) {
         if (!strcmp(cname, emu->id)) continue;   /* stessa cartella: niente da fare */
         snprintf(old_dir, sizeof old_dir, "%s/Saves/%s", root, cname);
         if (!exists(old_dir)) continue;
-        /* ogni file vecchio di un gioco di questo emulatore */
+        journal_t j;
+        bool opened = false;
         for (int i = 0; i < ngames; i++) {
             if (strcmp(games[i].core, emu->id) || games[i].missing) continue;
             for (int x = 0; x < NEXTS; x++) {
-                char src[1400], dst[1400], new_dir[1100];
-                snprintf(src, sizeof src, "%s/%s.%s", old_dir, games[i].name, EXTS[x]);
+                char file[600], src[1400], dst[1400], new_dir[1100];
+                snprintf(file, sizeof file, "%s.%s", games[i].name, EXTS[x]);
+                snprintf(src, sizeof src, "%s/%s", old_dir, file);
                 if (!exists(src)) continue;
+                if (!opened) { journal_open(&j, old_dir); opened = true; }
+                if (journal_has(&j, emu->id, file)) continue;   /* già fatto in un avvio prima */
                 snprintf(new_dir, sizeof new_dir, "%s/Saves/%s", root, emu->id);
                 mkdir(new_dir, 0755);
-                /* ogni console con un gioco di questo nome e lo stesso core riceve la sua copia */
-                bool all = true;
-                for (int f = 0; f < NEMUS; f++) {
-                    const emulator_t *o = &EMUS[f];
-                    char oc[64];
-                    if (!o->console) continue;
-                    core_dir_name(o, oc, sizeof oc);
-                    if (strcmp(oc, cname)) continue;
-                    bool has = false;
-                    for (int k = 0; k < ngames && !has; k++)
-                        has = !strcmp(games[k].core, o->id) && !games[k].missing && !strcmp(games[k].name, games[i].name);
-                    if (!has) continue;
-                    char od[1100];
-                    snprintf(od, sizeof od, "%s/Saves/%s", root, o->id);
-                    mkdir(od, 0755);
-                    snprintf(dst, sizeof dst, "%s/%s.%s", od, games[i].name, EXTS[x]);
-                    if (exists(dst)) continue;   /* la console ha già il suo: non si tocca */
-                    if (copy_file(src, dst)) ui_log("salvataggi: %s.%s -> Saves/%s", games[i].name, EXTS[x], o->id);
-                    else { all = false; ui_log("salvataggi: copia di %s non riuscita (%s)", src, strerror(errno)); }
+                snprintf(dst, sizeof dst, "%s/%s", new_dir, file);
+                if (exists(dst)) {
+                    /* la console ha già il suo: uguale, niente da fare; diverso, conflitto */
+                    if (same_content(src, dst)) journal_add(&j, emu->id, file, "uguale");
+                    else {
+                        conflicts++;
+                        journal_add(&j, emu->id, file, "conflitto: resta quello della console");
+                        ui_log("salvataggi: conflitto per %s, Saves/%s ha già un file diverso: restano tutti e due", file, emu->id);
+                    }
+                    continue;
                 }
-                if (all && unlink(src) == 0) moved++;
-                else failed++;
+                if (copy_file(src, dst)) {
+                    copied++;
+                    journal_add(&j, emu->id, file, NULL);
+                    ui_log("salvataggi: %s -> Saves/%s", file, emu->id);
+                } else {
+                    failed++;   /* non registrato: si riprova al prossimo avvio */
+                    ui_log("salvataggi: copia di %s non riuscita (%s)", src, strerror(errno));
+                }
             }
         }
-        rmdir(old_dir);   /* solo se è rimasta vuota */
+        if (opened) journal_close(&j);
     }
-    if (moved || failed) {
+    if (copied || failed || conflicts) {
         sync();
-        ui_log("salvataggi separati per console: %d file spostati, %d rimasti al loro posto", moved, failed);
+        ui_log("salvataggi separati per console: %d file copiati, %d conflitti, %d non riusciti (gli originali restano in Saves/<core>)", copied, conflicts, failed);
     }
     return failed;
 }

@@ -51,6 +51,7 @@ int main(int c, char **v) {
     game("gbc", "Zelda");
     game("md", "A");
     game("gg", "Mio");
+    game("md", "Uguale");
     printf("%d\n", saves_split(v[1], G, ng));
     return 0;
 }
@@ -72,28 +73,38 @@ put $S/Saves/gambatte/Tetris.rtc orologio
 put $S/Saves/gambatte/Zelda.srm zelda
 put $S/Saves/fbneo/sf2.state arcade
 
+put $S/Saves/genesis_plus_gx/Uguale.srm stesso
+mkdir -p $S/Saves/md; put $S/Saves/md/Uguale.srm stesso
 rc=$(./t $S 2>$W/log)
 same() { [ "$(cat "$2" 2>/dev/null || echo '(manca)')" = "$3" ] && ok "$1" || ko "$1: $(cat "$2" 2>/dev/null || echo '(manca)')"; }
-[ "$rc" = 0 ] && ok "nessun errore" || ko "rimasti per errore: $rc"
+J=$S/Saves/genesis_plus_gx/.spostati-per-console.txt
+[ "$rc" = 0 ] && ok "nessuna copia fallita" || ko "copie fallite: $rc"
 same "Mega Drive: .srm nella sua cartella" $S/Saves/md/Gunstar.srm gunstar
 same "Mega Drive: anche l'anteprima dello slot" $S/Saves/md/Gunstar.2.state.png anteprima
 same "stesso nome su Mega Drive e Master System: copia al Mega Drive" $S/Saves/md/Sonic.srm sonic-srm
 same "… e al Master System" $S/Saves/sms/Sonic.srm sonic-srm
 same "… anche il salvataggio automatico" $S/Saves/sms/Sonic.auto.state sonic-auto
-same "file vecchio tolto dopo le copie" $S/Saves/genesis_plus_gx/Sonic.srm "(manca)"
+same "l'originale resta (si può tornare alla versione di prima)" $S/Saves/genesis_plus_gx/Sonic.srm sonic-srm
 same "Game Boy" $S/Saves/gb/Tetris.srm tetris
 same "Game Boy: anche l'orologio" $S/Saves/gb/Tetris.rtc orologio
 same "Game Boy Color" $S/Saves/gbc/Zelda.srm zelda
 same "Zelda non va al Game Boy" $S/Saves/gb/Zelda.srm "(manca)"
 same "il gioco A non prende i file di A.B" $S/Saves/md/A.B.srm "(manca)"
-same "… che restano dov'erano" $S/Saves/genesis_plus_gx/A.B.srm altro-gioco
-same "gioco non più sulla scheda: il file resta" $S/Saves/genesis_plus_gx/Tolto.srm gioco-tolto
-same "console che ha già il suo file: non si sovrascrive" $S/Saves/gg/Mio.srm nuovo
-same "… e il vecchio si toglie" $S/Saves/genesis_plus_gx/Mio.srm "(manca)"
+same "gioco non più sulla scheda: il file resta solo dov'era" $S/Saves/genesis_plus_gx/Tolto.srm gioco-tolto
+same "conflitto: il file della console non si sovrascrive" $S/Saves/gg/Mio.srm nuovo
+same "… e l'originale resta" $S/Saves/genesis_plus_gx/Mio.srm vecchio
+grep -q "^gg	Mio.srm	conflitto" $J && ok "conflitto registrato" || ko "conflitto non registrato: $(cat $J)"
+grep -q "conflitto per Mio.srm" $W/log && ok "conflitto nel log" || ko "conflitto non nel log"
+grep -q "^md	Uguale.srm	uguale" $J && ! grep -q "conflitto per Uguale" $W/log && ok "file uguale: nessun conflitto" || ko "file uguale trattato male"
+grep -q "^md	Sonic.srm$" $J && grep -q "^sms	Sonic.srm$" $J && ok "copie registrate per console" || ko "registro: $(cat $J)"
 same "arcade: nulla cambia" $S/Saves/fbneo/sf2.state arcade
-[ ! -d $S/Saves/gambatte ] && ok "cartella del core vuota tolta" || ko "Saves/gambatte rimasta: $(ls $S/Saves/gambatte)"
 [ -z "$(find $S -name '*.tmp')" ] && ok "nessun file provvisorio" || ko "provvisori rimasti"
-rc=$(./t $S 2>/dev/null)
-[ "$rc" = 0 ] && [ "$(cat $S/Saves/md/Sonic.srm)" = sonic-srm ] && ok "secondo avvio: niente da fare, niente cambia" || ko "secondo avvio: $rc"
+before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum)
+rc=$(./t $S 2>$W/log2)
+[ "$rc" = 0 ] && [ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "secondo avvio: niente cambia" || ko "secondo avvio: $rc, $(cat $W/log2)"
+rm $S/Saves/md/Sonic.srm   # "Reimposta il gioco" sulla console nuova
+./t $S >/dev/null 2>&1
+same "dopo Reimposta il gioco il salvataggio non torna" $S/Saves/md/Sonic.srm "(manca)"
+same "… e il Master System tiene il suo" $S/Saves/sms/Sonic.srm sonic-srm
 
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors errori"; exit 1; }

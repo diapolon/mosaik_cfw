@@ -20,6 +20,7 @@
 #include <string.h>
 #include <strings.h>
 #include <dirent.h>
+#include <limits.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <time.h>
@@ -2978,6 +2979,12 @@ static void upd_start(void) {
 
 static void upd_reboot(void) {
     settings_save(&UI.set, UI.root);
+    /* niente ripresa automatica dopo l'aggiornamento: il sistema nuovo deve arrivare al menu,
+       che lo conferma (update_confirm_boot); con la ripresa il launcher uscirebbe subito e dopo
+       tre avvii così l'initramfs tornerebbe al sistema vecchio (audit prelancio R02) */
+    char rp[1100];
+    snprintf(rp, sizeof rp, "%s/System/resume.txt", UI.root);
+    unlink(rp);
     bool charger = on_charger();
     if (charger) ui_log("aggiornamento installato con il caricatore collegato: la console si spegne");
     ui_busy(charger ? T("common.restart_charger") : T("update.restarting"), charger ? 4 : 0.5);
@@ -5086,12 +5093,57 @@ static void battery_check(void) {
 
 /* ----------------------------------------------------------- main */
 
+/* Ripresa della partita all'accensione: resume.txt diventa next.txt. Quello scritto da un
+   runner della 0.9.17 non ha la console (sesto campo): si ricava dalla cartella della ROM, e i
+   salvataggi di quel gioco si portano subito in Saves/<console> (audit prelancio R02). */
 static bool consume_resume(void) {
-    char a[1100], b[1100];
+    char a[1100], b[1100], line[2400];
     snprintf(a, sizeof a, "%s/System/resume.txt", UI.root);
     snprintf(b, sizeof b, "%s/System/next.txt", UI.root);
     struct stat st;
     if (!UI.set.resume_last || stat(a, &st) != 0) return false;
+    FILE *f = fopen(a, "r");
+    bool legacy = false;
+    char *fld[6] = { 0 };
+    int nf = 0;
+    if (f && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        for (char *p = line; p && nf < 6; nf++) { fld[nf] = p; p = strchr(p, '\t'); if (p) *p++ = 0; }
+        legacy = nf == 5 && !strcmp(fld[0], "libretro");
+    }
+    if (f) fclose(f);
+    if (legacy) {
+        emulators_load(UI.root);
+        const emulator_t *emu = NULL;
+        /* percorsi reali: la cartella del launcher può essere relativa, la ROM assoluta */
+        char rom_real[PATH_MAX];
+        if (!realpath(fld[2], rom_real)) snprintf(rom_real, sizeof rom_real, "%s", fld[2]);
+        for (int e = 0; e < NEMUS && !emu; e++) {
+            char dir[1100], dir_real[PATH_MAX];
+            if (EMUS[e].roms[0] == '/') snprintf(dir, sizeof dir, "%s", EMUS[e].roms);
+            else snprintf(dir, sizeof dir, "%s/%s", UI.root, EMUS[e].roms);
+            if (!realpath(dir, dir_real)) continue;
+            size_t l = strlen(dir_real);
+            if (!strncmp(rom_real, dir_real, l) && rom_real[l] == '/') emu = &EMUS[e];
+        }
+        if (emu && emu->console) {
+            game_t g;
+            memset(&g, 0, sizeof g);
+            snprintf(g.core, sizeof g.core, "%s", emu->id);
+            const char *base = strrchr(fld[2], '/');
+            snprintf(g.name, sizeof g.name, "%s", base ? base + 1 : fld[2]);
+            char *dot = strrchr(g.name, '.');
+            if (dot) *dot = 0;
+            saves_split(UI.root, &g, 1);
+            char tmp[1200];
+            snprintf(tmp, sizeof tmp, "%s.tmp", b);
+            FILE *o = fopen(tmp, "w");
+            bool ok = o && fprintf(o, "%s\t%s\t%s\t%s\t%s\t%s\n", fld[0], fld[1], fld[2], fld[3], fld[4], emu->id) > 0;
+            if (o && fclose(o) != 0) ok = false;
+            if (ok && rename(tmp, b) == 0) { unlink(a); ui_log("ripresa: console %s ricavata dalla cartella della ROM", emu->id); return true; }
+            unlink(tmp);
+        }
+    }
     return rename(a, b) == 0;
 }
 
@@ -5109,6 +5161,8 @@ int main(int argc, char **argv) {
     ui_busy(T("common.loading"), 0);   /* subito qualcosa a schermo mentre si caricano i giochi */
     if (!auto_script && consume_resume()) {
         ui_log("riprendo l'ultima partita");
+        /* il sistema è arrivato fin qui: vale come prima schermata per l'aggiornamento */
+        update_confirm_boot(UI.root);
         plat_audio_release();
         ui_shutdown_code(EXIT_LAUNCH);
         return EXIT_LAUNCH;
