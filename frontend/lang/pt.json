@@ -591,7 +591,11 @@
     "channel_dev": "Desenvolvimento",
     "channel_warn": "Versões de teste: podem ter problemas",
     "notice": "Atualização disponível",
-    "boot_failed": "A atualização falhou: no próximo arranque volta a versão anterior."
+    "boot_failed": "A atualização falhou: no próximo arranque volta a versão anterior.",
+    "resume_title": "Atualização transferida",
+    "later": "Mais tarde",
+    "delete": "Eliminar",
+    "deleted": "Atualização transferida eliminada"
   },
   "look": {
     "auto": "Automático",

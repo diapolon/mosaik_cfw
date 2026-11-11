@@ -185,6 +185,7 @@ static bool thread_on;
 
 bool update_supported(void) { const char *e = getenv("ARCADE_STANDALONE"); return e && *e == '1'; }
 
+static bool resumed;        /* UPD_READY da uno scaricamento tenuto da parte (update_resume_start) */
 static int probe_pause;   /* "prova-pausa N" nell'elenco firmato: solo per le prove (R03) */
 static void fail(int err) { st.error = err; st.phase = UPD_FAILED; }
 
@@ -363,18 +364,26 @@ static bool parse_manifest(char *text) {
 
 static const char *stamp_of(const char *v) { const char *s = strchr(v, ' '); return s ? s + 1 : ""; }
 
+/* elenco firmato della versione in corso: resta con lo scaricamento finito (update-ready) */
+static char g_text[1 << 20];
+static unsigned char g_sig[512];
+static size_t g_text_len, g_sig_len;
+
 static void *check_worker(void *arg) {
     (void)arg;
     st.phase = UPD_SEARCH;
     if (!configured_url()) { st.phase = UPD_NO_SERVER; return NULL; }
     ui_log("aggiornamento: server %s", base_url);
     st.phase = UPD_CHECK;
-    static char text[1 << 20];
-    static unsigned char sig[512];
-    mem_t mt = { text, 0, sizeof text }, ms = { (char *)sig, 0, sizeof sig };
+    mem_t mt = { g_text, 0, sizeof g_text }, ms = { (char *)g_sig, 0, sizeof g_sig };
     if (!get_mem("update.txt", &mt) || !get_mem("update.sig", &ms)) { fail(UPE_NETWORK); return NULL; }
-    if (!signature_ok(text, mt.len, sig, ms.len)) { ui_log("aggiornamento: firma non valida"); fail(UPE_SIGNATURE); return NULL; }
-    if (!parse_manifest(text)) { ui_log("aggiornamento: elenco non valido"); fail(UPE_MANIFEST); return NULL; }
+    g_text_len = mt.len;
+    g_sig_len = ms.len;
+    if (!signature_ok(g_text, mt.len, g_sig, ms.len)) { ui_log("aggiornamento: firma non valida"); fail(UPE_SIGNATURE); return NULL; }
+    /* parse_manifest spezza il testo: se ne tiene una copia intera per update-ready */
+    static char work[1 << 20];
+    memcpy(work, g_text, mt.len + 1);
+    if (!parse_manifest(work)) { ui_log("aggiornamento: elenco non valido"); fail(UPE_MANIFEST); return NULL; }
     /* solo versioni più recenti (le date di compilazione si confrontano come testo) */
     if (strcmp(stamp_of(st.version), stamp_of(update_current())) <= 0) { st.phase = UPD_CURRENT; return NULL; }
     /* la versione è nuova: lo si dice subito. Quali file servono davvero si vede solo dopo
@@ -427,13 +436,28 @@ static void mkdirs(char *path) {
 static bool fetch_one(const item_t *it, const char *tmp, int *err) {
     char url[320], sha[65];
     snprintf(url, sizeof url, "%s/file-%d", base_url, it->index);
-    FILE *f = fopen(tmp, "wb");
+    /* già scaricato in un giro precedente (rete caduta, console spenta): se è giusto si tiene;
+       se è a metà si continua da lì */
+    struct stat sb;
+    long long have = 0;
+    if (stat(tmp, &sb) == 0 && sb.st_size == it->size && sha256_file(tmp, sha, false) && !strcmp(sha, it->sha)) {
+        st.done += it->size;
+        ui_log("aggiornamento: %s già scaricato", it->path);
+        return true;
+    }
+    if (stat(tmp, &sb) == 0 && sb.st_size > 0 && sb.st_size < it->size) have = sb.st_size;
+    FILE *f = fopen(tmp, have ? "ab" : "wb");
     if (!f) { *err = UPE_WRITE; return false; }
     CURL *c = new_curl(url);
     if (!c) { fclose(f); *err = UPE_NETWORK; return false; }
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, to_file);
     curl_easy_setopt(c, CURLOPT_WRITEDATA, f);
-    if (it->size > 0) curl_easy_setopt(c, CURLOPT_MAXFILESIZE_LARGE, (curl_off_t)it->size);   /* non oltre la misura firmata */
+    if (have) {
+        ui_log("aggiornamento: %s, riprendo da %lld byte", it->path, have);
+        curl_easy_setopt(c, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)have);
+        st.done += have;
+    }
+    if (it->size > 0) curl_easy_setopt(c, CURLOPT_MAXFILESIZE_LARGE, (curl_off_t)(it->size - have));   /* non oltre la misura firmata */
     CURLcode rc = curl_easy_perform(c);
     curl_easy_cleanup(c);
     bool flushed = fflush(f) == 0 && fsync(fileno(f)) == 0;
@@ -441,10 +465,12 @@ static bool fetch_one(const item_t *it, const char *tmp, int *err) {
     posix_fadvise(fileno(f), 0, 0, POSIX_FADV_DONTNEED);
     fclose(f);
     if (st.cancel) { *err = UPE_CANCEL; return false; }
-    if (rc == CURLE_FILESIZE_EXCEEDED) { *err = UPE_VERIFY; return false; }   /* più grande del file firmato */
+    if (rc == CURLE_FILESIZE_EXCEEDED) { unlink(tmp); *err = UPE_VERIFY; return false; }   /* più grande del file firmato */
+    /* il server non riprende a metà: si ricomincia il file da capo (il giro dopo) */
+    if (rc == CURLE_RANGE_ERROR) { unlink(tmp); *err = UPE_VERIFY; return false; }
     if (rc != CURLE_OK) { *err = UPE_NETWORK; return false; }
     if (!flushed) { *err = UPE_WRITE; return false; }
-    if (!sha256_file(tmp, sha, false) || strcmp(sha, it->sha)) { *err = UPE_VERIFY; return false; }
+    if (!sha256_file(tmp, sha, false) || strcmp(sha, it->sha)) { unlink(tmp); *err = UPE_VERIFY; return false; }
     return true;
 }
 
@@ -543,6 +569,33 @@ static void remove_tmps(void) {
     for (int i = 0; i < nitems; i++) if (items[i].need) { tmp_name(&items[i], t, sizeof t); unlink(t); }
 }
 
+/* scaricamento finito e controllato: l'elenco firmato resta sulla scheda, così dopo uno
+   spegnimento la console propone di installare senza riscaricare (update_resume_start) */
+#define READY_TXT "System/update-ready.txt"
+#define READY_SIG "System/update-ready.sig"
+static bool write_file(const char *rel, const void *data, size_t n) {
+    char p[1100], t[1120];
+    snprintf(p, sizeof p, "%s/%s", root_dir, rel);
+    snprintf(t, sizeof t, "%s.tmp", p);
+    FILE *f = fopen(t, "wb");
+    if (!f) return false;
+    bool ok = fwrite(data, 1, n, f) == n && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (fclose(f) != 0) ok = false;
+    if (!ok || rename(t, p) != 0) { unlink(t); return false; }
+    return true;
+}
+static void save_ready(void) {
+    if (!write_file(READY_SIG, g_sig, g_sig_len) || !write_file(READY_TXT, g_text, g_text_len))
+        ui_log("aggiornamento: impossibile ricordare lo scaricamento finito");
+}
+static void drop_ready(void) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/" READY_TXT, root_dir);
+    unlink(p);
+    snprintf(p, sizeof p, "%s/" READY_SIG, root_dir);
+    unlink(p);
+}
+
 static void *install_worker(void *arg) {
     (void)arg;
     if (!compare_files()) { fail(UPE_CANCEL); return NULL; }
@@ -567,9 +620,17 @@ static void *install_worker(void *arg) {
             if (!ok && err != UPE_VERIFY) break;
             if (!ok) ui_log("aggiornamento: %s diverso dopo la scrittura, riprovo", it->path);
         }
-        if (!ok) { ui_log("aggiornamento: %s non riuscito (%d)", it->path, err); remove_tmps(); fail(err); return NULL; }
+        if (!ok) {
+            ui_log("aggiornamento: %s non riuscito (%d)", it->path, err);
+            /* rete caduta: i file restano per riprendere al prossimo tentativo; se non si
+               riprova, li toglie il controllo all'avvio del launcher */
+            if (err != UPE_NETWORK) remove_tmps();
+            fail(err);
+            return NULL;
+        }
     }
     /* tutti i file sono giusti: si aspetta la conferma, a schermo */
+    save_ready();
     st.phase = UPD_READY;
     return NULL;
 }
@@ -694,6 +755,7 @@ static void *apply_worker(void *arg) {
     /* le copie .annulla restano fino alla conferma del primo avvio (update_confirm_boot) */
     if (!journal_write("installato")) ui_log("aggiornamento: giornale non aggiornato: al prossimo avvio si torna ai file di prima");
     sync();
+    drop_ready();
     ui_log("aggiornamento: installata la versione %s", st.version);
     st.phase = UPD_DONE;
     return NULL;
@@ -802,8 +864,108 @@ void update_apply(void) {
 void update_discard(void) {
     update_join();
     remove_tmps();
+    drop_ready();
+    resumed = false;
     fail(UPE_CANCEL);
 }
+
+/* ------------------------------------------- scaricato e non installato */
+/* file .nuovo nelle cartelle del sistema che non servono all'aggiornamento tenuto da parte */
+static bool kept(const char *path) {
+    for (int i = 0; i < nitems; i++) {
+        if (!items[i].need) continue;
+        char t[1100];
+        tmp_name(&items[i], t, sizeof t);
+        if (!strcmp(t, path)) return true;
+    }
+    return false;
+}
+static int sweep(const char *dir, bool keep) {
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+    int n = 0;
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        if (e->d_name[0] == '.') continue;
+        char p[1100];
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        struct stat sb;
+        if (lstat(p, &sb) != 0) continue;
+        if (S_ISDIR(sb.st_mode)) { n += sweep(p, keep); continue; }
+        size_t l = strlen(e->d_name);
+        if (S_ISREG(sb.st_mode) && l > 6 && !strcmp(e->d_name + l - 6, ".nuovo") && !(keep && kept(p)) && unlink(p) == 0) n++;
+    }
+    closedir(d);
+    return n;
+}
+static void sweep_all(bool keep) {
+    static const char *const dirs[] = { "System", "Lang", "Cores", "Emulators", "Themes", "Filters", "Bezels", "Dats" };
+    int n = 0;
+    for (size_t i = 0; i < sizeof dirs / sizeof dirs[0]; i++) {
+        char p[1100];
+        snprintf(p, sizeof p, "%s/%s", root_dir, dirs[i]);
+        n += sweep(p, keep);
+    }
+    if (n) ui_log("aggiornamento: tolti %d file scaricati e non più utili", n);
+}
+
+static bool read_all(const char *rel, void *buf, size_t cap, size_t *len) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/%s", root_dir, rel);
+    FILE *f = fopen(p, "rb");
+    if (!f) return false;
+    *len = fread(buf, 1, cap - 1, f);
+    bool ok = !ferror(f) && feof(f);
+    fclose(f);
+    return ok;
+}
+
+static void *resume_worker(void *arg) {
+    (void)arg;
+    char j[1100];
+    snprintf(j, sizeof j, "%s/" JOURNAL, root_dir);
+    if (access(j, F_OK) == 0) { st.phase = UPD_IDLE; return NULL; }   /* un'installazione ancora da confermare */
+    static char work[1 << 20];
+    bool have = read_all(READY_TXT, g_text, sizeof g_text, &g_text_len) && read_all(READY_SIG, g_sig, sizeof g_sig, &g_sig_len);
+    bool ok = false;
+    if (have) {
+        g_text[g_text_len] = 0;
+        memcpy(work, g_text, g_text_len + 1);
+        ok = signature_ok(g_text, g_text_len, g_sig, g_sig_len) && parse_manifest(work)
+             && strcmp(stamp_of(st.version), stamp_of(update_current())) > 0;
+        if (ok) ok = compare_files() && st.files > 0;
+        /* ogni file da installare c'è ed è quello firmato */
+        for (int i = 0; ok && i < nitems; i++) {
+            if (!items[i].need) continue;
+            char t[1100], sha[65];
+            struct stat sb;
+            tmp_name(&items[i], t, sizeof t);
+            ok = stat(t, &sb) == 0 && sb.st_size == items[i].size && sha256_file(t, sha, false) && !strcmp(sha, items[i].sha);
+            if (!ok) ui_log("aggiornamento: %s scaricato ma non integro", items[i].path);
+        }
+        if (!ok) { ui_log("aggiornamento: lo scaricamento tenuto da parte non vale più: lo tolgo"); drop_ready(); }
+    }
+    sweep_all(ok);
+    if (ok) {
+        resumed = true;
+        ui_log("aggiornamento: %s già scaricato, da installare", st.version);
+        st.phase = UPD_READY;
+    } else st.phase = UPD_IDLE;
+    return NULL;
+}
+
+void update_resume_start(const char *root) {
+    update_join();
+    memset(&st, 0, sizeof st);
+    resumed = false;
+    snprintf(root_dir, sizeof root_dir, "%s", root);
+    if (!items) items = malloc(sizeof(item_t) * MAX_FILES);
+    if (!items) return;
+    nitems = 0;
+    if (pthread_create(&thread, NULL, resume_worker, NULL) == 0) thread_on = true;
+}
+
+bool update_resume_ready(void) { return resumed && st.phase == UPD_READY; }
 
 #else
 /* ------------------------------------------------------- Mac: percorso simulato */
@@ -827,6 +989,15 @@ void update_check(const char *root) {
 void update_install(void) { sim_t0 = now_s(); st.phase = UPD_CHECK; }
 void update_apply(void) { st.phase = UPD_DONE; }
 void update_discard(void) { st.error = UPE_CANCEL; st.phase = UPD_FAILED; }
+/* ARCADE_TEST_READY: prova della finestra "aggiornamento scaricato" */
+void update_resume_start(const char *root) {
+    (void)root;
+    if (!getenv("ARCADE_TEST_READY")) return;
+    memset(&st, 0, sizeof st);
+    snprintf(st.version, sizeof st.version, "9.9.9 20991231.2359");
+    st.phase = UPD_READY;
+}
+bool update_resume_ready(void) { return getenv("ARCADE_TEST_READY") && st.phase == UPD_READY; }
 static void sim_tick(void) {
     if (st.phase == UPD_CHECK) {   /* confronto dei file, poi lo scaricamento */
         double c = now_s() - sim_t0;

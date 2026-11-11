@@ -591,7 +591,11 @@
     "channel_dev": "Desarrollo",
     "channel_warn": "Versiones de prueba: pueden tener problemas",
     "notice": "Actualización disponible",
-    "boot_failed": "La actualización falló: al reiniciar vuelve la versión anterior."
+    "boot_failed": "La actualización falló: al reiniciar vuelve la versión anterior.",
+    "resume_title": "Actualización descargada",
+    "later": "Más tarde",
+    "delete": "Eliminar",
+    "deleted": "Actualización descargada eliminada"
   },
   "look": {
     "auto": "Automático",

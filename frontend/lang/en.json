@@ -591,7 +591,11 @@
     "channel_dev": "Development",
     "channel_warn": "Test builds: they may have problems",
     "notice": "Update available",
-    "boot_failed": "Update failed: the previous version comes back at the next start."
+    "boot_failed": "Update failed: the previous version comes back at the next start.",
+    "resume_title": "Update downloaded",
+    "later": "Later",
+    "delete": "Delete",
+    "deleted": "Downloaded update deleted"
   },
   "look": {
     "auto": "Auto",

@@ -37,6 +37,11 @@ void update_check(const char *root);      /* cerca la versione e ne controlla la
 void update_install(void);
 void update_apply(void);                  /* dopo UPD_READY: installa, in un thread */
 void update_discard(void);                /* dopo UPD_READY: cancella i file scaricati */
+/* all'avvio del launcher, in un thread: uno scaricamento finito e non installato (spegnimento,
+   batteria) si ricontrolla senza rete (firma dell'elenco tenuto da parte, impronte dei file) e,
+   se vale ancora, porta a UPD_READY; altrimenti si toglie. Toglie anche i .nuovo rimasti. */
+void update_resume_start(const char *root);
+bool update_resume_ready(void);
 void update_cancel(void);
 const update_status_t *update_status(void);
 void update_join(void);                   /* attende la fine del thread */

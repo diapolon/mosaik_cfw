@@ -30,6 +30,19 @@ int main(int c, char **v) {
         puts(update_notify_version()[0] ? update_notify_version() : "niente");
         return 0;
     }
+    if (c > 2 && !strcmp(v[2], "resume")) {
+        update_resume_start(v[1]); update_join();
+        const update_status_t *r = update_status();
+        if (c > 3 && r->phase == UPD_READY) { update_apply(); update_join(); }
+        printf("%d %d %d\n", r->phase, r->error, r->files);
+        return 0;
+    }
+    if (c > 2 && !strcmp(v[2], "download")) {
+        update_check(v[1]); update_join();
+        if (update_status()->phase == UPD_AVAILABLE) { update_install(); update_join(); }
+        printf("%d %d %d\n", update_status()->phase, update_status()->error, update_status()->files);
+        return 0;
+    }
     if (c > 2 && !strcmp(v[2], "confirm")) { update_confirm_boot(v[1]); printf("%d\n", (int)update_boot_failed()); return 0; }
     update_check(v[1]); update_join();
     const update_status_t *s = update_status();
@@ -272,6 +285,45 @@ MOSAIK_PROVA_PAUSA=1 serve key.pem
 out=$(./t $W/sd install 2>$W/pausa.log)
 expect "$out" "10 0 6" "installato dopo la pausa"
 grep -q "pausa di 1 s" $W/pausa.log && ok "pausa fatta" || ko "pausa non fatta: $(cat $W/pausa.log | tail -3)"
+stop
+
+echo "--- scaricato e non installato: ripreso all'avvio senza rete"
+card; export ARCADE_VERSION_FILE=$W/old.txt; serve key.pem
+expect "$(./t $W/sd download 2>/dev/null)" "8 0 6" "scaricato, poi la console si spegne"
+[ -f $S/System/update-ready.txt ] && [ -f $S/System/update-ready.sig ] && [ -f $S/Lang/it.json.nuovo ] && ok "elenco firmato tenuto da parte con i file scaricati" || ko "niente da riprendere: $(ls $S/System)"
+stop
+echo "http://127.0.0.1:1/" > $S/System/update-url.txt   # nessuna rete
+expect "$(./t $W/sd resume 2>/dev/null)" "8 0 6" "all'avvio: pronto da installare, senza rete"
+expect "$(./t $W/sd resume apply 2>/dev/null)" "10 0 6" "installato dal ripreso"
+cmp $D/arcade-system.squashfs $SF && cmp $A/Lang/it.json $S/Lang/it.json && [ ! -e $S/System/update-ready.txt ] && [ -z "$(find $S -name '*.nuovo')" ] && ok "sistema e dati nuovi, niente rimasto da parte" || ko "dopo l'installazione ripresa"
+echo "--- scaricato ma rovinato: si toglie"
+card; serve key.pem
+expect "$(./t $W/sd download 2>/dev/null)" "8 0 6" "scaricato"
+stop
+echo rovinato > $S/Lang/it.json.nuovo
+expect "$(./t $W/sd resume 2>/dev/null)" "0 0 6" "file non integro: niente domanda"
+[ ! -e $S/System/update-ready.txt ] && [ -z "$(find $S -name '*.nuovo')" ] && ok "elenco e file scaricati tolti" || ko "rimasti: $(find $S -name '*.nuovo')"
+echo "--- versione già installata: lo scaricato si toglie"
+card; serve key.pem
+./t $W/sd download >/dev/null 2>&1
+stop
+export ARCADE_VERSION_FILE=$W/same.txt
+expect "$(./t $W/sd resume 2>/dev/null | cut -d' ' -f1)" "0" "niente domanda"
+[ -z "$(find $S -name '*.nuovo')" ] && [ ! -e $S/System/update-ready.txt ] && ok "tolto" || ko "rimasto"
+export ARCADE_VERSION_FILE=$W/old.txt
+echo "--- file .nuovo abbandonati (rete caduta, nessun elenco): tolti all'avvio"
+card; mkdir -p $S/Themes/t; echo x > $S/Lang/xx.json.nuovo; echo y > $S/Themes/t/a.png.nuovo; echo r > $S/Roms/gioco.nuovo
+./t $W/sd resume >/dev/null 2>&1
+[ ! -e $S/Lang/xx.json.nuovo ] && [ ! -e $S/Themes/t/a.png.nuovo ] && ok "tolti nelle cartelle del sistema" || ko "rimasti"
+[ -f $S/Roms/gioco.nuovo ] && ok "le ROM non si toccano" || ko "toccato un file in Roms"
+echo "--- scaricamento ripreso: file già intero e file a metà"
+card; serve key.pem
+cp $D/arcade-system.squashfs $SF.nuovo
+head -c 2500000 $A/Cores/a.so > $S/Cores/a.so.nuovo
+expect "$(./t $W/sd install 2>$W/ripresa.log)" "10 0 6" "installato"
+grep -q "arcade-system.squashfs già scaricato" $W/ripresa.log && ok "file già intero non riscaricato" || ko "riscaricato: $(grep aggiornamento $W/ripresa.log | head)"
+grep -q "a.so, riprendo da 2500000" $W/ripresa.log && ok "file a metà ripreso (o ricominciato se il server non lo permette)" || ko "file a metà: $(grep a.so $W/ripresa.log)"
+cmp $A/Cores/a.so $S/Cores/a.so && ok "core giusto dopo la ripresa" || ko "core sbagliato"
 stop
 
 echo "--- nessun server"

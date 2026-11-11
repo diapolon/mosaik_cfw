@@ -3014,6 +3014,54 @@ static bool upd_battery_ok(void) {
     return false;
 }
 
+/* Aggiornamento scaricato e non installato (spegnimento, batteria scarica): all'avvio la console
+   lo ricontrolla (update_resume_start) e chiede se installarlo. Più tardi lo tiene per l'avvio
+   dopo, Elimina cancella i file scaricati. */
+static bool rdy_open, rdy_asked;
+static int rdy_sel = 2;
+
+static bool upd_battery_ok(void);
+static void rdy_input(void) {
+    int r = ui_popup_input(&rdy_sel, 3);
+    if (r == 2) {
+        if (!upd_battery_ok()) { ui_sound(SND_ERROR); return; }
+        rdy_open = false;
+        update_apply();
+        upd_open = true;   /* la finestra dell'aggiornamento mostra l'installazione e il riavvio */
+        ui_sound(SND_OK);
+    } else if (r == 0) {
+        rdy_open = false;
+        update_discard();
+        ui_toast(T("update.deleted"));
+        ui_sound(SND_BACK);
+    } else if (r == 1 || r == -2) {
+        rdy_open = false;
+        ui_sound(SND_BACK);
+    }
+}
+
+static void rdy_draw(void) {
+    theme_t *t = &UI.th;
+    const update_status_t *s = update_status();
+    char body[400], lines[3][160];
+    snprintf(body, sizeof body, T("update.ready_hint"), s->version);
+    if (s->reinstall) { size_t l = strlen(body); snprintf(body + l, sizeof body - l, " %s", T("update.reinstall")); }
+    int w = M(0.85f), pad = M(0.05f);
+    int nl = ui_wrap(UI.f_small, body, w - 2 * pad, lines, 3), sh = TTF_FontHeight(UI.f_small);
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + ui_popup_buttons_h();
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
+    int ty = y + pad;
+    ui_text(UI.f_title, T("update.resume_title"), x + pad, ty, t->text, ALIGN_LEFT);
+    ty += TTF_FontHeight(UI.f_title) + M(0.02f);
+    for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text_dim, ALIGN_LEFT);
+    const char *labels[3] = { T("update.delete"), T("update.later"), T("update.install") };
+    ui_popup_buttons(x, y, w, h, labels, 3, rdy_sel, 0);
+}
+
 /* pulsanti della finestra secondo la fase; con due, il secondo è l'azione (scelto all'inizio) */
 static int upd_sel = 1, upd_sel_phase = -1;
 static int upd_buttons(const update_status_t *s, const char **labels) {
@@ -5262,6 +5310,7 @@ int main(int argc, char **argv) {
             if (r >= 0) dlg_open = dlg_suspend = false;
             if (r == 1) { ui_suspend(); last_input = UI.t; }
         }
+        else if (rdy_open) rdy_input();
         else if (cfm_kind) cfm_input();
         else if (setup_step) setup_input();
         else if (sc_state) sc_input();
@@ -5345,6 +5394,7 @@ int main(int argc, char **argv) {
         if (cfm_kind) cfm_draw();
         if (ptest_open) ptest_draw();
         if (setup_step) setup_draw();
+        if (rdy_open) rdy_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
         if (first_frame) {
@@ -5352,6 +5402,12 @@ int main(int argc, char **argv) {
             ui_mark("prima schermata");
             update_confirm_boot(UI.root);
             if (update_boot_failed()) ui_toast(T("update.boot_failed"));
+            else if (update_supported()) update_resume_start(UI.root);   /* scaricato e non installato? */
+        }
+        /* la domanda arriva quando il controllo in sottofondo è finito, solo se nulla è aperto */
+        if (!rdy_asked && update_resume_ready() && !upd_open && !dlg_open && !cfm_kind && !setup_step) {
+            rdy_asked = rdy_open = true;
+            rdy_sel = 2;
         }
         /* avviso di aggiornamento, solo nella schermata iniziale */
         if (update_notify_version()[0] && !saver_on && (screen == SCR_HOME || (is_list_layout() && screen == SCR_LIBRARY)) && !dlg_open) {

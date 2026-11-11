@@ -591,7 +591,11 @@
     "channel_dev": "Développement",
     "channel_warn": "Versions de test : des problèmes sont possibles",
     "notice": "Mise à jour disponible",
-    "boot_failed": "Échec de la mise à jour : la version précédente revient au prochain démarrage."
+    "boot_failed": "Échec de la mise à jour : la version précédente revient au prochain démarrage.",
+    "resume_title": "Mise à jour téléchargée",
+    "later": "Plus tard",
+    "delete": "Supprimer",
+    "deleted": "Mise à jour téléchargée supprimée"
   },
   "look": {
     "auto": "Automatique",
