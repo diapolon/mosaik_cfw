@@ -16,7 +16,7 @@ enum { UPE_NONE, UPE_NETWORK, UPE_SIGNATURE, UPE_MANIFEST, UPE_SPACE, UPE_VERIFY
 typedef struct {
     _Atomic int phase, error;
     _Atomic long long done, total;   /* byte elaborati / da elaborare nella fase */
-    _Atomic int files;               /* file da aggiornare */
+    _Atomic int files;               /* file da aggiornare (in UPD_AVAILABLE: tutti quelli della versione) */
     char version[64];                 /* versione offerta */
     _Atomic bool reinstall;           /* l'area di avvio della scheda è vecchia: conviene riscrivere la SD */
     _Atomic bool cancel;
@@ -31,8 +31,10 @@ void update_set_channel(int development); /* da chiamare prima di update_check *
 void update_notify_start(const char *root, int development);
 /* versione più recente trovata, "" se non c'è nulla di nuovo */
 const char *update_notify_version(void);
-void update_check(const char *root);      /* cerca e controlla, in un thread */
-void update_install(void);                /* dopo UPD_AVAILABLE: scarica e controlla, in un thread */
+void update_check(const char *root);      /* cerca la versione e ne controlla la firma, in un thread */
+/* dopo UPD_AVAILABLE, in un thread: confronta i file con la scheda (UPD_CHECK), poi li scarica e
+   li controlla; UPD_CURRENT se nessun file è cambiato */
+void update_install(void);
 void update_apply(void);                  /* dopo UPD_READY: installa, in un thread */
 void update_discard(void);                /* dopo UPD_READY: cancella i file scaricati */
 void update_cancel(void);

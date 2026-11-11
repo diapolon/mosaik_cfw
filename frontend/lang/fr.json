@@ -566,7 +566,7 @@
     "none_hint": "Réessayez plus tard.",
     "current": "Le système est à jour",
     "available": "Disponible : %s",
-    "details": "Version actuelle : %s · %d fichiers à télécharger, %s.",
+    "details_max": "Version actuelle : %s · jusqu'à %s à télécharger : les fichiers de la carte sont d'abord comparés.",
     "download": "Télécharger",
     "install": "Installer",
     "downloading": "Téléchargement et vérification…",

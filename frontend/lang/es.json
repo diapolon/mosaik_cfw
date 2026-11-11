@@ -566,7 +566,7 @@
     "none_hint": "Inténtalo más tarde.",
     "current": "El sistema está actualizado",
     "available": "Disponible: %s",
-    "details": "Tienes la %s · %d archivos por descargar, %s.",
+    "details_max": "Tienes la %s · hasta %s por descargar: antes se comparan los archivos de la tarjeta.",
     "download": "Descargar",
     "install": "Instalar",
     "downloading": "Descargando y comprobando archivos…",

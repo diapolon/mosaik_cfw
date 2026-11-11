@@ -566,7 +566,7 @@
     "none_hint": "Try again later.",
     "current": "The system is up to date",
     "available": "Available: %s",
-    "details": "You have %s · %d files to download, %s.",
+    "details_max": "You have %s · up to %s to download: the files on the card are compared first.",
     "download": "Download",
     "install": "Install",
     "downloading": "Downloading and checking files…",

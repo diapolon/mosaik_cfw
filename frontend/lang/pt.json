@@ -566,7 +566,7 @@
     "none_hint": "Tenta mais tarde.",
     "current": "O sistema está atualizado",
     "available": "Disponível: %s",
-    "details": "Tens a %s · %d ficheiros a transferir, %s.",
+    "details_max": "Tens a %s · até %s a transferir: primeiro comparam-se os ficheiros do cartão.",
     "download": "Transferir",
     "install": "Instalar",
     "downloading": "A transferir e verificar ficheiros…",

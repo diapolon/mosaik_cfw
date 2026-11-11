@@ -3054,7 +3054,7 @@ static void upd_draw(void) {
     case UPD_AVAILABLE:
         fmt_bytes(s->total, size, sizeof size);
         snprintf(line, sizeof line, T("update.available"), s->version);
-        snprintf(sub, sizeof sub, T("update.details"), update_current(), s->files, size);
+        snprintf(sub, sizeof sub, T("update.details_max"), update_current(), size);
         if (s->reinstall) { size_t l = strlen(sub); snprintf(sub + l, sizeof sub - l, " %s", T("update.reinstall")); }
         break;
     case UPD_DOWNLOAD: case UPD_VERIFY: snprintf(line, sizeof line, "%s", T("update.downloading")); break;

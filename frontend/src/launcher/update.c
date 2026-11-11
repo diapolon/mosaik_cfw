@@ -273,6 +273,22 @@ static void *check_worker(void *arg) {
     if (!parse_manifest(text)) { ui_log("aggiornamento: elenco non valido"); fail(UPE_MANIFEST); return NULL; }
     /* solo versioni più recenti (le date di compilazione si confrontano come testo) */
     if (strcmp(stamp_of(st.version), stamp_of(update_current())) <= 0) { st.phase = UPD_CURRENT; return NULL; }
+    /* la versione è nuova: lo si dice subito. Quali file servono davvero si vede solo dopo
+       "Scarica" (install_worker), perché confrontarli vuol dire leggere decine di MB dalla SD;
+       intanto si mostra il massimo, cioè tutta la versione */
+    long long all = 0;
+    for (int i = 0; i < nitems; i++) all += items[i].size;
+    st.files = nitems;
+    st.done = 0;
+    st.total = all;
+    ui_log("aggiornamento: disponibile %s (al massimo %d file, %lld byte)", st.version, nitems, all);
+    st.phase = UPD_AVAILABLE;
+    return NULL;
+}
+
+/* quali file della versione mancano o sono diversi sulla scheda; false se annullato */
+static bool compare_files(void) {
+    st.phase = UPD_CHECK;
     long long hash_total = 0;
     for (int i = 0; i < nitems; i++) hash_total += items[i].size;
     st.done = 0;
@@ -287,14 +303,12 @@ static void *check_worker(void *arg) {
         it->need = stat(p, &s) != 0 || s.st_size != it->size || !sha256_file(p, sha, true) || strcmp(sha, it->sha);
         if (it->need) { need++; need_bytes += it->size; }
     }
-    if (st.cancel) { fail(UPE_CANCEL); return NULL; }
-    if (!need) { st.phase = UPD_CURRENT; return NULL; }
+    if (st.cancel) return false;
     st.files = need;
     st.done = 0;
     st.total = need_bytes;
-    ui_log("aggiornamento: disponibile %s, %d file, %lld byte", st.version, need, need_bytes);
-    st.phase = UPD_AVAILABLE;
-    return NULL;
+    ui_log("aggiornamento: %s, %d file da scaricare, %lld byte", st.version, need, need_bytes);
+    return true;
 }
 
 static void mkdirs(char *path) {
@@ -431,6 +445,8 @@ static void remove_tmps(void) {
 
 static void *install_worker(void *arg) {
     (void)arg;
+    if (!compare_files()) { fail(UPE_CANCEL); return NULL; }
+    if (!st.files) { st.phase = UPD_CURRENT; return NULL; }   /* versione nuova, file già tutti uguali */
     st.phase = UPD_DOWNLOAD;
     st.done = 0;
     struct statvfs vs;
@@ -608,7 +624,7 @@ static void notify_join(void) {
 void update_install(void) {
     update_join();
     st.cancel = false;
-    st.phase = UPD_DOWNLOAD;
+    st.phase = UPD_CHECK;
     if (pthread_create(&thread, NULL, install_worker, NULL) == 0) thread_on = true;
     else fail(UPE_WRITE);
 }
@@ -645,10 +661,17 @@ void update_check(const char *root) {
     st.total = 64LL << 20;
     st.phase = UPD_AVAILABLE;
 }
-void update_install(void) { sim_t0 = now_s(); st.phase = UPD_DOWNLOAD; }
+void update_install(void) { sim_t0 = now_s(); st.phase = UPD_CHECK; }
 void update_apply(void) { st.phase = UPD_DONE; }
 void update_discard(void) { st.error = UPE_CANCEL; st.phase = UPD_FAILED; }
 static void sim_tick(void) {
+    if (st.phase == UPD_CHECK) {   /* confronto dei file, poi lo scaricamento */
+        double c = now_s() - sim_t0;
+        st.done = (long long)(st.total * (c > 1 ? 1 : c));
+        if (st.cancel) { st.error = UPE_CANCEL; st.phase = UPD_FAILED; }
+        else if (c > 1.0) { st.files = 5; st.total = 24LL << 20; st.done = 0; sim_t0 = now_s(); st.phase = UPD_DOWNLOAD; }
+        return;
+    }
     if (st.phase != UPD_DOWNLOAD) return;
     double t = now_s() - sim_t0;
     st.done = (long long)(st.total * (t / 2.0 > 1 ? 1 : t / 2.0));

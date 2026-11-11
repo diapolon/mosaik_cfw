@@ -566,7 +566,7 @@
     "none_hint": "Riprova più tardi.",
     "current": "Il sistema è aggiornato",
     "available": "Disponibile: %s",
-    "details": "Ora hai la %s · %d file da scaricare, %s.",
+    "details_max": "Ora hai la %s · da scaricare al massimo %s: prima si confrontano i file sulla scheda.",
     "download": "Scarica",
     "install": "Installa",
     "downloading": "Scarico e controllo i file…",

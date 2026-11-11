@@ -165,8 +165,14 @@ expect "$(./t $W/sd install 2>/dev/null)" "4 0 0" "niente ritorno indietro"
 echo "--- cambia solo una lingua: il sistema non si tocca"
 export ARCADE_VERSION_FILE=$W/old.txt
 rm -f $S/System/update-pending $S/System/arcade-system.squashfs.prec; echo modificata > $S/Lang/it.json
+before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum)
+expect "$(./t $W/sd 2>/dev/null)" "5 0 6" "versione nuova annunciata subito, col massimo di file (confronto solo dopo Scarica)"
+[ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "il controllo non tocca la scheda"
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 1" "un solo file"
 cmp $A/Lang/it.json $S/Lang/it.json && [ ! -e $S/System/update-pending ] && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema non toccato"
+echo "--- versione nuova ma file già tutti uguali"
+expect "$(./t $W/sd install 2>/dev/null)" "4 0 0" "dopo il confronto: già aggiornato, niente scaricato"
+[ ! -e $S/System/update-pending ] && ok "nessun avvio di prova"
 stop
 
 echo "--- firma con un'altra chiave"
