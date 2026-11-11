@@ -45,7 +45,7 @@
 ## Launcher
 
 - [ ] Backup and restore: Tools → Backup makes one zip on the card (saves, settings, favorites, collections, play time, Wi-Fi networks; optionally images and ROMs). Copy it to a computer, write the card again, put the zip back: at the first start the console finds it and offers to import it. Pairs with the reinstall notice (`m2/area-avvio.conf`)
-- [ ] File manager over Wi-Fi: the console serves a page on the local network (opened from a computer or phone, protected by a PIN shown on screen) to upload ROMs, BIOS and images and to download or upload saves, without taking the SD card out. Only while the window is open in the launcher. Idea from TortOS ("Over The Hare"); needs a small HTTP server in the system, uploads written as temporary files and renamed, no access outside `Arcade/`
+- [ ] File transfer over Wi-Fi (Settings → Tools → Transfer files, `launcher/fileserver.c`, page in `fileserver.html`, `m2/test-fileserver.sh`): to test on a console, from a computer and a phone: big uploads (a PS disc), folder upload, zip of Saves, power-off during an upload (the `.part` file is removed at the next opening), speed on the Brick Pro and the Smart Pro, the QR code with a real phone camera, `mosaik.local` from Windows and Android, "Remember this browser". Then README and wiki
 - [ ] Console scraper, phase 2: ScreenScraper as a second source (needs developer credentials, requested on the screenscraper.fr forum)
 - [ ] Game list cache, for very large libraries
 - [ ] Apps section in the launcher

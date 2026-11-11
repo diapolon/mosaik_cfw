@@ -12,6 +12,8 @@
 #include "../common/wifi.h"
 #include "update.h"
 #include "stickcal.h"
+#include "fileserver.h"
+#include "qrcode.h"
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
@@ -2050,12 +2052,12 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
@@ -2066,7 +2068,7 @@ static const int cat_items[SC_COUNT][12] = {
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
-    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_FILESERVER, -1 },
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
@@ -2110,7 +2112,8 @@ static int page_rows_of(int page, int *rows) {
         if (it == S_STICKCAL && !sc_available()) continue;
         if (it == S_GRIDCOLS) continue;   /* la libreria ora ha una misura fissa per tema */
         if ((it == S_KEYF1 || it == S_KEYF2 || it == S_KEYHOME) && !has_extra_keys()) continue;
-        if ((it == S_UPDATE || it == S_CHANNEL || it == S_UPDNOTIFY) && !update_supported()) continue;   /* nell'app sul firmware TrimUI no */
+        if ((it == S_UPDATE || it == S_CHANNEL || it == S_UPDNOTIFY) && !update_supported()) continue;
+        if (it == S_FILESERVER && !wifi_supported()) continue;   /* serve il Wi-Fi del sistema su SD */   /* nell'app sul firmware TrimUI no */
         rows[n++] = it;
     }
     return n;
@@ -2120,7 +2123,7 @@ static int page_rows(int *rows) { return page_rows_of(set_page, rows); }
 /* voci che in questo momento non possono fare nulla: in grigio, con la descrizione che resta leggibile */
 static bool set_disabled(int i) {
     switch (i) {
-    case S_SCRAPE: case S_UPDATE: case S_WIFINETS: return !UI.set.wifi;
+    case S_SCRAPE: case S_UPDATE: case S_WIFINETS: case S_FILESERVER: return !UI.set.wifi;
     case S_MUSIC: return !music_count();
     case S_LEDCOLOR: case S_LEDBRIGHT: return !UI.set.led_mode;
     case S_VARIANT: return UI.th.nvariants < 2;
@@ -2712,6 +2715,148 @@ static void sdrow_add(const char *label, int count, long long bytes) {
     r->bytes = bytes;
 }
 
+/* ------------------------------------------------- trasferimento file */
+/* Impostazioni > Strumenti > Trasferisci file: l'indirizzo e il PIN da usare nel browser, cosa
+   sta succedendo, le ultime operazioni. Il server (fileserver.c) resta acceso solo finché la
+   finestra è aperta; alla chiusura, se qualcosa è cambiato, la libreria si rilegge. */
+static bool fsrv_open;
+static int fsrv_sel;
+static char fsrv_ip[48];
+static double fsrv_ip_t;
+
+static void fsrv_start(void) {
+    if (!UI.set.wifi) { ui_toast(T("scrape.no_wifi")); ui_sound(SND_ERROR); return; }
+    if (!fs_start(UI.root)) { ui_toast(T("fileserver.no_port")); ui_sound(SND_ERROR); return; }
+    ui_log("trasferimento file: aperto sulla porta %d", fs_port());
+    fsrv_open = true;
+    fsrv_sel = 0;
+    fsrv_ip_t = -10;
+    ui_sound(SND_OK);
+}
+
+static void fsrv_close(void) {
+    fs_status_t s;
+    fs_get_status(&s);
+    fs_stop();
+    fsrv_open = false;
+    ui_log("trasferimento file: chiuso, %d file ricevuti", s.uploads);
+    if (fs_changed()) {   /* ROM, immagini o giochi nuovi: si vedono subito */
+        ui_image_forget_missing();
+        reload_games();
+    }
+}
+
+/* pulsanti della finestra: Chiudi e, se ce ne sono, Dimentica i browser */
+static int fsrv_nbuttons(void) { return fs_browsers() > 0 ? 2 : 1; }
+
+static void fsrv_input(void) {
+    int n = fsrv_nbuttons(), r = ui_popup_input(&fsrv_sel, n);
+    if (r == 1) {
+        fs_forget_browsers();
+        ui_log("trasferimento file: browser dimenticati");
+        ui_toast(T("fileserver.forgotten"));
+        fsrv_sel = 0;
+        ui_sound(SND_OK);
+    } else if (r != -1) { fsrv_close(); ui_sound(SND_BACK); }
+}
+
+/* il codice QR dell'indirizzo con il PIN: dal telefono si inquadra e si è già dentro */
+static void fsrv_qr(int x, int y, int size, const char *url) {
+    static unsigned char m[QR_MAX_SIDE * QR_MAX_SIDE];
+    static char last[200];
+    static int side;
+    if (strcmp(last, url)) { snprintf(last, sizeof last, "%s", url); side = qr_encode(url, m); }
+    if (!side) return;
+    int quiet = 2, cell = size / (side + 2 * quiet), real = cell * (side + 2 * quiet), ox = x + (size - real) / 2, oy = y + (size - real) / 2;
+    if (cell < 1) return;
+    ui_rrect(ox, oy, real, real, cell, rgba(255, 255, 255, 255));
+    for (int r = 0; r < side; r++)
+        for (int c = 0; c < side; c++)
+            if (m[r * side + c]) ui_rect(ox + (quiet + c) * cell, oy + (quiet + r) * cell, cell, cell, rgba(0, 0, 0, 255));
+}
+
+static void fsrv_draw(void) {
+    theme_t *t = &UI.th;
+    if (UI.t - fsrv_ip_t > 2) { fs_local_ip(fsrv_ip, sizeof fsrv_ip); fsrv_ip_t = UI.t; }
+    fs_status_t s;
+    fs_get_status(&s);
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    int w = UI.w - 2 * M(0.04f), pad = M(0.04f);
+    int h = pad + fth + M(0.025f) + fsh + fth + fsh + M(0.025f) + fsh + fth + M(0.03f) + fnh + M(0.03f) + 3 * fsh + ui_popup_buttons_h();
+    if (h > UI.h - M(0.04f)) h = UI.h - M(0.04f);
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2, lx = x + pad;
+    int foot = y + h - ui_popup_buttons_h();
+    int qs = foot - (y + pad + fth + M(0.025f)) - M(0.01f);   /* lato del QR, a destra */
+    if (qs > w * 40 / 100) qs = w * 40 / 100;
+    int bw = w - 3 * pad - (fsrv_ip[0] ? qs : 0);
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    int cy = y + pad;
+    ui_text(ft, T("fileserver.title"), lx, cy, t->text, ALIGN_LEFT);
+    cy += fth + M(0.025f);
+    char line[200], fit[200], url[200];
+    const char *p = fs_pin();
+    /* indirizzo fisso (mosaik.local), sotto quello numerico, poi il PIN */
+    ui_text(fs, T("fileserver.open_on"), lx, cy, t->text_dim, ALIGN_LEFT);
+    cy += fsh;
+    if (!fsrv_ip[0]) {
+        ui_text(fn, T("fileserver.no_network"), lx, cy + (fth - fnh) / 2, rgba(220, 70, 70, 255), ALIGN_LEFT);
+        cy += fth + fsh;
+    } else {
+        char port[16] = "";
+        if (fs_port() != 80) snprintf(port, sizeof port, ":%d", fs_port());
+        snprintf(line, sizeof line, "http://%s%s", FS_HOSTNAME, port);
+        TTF_Font *fu = ui_text_w(ft, line) <= bw ? ft : fn;
+        ui_text(fu, line, lx, cy + (fth - TTF_FontHeight(fu)) / 2, t->accent, ALIGN_LEFT);
+        cy += fth;
+        snprintf(url, sizeof url, "http://%s%s", fsrv_ip, port);
+        snprintf(line, sizeof line, T("fileserver.or_ip"), url);
+        ui_text_fit(fs, line, bw, fit, sizeof fit);
+        ui_text(fs, fit, lx, cy, t->text_dim, ALIGN_LEFT);
+        cy += fsh;
+        snprintf(line, sizeof line, "%s/#pin=%s", url, p);
+        int qx = x + w - pad - qs, qy = y + pad + fth + M(0.025f);
+        fsrv_qr(qx, qy, qs, line);
+    }
+    cy += M(0.025f);
+    ui_text(fs, T("fileserver.pin"), lx, cy, t->text_dim, ALIGN_LEFT);
+    cy += fsh;
+    snprintf(line, sizeof line, "%.3s %.3s", p, strlen(p) > 3 ? p + 3 : "");
+    ui_text(ft, line, lx, cy, t->text, ALIGN_LEFT);
+    cy += fth + M(0.03f);
+    /* cosa sta succedendo */
+    if (s.state == FS_IDLE) ui_text(fn, T("fileserver.waiting"), lx, cy, t->text_dim, ALIGN_LEFT);
+    else {
+        snprintf(line, sizeof line, T(s.state == FS_RECEIVING ? "fileserver.receiving" : "fileserver.sending"), s.current);
+        int pw = s.total > 0 ? ui_text_w(fn, "100%") + M(0.02f) : 0;
+        ui_text_fit(fn, line, bw - pw, fit, sizeof fit);
+        ui_text(fn, fit, lx, cy, t->text, ALIGN_LEFT);
+        if (s.total > 0) {
+            int pct = (int)(s.done * 100 / s.total);
+            snprintf(line, sizeof line, "%d%%", pct);
+            ui_text(fn, line, lx + bw, cy, t->accent, ALIGN_RIGHT);
+            int bh = M(0.012f), by = cy + fnh + M(0.006f);
+            ui_rrect(lx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 60));
+            ui_rrect(lx, by, (int)((long long)bw * pct / 100), bh, bh / 2, t->accent);
+        }
+    }
+    cy += fnh + M(0.03f);
+    /* ultime operazioni */
+    static const char *const ev_key[] = { "fileserver.ev_upload", "fileserver.ev_download", "fileserver.ev_zip", "fileserver.ev_delete",
+                                          "fileserver.ev_rename", "fileserver.ev_mkdir", "fileserver.ev_login", "fileserver.ev_fail" };
+    for (int i = 0; i < s.nevents && cy + fsh <= foot; i++, cy += fsh) {
+        snprintf(line, sizeof line, T(ev_key[s.ev_kind[i] & 7]), s.ev_name[i]);
+        ui_text_fit(fs, line, bw, fit, sizeof fit);
+        ui_text(fs, fit, lx, cy, i ? t->text_dim : t->text, ALIGN_LEFT);
+    }
+    const char *labels[] = { T("fileserver.close"), T("fileserver.forget") };
+    int n = fsrv_nbuttons();
+    if (fsrv_sel >= n) fsrv_sel = 0;
+    ui_popup_buttons(x, y, w, h, labels, n, fsrv_sel, 1);
+}
+
 static void sdinfo_start(void) {
     quiet_begin();   /* il conteggio dello spazio legge tutta la scheda */
     struct statvfs vs;
@@ -2968,7 +3113,7 @@ static bool upd_busy(void) {
 static void upd_audio(void) {
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
-                || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open;
+                || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open || fsrv_open;
     if (want == audio_quiet) return;
     if (want) { quiet_begin(); return; }
     audio_quiet = false;
@@ -3426,7 +3571,7 @@ static void settings_input(void) {
     }
     if (set_disabled(set_sel)) {
         if (in->pressed[BTN_A] || in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) {
-            if (set_sel == S_SCRAPE || set_sel == S_UPDATE) ui_toast(T("scrape.no_wifi"));
+            if (set_sel == S_SCRAPE || set_sel == S_UPDATE || set_sel == S_FILESERVER) ui_toast(T("scrape.no_wifi"));
             ui_sound(SND_ERROR);
         }
         return;
@@ -3468,6 +3613,7 @@ static void settings_input(void) {
             ui_sound(SND_OK);
         }
         else if (set_sel == S_INFO) { sdinfo_start(); ui_sound(SND_OK); }
+        else if (set_sel == S_FILESERVER) fsrv_start();
         else set_change(set_sel, +1);
     }
 }
@@ -3490,7 +3636,7 @@ static const char *set_cat_sub(int row) {
     snprintf(k, sizeof k, "settings_cat_sum.%s", cat_key[row - ROW_CAT]);
     return T(k);
 }
-static bool set_has_value(int i) { return i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
+static bool set_has_value(int i) { return i != S_FILESERVER && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
 static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER; }
 
@@ -3712,7 +3858,7 @@ static void settings_draw(void) {
         for (int k = 0; k < n; k++) ui_text(fs, lines[k], mx, bottom - desc_h + M(0.012f) + k * fsh, t->text_dim, ALIGN_LEFT);
     }
     /* con una finestra aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || wpanel_open || clean_open) return;
+    if (clock_open || sdinfo_open || wpanel_open || clean_open || fsrv_open) return;
     int end;
     if (set_page < 0) {
         const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
@@ -3720,7 +3866,7 @@ static void settings_draw(void) {
     } else {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
                    set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
-                   set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO;
+                   set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
                             "L/R", T("common.section"), "" };
         end = ui_keybar(h, onda ? 9 : 6);
@@ -5322,6 +5468,7 @@ int main(int argc, char **argv) {
             cfm_kind = CFM_NONE;
             cp_open = false;
             diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
+            if (fsrv_open) fsrv_close();
             go(SCR_HOME);
             ui_sound(SND_BACK);
         }
@@ -5365,6 +5512,7 @@ int main(int argc, char **argv) {
         else if (wpanel_open) wpanel_input();
         else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
+        else if (fsrv_open) fsrv_input();
         else if (screen == SCR_HOME) home_input();
         else if (screen == SCR_LIBRARY) library_input();
         else if (screen == SCR_DETAIL) detail_input();
@@ -5379,7 +5527,7 @@ int main(int argc, char **argv) {
         upd_audio();
         /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
         if (UI.t > 0.4) plat_audio_release();
-        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open;
+        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open;
         /* nei primi 30 s il Wi-Fi carica il driver e si collega: niente cambi di frequenza della CPU */
         bool idle = !working && !UI.automation && UI.t > 30 && UI.t - last_input > IDLE_AFTER_S;
         plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);
@@ -5415,6 +5563,7 @@ int main(int argc, char **argv) {
         if (wpanel_open) wpanel_draw();
         if (clean_open) clean_draw();
         if (sdinfo_open) sdinfo_draw();
+        if (fsrv_open) fsrv_draw();
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
         if (gp_open) gp_draw();

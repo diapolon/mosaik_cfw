@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mosaik</title>
+<style>
+:root { --bg:#f3f3f5; --card:#fff; --text:#222; --dim:#777; --line:#e2e2e6; --accent:#0fa5c4; --danger:#d9534f; }
+@media (prefers-color-scheme: dark) { :root { --bg:#17181c; --card:#22242a; --text:#eee; --dim:#9a9aa3; --line:#33353d; --accent:#27c6e6; } }
+* { box-sizing:border-box; }
+body { margin:0; font:15px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+header { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:2; }
+header b { font-size:18px; }
+#space { flex:1; max-width:280px; margin-left:auto; font-size:12px; color:var(--dim); }
+#bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:3px; }
+#bar i { display:block; height:100%; width:0; background:var(--accent); }
+main { max-width:960px; margin:0 auto; padding:12px 16px 80px; }
+#crumbs { margin:6px 0 12px; font-size:15px; }
+#crumbs a { color:var(--accent); text-decoration:none; cursor:pointer; }
+#tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+button, .btn { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:8px; padding:7px 12px; cursor:pointer; }
+button.primary, .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.small { padding:4px 8px; font-size:13px; }
+button.danger { color:var(--danger); }
+table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+td { padding:9px 10px; border-top:1px solid var(--line); vertical-align:middle; }
+tr:first-child td { border-top:none; }
+td.n { word-break:break-all; }
+td.n a { color:var(--text); text-decoration:none; cursor:pointer; }
+td.n a.dir { font-weight:600; }
+td.s, td.t { color:var(--dim); font-size:13px; white-space:nowrap; }
+td.a { text-align:right; white-space:nowrap; }
+.ro { color:var(--dim); font-size:13px; margin-bottom:10px; }
+.empty { padding:24px; text-align:center; color:var(--dim); }
+#queue { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:8px 16px; max-height:40vh; overflow:auto; display:none; }
+.q { display:flex; gap:10px; align-items:center; font-size:13px; padding:3px 0; }
+.q span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.q progress { width:120px; }
+.q .st { width:110px; text-align:right; color:var(--dim); }
+#login { max-width:320px; margin:12vh auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:24px; text-align:center; }
+#login input { font-size:28px; letter-spacing:6px; width:100%; text-align:center; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); margin:12px 0; }
+#msg { color:var(--danger); min-height:20px; font-size:14px; }
+.rem { display:block; margin:0 0 14px; font-size:14px; color:var(--dim); cursor:pointer; }
+#drop { position:fixed; inset:0; background:rgba(15,165,196,.18); border:4px dashed var(--accent); display:none; align-items:center; justify-content:center; font-size:22px; z-index:5; pointer-events:none; }
+#closed { position:fixed; inset:0; background:var(--bg); display:none; align-items:center; justify-content:center; text-align:center; padding:24px; z-index:9; }
+@media (max-width:600px) { td.t { display:none; } }
+</style>
+</head>
+<body>
+<header><b>Mosaik</b><span id="model"></span><div id="space"><span id="spacet"></span><div id="bar"><i></i></div></div></header>
+<div id="login" style="display:none">
+  <div id="ltitle"></div>
+  <input id="pin" inputmode="numeric" autocomplete="off" maxlength="6">
+  <label class="rem"><input type="checkbox" id="remember"> <span id="remt"></span></label>
+  <button class="primary" id="enter"></button>
+  <div id="msg"></div>
+</div>
+<main id="app" style="display:none">
+  <div id="crumbs"></div>
+  <div id="tools"></div>
+  <div id="ro" class="ro"></div>
+  <table id="list"></table>
+</main>
+<div id="queue"></div>
+<div id="drop"></div>
+<div id="closed"></div>
+<input type="file" id="fpick" multiple style="display:none">
+<input type="file" id="dpick" webkitdirectory multiple style="display:none">
+<script>
+const S = __STRINGS__;
+const $ = id => document.getElementById(id);
+let cur = { path: "", writable: false, entries: [] };
+let busy = false;
+
+function txt(k, a) { let s = S[k] || k; if (a !== undefined) s = s.replace("%s", a); return s; }
+function enc(s) { return encodeURIComponent(s); }
+function size(n) { const u = ["B", "KB", "MB", "GB"]; let i = 0; while (n >= 1024 && i < 3) { n /= 1024; i++; } return (i ? n.toFixed(n < 10 ? 1 : 0) : n) + " " + u[i]; }
+function date(t) { const d = new Date(t * 1000); return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function join(a, b) { return a ? a + "/" + b : b; }
+function errText(e) { return S["err_" + e] || e; }
+
+function closed() { $("closed").textContent = S.closed; $("closed").style.display = "flex"; }
+
+async function api(url, opt) {
+  let r;
+  try { r = await fetch(url, opt); } catch (e) { closed(); throw e; }
+  if (r.status === 401) { showLogin(); throw new Error("auth"); }
+  return r;
+}
+
+function showLogin(m) {
+  $("app").style.display = "none";
+  $("login").style.display = "block";
+  $("ltitle").textContent = S.pin_page;
+  $("enter").textContent = S.enter;
+  $("remt").textContent = S.remember;
+  $("msg").textContent = m || "";
+  $("pin").value = "";
+  $("pin").focus();
+}
+
+async function login(code) {
+  let r;
+  const body = "pin=" + enc(code || $("pin").value.trim()) + ($("remember").checked ? "&remember=1" : "");
+  try { r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body }); }
+  catch (e) { closed(); return; }
+  if (r.ok) { $("login").style.display = "none"; $("app").style.display = "block"; info(); load(""); return; }
+  const j = await r.json().catch(() => ({}));
+  showLogin(j.error === "locked" ? S.locked : S.wrong_pin);
+}
+$("enter").onclick = () => login();
+$("pin").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+
+async function info() {
+  const r = await api("/api/info"); if (!r.ok) return;
+  const j = await r.json();
+  $("model").textContent = j.version;
+  $("spacet").textContent = txt("free", size(j.free));
+  $("bar").firstChild.style.width = j.total ? Math.round(100 * (j.total - j.free) / j.total) + "%" : "0";
+}
+
+async function load(path) {
+  const r = await api("/api/list?path=" + enc(path));
+  if (!r.ok) { const j = await r.json().catch(() => ({})); alert(errText(j.error)); if (path) load(""); return; }
+  cur = await r.json();
+  render();
+}
+
+function render() {
+  const c = $("crumbs"); c.innerHTML = "";
+  const home = document.createElement("a"); home.textContent = S.home; home.onclick = () => load(""); c.appendChild(home);
+  let acc = "";
+  for (const p of cur.path ? cur.path.split("/") : []) {
+    acc = join(acc, p); const here = acc;
+    c.appendChild(document.createTextNode(" / "));
+    const a = document.createElement("a"); a.textContent = p; a.onclick = () => load(here); c.appendChild(a);
+  }
+  const t = $("tools"); t.innerHTML = "";
+  if (cur.writable) {
+    const b1 = document.createElement("button"); b1.className = "primary"; b1.textContent = S.upload_files; b1.onclick = () => $("fpick").click(); t.appendChild(b1);
+    const b2 = document.createElement("button"); b2.textContent = S.upload_folder; b2.onclick = () => $("dpick").click(); t.appendChild(b2);
+    const b3 = document.createElement("button"); b3.textContent = S.new_folder; b3.onclick = mkdir; t.appendChild(b3);
+  }
+  $("ro").textContent = cur.writable || !cur.path ? (cur.writable ? S.drop : "") : S.readonly;
+  const L = $("list"); L.innerHTML = "";
+  if (!cur.entries.length) { L.innerHTML = '<tr><td class="empty"></td></tr>'; L.querySelector("td").textContent = S.empty; return; }
+  for (const e of cur.entries) {
+    const tr = document.createElement("tr");
+    const n = document.createElement("td"); n.className = "n";
+    const a = document.createElement("a"); a.textContent = (e.d ? "📁 " : "📄 ") + e.n;
+    const p = join(cur.path, e.n);
+    if (e.d) { a.className = "dir"; a.onclick = () => load(p); } else { a.href = "/api/get?path=" + enc(p); }
+    n.appendChild(a); tr.appendChild(n);
+    const s = document.createElement("td"); s.className = "s"; s.textContent = e.d ? "" : size(e.s); tr.appendChild(s);
+    const d = document.createElement("td"); d.className = "t"; d.textContent = date(e.t); tr.appendChild(d);
+    const ac = document.createElement("td"); ac.className = "a";
+    const dl = document.createElement("a"); dl.className = "btn small"; dl.style.textDecoration = "none";
+    dl.textContent = e.d ? S.download_zip : S.download;
+    dl.href = (e.d ? "/api/zip?path=" : "/api/get?path=") + enc(p);
+    if (cur.path) ac.appendChild(dl);
+    if (cur.writable) {
+      const rn = document.createElement("button"); rn.className = "small"; rn.textContent = S.rename; rn.onclick = () => rename(p, e.n); ac.appendChild(document.createTextNode(" ")); ac.appendChild(rn);
+      const del = document.createElement("button"); del.className = "small danger"; del.textContent = S.delete; del.onclick = () => remove(p, e); ac.appendChild(document.createTextNode(" ")); ac.appendChild(del);
+    }
+    tr.appendChild(ac); L.appendChild(tr);
+  }
+}
+
+async function post(url) {
+  const r = await api(url, { method: "POST", body: "" });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); alert(errText(j.error)); }
+  load(cur.path); info();
+}
+function mkdir() { const n = prompt(S.folder_name); if (n) post("/api/mkdir?path=" + enc(cur.path) + "&name=" + enc(n.trim())); }
+function rename(p, old) { const n = prompt(S.new_name, old); if (n && n !== old) post("/api/rename?path=" + enc(p) + "&to=" + enc(n.trim())); }
+function remove(p, e) { if (confirm(txt(e.d ? "confirm_delete_folder" : "confirm_delete", e.n))) post("/api/delete?path=" + enc(p)); }
+
+/* ---- caricamento, un file alla volta ---- */
+let queue = [];
+function addFiles(list) {
+  if (!cur.writable) return;
+  const names = new Set(cur.entries.map(e => e.n.toLowerCase()));
+  for (const f of list) {
+    const rel = f.rel || f.webkitRelativePath || f.name;
+    let ow = 0;
+    if (rel.indexOf("/") < 0 && names.has(rel.toLowerCase())) { if (!confirm(txt("exists", rel))) continue; ow = 1; }
+    queue.push({ file: f, rel: rel, dir: cur.path, ow: ow });
+  }
+  drawQueue(); pump();
+}
+function drawQueue() {
+  const q = $("queue"); q.innerHTML = "";
+  q.style.display = queue.length ? "block" : "none";
+  for (const it of queue) {
+    const d = document.createElement("div"); d.className = "q";
+    const s = document.createElement("span"); s.textContent = it.rel; d.appendChild(s);
+    const p = document.createElement("progress"); p.max = 1; p.value = it.p || 0; d.appendChild(p); it.bar = p;
+    const t = document.createElement("div"); t.className = "st"; t.textContent = it.st || ""; d.appendChild(t); it.label = t;
+    q.appendChild(d);
+  }
+}
+function pump() {
+  if (busy) return;
+  const it = queue.find(x => !x.st);
+  if (!it) { if (queue.length && queue.every(x => x.st)) setTimeout(() => { queue = queue.filter(x => x.st !== S.done); drawQueue(); }, 2500); load(cur.path); info(); return; }
+  busy = true; it.st = S.uploading; it.label.textContent = it.st;
+  const x = new XMLHttpRequest();
+  x.open("PUT", "/api/put?path=" + enc(it.dir) + "&name=" + enc(it.rel) + "&overwrite=" + it.ow);
+  x.upload.onprogress = e => { if (e.lengthComputable) { it.p = e.loaded / e.total; it.bar.value = it.p; it.label.textContent = Math.round(it.p * 100) + "%"; } };
+  x.onload = () => {
+    busy = false;
+    if (x.status === 200) { it.st = S.done; it.p = 1; }
+    else { let j = {}; try { j = JSON.parse(x.responseText); } catch (e) {} if (x.status === 401) { showLogin(); } it.st = errText(j.error || "io"); }
+    it.bar.value = it.p || 0; it.label.textContent = it.st; pump();
+  };
+  x.onerror = () => { busy = false; it.st = S.failed; it.label.textContent = it.st; closed(); };
+  x.send(it.file);
+}
+$("fpick").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+$("dpick").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+
+/* trascinare file e cartelle sulla pagina */
+let dragN = 0;
+document.addEventListener("dragenter", e => { e.preventDefault(); if (cur.writable) { dragN++; $("drop").textContent = S.drop; $("drop").style.display = "flex"; } });
+document.addEventListener("dragleave", e => { if (--dragN <= 0) { dragN = 0; $("drop").style.display = "none"; } });
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", async e => {
+  e.preventDefault(); dragN = 0; $("drop").style.display = "none";
+  if (!cur.writable) return;
+  const out = [];
+  const walk = (entry, prefix) => new Promise(res => {
+    if (entry.isFile) entry.file(f => { f.rel = prefix + f.name; out.push(f); res(); }, () => res());
+    else if (entry.isDirectory) {
+      const rd = entry.createReader(), all = [];
+      const more = () => rd.readEntries(async ents => { if (!ents.length) { for (const c of all) await walk(c, prefix + entry.name + "/"); res(); } else { all.push(...ents); more(); } }, () => res());
+      more();
+    } else res();
+  });
+  const items = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (items.length) { for (const it of items) await walk(it, ""); addFiles(out); }
+  else addFiles([...e.dataTransfer.files]);
+});
+
+/* all'apertura: se il PIN è già stato dato (cookie), si va subito ai file */
+(async () => {
+  document.title = S.title;
+  let r;
+  try { r = await fetch("/api/info"); } catch (e) { closed(); return; }
+  if (r.status === 401) {
+    /* aperta dal codice QR della console: il PIN è nell'indirizzo, dopo il # (non arriva al server) */
+    const m = location.hash.match(/pin=(\d{6})/);
+    history.replaceState(null, "", location.pathname);
+    if (m) { await login(m[1]); return; }
+    showLogin(); return;
+  }
+  $("app").style.display = "block"; info(); load("");
+})();
+</script>
+</body>
+</html>
