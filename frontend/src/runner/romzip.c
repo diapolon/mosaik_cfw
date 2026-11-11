@@ -98,3 +98,39 @@ done:
     free(z);
     return rc;
 }
+
+int romzip_candidates(const char *zip, const char *exts) {
+    FILE *f = fopen(zip, "rb");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long fs = ftell(f);
+    if (fs < 22 || (unsigned long)fs > MAX_ZIP) { fclose(f); return -1; }
+    long tail = fs < 22 + 65535 ? fs : 22 + 65535;
+    unsigned char *t = malloc((size_t)tail);
+    int n = -1;
+    if (!t || fseek(f, fs - tail, SEEK_SET) != 0 || fread(t, 1, (size_t)tail, f) != (size_t)tail) goto done;
+    long eocd = -1;
+    for (long i = tail - 22; i >= 0; i--)
+        if (le32(t + i) == 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) goto done;
+    uint32_t count = le16(t + eocd + 10), cdsize = le32(t + eocd + 12), cd = le32(t + eocd + 16);
+    if ((long)cd + (long)cdsize > fs || cdsize > MAX_ZIP) goto done;
+    unsigned char *c = malloc(cdsize ? cdsize : 1);
+    if (!c) goto done;
+    if (fseek(f, (long)cd, SEEK_SET) != 0 || fread(c, 1, cdsize, f) != cdsize) { free(c); goto done; }
+    n = 0;
+    for (uint32_t k = 0, p = 0; k < count; k++) {
+        if (p + 46 > cdsize || le32(c + p) != 0x02014b50) { n = -1; break; }
+        uint32_t nlen = le16(c + p + 28), xlen = le16(c + p + 30), clen = le16(c + p + 32);
+        if (p + 46 + nlen > cdsize) { n = -1; break; }
+        char ename[256];
+        snprintf(ename, sizeof ename, "%.*s", (int)(nlen < 255 ? nlen : 255), (const char *)c + p + 46);
+        p += 46 + nlen + xlen + clen;
+        if (nlen && ename[strlen(ename) - 1] != '/' && romzip_ext_ok(ename, exts)) n++;
+    }
+    free(c);
+done:
+    free(t);
+    fclose(f);
+    return n;
+}

@@ -24,7 +24,7 @@ Not included in the images: the console downloads them only when you choose **Se
 
 | Data | License | Source |
 |---|---|---|
-| Console game data (title, year, publisher, genre, players), found by the ROM's CRC | CC BY-SA 4.0 | libretro-database, https://github.com/libretro/libretro-database |
+| Console game data (title, year, publisher, genre, players), found by the ROM's CRC | CC BY-SA 4.0 | libretro-database, https://github.com/libretro/libretro-database (files read at a fixed commit, `LR_REF` in `frontend/src/launcher/scraper.c`) |
 | Screenshots, title screens and boxes | owned by their respective holders | libretro thumbnails, https://thumbnails.libretro.com |
 | Arcade game information, history and images | owned by their respective holders | ArcadeDB, https://adb.arcadeitalia.net |
 

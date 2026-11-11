@@ -41,6 +41,7 @@ cat > t.c <<'C'
 #include <string.h>
 int main(int argc, char **argv) {
     void *d; size_t n; char name[256] = "";
+    if (!strcmp(argv[1], "-n")) { printf("%d\n", romzip_candidates(argv[2], argv[3])); return 0; }
     int rc = romzip_extract(argv[1], argv[2], &d, &n, name, sizeof name);
     printf("%d %zu %s\n", rc, n, name);
     if (rc == ROMZIP_OK && argc > 3) { FILE *f = fopen(argv[3], "wb"); fwrite(d, 1, n, f); fclose(f); }
@@ -59,5 +60,12 @@ r() { ./t "$@"; }
 [ "$(r rovinato.zip 'nes')" = "4 0 " ] && ok "dati rovinati: il CRC lo scopre" || ko "rovinato: $(r rovinato.zip nes)"
 [ "$(r nonzip.zip 'nes')" = "2 0 " ] && ok "file che non è uno zip" || ko "nonzip: $(r nonzip.zip nes)"
 [ "$(r manca.zip 'nes')" = "1 0 " ] && ok "file che non c'è" || ko "manca: $(r manca.zip nes)"
+
+echo "--- quante ROM nello zip (romzip_candidates, R08)"
+[ "$(r -n due.zip md)" = 2 ] && ok "due ROM adatte: 2 (il runner lo scrive nel log, lo scraper non cerca dati)" || ko "due: $(r -n due.zip md)"
+[ "$(r -n deflate.zip 'md|gen|bin')" = 1 ] && ok "una ROM e un file di testo: 1" || ko "deflate: $(r -n deflate.zip 'md|gen|bin')"
+[ "$(r -n cartella.zip 'md|gen')" = 1 ] && ok "la cartella non conta" || ko "cartella: $(r -n cartella.zip 'md|gen')"
+[ "$(r -n nessuna.zip 'md|gen')" = 0 ] && ok "nessuna adatta: 0" || ko "nessuna: $(r -n nessuna.zip 'md|gen')"
+[ "$(r -n nonzip.zip nes)" = -1 ] && [ "$(r -n manca.zip nes)" = -1 ] && ok "non zip o assente: -1" || ko "nonzip/manca: $(r -n nonzip.zip nes) $(r -n manca.zip nes)"
 
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors errori"; exit 1; }

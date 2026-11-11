@@ -626,6 +626,8 @@ static bool load_game(void) {
         if (f && fclose(f) != 0) ok = false;
         if (!ok) { ui_log("impossibile scrivere %s", rom_tmp); free(d); rom_tmp[0] = 0; return false; }
         ui_log("zip: %s, %zu byte", inner, n);
+        int cand = romzip_candidates(rom_path, si.valid_extensions);
+        if (cand > 1) ui_log("zip con %d ROM per questo emulatore: si avvia la prima, %s (uno zip deve contenerne una)", cand, inner);
         gi.path = rom_tmp;
         if (si.need_fullpath) free(d);
         else { rom_data = d; gi.data = d; gi.size = n; }

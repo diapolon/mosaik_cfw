@@ -18,7 +18,18 @@
 void ui_log(const char *fmt, ...);
 
 #define UA "TrimUI-Arcade-Prototype/0.1"
-#define ADB "https://adb.arcadeitalia.net/service_scraper.php?ajax=query_mame&use_parent=1&game_name="
+/* Database libretro fissato a un commit, non al ramo master che cambia: gli stessi file danno
+   gli stessi dati su ogni console, e un errore introdotto a monte non arriva da solo (audit R08).
+   Si aggiorna con un rilascio di Mosaik. */
+#define LR_REF "78ced51f760c7602628e5cc23a13d6acc9662eab"
+/* indirizzi dei servizi; ARCADE_SCRAPER_TEST="http://127.0.0.1:PORTA" li sostituisce tutti con un
+   server locale (m2/test-scraper.sh) */
+static const char *host(const char *real) {
+    const char *t = getenv("ARCADE_SCRAPER_TEST");
+    return t && *t ? t : real;
+}
+#define ADB_HOST "https://adb.arcadeitalia.net"
+#define ADB_PATH "/service_scraper.php?ajax=query_mame&use_parent=1&game_name="
 #define META_HEADER "# arcadedb v3"   /* v3: con la storia in Dats/history/<rom>.txt */
 #define MAX_SIDE 640
 
@@ -69,6 +80,10 @@ static size_t on_data(void *p, size_t sz, size_t n, void *ud) {
 }
 
 static long last_code;   /* risposta dell'ultima richiesta: 0 = nessuna risposta */
+/* richieste di fila senza risposta: con 3 la rete non c'è più e il giro si ferma (si riprende
+   dal punto in cui era al giro dopo: quello che è già sulla scheda resta) */
+static int net_errors;
+#define NET_DOWN (net_errors >= 3)
 
 /* B durante una richiesta lenta: si interrompe subito, senza aspettare il timeout */
 static int on_progress(void *ud, curl_off_t a, curl_off_t b, curl_off_t c, curl_off_t d) {
@@ -79,7 +94,7 @@ static int on_progress(void *ud, curl_off_t a, curl_off_t b, curl_off_t c, curl_
 /* una richiesta al secondo: sono servizi gratuiti della comunità */
 static bool http_get(const char *url, buf_t *out, char *ctype, size_t cn) {
     Uint32 now = SDL_GetTicks();
-    if (last_request && now - last_request < 1000) SDL_Delay(1000 - (now - last_request));
+    if (last_request && now - last_request < 1000 && !getenv("ARCADE_SCRAPER_TEST")) SDL_Delay(1000 - (now - last_request));
     last_request = SDL_GetTicks();
     out->data = NULL;
     out->len = 0;
@@ -89,6 +104,7 @@ static bool http_get(const char *url, buf_t *out, char *ctype, size_t cn) {
     curl_easy_setopt(c, CURLOPT_USERAGENT, UA);
     curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(c, CURLOPT_TIMEOUT, 30L);
+    curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 10L);
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, on_data);
     curl_easy_setopt(c, CURLOPT_WRITEDATA, out);
     /* certificati per HTTPS: il firmware della console potrebbe non averli, il pacchetto
@@ -106,6 +122,8 @@ static bool http_get(const char *url, buf_t *out, char *ctype, size_t cn) {
     char *ct = NULL;
     curl_easy_getinfo(c, CURLINFO_RESPONSE_CODE, &code);
     last_code = code;
+    if (code) net_errors = 0;
+    else if (!st.cancel) net_errors++;
     curl_easy_getinfo(c, CURLINFO_CONTENT_TYPE, &ct);
     if (ctype) snprintf(ctype, cn, "%s", ct ? ct : "");
     curl_easy_cleanup(c);
@@ -120,10 +138,12 @@ static bool http_get(const char *url, buf_t *out, char *ctype, size_t cn) {
 
 /* ------------------------------------------------------- immagini */
 
-/* salva il PNG, ridotto se supera MAX_SIDE; scrittura atomica con file temporaneo */
-static bool save_image(const buf_t *b, const char *dest) {
-    SDL_Surface *img = IMG_Load_RW(SDL_RWFromConstMem(b->data, (int)b->len), 1);
-    if (!img) return false;
+/* salva il PNG, ridotto se supera MAX_SIDE; scrittura atomica con file temporaneo.
+   IMG_OK, IMG_BAD (non è un'immagine: il server non l'ha) o IMG_WRITE (errore della scheda) */
+enum { IMG_OK, IMG_BAD, IMG_WRITE };
+static int save_image(const buf_t *b, const char *dest) {
+    SDL_Surface *img = b->len > 200 ? IMG_Load_RW(SDL_RWFromConstMem(b->data, (int)b->len), 1) : NULL;
+    if (!img) return IMG_BAD;
     char tmp[1200];
     snprintf(tmp, sizeof tmp, "%s.tmp", dest);
     /* PNG già abbastanza piccolo: si salva com'è, senza ricodificarlo (resta più leggero) */
@@ -131,8 +151,10 @@ static bool save_image(const buf_t *b, const char *dest) {
         SDL_FreeSurface(img);
         FILE *f = fopen(tmp, "wb");
         bool ok = f && fwrite(b->data, 1, b->len, f) == b->len;
-        if (f) fclose(f);
-        return ok && rename(tmp, dest) == 0;
+        if (f && fclose(f) != 0) ok = false;
+        if (ok && rename(tmp, dest) == 0) return IMG_OK;
+        remove(tmp);
+        return IMG_WRITE;
     }
     SDL_Surface *out = img;
     if (img->w > MAX_SIDE || img->h > MAX_SIDE) {
@@ -142,11 +164,12 @@ static bool save_image(const buf_t *b, const char *dest) {
         if (conv && out) SDL_BlitScaled(conv, NULL, out, NULL);
         SDL_FreeSurface(conv);
         SDL_FreeSurface(img);
-        if (!out) return false;
+        if (!out) return IMG_WRITE;
     }
     bool ok = IMG_SavePNG(out, tmp) == 0 && rename(tmp, dest) == 0;
     SDL_FreeSurface(out);
-    return ok;
+    if (!ok) remove(tmp);
+    return ok ? IMG_OK : IMG_WRITE;
 }
 
 static void media_path(char *out, size_t n, int type, const char *name) {
@@ -245,6 +268,7 @@ static void nf_save(void) {
 
 static bool missing(const item_t *it, int type) {
     if (type == T_BOX && !it->console) return false;
+    if (it->console && !LIBRETRO_KINDS[type]) return false;   /* marquee: per le console non c'è una fonte */
     char p[1200], key[LIST_KEY + 20];
     snprintf(key, sizeof key, "%s/%s", TYPES[type], it->key);
     if (nf_has(key)) return false;
@@ -357,11 +381,19 @@ static char *lr_fetch(const char *field, const char *system) {
     if (!fresh) {
         CURL *c = curl_easy_init();
         char *es = curl_easy_escape(c, system, 0), url[512];
-        snprintf(url, sizeof url, "https://raw.githubusercontent.com/libretro/libretro-database/master/metadat/%s/%s.dat", field, es ? es : "");
+        snprintf(url, sizeof url, "%s/libretro/libretro-database/" LR_REF "/metadat/%s/%s.dat",
+                 host("https://raw.githubusercontent.com"), field, es ? es : "");
         curl_free(es);
         curl_easy_cleanup(c);
         buf_t b;
-        if (http_get(url, &b, NULL, 0) && b.len > 100) {
+        bool got = http_get(url, &b, NULL, 0);
+        /* solo un file DAT vero sostituisce la copia sulla scheda (non una pagina d'errore o di
+           accesso alla rete che risponde 200) */
+        if (got && !(b.len > 100 && strstr(b.data, "game (") && strstr(b.data, "crc "))) {
+            ui_log("scraper: %s/%s non è un file del database: resta la copia sulla scheda", field, system);
+            got = false;
+        }
+        if (got) {
             char tmp[1500];
             snprintf(tmp, sizeof tmp, "%s.tmp", p);
             FILE *f = fopen(tmp, "wb");
@@ -389,12 +421,17 @@ static bool has_ext_ci(const char *name, const char *ext) {
 
 /* CRC della ROM come nel database: senza l'intestazione iNES (16 byte) e senza quella da 512
    byte dei copiatori SNES e delle HuCard; per gli zip, la prima voce con un'estensione giusta */
+static int multi_zip;   /* zip con più ROM incontrati per la console in corso */
 static bool rom_crc(const item_t *it, uint32_t *out) {
     void *data = NULL;
     size_t n = 0;
     char inner[256] = "";
     if (romzip_is_zip(it->path)) {
-        if (!it->exts[0] || romzip_extract(it->path, it->exts, &data, &n, inner, sizeof inner) != ROMZIP_OK) return false;
+        if (!it->exts[0]) return false;
+        /* più ROM nello zip: il runner avvia la prima, ma i dati di quale? Nessuno, piuttosto che
+           quelli di un altro gioco (R08: uno zip, una ROM) */
+        if (romzip_candidates(it->path, it->exts) > 1) { multi_zip++; return false; }
+        if (romzip_extract(it->path, it->exts, &data, &n, inner, sizeof inner) != ROMZIP_OK) return false;
     } else {
         FILE *f = fopen(it->path, "rb");
         if (!f) return false;
@@ -460,7 +497,7 @@ static void clean_field(char *s) { for (; *s; s++) if (*s == '\t' || *s == '\n' 
 
 /* titolo, anno, editore, genere e giocatori dei giochi per console, console per console */
 static void console_info(const int *todo, int ntodo) {
-    for (int k = 0; k < ntodo && !st.cancel; k++) {
+    for (int k = 0; k < ntodo && !st.cancel && !NET_DOWN; k++) {
         item_t *first = &items[todo[k]];
         if (!first->console || !first->thumbs[0]) continue;
         /* già fatto per questa console in un giro precedente del ciclo */
@@ -475,6 +512,7 @@ static void console_info(const int *todo, int ntodo) {
         }
         ixrow_t *rows = malloc(sizeof(ixrow_t) * (size_t)(ntodo + 1));
         int nrows = 0, found = 0, total = 0;
+        multi_zip = 0;
         for (int q = k; q < ntodo && !st.cancel; q++) {
             item_t *it = &items[todo[q]];
             if (!it->console || strcmp(it->thumbs, first->thumbs) || strcmp(it->core, first->core)) continue;
@@ -508,6 +546,7 @@ static void console_info(const int *todo, int ntodo) {
         }
         if (nrows) index_update(first->index, rows, nrows);
         ui_log("scraper: %s, %d giochi su %d trovati nel database libretro", first->thumbs, found, total);
+        if (multi_zip) ui_log("scraper: %s, %d zip con più ROM: dati non cercati (uno zip deve contenere una ROM)", first->thumbs, multi_zip);
         free(rows);
         for (int fi = 0; fi < NLR; fi++) { free(lists[fi].e); free(lists[fi].buf); }
     }
@@ -540,7 +579,8 @@ static int worker(void *arg) {
     for (int k = 0; k < ntodo; k++)
         if (!items[todo[k]].console) arc[narc++] = k;
     for (int i = 0; i < narc && !st.cancel; i += 20) {
-        char url[4096] = ADB;
+        char url[4096];
+        snprintf(url, sizeof url, "%s%s", host(ADB_HOST), ADB_PATH);
         for (int q = i; q < narc && q < i + 20; q++) {
             size_t len = strlen(url);
             char *esc = curl_easy_escape(NULL, items[todo[arc[q]]].name, 0);
@@ -595,7 +635,7 @@ static int worker(void *arg) {
 
     /* 2. immagini: ArcadeDB, poi miniature libretro per titolo */
     st.phase = SCRAPE_IMAGES;
-    for (int k = 0; k < ntodo && !st.cancel; k++) {
+    for (int k = 0; k < ntodo && !st.cancel && !NET_DOWN; k++) {
         item_t *it = &items[todo[k]];
         char names[4][160];
         int nnames = it->console ? console_names(it->title, names) : 1, first = 0;
@@ -605,7 +645,7 @@ static int worker(void *arg) {
             snprintf(names[0], sizeof names[0], "%s", it->canon);
             nnames = 1;   /* è il nome esatto delle miniature: gli altri non servono */
         }
-        for (int t = 0; t < NTYPES && !st.cancel; t++) {
+        for (int t = 0; t < NTYPES && !st.cancel && !NET_DOWN; t++) {
             if (!missing(it, t)) continue;
             media_path(p, sizeof p, t, it->key);
             if (it->console) {   /* Media/<tipo>/<console>/ */
@@ -614,11 +654,18 @@ static int worker(void *arg) {
                 mkdir(d, 0755);
             }
             bool ok = false;
+            /* "non trovata" solo se ogni fonte provata ha risposto che non c'è: non per un errore
+               di rete o della scheda, che al prossimo giro si riprova */
+            bool absent = true;
             buf_t b;
             char ctype[128];
-            if (adb[k].urls[t][0] && http_get(adb[k].urls[t], &b, ctype, sizeof ctype)) {
-                ok = !strncmp(ctype, "image/", 6) && b.len > 200 && save_image(&b, p);
-                free(b.data);
+            if (adb[k].urls[t][0]) {
+                if (http_get(adb[k].urls[t], &b, ctype, sizeof ctype)) {
+                    int r = strncmp(ctype, "image/", 6) ? IMG_BAD : save_image(&b, p);
+                    ok = r == IMG_OK;
+                    if (r == IMG_WRITE) absent = false;
+                    free(b.data);
+                } else if (last_code != 404) absent = false;
             }
             /* arcade: due raccolte con il titolo; console: la sua raccolta con più nomi possibili,
                cominciando da quello che ha già funzionato per un altro tipo d'immagine */
@@ -636,21 +683,23 @@ static int worker(void *arg) {
                 CURL *c = curl_easy_init();
                 char *er = curl_easy_escape(c, repo_name, 0), *en = curl_easy_escape(c, safe, 0);
                 char url[1024];
-                snprintf(url, sizeof url, "https://thumbnails.libretro.com/%s/%s/%s.png", er, LIBRETRO_KINDS[t], en);
+                snprintf(url, sizeof url, "%s/%s/%s/%s.png", host("https://thumbnails.libretro.com"), er, LIBRETRO_KINDS[t], en);
                 curl_free(er);
                 curl_free(en);
                 curl_easy_cleanup(c);
                 if (http_get(url, &b, NULL, 0)) {
-                    ok = b.len > 200 && save_image(&b, p);
+                    int r = save_image(&b, p);
+                    ok = r == IMG_OK;
+                    if (r == IMG_WRITE) absent = false;
                     free(b.data);
                     if (ok && it->console) first = ni;
-                }
+                } else if (last_code != 404) absent = false;
             }
             if (ok) st.saved++;
             else {
                 char key[LIST_KEY + 20];
                 snprintf(key, sizeof key, "%s/%s", TYPES[t], it->key);
-                if (last_code == 404 || last_code == 200) nf_add(key);   /* non un errore di rete: si riproverà */
+                if (absent) nf_add(key);
                 st.missing++;
             }
         }
@@ -658,7 +707,8 @@ static int worker(void *arg) {
         if ((k + 1) % 10 == 0) nf_save();
     }
     nf_save();
-    st.phase = SCRAPE_DONE;
+    if (NET_DOWN) ui_log("scraper: la rete non risponde più, interrotto dopo %d giochi su %d: il resto al prossimo giro", st.done, ntodo);
+    st.phase = NET_DOWN ? SCRAPE_FAILED : SCRAPE_DONE;
 out:
     free(adb);
     free(todo);
@@ -703,6 +753,7 @@ bool scraper_start(const char *root, const game_t *games, int n) {
         }
     }
     curl_global_init(CURL_GLOBAL_DEFAULT);
+    net_errors = 0;
     st.phase = SCRAPE_INFO;
     thread = SDL_CreateThread(worker, "scraper", NULL);
     return thread != NULL;

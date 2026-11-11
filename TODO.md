@@ -46,6 +46,7 @@
 - [ ] Game list cache, for very large libraries
 - [ ] Apps section in the launcher
 - [x] Console scraper: game data from libretro-database by the ROM's CRC, box art from the libretro thumbnails (0.9.17)
+- [x] Scraper checks (audit R08): database at a fixed commit, DAT files validated before replacing the copy on the card, multi-ROM zips get no data, network loss stops the run without marking images as missing, write errors retried; `m2/test-scraper.sh`
 
 ## Project
 
