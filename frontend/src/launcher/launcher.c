@@ -308,6 +308,7 @@ static bool in_tab(const game_t *g, int t) {
 static void build_tabs(void) {
     ntabs = 0;
     tabs[ntabs++] = TAB_ALL;
+    tabs[ntabs++] = TAB_FAV;   /* subito dopo "Tutti": in fondo, dopo le console, si perdeva */
     int cand[18], nc = 0;
     for (int e = 0; e < NEMUS && nc < 16; e++) cand[nc++] = TAB_EMU + e;
     cand[nc++] = TAB_LINUX;
@@ -316,7 +317,6 @@ static void build_tabs(void) {
         for (int i = 0; i < ngames && !has; i++) has = in_tab(&games[i], cand[c]);
         if (has) tabs[ntabs++] = cand[c];
     }
-    tabs[ntabs++] = TAB_FAV;
     for (int c = 0; c < NCOLLS && ntabs < 24; c++) {
         bool has = false;
         for (int i = 0; i < ngames && !has; i++) has = in_tab(&games[i], TAB_COLL + c);
