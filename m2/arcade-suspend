@@ -116,5 +116,6 @@ fi
 # si riapre solo quando il codec si è assestato, altrimenti si sente il crack
 if [ -z "$ARCADE_KEEP_MUTE" ]; then sleep 0.4; unmute; fi
 step "risveglio (sospensione $r, tentativi $tries, batteria $(battery)%)"
+sync   # la riga del risveglio sulla SD anche se poi la console viene spenta a forza
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
 [ "$r" != "non riuscita" ]

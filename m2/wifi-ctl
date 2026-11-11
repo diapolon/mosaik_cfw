@@ -11,6 +11,9 @@ LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/wifi.log
 CTRL=/run/wpa
 EVPID=/run/wifi-event.pid
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
+# righe che servono a capire un Wi-Fi che non torna (dopo la sospensione): subito sulla SD, perché
+# uno spegnimento forzato perde ciò che è ancora in memoria
+logs() { log "$@"; sync; }
 
 # un comando alla volta: spegnere e riaccendere in fretta dal menu non deve sovrapporsi
 # (flock: se un comando viene interrotto il blocco si libera da solo, e chi non lo ottiene non
@@ -59,11 +62,11 @@ on)
     # (WIFI_MODULES: un'altra compilazione dello stesso driver, solo per m2/prova-wifi)
     for m in xradio_mac xradio_core xradio_wlan; do
         grep -q "^$m " /proc/modules && continue
-        insmod "${WIFI_MODULES:-/run/fw/modules}/$m.ko" >> "$LOG" 2>&1 || log "insmod $m: errore"
+        insmod "${WIFI_MODULES:-/run/fw/modules}/$m.ko" >> "$LOG" 2>&1 || logs "insmod $m: errore"
     done
     for i in $(seq 50); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.2; done
     if [ ! -e /sys/class/net/wlan0 ]; then
-        log "wlan0 non comparsa"; dmesg | grep -i -E "xradio|xr829|sdio|mmc1" | tail -30 >> "$LOG"
+        log "wlan0 non comparsa"; dmesg | grep -i -E "xradio|xr829|sdio|mmc1" | tail -30 >> "$LOG"; sync
         exit 1
     fi
     for k in /sys/class/rfkill/rfkill*; do
@@ -81,14 +84,14 @@ on)
         # stdout e stderr non sulla SD: allo spegnimento la SD non deve avere file aperti
         # disable_scan_offload: come il firmware, la ricerca delle reti non è affidata al driver
         echo disable_scan_offload=1 > /run/wpa-overlay.conf
-        wpa_supplicant -B -i wlan0 -D nl80211 -c "$CONF" -I /run/wpa-overlay.conf -C "$CTRL" > /dev/null 2>&1 9>&- || { log "wpa_supplicant: errore"; exit 1; }
+        wpa_supplicant -B -i wlan0 -D nl80211 -c "$CONF" -I /run/wpa-overlay.conf -C "$CTRL" > /dev/null 2>&1 9>&- || { logs "wpa_supplicant: errore"; exit 1; }
     fi
     # non "pidof wpa_cli": troverebbe anche i wpa_cli brevi con cui il launcher legge lo stato,
     # e senza questo processo nessuno chiederebbe l'indirizzo alla rete
     if ! { [ -f "$EVPID" ] && kill -0 "$(cat "$EVPID")" 2> /dev/null; }; then
         wpa_cli -B -P "$EVPID" -p "$CTRL" -i wlan0 -a /usr/arcade/bin/wifi-event > /dev/null 2>&1 9>&-
     fi
-    log "Wi-Fi acceso"
+    logs "Wi-Fi acceso"
     ;;
 off)
     inputd_resume ""
