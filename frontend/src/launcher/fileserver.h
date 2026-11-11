@@ -18,6 +18,7 @@
    - la console risponde al nome mosaik.local (mDNS) mentre la finestra è aperta. */
 #pragma once
 #include <stdbool.h>
+#include <stddef.h>
 
 enum { FS_IDLE, FS_RECEIVING, FS_SENDING };
 enum { FS_EV_UPLOAD, FS_EV_DOWNLOAD, FS_EV_ZIP, FS_EV_DELETE, FS_EV_RENAME, FS_EV_MKDIR, FS_EV_LOGIN, FS_EV_FAIL, FS_EV_BACKUP, FS_EV_RESTORE };
@@ -58,3 +59,9 @@ void fs_forget_browsers(void);
    FS_RS_DONE la console va riavviata (impostazioni nuove); fs_restore_clear dopo un errore. */
 void fs_restore_answer(bool yes);
 void fs_restore_clear(void);
+/* lo stesso backup copiato sulla scheda (prima schermata dopo una nuova installazione): zip è il
+   percorso completo. fs_backup_info dice se è un backup di Mosaik, la sua data e quanti file
+   ripristina; fs_backup_import li scrive sotto dir (la cartella Arcade), solo a server spento.
+   Dopo un'importazione riuscita la console va riavviata. */
+bool fs_backup_info(const char *zip, char *date, size_t dn, int *files);
+bool fs_backup_import(const char *dir, const char *zip);

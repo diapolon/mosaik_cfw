@@ -152,6 +152,34 @@ P
 check "mosaik.local risponde con l'indirizzo" "$(ip -4 addr show eth0 | awk '/inet /{print $2}' | cut -d/ -f1)" "$(python3 mdns.py)"
 kill $PID; wait $PID || true
 check "chiusura e riepilogo" "caricati 4, cambiato 1" "$(tail -1 srv.log)"
+# backup copiato sulla scheda e importato alla prima schermata, senza il server
+cat > imp.c <<'C'
+#include "fileserver.h"
+#include <stdio.h>
+const char *T(const char *k) { return k; }
+const char *plat_model(void) { return "prova"; }
+const char *update_current(void) { return "0.0.0"; }
+int main(int argc, char **argv) {
+    char d[32];
+    int n = 0;
+    if (argc < 3 || !fs_backup_info(argv[2], d, sizeof d, &n)) { puts("non un backup"); return 1; }
+    printf("%d %s\n", n, fs_backup_import(argv[1], argv[2]) ? "importato" : "errore");
+    return 0;
+}
+C
+gcc -std=c11 -O1 -g -Wall -Wextra -Werror -D_DEFAULT_SOURCE -D_GNU_SOURCE -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -I$S/launcher -I$S/common \
+    -o imp imp.c $S/launcher/fileserver.c -lz -lpthread
+check "zip qualsiasi: non un backup" "non un backup" "$(./imp $W/sd saves.zip 2>&1)"
+echo cambiato > sd/Saves/fbneo/gioco.srm
+rm -rf sd/Saves/nuovo
+mkdir -p rz/Saves/nuovo && echo nuovo > rz/Saves/nuovo/a.srm && rm -f r2.zip && (cd rz && zip -qr -9 ../r2.zip .)
+check "backup importato" "importato" "$(./imp $W/sd r2.zip 2>&1 | cut -d' ' -f2)"
+check "salvataggio importato" "vecchio" "$(cat sd/Saves/fbneo/gioco.srm)"
+check "cartella nuova creata" "nuovo" "$(cat sd/Saves/nuovo/a.srm)"
+check "core non toccato dall'importazione" "core" "$(cat sd/Cores/core.so)"
+check "nessun .part dall'importazione" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"
+head -c 300 r2.zip > tronco.zip
+check "zip tronco: non un backup" "non un backup" "$(./imp $W/sd tronco.zip 2>&1)"
 # codice QR: testi di varie lunghezze, letti da zbarimg
 cat > qr.c <<'C'
 #include "qrcode.h"

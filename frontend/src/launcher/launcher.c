@@ -15,6 +15,8 @@
 #include "fileserver.h"
 #include "qrcode.h"
 #include <ctype.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
@@ -2761,7 +2763,7 @@ static void fsrv_input(void) {
     }
     if (s.restore == FS_RS_RUNNING) return;
     if (s.restore == FS_RS_DONE) {   /* impostazioni nuove: si riparte da capo */
-        if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { ui_log("trasferimento file: backup ripristinato, riavvio"); fs_stop(); restart_system(); }
+        if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { ui_log("trasferimento file: backup ripristinato, riavvio"); fs_stop(); settings_load(&UI.set, UI.root); restart_system(); }
         return;
     }
     if (s.restore == FS_RS_FAILED) { ui_toast(T("fileserver.restore_failed")); fs_restore_clear(); ui_sound(SND_ERROR); }
@@ -2890,6 +2892,163 @@ static void fsrv_draw(void) {
         const char *lb[] = { T("common.restart") };
         ui_popup_buttons(px, py, pw, ph, lb, 1, 0, -1);
     }
+}
+
+/* ------------------------------------------------- backup copiato sulla scheda */
+/* Un backup scaricato dalla pagina del trasferimento file (mosaik-backup-*.zip) e copiato nella
+   cartella principale della scheda o in Arcade/: alla prima schermata (dopo la scelta della
+   lingua, su una scheda nuova) si chiede se importarlo. Una volta sola per file: nome e
+   dimensione finiscono in System/backup-visti.txt, a qualunque risposta. Lo zip resta dov'è. */
+enum { IMP_NONE, IMP_ASK, IMP_RUN, IMP_DONE, IMP_FAILED };
+#define IMP_MAX 8
+static atomic_int imp_state;
+static bool imp_checked;
+static char imp_zip[1200], imp_date[32];
+static int imp_files, imp_sel, imp_ncand;
+static char imp_cand[IMP_MAX][300];   /* "nome\tdimensione" dei backup trovati */
+
+static void imp_seen_path(char *p, size_t n) { snprintf(p, n, "%s/System/backup-visti.txt", UI.root); }
+
+static bool imp_seen(const char *key) {
+    char p[1100], line[400];
+    imp_seen_path(p, sizeof p);
+    FILE *f = fopen(p, "r");
+    if (!f) return false;
+    bool found = false;
+    while (!found && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        found = !strcmp(line, key);
+    }
+    fclose(f);
+    return found;
+}
+
+static void imp_mark_seen(const char *key) {
+    char p[1100];
+    imp_seen_path(p, sizeof p);
+    FILE *f = fopen(p, "a");
+    if (!f) return;
+    fprintf(f, "%s\n", key);
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
+}
+
+static void imp_mark_all(void) {
+    for (int i = 0; i < imp_ncand; i++) imp_mark_seen(imp_cand[i]);
+    imp_ncand = 0;
+}
+
+/* cerca i backup non ancora visti; tiene quello con il nome più recente (contiene la data) */
+static bool imp_find(void) {
+    char dirs[2][1100], best[300] = "";
+    snprintf(dirs[0], sizeof dirs[0], "%s", UI.root);
+    snprintf(dirs[1], sizeof dirs[1], "%s", UI.root);
+    char *sl = strrchr(dirs[1], '/');
+    if (sl && sl != dirs[1]) *sl = 0;
+    else snprintf(dirs[1], sizeof dirs[1], "%s", sl ? "/" : ".");
+    imp_ncand = 0;
+    for (int d = 0; d < 2; d++) {
+        DIR *dp = opendir(dirs[d]);
+        if (!dp) continue;
+        struct dirent *e;
+        while ((e = readdir(dp))) {
+            const char *n = e->d_name;
+            size_t l = strlen(n);
+            if (strncasecmp(n, "mosaik-backup", 13) || l < 17 || strcasecmp(n + l - 4, ".zip") || l > 250) continue;
+            char full[1400], key[300];
+            struct stat sb;
+            snprintf(full, sizeof full, "%s/%s", dirs[d], n);
+            if (stat(full, &sb) != 0 || !S_ISREG(sb.st_mode)) continue;
+            snprintf(key, sizeof key, "%s\t%lld", n, (long long)sb.st_size);
+            if (imp_seen(key)) continue;
+            char date[32];
+            int files = 0;
+            if (!fs_backup_info(full, date, sizeof date, &files)) { ui_log("backup sulla scheda: %s non è un backup", n); imp_mark_seen(key); continue; }
+            if (imp_ncand < IMP_MAX) snprintf(imp_cand[imp_ncand++], sizeof imp_cand[0], "%s", key);
+            if (!best[0] || strcmp(n, best) > 0) {
+                snprintf(best, sizeof best, "%s", n);
+                snprintf(imp_zip, sizeof imp_zip, "%s", full);
+                snprintf(imp_date, sizeof imp_date, "%s", date);
+                imp_files = files;
+            }
+        }
+        closedir(dp);
+    }
+    if (best[0]) ui_log("backup sulla scheda: %s (%s, %d file)", imp_zip, imp_date, imp_files);
+    return best[0] != 0;
+}
+
+static void *imp_thread(void *arg) {
+    (void)arg;
+    bool ok = fs_backup_import(UI.root, imp_zip);
+    atomic_store(&imp_state, ok ? IMP_DONE : IMP_FAILED);
+    return NULL;
+}
+
+static void imp_input(void) {
+    int st = atomic_load(&imp_state);
+    if (st == IMP_ASK) {
+        int r = ui_confirm_input(&imp_sel);
+        if (r < 0) return;
+        imp_mark_all();
+        if (r != 1) { ui_log("backup sulla scheda: non importato"); atomic_store(&imp_state, IMP_NONE); ui_sound(SND_BACK); return; }
+        ui_log("backup sulla scheda: importazione");
+        ui_sound(SND_OK);
+        quiet_begin();
+        atomic_store(&imp_state, IMP_RUN);
+        pthread_t t;
+        if (pthread_create(&t, NULL, imp_thread, NULL) != 0) atomic_store(&imp_state, IMP_FAILED);
+        else pthread_detach(t);
+    } else if (st == IMP_DONE) {
+        if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) {
+            ui_log("backup sulla scheda: importato, riavvio");
+            settings_load(&UI.set, UI.root);   /* il riavvio salva le impostazioni: quelle del backup */
+            restart_system();
+        }
+    } else if (st == IMP_FAILED) {
+        ui_log("backup sulla scheda: importazione non riuscita");
+        ui_toast(T("fileserver.restore_failed"));
+        ui_sound(SND_ERROR);
+        reload_games();   /* una parte dei file può essere arrivata */
+        atomic_store(&imp_state, IMP_NONE);
+    }
+}
+
+static void imp_draw(void) {
+    int st = atomic_load(&imp_state);
+    if (st == IMP_ASK) {
+        char body[300];
+        snprintf(body, sizeof body, T("fileserver.import_body"), imp_date, imp_files);
+        ui_confirm_draw(T("fileserver.import_title"), body, T("common.cancel"), T("fileserver.import_go"), imp_sel);
+        return;
+    }
+    if (st != IMP_RUN && st != IMP_DONE) return;
+    theme_t *t = &UI.th;
+    TTF_Font *ft = UI.f_title, *fs = UI.f_small;
+    int pw = M(0.8f), ph = M(0.34f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2, r = M(t->panel_radius), fth = TTF_FontHeight(ft);
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(px, py, pw, ph, r, t->surface);
+    if (st == IMP_DONE) {
+        ui_text(ft, T("fileserver.restore_done"), px + pw / 2, py + M(0.05f), t->text, ALIGN_CENTER);
+        ui_text(fs, T("fileserver.restore_done_body"), px + pw / 2, py + M(0.05f) + fth + M(0.01f), t->text_dim, ALIGN_CENTER);
+        const char *lb[] = { T("common.restart") };
+        ui_popup_buttons(px, py, pw, ph, lb, 1, 0, -1);
+        return;
+    }
+    fs_status_t s;
+    fs_get_status(&s);
+    int pct = s.total > 0 ? (int)(s.done * 100 / s.total) : 0;
+    char line[160];
+    snprintf(line, sizeof line, T("fileserver.restoring"), pct);
+    ui_text(ft, line, px + pw / 2, py + M(0.06f), t->text, ALIGN_CENTER);
+    int bw = pw - M(0.12f), bh = M(0.012f), bx = px + M(0.06f), by = py + M(0.06f) + fth + M(0.04f);
+    ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 60));
+    ui_rrect(bx, by, (int)((long long)bw * pct / 100), bh, bh / 2, t->accent);
+    char fit[160];
+    ui_text_fit(fs, s.current, bw, fit, sizeof fit);
+    ui_text(fs, fit, px + pw / 2, by + bh + M(0.025f), t->text_dim, ALIGN_CENTER);
 }
 
 static void sdinfo_start(void) {
@@ -3148,7 +3307,8 @@ static bool upd_busy(void) {
 static void upd_audio(void) {
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
-                || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open || fsrv_open;
+                || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open || fsrv_open
+                || atomic_load(&imp_state) == IMP_RUN || atomic_load(&imp_state) == IMP_DONE;
     if (want == audio_quiet) return;
     if (want) { quiet_begin(); return; }
     audio_quiet = false;
@@ -5487,7 +5647,7 @@ int main(int argc, char **argv) {
         }
         /* tasto di accensione (sistema su SD): finestra per spegnere */
         /* tasto di accensione (sistema su SD): breve sospende, tenuto premuto chiede se spegnere */
-        if (UI.in.power && !upd_busy() && !(dlg_open && dlg_suspend)) {
+        if (UI.in.power && !upd_busy() && atomic_load(&imp_state) != IMP_RUN && !(dlg_open && dlg_suspend)) {
             dlg_open = dlg_suspend = true;
             dlg_sel = 1;
             saver_on = false;
@@ -5495,9 +5655,9 @@ int main(int argc, char **argv) {
             UI.in.power = false;   /* questa pressione ha solo aperto la finestra */
             ui_sound(SND_OK);
         }
-        if (UI.in.power_long && (!dlg_open || dlg_suspend) && !upd_open) { dlg_open = true; dlg_suspend = false; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
+        if (UI.in.power_long && (!dlg_open || dlg_suspend) && !upd_open && atomic_load(&imp_state) != IMP_RUN) { dlg_open = true; dlg_suspend = false; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
-        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open && !sc_state) {
+        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open && !sc_state && !atomic_load(&imp_state)) {
             dlg_suspend = false;
             reset_step = 0;
             cfm_kind = CFM_NONE;
@@ -5528,6 +5688,7 @@ int main(int argc, char **argv) {
             if (r == 1) { ui_suspend(); last_input = UI.t; }
         }
         else if (rdy_open) rdy_input();
+        else if (atomic_load(&imp_state)) imp_input();
         else if (cfm_kind) cfm_input();
         else if (setup_step) setup_input();
         else if (sc_state) sc_input();
@@ -5612,7 +5773,8 @@ int main(int argc, char **argv) {
         if (sc_state) sc_draw();
         if (cfm_kind) cfm_draw();
         if (ptest_open) ptest_draw();
-        if (setup_step) setup_draw();
+        if (setup_step && !atomic_load(&imp_state)) setup_draw();
+        if (atomic_load(&imp_state)) imp_draw();
         if (rdy_open) rdy_draw();
         if (sdbad_open) sdbad_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
@@ -5625,7 +5787,12 @@ int main(int argc, char **argv) {
             else if (update_supported()) update_resume_start(UI.root);   /* scaricato e non installato? */
         }
         /* la domanda arriva quando il controllo in sottofondo è finito, solo se nulla è aperto */
-        if (!rdy_asked && update_resume_ready() && !upd_open && !dlg_open && !cfm_kind && !setup_step) {
+        /* un backup copiato sulla scheda: dopo la lingua, prima del Wi-Fi della prima accensione */
+        if (!imp_checked && setup_step != 1 && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open) {
+            imp_checked = true;
+            if (imp_find()) { atomic_store(&imp_state, IMP_ASK); imp_sel = 1; }
+        }
+        if (!rdy_asked && update_resume_ready() && !upd_open && !dlg_open && !cfm_kind && !setup_step && !atomic_load(&imp_state)) {
             rdy_asked = rdy_open = true;
             rdy_sel = 2;
         }

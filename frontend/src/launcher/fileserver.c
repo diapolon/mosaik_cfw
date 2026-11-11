@@ -1011,11 +1011,10 @@ static void restore_remove_zip(void) {
     remove(full);
 }
 
-/* lo zip è un backup di Mosaik? data e numero dei file che si ripristinerebbero */
-static bool restore_check(void) {
-    char full[1200], info[512];
-    full_path(full, sizeof full, RESTORE_ZIP);
-    FILE *f = fopen(full, "rb");
+/* lo zip (percorso completo) è un backup di Mosaik? data e numero dei file che si ripristinerebbero */
+static bool backup_read(const char *zipfull, char *date, size_t dn, int *nfiles) {
+    char info[512];
+    FILE *f = fopen(zipfull, "rb");
     if (!f) return false;
     zent_t *z;
     int n = zip_dir(f, &z), files = 0;
@@ -1028,9 +1027,15 @@ static bool restore_check(void) {
     fclose(f);
     if (!found) return false;
     const char *d = strstr(info, "date=");
-    snprintf(restore_date, sizeof restore_date, "%.*s", d ? (int)strcspn(d + 5, "\n") : 0, d ? d + 5 : "");
-    restore_files = files;
+    snprintf(date, dn, "%.*s", d ? (int)strcspn(d + 5, "\n") : 0, d ? d + 5 : "");
+    *nfiles = files;
     return true;
+}
+
+static bool restore_check(void) {
+    char full[1200];
+    full_path(full, sizeof full, RESTORE_ZIP);
+    return backup_read(full, restore_date, sizeof restore_date, &restore_files);
 }
 
 static void do_restore_upload(req_t *r) {
@@ -1075,18 +1080,17 @@ static void do_restore_upload(req_t *r) {
 
 /* dopo la conferma, nel thread del server: ogni file passa da ".nome.part" e prende il suo nome
    solo se è completo e con il CRC giusto */
-static void restore_run(void) {
-    restore_set(FS_RS_RUNNING);
-    char full[1200];
-    full_path(full, sizeof full, RESTORE_ZIP);
-    FILE *f = fopen(full, "rb");
+/* scrive i file permessi dello zip sotto root: ognuno passa da ".nome.part" e prende il suo
+   nome solo se è completo e con il CRC giusto */
+static bool backup_extract(const char *zipfull, int total) {
+    FILE *f = fopen(zipfull, "rb");
     zent_t *z = NULL;
     int n = f ? zip_dir(f, &z) : -1, done = 0;
     bool ok = n >= 0;
     for (int i = 0; ok && i < n; i++) {
         const char *rel = z[i].name;
         if (!backup_path_ok(rel, true)) continue;   /* altro: si ignora */
-        set_state(FS_RECEIVING, base_name(rel), done, restore_files);
+        set_state(FS_RECEIVING, base_name(rel), done, total);
         char dst[2400], part[2500];
         full_path(dst, sizeof dst, rel);
         const char *bn = base_name(rel);
@@ -1103,10 +1107,30 @@ static void restore_run(void) {
     free(z);
     if (f) fclose(f);
     sync();
-    restore_remove_zip();
     atomic_store(&any_change, true);
     set_state(FS_IDLE, "", 0, 0);
+    return ok;
+}
+
+static void restore_run(void) {
+    restore_set(FS_RS_RUNNING);
+    char full[1200];
+    full_path(full, sizeof full, RESTORE_ZIP);
+    bool ok = backup_extract(full, restore_files);
+    restore_remove_zip();
     restore_set(ok ? FS_RS_DONE : FS_RS_FAILED);
+}
+
+bool fs_backup_info(const char *zip, char *date, size_t dn, int *files) {
+    return backup_read(zip, date, dn, files);
+}
+
+bool fs_backup_import(const char *dir, const char *zip) {
+    if (thr_on) return false;   /* il server ha già la sua cartella */
+    snprintf(root, sizeof root, "%s", dir);
+    char d[32];
+    int n;
+    return backup_read(zip, d, sizeof d, &n) && backup_extract(zip, n);
 }
 
 void fs_restore_answer(bool yes) {
