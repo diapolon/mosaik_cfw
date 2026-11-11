@@ -280,7 +280,9 @@
     "audio_stalled": "Audio indisponible : jeu sans son",
     "linux_game": "Jeu Linux",
     "linux_note": "Le jeu est en pause : B ou Menu pour reprendre.",
-    "cpu": "Profil de performances"
+    "cpu": "Profil de performances",
+    "disc": "Disque",
+    "disc_now": "Disque %u sur %u"
   },
   "genre": {
     "fighter": "Combat",

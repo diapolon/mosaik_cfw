@@ -280,7 +280,9 @@
     "audio_stalled": "Audio unavailable: playing without sound",
     "linux_game": "Linux game",
     "linux_note": "The game is paused: B or Menu to resume.",
-    "cpu": "Performance profile"
+    "cpu": "Performance profile",
+    "disc": "Disc",
+    "disc_now": "Disc %u of %u"
   },
   "genre": {
     "fighter": "Fighting",

@@ -53,6 +53,9 @@ static char system_id[32];
    ROM omonime nello stesso emulatore "nome [sottocartella]" (audit prelancio R04) */
 static char game_key[200];
 static char sys_dir[1100], save_dir[1100];
+static struct retro_disk_control_callback disk;
+static bool disk_ok;
+static unsigned disk_count(void) { return disk_ok ? disk.get_num_images() : 0; }
 static struct retro_system_av_info av;
 static enum retro_pixel_format pixfmt = RETRO_PIXEL_FORMAT_0RGB1555;
 static unsigned rotation;
@@ -372,6 +375,17 @@ static bool environment(unsigned cmd, void *data) {
     switch (cmd) {
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
         ((struct retro_log_callback *)data)->log = core_log;
+        return true;
+    /* dischi (PlayStation con .m3u): il menu di gioco li cambia. L'interfaccia estesa comincia
+       con le stesse funzioni di quella semplice, che bastano */
+    case RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION:
+        if (data) *(unsigned *)data = 1;
+        return true;
+    case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE:
+    case RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE:
+        if (!data) return false;
+        memcpy(&disk, data, sizeof disk);
+        disk_ok = disk.get_num_images && disk.set_image_index && disk.set_eject_state && disk.get_image_index;
         return true;
     case RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY:
         *(const char **)data = sys_dir;
@@ -972,9 +986,9 @@ static void draw_game(void) {
 /* Tre pagine con la stessa grafica: principale, opzioni del gioco (core), comandi. */
 
 enum { PAGE_MAIN, PAGE_OPTIONS, PAGE_CONTROLS, PAGE_SHADER, PAGE_SAVES, PAGE_HOTKEYS };
-enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_SAVES, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS, MI_HOTKEYS,
+enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_SAVES, MI_DISC, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS, MI_HOTKEYS,
        MI_RESET, MI_EXIT, MI_COUNT };
-static const char *main_keys[MI_COUNT] = { "game.resume", "game.save_state", "game.load_state", "saves.title", "game.aspect",
+static const char *main_keys[MI_COUNT] = { "game.resume", "game.save_state", "game.load_state", "saves.title", "game.disc", "game.aspect",
                                            "game.filter", "game.bezel", "game.rotation", "game.cpu", "game.shader_params", "game.options", "game.controls", "hotkey.page",
                                            "game.reset", "game.exit" };
 static const char *cpu_names[] = { "cpu.auto", "cpu.min", "cpu.save", "cpu.balanced", "cpu.perf" };
@@ -1118,7 +1132,7 @@ static void power_off_from_game(void) {
 
 /* voci del menu senza effetto per questo gioco: in grigio */
 static bool row_disabled(int i) {
-    return page == PAGE_MAIN && ((i == MI_SHADER && !glsh_param_count()) || (i == MI_OPTIONS && !noptv));
+    return page == PAGE_MAIN && ((i == MI_SHADER && !glsh_param_count()) || (i == MI_OPTIONS && !noptv) || (i == MI_DISC && disk_count() < 2));
 }
 
 static int page_rows(void) {
@@ -1136,8 +1150,23 @@ static int rot_index(void) {
     return 0;
 }
 
+/* disco successivo o precedente: si apre il vassoio, si cambia, si richiude */
+static void disc_change(int dir) {
+    unsigned n = disk_count();
+    if (n < 2) return;
+    unsigned cur = disk.get_image_index(), next = (cur + n + (unsigned)dir) % n;
+    disk.set_eject_state(true);
+    bool ok = disk.set_image_index(next);
+    disk.set_eject_state(false);
+    char m[80];
+    snprintf(m, sizeof m, T("game.disc_now"), (ok ? next : cur) + 1, n);
+    ui_toast(m);
+    ui_log("disco %u di %u%s", (ok ? next : cur) + 1, n, ok ? "" : " (cambio non riuscito)");
+}
+
 static void main_change(int item, int dir) {
     switch (item) {
+    case MI_DISC: disc_change(dir); return;
     case MI_ASPECT: gcfg.aspect = (gcfg.aspect + dir + 3) % 3; break;
     case MI_FILTER: {
         if (!nfilters) nfilters = filters_list(root, UI.set.lang, filters, 24);
@@ -1479,7 +1508,7 @@ static void menu_input(void) {
         if (state_load(false)) { ui_toast(T("game.state_loaded")); menu_open = false; }
         else ui_toast(T("game.no_state"));
         break;
-    case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: case MI_CPU: main_change(*s, 1); return;
+    case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: case MI_CPU: case MI_DISC: main_change(*s, 1); return;
     case MI_OPTIONS: open_page(PAGE_OPTIONS); return;
     case MI_CONTROLS: open_page(PAGE_CONTROLS); return;
     case MI_HOTKEYS: open_page(PAGE_HOTKEYS); return;
@@ -1502,6 +1531,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
         if (i == MI_BEZEL) snprintf(value, vn, "%s", T(gcfg.bezel ? "common.yes" : "common.no"));
         if (i == MI_ROTATE) snprintf(value, vn, "%s", T(rotate_names[rot_index()]));
         if (i == MI_CPU) snprintf(value, vn, "%s", T(cpu_names[gcfg.cpu % 5]));
+        if (i == MI_DISC) { if (disk_count() > 1) snprintf(value, vn, "%u / %u", disk.get_image_index() + 1, disk_count()); else snprintf(value, vn, "-"); }
         *sub = i == MI_OPTIONS || i == MI_CONTROLS || i == MI_SHADER || i == MI_SAVES || i == MI_HOTKEYS;
     } else if (page == PAGE_SAVES) {
         time_t when;
@@ -1542,7 +1572,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
 
 static bool row_changeable(int i) {
     if (page == PAGE_SAVES || page == PAGE_HOTKEYS) return false;
-    if (page == PAGE_MAIN) return i == MI_ASPECT || i == MI_FILTER || i == MI_BEZEL || i == MI_ROTATE || i == MI_CPU;
+    if (page == PAGE_MAIN) return i == MI_ASPECT || i == MI_FILTER || i == MI_BEZEL || i == MI_ROTATE || i == MI_CPU || (i == MI_DISC && disk_count() > 1);
     if (page == PAGE_OPTIONS) return noptv > 0;
     if (page == PAGE_SHADER) return glsh_param_count() > 0;
     return i < NREMAP;

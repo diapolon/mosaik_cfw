@@ -4,14 +4,14 @@
 # Si compila in una copia pulita dentro il volume Docker: il Mac ha i suoi file oggetto
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
-#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp]
+#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp] [pcsx]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp}
+WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -116,6 +116,20 @@ for core in $WHICH; do
             > "$SRC/ngp.log" 2>&1 \
             || { tail -30 "$SRC/ngp.log"; exit 1; }
         cp "$SRC/ngp/mednafen_ngp_libretro.so" "$OUT/"
+        ;;
+    pcsx)
+        # PCSX ReARMed (PlayStation): ha un sottomodulo (libpicofe), che il clone locale non
+        # porta. Si copia la cartella intera, sottomodulo compreso, e si toglie ogni file di build.
+        rm -rf "$SRC/pcsx"
+        cp -a /trimui/deps/pcsx_rearmed "$SRC/pcsx"
+        git -C "$SRC/pcsx" clean -qfdx
+        git -C "$SRC/pcsx" apply /trimui/toolchain/patches/pcsx-rearmed-lr.patch
+        echo "== PCSX ReARMed (PlayStation)"
+        make -C "$SRC/pcsx" -f Makefile.libretro -j"$JOBS" platform=rpi3_64 \
+            CC="$CC" CXX="$CXX" AR="$AR" \
+            > "$SRC/pcsx.log" 2>&1 \
+            || { tail -30 "$SRC/pcsx.log"; exit 1; }
+        cp "$SRC/pcsx/pcsx_rearmed_libretro.so" "$OUT/"
         ;;
     esac
 done

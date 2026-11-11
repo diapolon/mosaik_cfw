@@ -280,7 +280,9 @@
     "audio_stalled": "Audio nicht verfügbar: ohne Ton",
     "linux_game": "Linux-Spiel",
     "linux_note": "Das Spiel ist pausiert: B oder Menu zum Fortsetzen.",
-    "cpu": "Leistungsprofil"
+    "cpu": "Leistungsprofil",
+    "disc": "Disc",
+    "disc_now": "Disc %u von %u"
   },
   "genre": {
     "fighter": "Kampfspiel",

@@ -280,7 +280,9 @@
     "audio_stalled": "Audio non disponibile: gioco senza suono",
     "linux_game": "Gioco Linux",
     "linux_note": "Il gioco è in pausa: B o Menu per riprendere.",
-    "cpu": "Profilo prestazioni"
+    "cpu": "Profilo prestazioni",
+    "disc": "Disco",
+    "disc_now": "Disco %u di %u"
   },
   "genre": {
     "fighter": "Picchiaduro",

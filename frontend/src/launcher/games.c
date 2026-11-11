@@ -221,9 +221,38 @@ static void fill_from_entry(game_t *g, const entry_t *en) {
     g->vertical = en->vertical;
 }
 
+/* Giochi su più dischi: un .m3u elenca i dischi (uno per riga, accanto al file). In elenco va
+   solo il .m3u; i dischi che elenca non si mostrano da soli (sarebbero doppioni). */
+#define M3U_MAX 32
+static int m3u_listed(const char *dir, const emulator_t *emu, char out[][256]) {
+    bool m3u = false;
+    for (int i = 0; i < emu->nexts && !m3u; i++) m3u = !strcasecmp(emu->exts[i], ".m3u");
+    if (!m3u) return 0;
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+    int n = 0;
+    struct dirent *e;
+    while ((e = readdir(d)) && n < M3U_MAX) {
+        if (e->d_name[0] == '.' || !has_ext(e->d_name, ".m3u")) continue;
+        char p[2048], line[512];
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        FILE *f = fopen(p, "r");
+        while (f && n < M3U_MAX && fgets(line, sizeof line, f)) {
+            line[strcspn(line, "\r\n")] = 0;
+            if (!line[0] || line[0] == '#' || strchr(line, '/')) continue;   /* solo file accanto al .m3u */
+            snprintf(out[n++], 256, "%s", line);
+        }
+        if (f) fclose(f);
+    }
+    closedir(d);
+    return n;
+}
+
 static void scan_dir(list_t *l, index_t *ix, const emulator_t *emu, const char *dir, int depth) {
     DIR *d = opendir(dir);
     if (!d) return;
+    char listed[M3U_MAX][256];   /* per cartella: la ricorsione non deve sovrascriverlo */
+    int nlisted = m3u_listed(dir, emu, listed);
     struct dirent *e;
     while ((e = readdir(d))) {
         if (e->d_name[0] == '.') continue;
@@ -238,6 +267,9 @@ static void scan_dir(list_t *l, index_t *ix, const emulator_t *emu, const char *
         bool ok = false;
         for (int i = 0; i < emu->nexts && !ok; i++) ok = has_ext(e->d_name, emu->exts[i]);
         if (!ok) continue;
+        bool in_m3u = false;
+        for (int i = 0; i < nlisted && !in_m3u; i++) in_m3u = !strcmp(listed[i], e->d_name);
+        if (in_m3u) continue;
         char name[ROM_NAME];
         snprintf(name, sizeof name, "%.*s", (int)(strrchr(e->d_name, '.') - e->d_name), e->d_name);
         entry_t *en = index_find(ix, name);
