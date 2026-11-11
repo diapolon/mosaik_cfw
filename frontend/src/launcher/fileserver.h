@@ -7,7 +7,7 @@
    Regole:
    - niente fuori da Arcade/, niente nomi che cominciano con un punto, niente System/wifi.conf
      (contiene le password delle reti);
-   - si scrive solo dentro Roms, Bios, Saves, Media, Music, Linux e Bezels, mai le cartelle
+   - si scrive solo dentro Roms, Bios, Saves, Media, Music, Linux, Apps e Bezels, mai le cartelle
      principali stesse: il resto (sistema, core, temi, lingue, impostazioni, registri) si può
      solo scaricare;
    - un file caricato si scrive come ".nome.part" e prende il suo nome solo quando è completo e

@@ -49,7 +49,7 @@
 - [ ] Console scraper, phase 2: ScreenScraper as a second source (needs developer credentials, requested on the screenscraper.fr forum)
 - [ ] Reset settings and Erase everything (Settings → Tools, `rst_*` in launcher.c): tested on the Mac; to test on a console
 - [ ] Game list cache, for very large libraries: measured on a Brick Pro with 33 games, the library reads in 0.01 s (first screen at about 4.9 s from kernel start), so not needed for now
-- [ ] Apps section in the launcher
+- [ ] Apps section in the launcher (`Arcade/Apps/<app>/launch.sh`, `app.json`, `icon.png`; home entry only when there are apps): tested on the Mac in the three themes; to test on a console with a real app, and document the format in `frontend/README.md`
 - [x] Console scraper: game data from libretro-database by the ROM's CRC, box art from the libretro thumbnails (0.9.17)
 - [x] Scraper checks (audit R08): database at a fixed commit, DAT files validated before replacing the copy on the card, multi-ROM zips get no data, network loss stops the run without marking images as missing, write errors retried; `m2/test-scraper.sh`
 - [x] Boot area generation visible (audit R07): the system carries its images' generation in `/etc/area-avvio`, Settings → Updates → Information shows the card's and warns when it is older; wiki: writing the card again without losing anything (pushed with the next stable)

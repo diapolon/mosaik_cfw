@@ -26,7 +26,7 @@ chmod +x "$APP/launch.sh" "$APP/bin/"*
 # aggiornando non vengono sovrascritti)
 mkdir -p "$DATA/Cores" "$DATA/Roms/FBNEO" "$DATA/Roms/MAME2003P" "$DATA/Roms/MAME2010" "$DATA/Roms/NES" "$DATA/Roms/MD" "$DATA/Roms/SMS" "$DATA/Roms/GG" "$DATA/Roms/PCE" "$DATA/Roms/SNES" \
          "$DATA/Roms/GB" "$DATA/Roms/GBC" "$DATA/Roms/GBA" "$DATA/Roms/NGP" "$DATA/Roms/PS" "$DATA/Bios" "$DATA/Saves" "$DATA/System" \
-         "$DATA/Logs" "$DATA/Music" "$DATA/Linux" "$DATA/Media"
+         "$DATA/Logs" "$DATA/Music" "$DATA/Linux" "$DATA/Apps" "$DATA/Media"
 cp "$DIST/cores/fbneo_libretro.so" "$DATA/Cores/fbneo_libretro.so"
 cp "$DIST/cores/mame2003_plus_libretro.so" "$DATA/Cores/mame2003p_libretro.so"
 for c in mame2010 fceumm genesis_plus_gx snes9x gambatte mgba mednafen_pce_fast mednafen_ngp pcsx_rearmed; do cp "$DIST/cores/${c}_libretro.so" "$DATA/Cores/"; done

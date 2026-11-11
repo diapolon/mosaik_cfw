@@ -66,7 +66,7 @@
     "backup_download": "Download backup",
     "backup_wifi": "Also the Wi-Fi networks, with their passwords",
     "backup_media": "Also the images",
-    "backup_games": "Also the games (%s)",
+    "backup_games": "Also games and apps (%s)",
     "backup_games_big": "Games too big for the backup (%s): copy them separately",
     "backup_restore": "Restore backup",
     "restore_console": "Backup received: confirm on the console.",
@@ -143,7 +143,7 @@
     "part_bios": "BIOS files",
     "part_wifi": "Wi-Fi networks",
     "part_media": "Images",
-    "part_games": "Games"
+    "part_games": "Games and apps"
   },
   "plat": {
     "title": "Platforms",
@@ -633,8 +633,9 @@
     "look": "Appearance",
     "games": "Games",
     "system": "System",
-    "tools": "Tools",
-    "updates": "Updates"
+    "tools": "ROMs and images",
+    "updates": "Updates",
+    "card": "Card and data"
   },
   "settings_cat_sum": {
     "power": "Sleep, restart or power off",
@@ -643,8 +644,9 @@
     "look": "Theme, language, screensaver",
     "games": "Picture, filters",
     "system": "Wi-Fi, date and time, power",
-    "tools": "Verify ROMs, images, files, reset",
-    "updates": "Update, channel, log, information"
+    "tools": "Verify ROMs, download and clean images",
+    "updates": "Update, channel, log, information",
+    "card": "Transfer files, backup, reset"
   },
   "settings_cat_desc": {
     "power": "Put the console to sleep, restart it or turn it off.",
@@ -653,8 +655,9 @@
     "look": "Launcher theme, its variant, language and screensaver.",
     "games": "How games look and play: aspect, filters, bezels, duplicates, performance.",
     "system": "Wi-Fi, date, time and time zone, automatic power off.",
-    "tools": "Verify ROMs, download images and clean up the ones no longer needed, transfer files over Wi-Fi. Reset the settings or the whole card.",
-    "updates": "System updates, channel, notice, diagnostic log and card space."
+    "tools": "Verify ROMs, download game images and remove the ones no longer needed.",
+    "updates": "System updates, channel, notice, diagnostic log and card space.",
+    "card": "Transfer files and back up over Wi-Fi, reset the settings or the whole card."
   },
   "loglvl": {
     "off": "Off",
@@ -860,5 +863,11 @@
     "settings2_body": "Settings, lists and Wi-Fi networks can't be recovered.",
     "erase3_title": "Last confirmation",
     "erase3_body": "Hold A on Erase everything for 3 seconds."
+  },
+  "apps": {
+    "title": "Apps",
+    "count": "%d apps",
+    "empty_title": "No apps",
+    "empty_text": "Copy apps to Arcade/Apps: one folder per app, with launch.sh inside."
   }
 }

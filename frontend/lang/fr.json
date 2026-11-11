@@ -66,7 +66,7 @@
     "backup_download": "Télécharger la sauvegarde",
     "backup_wifi": "Aussi les réseaux Wi-Fi, avec leurs mots de passe",
     "backup_media": "Aussi les images",
-    "backup_games": "Aussi les jeux (%s)",
+    "backup_games": "Aussi les jeux et les apps (%s)",
     "backup_games_big": "Jeux trop lourds pour la sauvegarde (%s) : copiez-les à part",
     "backup_restore": "Restaurer une sauvegarde",
     "restore_console": "Sauvegarde reçue : confirme sur la console.",
@@ -143,7 +143,7 @@
     "part_bios": "BIOS",
     "part_wifi": "Réseaux Wi-Fi",
     "part_media": "Images",
-    "part_games": "Jeux"
+    "part_games": "Jeux et apps"
   },
   "plat": {
     "title": "Plateformes",
@@ -633,8 +633,9 @@
     "look": "Apparence",
     "games": "Jeux",
     "system": "Système",
-    "tools": "Outils",
-    "updates": "Mises à jour"
+    "tools": "ROM et images",
+    "updates": "Mises à jour",
+    "card": "Carte et données"
   },
   "settings_cat_sum": {
     "power": "Veille, redémarrer ou éteindre",
@@ -643,8 +644,9 @@
     "look": "Thème, langue, écran de veille",
     "games": "Image, filtres",
     "system": "Wi-Fi, date et heure, extinction",
-    "tools": "Vérifier les ROM, images, fichiers, réinitialiser",
-    "updates": "Mise à jour, canal, journal, infos"
+    "tools": "Vérifier les ROM, télécharger et nettoyer les images",
+    "updates": "Mise à jour, canal, journal, infos",
+    "card": "Transférer des fichiers, sauvegarde, réinitialiser"
   },
   "settings_cat_desc": {
     "power": "Mettre la console en veille, la redémarrer ou l’éteindre.",
@@ -653,8 +655,9 @@
     "look": "Thème du launcher, sa variante, langue et écran de veille.",
     "games": "Affichage et jeu : proportions, filtres, cadres, doublons, performances.",
     "system": "Wi-Fi, date, heure et fuseau horaire, extinction automatique.",
-    "tools": "Vérifier les ROM, télécharger les images et supprimer celles qui ne servent plus, transférer des fichiers par Wi-Fi. Réinitialiser les réglages ou toute la carte.",
-    "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte."
+    "tools": "Vérifier les ROM, télécharger les images des jeux et supprimer celles qui ne servent plus.",
+    "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte.",
+    "card": "Transférer des fichiers et sauvegarder par Wi-Fi, réinitialiser les réglages ou toute la carte."
   },
   "loglvl": {
     "off": "Désactivé",
@@ -860,5 +863,11 @@
     "settings2_body": "Réglages, listes et réseaux Wi-Fi ne pourront pas être récupérés.",
     "erase3_title": "Dernière confirmation",
     "erase3_body": "Maintenez A sur Tout effacer pendant 3 secondes."
+  },
+  "apps": {
+    "title": "Apps",
+    "count": "%d apps",
+    "empty_title": "Aucune app",
+    "empty_text": "Copiez les apps dans Arcade/Apps : un dossier par app, avec launch.sh dedans."
   }
 }

@@ -66,7 +66,7 @@
     "backup_download": "Sicherung herunterladen",
     "backup_wifi": "Auch die WLAN-Netze, mit Passwörtern",
     "backup_media": "Auch die Bilder",
-    "backup_games": "Auch die Spiele (%s)",
+    "backup_games": "Auch Spiele und Apps (%s)",
     "backup_games_big": "Spiele zu groß für die Sicherung (%s): separat kopieren",
     "backup_restore": "Sicherung wiederherstellen",
     "restore_console": "Sicherung empfangen: an der Konsole bestätigen.",
@@ -143,7 +143,7 @@
     "part_bios": "BIOS",
     "part_wifi": "WLAN-Netze",
     "part_media": "Bilder",
-    "part_games": "Spiele"
+    "part_games": "Spiele und Apps"
   },
   "plat": {
     "title": "Plattformen",
@@ -633,8 +633,9 @@
     "look": "Aussehen",
     "games": "Spiele",
     "system": "System",
-    "tools": "Werkzeuge",
-    "updates": "Updates"
+    "tools": "ROMs und Bilder",
+    "updates": "Updates",
+    "card": "Karte und Daten"
   },
   "settings_cat_sum": {
     "power": "Ruhezustand, Neustart oder Ausschalten",
@@ -643,8 +644,9 @@
     "look": "Thema, Sprache, Bildschirmschoner",
     "games": "Bild, Filter",
     "system": "WLAN, Datum und Uhrzeit, Ausschalten",
-    "tools": "ROMs prüfen, Bilder, Dateien, zurücksetzen",
-    "updates": "Update, Kanal, Protokoll, Infos"
+    "tools": "ROMs prüfen, Bilder laden und aufräumen",
+    "updates": "Update, Kanal, Protokoll, Infos",
+    "card": "Dateien übertragen, Sicherung, zurücksetzen"
   },
   "settings_cat_desc": {
     "power": "Konsole in den Ruhezustand versetzen, neu starten oder ausschalten.",
@@ -653,8 +655,9 @@
     "look": "Launcher-Thema, Variante, Sprache und Bildschirmschoner.",
     "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung.",
     "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
-    "tools": "ROMs prüfen, Bilder herunterladen und nicht mehr benötigte entfernen, Dateien per WLAN übertragen. Einstellungen oder die ganze Karte zurücksetzen.",
-    "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte."
+    "tools": "ROMs prüfen, Spielbilder herunterladen und nicht mehr benötigte entfernen.",
+    "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte.",
+    "card": "Dateien und Sicherungen per WLAN übertragen, Einstellungen oder die ganze Karte zurücksetzen."
   },
   "loglvl": {
     "off": "Aus",
@@ -860,5 +863,11 @@
     "settings2_body": "Einstellungen, Listen und WLAN-Netze lassen sich nicht wiederherstellen.",
     "erase3_title": "Letzte Bestätigung",
     "erase3_body": "Halte A auf Alles löschen 3 Sekunden lang gedrückt."
+  },
+  "apps": {
+    "title": "Apps",
+    "count": "%d Apps",
+    "empty_title": "Keine Apps",
+    "empty_text": "Apps nach Arcade/Apps kopieren: ein Ordner pro App, mit launch.sh darin."
   }
 }

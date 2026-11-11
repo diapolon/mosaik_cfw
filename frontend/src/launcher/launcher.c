@@ -37,7 +37,7 @@
 #endif
 
 enum { EXIT_QUIT = 0, EXIT_LAUNCH = 10, EXIT_POWEROFF = 20, EXIT_REBOOT = 21 };
-enum { SCR_HOME, SCR_LIBRARY, SCR_SETTINGS, SCR_DETAIL, SCR_PLATFORMS };
+enum { SCR_HOME, SCR_LIBRARY, SCR_SETTINGS, SCR_DETAIL, SCR_PLATFORMS, SCR_APPS };
 static int detail_idx = -1;   /* gioco mostrato nella scheda */
 static void open_detail(int idx);
 static void panel_box(int w, int h, int *x, int *y);
@@ -79,7 +79,7 @@ static void settings_open(int page, int row);
 static void draw_switch(int x, int y, int h, bool on);
 static void plat_open(int sel);
 static void quit_to_menu(void);
-enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_CONTROLS, SC_SYSTEM, SC_TOOLS, SC_UPDATES, SC_COUNT };
+enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_CONTROLS, SC_SYSTEM, SC_TOOLS, SC_CARD, SC_UPDATES, SC_COUNT };
 static char theme_ids[16][64], theme_names[16][64];
 static int nthemes;
 
@@ -246,8 +246,15 @@ static void find_resume(void) {
    Spegni. Le voci del menu (Cabinato, Onda) e i giochi del carosello (Tessera). */
 enum { HK_RESUME, HK_LAST, HK_FAV, HK_RECENT };
 static int hgame[16], hkind[16], nhgames;     /* carosello: giochi e perché ci sono */
-enum { HM_GAME, HM_LIBRARY, HM_FAV, HM_SETTINGS, HM_POWER };   /* i temi si scelgono dalle impostazioni */
+enum { HM_GAME, HM_LIBRARY, HM_FAV, HM_APPS, HM_SETTINGS, HM_POWER };   /* i temi si scelgono dalle impostazioni */
 static int hmenu[6], nhmenu;                  /* menu: la prima voce è il gioco, se c'è */
+/* App: programmi che non sono giochi, in Arcade/Apps/<app>/launch.sh (app.json e icon.png
+   facoltativi). Partono come i giochi Linux, ma non vanno in libreria, negli ultimi giochi né
+   nel tempo di gioco; la voce "App" nella schermata iniziale c'è solo se ne esiste almeno una. */
+typedef struct { char name[64], title[96], desc[240], author[64], path[1100], icon[1100]; } app_t;
+static app_t *apps;
+static int napps, app_sel;
+static float app_scroll;
 static int hsel, hrow;                        /* scelta nel carosello o nel menu; riga (Tessera) */
 static int hbtn;                              /* pulsante scelto nella fila (Tessera) */
 
@@ -264,7 +271,8 @@ static void build_home_rows(void) {
             if (games[i].recent == r && !games[i].hidden && !games[i].missing && !games[i].fav) { hgame[nhgames] = i; hkind[nhgames++] = HK_RECENT; break; }
     nhmenu = 0;
     if (last >= 0) hmenu[nhmenu++] = HM_GAME;
-    for (int m = HM_LIBRARY; m <= HM_POWER; m++) hmenu[nhmenu++] = m;
+    for (int m = HM_LIBRARY; m <= HM_POWER; m++)
+        if (m != HM_APPS || napps) hmenu[nhmenu++] = m;
     if (hsel >= (is_list_layout() || is_bar_layout() ? nhmenu : nhgames)) hsel = 0;
 }
 
@@ -393,7 +401,47 @@ static void build_view(void) {
     if (lib_sel >= nview) lib_sel = nview ? nview - 1 : 0;
 }
 
+static int app_cmp(const void *a, const void *b) { return strcasecmp(((const app_t *)a)->title, ((const app_t *)b)->title); }
+
+static void apps_scan(void) {
+    free(apps);
+    apps = NULL;
+    napps = 0;
+    char dir[1100];
+    snprintf(dir, sizeof dir, "%s/Apps", UI.root);
+    DIR *d = opendir(dir);
+    if (!d) return;
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        if (e->d_name[0] == '.') continue;
+        char sh[1200], meta[1200];
+        struct stat sb;
+        snprintf(sh, sizeof sh, "%s/%s/launch.sh", dir, e->d_name);
+        if (stat(sh, &sb) != 0 || !S_ISREG(sb.st_mode)) continue;
+        app_t *na = realloc(apps, sizeof(app_t) * (size_t)(napps + 1));
+        if (!na) break;
+        apps = na;
+        app_t *a = &apps[napps++];
+        memset(a, 0, sizeof *a);
+        snprintf(a->name, sizeof a->name, "%s", e->d_name);
+        snprintf(a->path, sizeof a->path, "%s", sh);
+        snprintf(meta, sizeof meta, "%s/%s/app.json", dir, e->d_name);
+        jval *j = json_load(meta);
+        snprintf(a->title, sizeof a->title, "%s", json_str(j, "title", e->d_name));
+        snprintf(a->desc, sizeof a->desc, "%s", json_str(j, "description", ""));
+        snprintf(a->author, sizeof a->author, "%s", json_str(j, "author", ""));
+        json_free(j);
+        snprintf(a->icon, sizeof a->icon, "%s/%s/icon.png", dir, e->d_name);
+        if (stat(a->icon, &sb) != 0) a->icon[0] = 0;
+    }
+    closedir(d);
+    if (napps > 1) qsort(apps, (size_t)napps, sizeof(app_t), app_cmp);
+    if (app_sel >= napps) app_sel = napps ? napps - 1 : 0;
+    ui_log("app trovate: %d", napps);
+}
+
 static void reload_games(void) {
+    apps_scan();
     games_free(games, ngames);
     emulators_load(UI.root);
     ngames = games_scan(UI.root, &games, UI.set.show_missing);
@@ -419,7 +467,7 @@ static void reload_games(void) {
 static void write_linux_env(const game_t *g) {
     char meta[1200], envp[1100];
     snprintf(envp, sizeof envp, "%s/System/next.env", UI.root);
-    snprintf(meta, sizeof meta, "%.*s/game.json", (int)(strrchr(g->path, '/') - g->path), g->path);
+    snprintf(meta, sizeof meta, "%.*s/%s", (int)(strrchr(g->path, '/') - g->path), g->path, !strcmp(g->core, "app") ? "app.json" : "game.json");
     jval *j = json_load(meta), *env = json_get(j, "env"), *keys = json_get(j, "keys");
     bool has_env = env && env->t == J_OBJ, has_keys = keys && keys->t == J_OBJ;
     FILE *f = has_env || has_keys ? fopen(envp, "w") : NULL;
@@ -495,9 +543,10 @@ static void launch_ex(game_t *g, bool resume) {
         ui_sound(SND_ERROR);
         return;
     }
-    games_add_recent(UI.root, g);
-    if (!strcmp(g->core, "linux")) write_linux_env(g);
-    if (!strcmp(g->core, "linux")) snprintf(core, sizeof core, "-");
+    bool sh = !strcmp(g->core, "linux") || !strcmp(g->core, "app");   /* script: giochi Linux e app */
+    if (strcmp(g->core, "app")) games_add_recent(UI.root, g);          /* le app non sono giochi */
+    if (sh) write_linux_env(g);
+    if (sh) snprintf(core, sizeof core, "-");
     else {
         const emulator_t *emu = emulator_find(g->core);
         snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
@@ -509,7 +558,7 @@ static void launch_ex(game_t *g, bool resume) {
         /* ultimo campo: la console, per i salvataggi in Saves/<console> (issue #5); "-" per gli arcade */
         /* sesto campo: la console ("-" per gli arcade); settimo: l'identità del gioco per i suoi
            file, diversa dal nome solo per due ROM omonime (audit prelancio R04) */
-        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title,
+        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", sh ? "linux" : "libretro", core, g->path, g->title,
                 resume ? "resume" : "-", core_console(g->core) ? g->core : "-", g->key[0] ? g->key : "-");
         written = !ferror(f) && fflush(f) == 0;
         if (fclose(f) != 0) written = false;
@@ -709,7 +758,7 @@ static void selection_ring(int x, int y, int w, int h, int r) {
 
 /* ---------------------------------------------------------- icone */
 
-enum { IC_ALL, IC_FAV, IC_SETTINGS, IC_POWER, IC_COUNT };
+enum { IC_ALL, IC_FAV, IC_SETTINGS, IC_POWER, IC_APPS, IC_COUNT };
 
 /* ----------------------------------------------------------- home */
 
@@ -724,6 +773,7 @@ static void home_activate_icon(void) {
         break;
     case IC_SETTINGS: settings_open(-1, 0); go(SCR_SETTINGS); break;
     case IC_POWER: dlg_open = true; dlg_suspend = false; dlg_sel = 0; break;
+    case IC_APPS: go(SCR_APPS); break;
     }
     ui_sound(SND_OK);
 }
@@ -1120,6 +1170,9 @@ static void draw_icon_glyph(int kind, int cx, int cy, int s, color_t c, color_t 
         break;
     case IC_FAV: ui_star(cx, cy, s / 4, c); break;
     case IC_SETTINGS: ui_gear(cx, cy, s * 27 / 100, c); break;
+    case IC_APPS:   /* nove puntini, come il cassetto delle app di un telefono */
+        for (int i = 0; i < 9; i++) ui_circle(cx + (i % 3 - 1) * q * 5 / 4, cy + (i / 3 - 1) * q * 5 / 4, q / 3 + 1, c);
+        break;
     case IC_POWER:
         ui_ring(cx, cy + q / 6, s / 4, q / 3 + 1, c);
         ui_rect(cx - q / 2, cy - s / 4 - q / 3, q, q, bg);
@@ -1134,6 +1187,7 @@ static const char *hm_label(int m) {
     case HM_LIBRARY: return T("home.btn_library");
     case HM_FAV: return T("home.favorites");
     case HM_SETTINGS: return T("common.settings");
+    case HM_APPS: return T("apps.title");
     default: return T("common.power_off");
     }
 }
@@ -1146,10 +1200,18 @@ static void home_play(int gi) {
 }
 
 static void home_do(int m) {
-    static const int icon_of[] = { 0, IC_ALL, IC_FAV, IC_SETTINGS, IC_POWER };
+    static const int icon_of[] = { 0, IC_ALL, IC_FAV, IC_APPS, IC_SETTINGS, IC_POWER };
     if (m == HM_GAME) { int g = home_last_game(); if (g >= 0) home_play(g); return; }
     icon_sel = icon_of[m];
     home_activate_icon();
+}
+
+/* pulsanti rotondi di Tessera: le voci del menu senza il gioco */
+static int home_btns(int *out) {
+    int n = 0;
+    for (int i = 0; i < nhmenu; i++)
+        if (hmenu[i] != HM_GAME) out[n++] = hmenu[i];
+    return n;
 }
 
 /* gioco su cui agiscono X e Y nella home, -1 nessuno */
@@ -1171,7 +1233,8 @@ static void home_input(void) {
             if (in->pressed[BTN_RIGHT] && hsel < nhgames - 1) hsel++;
         } else {
             if (in->pressed[BTN_LEFT] && hbtn > 0) hbtn--;
-            if (in->pressed[BTN_RIGHT] && hbtn < HM_POWER - HM_LIBRARY) hbtn++;
+            int bl[6];
+            if (in->pressed[BTN_RIGHT] && hbtn < home_btns(bl) - 1) hbtn++;
         }
     } else {
         bool vertical = is_list_layout();
@@ -1181,7 +1244,7 @@ static void home_input(void) {
     if (hsel * 16 + hrow * 4 + hbtn != old) ui_sound(SND_MOVE);
     if (in->pressed[BTN_A]) {
         if (cards && hrow == 0 && hsel < nhgames) home_play(hgame[hsel]);
-        else if (cards) home_do(HM_LIBRARY + hbtn);
+        else if (cards) { int bl[6], nb = home_btns(bl); if (hbtn < nb) home_do(bl[hbtn]); }
         else if (nhmenu) home_do(hmenu[hsel]);
         return;
     }
@@ -1243,7 +1306,9 @@ static void home_draw_cards(int y, int bottom) {
     TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
     int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
     char fit[200];
-    int is = M(t->icon_size), step = is + M(0.06f), nb = HM_POWER - HM_LIBRARY + 1;
+    int bl[6], nb = home_btns(bl);
+    if (hbtn >= nb) hbtn = nb - 1;
+    int is = M(t->icon_size), step = is + M(0.06f);
     int iy = bottom - fsh - M(0.02f) - is / 2;
     int lab_h = fnh + M(0.018f), avail = iy - is / 2 - M(0.05f) - y - lab_h;
     int tw = W * 36 / 100, th = tw * 3 / 4;
@@ -1287,17 +1352,17 @@ static void home_draw_cards(int y, int bottom) {
         }
     }
     /* pulsanti rotondi: libreria, preferiti, impostazioni, spegni; il nome sotto quello scelto */
-    static const int icon_of[] = { IC_ALL, IC_FAV, IC_SETTINGS, IC_POWER };
+    static const int icon_of[] = { 0, IC_ALL, IC_FAV, IC_APPS, IC_SETTINGS, IC_POWER };
     int ix0 = UI.w / 2 - (nb - 1) * step / 2;
     for (int b = 0; b < nb; b++) {
-        int cx = ix0 + b * step;
+        int cx = ix0 + b * step, ic = icon_of[bl[b]];
         ui_shadow(cx - is / 2, iy - is / 2 + M(0.004f), is, is, is / 2, M(0.012f), t->shadow);
         ui_circle(cx, iy, is / 2, t->surface);
-        draw_icon_glyph(icon_of[b], cx, iy, is, icon_of[b] == IC_POWER ? t->text : t->accent, t->surface);
+        draw_icon_glyph(ic, cx, iy, is, ic == IC_POWER ? t->text : t->accent, t->surface);
     }
     if (hrow == 1) {
         selection_ring(ix0 + hbtn * step - is / 2, iy - is / 2, is, is, is / 2);
-        ui_text(fs, hm_label(HM_LIBRARY + hbtn), ix0 + hbtn * step, iy + is / 2 + M(0.016f), t->accent, ALIGN_CENTER);
+        ui_text(fs, hm_label(bl[hbtn]), ix0 + hbtn * step, iy + is / 2 + M(0.016f), t->accent, ALIGN_CENTER);
     }
 }
 
@@ -1352,7 +1417,7 @@ static void home_draw_bar(int y, int bottom) {
     TTF_Font *pf = fn;
     int need = 0;
     for (int i = 0; i < nhmenu; i++)
-        need += ui_text_w(fn, hmenu[i] == HM_GAME ? T("home.resume") : hm_label(hmenu[i])) + 2 * M(0.022f) + M(0.014f);
+        need += ui_text_w(fn, hmenu[i] == HM_GAME ? T(resume_idx >= 0 ? "home.resume" : "home.last") : hm_label(hmenu[i])) + 2 * M(0.022f) + M(0.014f);
     if (need > W) pf = fs;
     int x = mx;
     for (int i = 0; i < nhmenu; i++)
@@ -1361,7 +1426,10 @@ static void home_draw_bar(int y, int bottom) {
     int iw = W * 61 / 100, ih = bottom - y;
     if (ih > iw * 2 / 3) ih = iw * 2 / 3;
     int gi = home_last_game(), m = nhmenu ? hmenu[hsel] : HM_LIBRARY;
-    if (gi >= 0 && m != HM_LIBRARY) home_image(gi, mx, y, iw, ih, M(0.008f));
+    if (m == HM_APPS) {   /* riquadro con il simbolo delle app */
+        ui_rrect(mx, y, iw, ih, M(0.008f), t->tile);
+        draw_icon_glyph(IC_APPS, mx + iw / 2, y + ih / 2, ih / 2, t->accent, t->tile);
+    } else if (gi >= 0 && m != HM_LIBRARY) home_image(gi, mx, y, iw, ih, M(0.008f));
     else draw_all_tile(mx, y, iw, ih, M(0.008f));
     int tx = mx + iw + M(0.025f), tw = mx + W - tx, ty = y + M(0.006f);
     char buf[200], lines[4][160];
@@ -1378,6 +1446,7 @@ static void home_draw_bar(int y, int bottom) {
         title = T("home.favorites"); snprintf(subbuf, sizeof subbuf, T("home.favs_count"), nf); sub = subbuf; break;
     }
     case HM_SETTINGS: title = T("common.settings"); sub = T("home.settings_desc"); break;
+    case HM_APPS: title = T("apps.title"); snprintf(subbuf, sizeof subbuf, T("apps.count"), napps); sub = subbuf; break;
     default: title = T("common.power_off"); sub = T("home.power_desc"); break;
     }
     int n = ui_wrap(fn, title, tw, lines, 3);
@@ -2077,14 +2146,15 @@ static const char *set_key[S_COUNT] = {
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
-static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "updates", "power" };
+static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "card", "updates", "power" };
 static const int cat_items[SC_COUNT][12] = {
     { S_BRIGHT, S_VOLUME, S_SPEAKER, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_BOXCOVER, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
-    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_FILESERVER, S_RESETSET, S_ERASE, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },          /* ROM e immagini */
+    { S_FILESERVER, S_RESETSET, S_ERASE, -1 },          /* scheda e dati */
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
@@ -4810,7 +4880,7 @@ static void cp_draw(void) {
 /* Strumenti → Reimposta impostazioni: impostazioni, liste, collezioni, reti Wi-Fi e browser
    ricordati tornano come nuovi; giochi, BIOS, salvataggi e tempo di gioco restano.
    Strumenti → Cancella tutto: anche ROM, BIOS, salvataggi, immagini, musica, giochi Linux, dati
-   dello scraper e tempo di gioco, come una scheda appena scritta. In tutti e due i casi restano
+   dello scraper, app e tempo di gioco, come una scheda appena scritta. In tutti e due i casi restano
    sistema, core, temi, lingue, filtri, cornici, indici arcade, registri, file degli aggiornamenti
    e calibrazione delle levette (dell'hardware); poi si riparte con la prima accensione. */
 static atomic_int rst_count;
@@ -4822,7 +4892,7 @@ static const char *const RST_SYSTEM[] = { "settings.json", "favorites.txt", "rec
                                           "menu-rotazione", NULL };
 static const char *const RST_SYSTEM_ALL[] = { "stats.tsv", "romcheck.tsv", NULL };
 /* cartelle svuotate da "Cancella tutto"; in Roms restano le cartelle degli emulatori e LEGGIMI.txt */
-static const char *const RST_DIRS[] = { "Bios", "Saves", "Media", "Music", "Linux", NULL };
+static const char *const RST_DIRS[] = { "Bios", "Saves", "Media", "Music", "Linux", "Apps", NULL };
 
 /* toglie il contenuto di dir (e dir stessa se self); falso se qualcosa non si è potuto togliere */
 static bool rst_tree(const char *dir, bool self) {
@@ -5358,6 +5428,73 @@ static void detail_draw(void) {
     const char *h[] = { "A", T("common.play"), NULL, "B", T("common.back"), NULL, "X", T("coll.hint"), NULL,
                         "Y", T(g->fav ? "common.unfavorite" : "common.favorite"), NULL, "^v", T("detail.scroll"), "" };
     ui_keybar(h, ndlines ? 15 : 12);
+}
+
+/* ------------------------------------------------------------ app */
+
+static void apps_launch(const app_t *a) {
+    game_t g;
+    memset(&g, 0, sizeof g);
+    snprintf(g.name, sizeof g.name, "%s", a->name);
+    snprintf(g.title, sizeof g.title, "%s", a->title);
+    snprintf(g.core, sizeof g.core, "app");
+    g.path = (char *)a->path;
+    launch(&g);
+}
+
+static void apps_input(void) {
+    input_t *in = &UI.in;
+    int old = app_sel;
+    if (in->pressed[BTN_UP] && app_sel > 0) app_sel--;
+    if (in->pressed[BTN_DOWN] && app_sel < napps - 1) app_sel++;
+    if (app_sel != old) ui_sound(SND_MOVE);
+    if (in->pressed[BTN_A] && napps) { apps_launch(&apps[app_sel]); return; }
+    if (in->pressed[BTN_B]) { go(SCR_HOME); ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
+}
+
+static void apps_draw(void) {
+    theme_t *t = &UI.th;
+    topbar_theme();
+    int mx = M(t->margin), W = UI.w - 2 * mx, y = M(t->topbar_h) + M(0.025f), bottom = UI.h - ui_keybar_h() - M(0.03f);
+    home_title(T("apps.title"), y, t->text);
+    y += TTF_FontHeight(UI.f_title) + M(0.03f);
+    if (!napps) {
+        empty_panel(mx, y, W, bottom - y, T("apps.empty_title"), T("apps.empty_text"), NULL, NULL);
+    } else {
+        TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+        int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), pad = M(0.016f), gap = M(0.014f);
+        int rh = fnh + fsh + 2 * pad + M(0.01f), is = rh - 2 * pad, r = M(t->tile_radius);
+        int vis = (bottom - y + gap) / (rh + gap);
+        if (vis < 1) vis = 1;
+        float target = app_sel < vis ? 0 : (float)(app_sel - vis + 1);
+        app_scroll = ui_approach(app_scroll, target);
+        ui_clip_push(mx - M(0.01f), y - M(0.01f), W + M(0.02f), bottom - y + M(0.02f));
+        for (int i = 0; i < napps; i++) {
+            int ry = y + (int)((i - app_scroll) * (rh + gap));
+            if (ry + rh < y || ry > bottom) continue;
+            const app_t *a = &apps[i];
+            ui_rrect(mx, ry, W, rh, r, t->surface);
+            if (i == app_sel) selection_ring(mx, ry, W, rh, r);
+            int ix = mx + pad, iy = ry + pad;
+            SDL_Texture *ic = a->icon[0] ? ui_image(a->icon) : NULL;
+            if (ic) ui_image_fill(ic, ix, iy, is, is, r / 2);
+            else {
+                ui_rrect(ix, iy, is, is, r / 2, t->tile);
+                draw_icon_glyph(IC_APPS, ix + is / 2, iy + is / 2, is * 2 / 3, t->accent, t->tile);
+            }
+            int tx = ix + is + M(0.022f), tw = mx + W - pad - tx;
+            char fit[300], sub[400];
+            ui_text_fit(fn, a->title, tw, fit, sizeof fit);
+            ui_text(fn, fit, tx, ry + pad, t->text, ALIGN_LEFT);
+            snprintf(sub, sizeof sub, "%s%s%s", a->author, a->author[0] && a->desc[0] ? " · " : "", a->desc);
+            ui_text_fit(fs, sub, tw, fit, sizeof fit);
+            ui_text(fs, fit, tx, ry + pad + fnh + M(0.006f), t->text_dim, ALIGN_LEFT);
+        }
+        ui_clip_pop();
+    }
+    const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
+    ui_keybar(h, napps ? 6 : 3);
 }
 
 /* ------------------------------------------------------ verifica ROM */
@@ -6001,6 +6138,7 @@ int main(int argc, char **argv) {
         else if (screen == SCR_LIBRARY) library_input();
         else if (screen == SCR_DETAIL) detail_input();
         else if (screen == SCR_PLATFORMS) plat_input();
+        else if (screen == SCR_APPS) apps_input();
         else settings_input();
 
         /* Fermo sullo schermo da qualche secondo: CPU bassa e meno disegni, la console scalda
@@ -6041,6 +6179,7 @@ int main(int argc, char **argv) {
             library_draw();
         } else if (screen == SCR_DETAIL) detail_draw();
         else if (screen == SCR_PLATFORMS) plat_draw();
+        else if (screen == SCR_APPS) apps_draw();
         else settings_draw();
         if (dlg_open && !dlg_suspend) dialog_draw();
         if (clock_open) clock_draw();

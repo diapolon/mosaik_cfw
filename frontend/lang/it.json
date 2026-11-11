@@ -66,7 +66,7 @@
     "backup_download": "Scarica backup",
     "backup_wifi": "Anche le reti Wi-Fi, con le password",
     "backup_media": "Anche le immagini",
-    "backup_games": "Anche i giochi (%s)",
+    "backup_games": "Anche giochi e app (%s)",
     "backup_games_big": "Giochi troppo grandi per il backup (%s): copiali a parte",
     "backup_restore": "Ripristina backup",
     "restore_console": "Backup ricevuto: conferma sulla console.",
@@ -143,7 +143,7 @@
     "part_bios": "BIOS",
     "part_wifi": "Reti Wi-Fi",
     "part_media": "Immagini",
-    "part_games": "Giochi"
+    "part_games": "Giochi e app"
   },
   "plat": {
     "title": "Piattaforme",
@@ -633,8 +633,9 @@
     "look": "Aspetto",
     "games": "Giochi",
     "system": "Sistema",
-    "tools": "Strumenti",
-    "updates": "Aggiornamenti"
+    "tools": "ROM e immagini",
+    "updates": "Aggiornamenti",
+    "card": "Scheda e dati"
   },
   "settings_cat_sum": {
     "power": "Sospendi, riavvia o spegni",
@@ -643,8 +644,9 @@
     "look": "Tema, lingua, salvaschermo",
     "games": "Immagine, filtri",
     "system": "Wi-Fi, data e ora, spegnimento",
-    "tools": "Verifica ROM, immagini, file, reimposta",
-    "updates": "Aggiorna, canale, registro, informazioni"
+    "tools": "Verifica ROM, scarica e pulisci immagini",
+    "updates": "Aggiorna, canale, registro, informazioni",
+    "card": "Trasferisci file, backup, reimposta"
   },
   "settings_cat_desc": {
     "power": "Sospendi la console, riavviala o spegnila.",
@@ -653,8 +655,9 @@
     "look": "Tema del launcher, sua variante, lingua e salvaschermo.",
     "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni.",
     "system": "Wi-Fi, data, ora e fuso orario, spegnimento automatico.",
-    "tools": "Verifica delle ROM, scaricamento e pulizia delle immagini, trasferimento di file via Wi-Fi. Reimpostazione delle impostazioni o di tutta la scheda.",
-    "updates": "Aggiornamento del sistema, canale, avviso, registro diagnostico e spazio sulla scheda."
+    "tools": "Verifica delle ROM, scaricamento delle immagini dei giochi e pulizia di quelle che non servono più.",
+    "updates": "Aggiornamento del sistema, canale, avviso, registro diagnostico e spazio sulla scheda.",
+    "card": "Trasferimento di file e backup via Wi-Fi, reimpostazione delle impostazioni o di tutta la scheda."
   },
   "loglvl": {
     "off": "Spento",
@@ -860,5 +863,11 @@
     "settings2_body": "Impostazioni, liste e reti Wi-Fi non si potranno recuperare.",
     "erase3_title": "Ultima conferma",
     "erase3_body": "Tieni premuto A su Cancella tutto per 3 secondi."
+  },
+  "apps": {
+    "title": "App",
+    "count": "%d app",
+    "empty_title": "Nessuna app",
+    "empty_text": "Copia le app in Arcade/Apps: una cartella per app, con dentro launch.sh."
   }
 }

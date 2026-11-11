@@ -66,7 +66,7 @@
     "backup_download": "Descarregar cópia",
     "backup_wifi": "Também as redes Wi-Fi, com as palavras-passe",
     "backup_media": "Também as imagens",
-    "backup_games": "Também os jogos (%s)",
+    "backup_games": "Também jogos e apps (%s)",
     "backup_games_big": "Jogos demasiado grandes para a cópia (%s): copie-os à parte",
     "backup_restore": "Restaurar cópia",
     "restore_console": "Cópia recebida: confirma na consola.",
@@ -143,7 +143,7 @@
     "part_bios": "BIOS",
     "part_wifi": "Redes Wi-Fi",
     "part_media": "Imagens",
-    "part_games": "Jogos"
+    "part_games": "Jogos e apps"
   },
   "plat": {
     "title": "Plataformas",
@@ -633,8 +633,9 @@
     "look": "Aspeto",
     "games": "Jogos",
     "system": "Sistema",
-    "tools": "Ferramentas",
-    "updates": "Atualizações"
+    "tools": "ROM e imagens",
+    "updates": "Atualizações",
+    "card": "Cartão e dados"
   },
   "settings_cat_sum": {
     "power": "Suspender, reiniciar ou desligar",
@@ -643,8 +644,9 @@
     "look": "Tema, idioma, proteção de ecrã",
     "games": "Imagem, filtros",
     "system": "Wi-Fi, data e hora, desligar",
-    "tools": "Verificar ROM, imagens, ficheiros, repor",
-    "updates": "Atualizar, canal, registo, informações"
+    "tools": "Verificar ROM, descarregar e limpar imagens",
+    "updates": "Atualizar, canal, registo, informações",
+    "card": "Transferir ficheiros, cópia, repor"
   },
   "settings_cat_desc": {
     "power": "Suspende a consola, reinicia-a ou desliga-a.",
@@ -653,8 +655,9 @@
     "look": "Tema do launcher, variante, idioma e proteção de ecrã.",
     "games": "Como os jogos se veem e jogam: proporção, filtros, molduras, duplicados, desempenho.",
     "system": "Wi-Fi, data, hora e fuso horário, desligar automático.",
-    "tools": "Verificar as ROM, descarregar imagens e apagar as que já não servem, transferir ficheiros por Wi-Fi. Repor as definições ou todo o cartão.",
-    "updates": "Atualização do sistema, canal, aviso, registo de diagnóstico e espaço do cartão."
+    "tools": "Verificar as ROM, descarregar imagens dos jogos e apagar as que já não servem.",
+    "updates": "Atualização do sistema, canal, aviso, registo de diagnóstico e espaço do cartão.",
+    "card": "Transferir ficheiros e fazer cópias por Wi-Fi, repor as definições ou todo o cartão."
   },
   "loglvl": {
     "off": "Desligado",
@@ -860,5 +863,11 @@
     "settings2_body": "As definições, listas e redes Wi-Fi não poderão ser recuperadas.",
     "erase3_title": "Última confirmação",
     "erase3_body": "Mantenha A premido em Apagar tudo durante 3 segundos."
+  },
+  "apps": {
+    "title": "Apps",
+    "count": "%d apps",
+    "empty_title": "Nenhuma app",
+    "empty_text": "Copie as apps para Arcade/Apps: uma pasta por app, com launch.sh dentro."
   }
 }

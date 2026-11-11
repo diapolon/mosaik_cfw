@@ -31,7 +31,7 @@
 #include <zlib.h>
 
 /* cartelle in cui dalla pagina si può scrivere; tutto il resto si può solo scaricare */
-static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Linux", "Bezels", NULL };
+static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Linux", "Apps", "Bezels", NULL };
 /* testi della pagina, dalla sezione "fileserver" dei file di lingua */
 static const char *const PAGE_KEYS[] = {
     "title", "pin_page", "enter", "wrong_pin", "locked", "free", "readonly", "upload_files", "upload_folder",
@@ -589,6 +589,7 @@ static long long games_size(void) {
     zlist_t g = { 0 };
     zwalk(&g, "Roms", 0);
     zwalk(&g, "Linux", 0);
+    zwalk(&g, "Apps", 0);
     free(g.f);
     return g.total;
 }
@@ -709,8 +710,8 @@ static const char *const BACKUP_SYSTEM[] = { "settings.json", "favorites.txt", "
                                              "core-options.txt", "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", NULL };
 #define BACKUP_INFO "mosaik-backup.txt"
 
-/* ROM e giochi Linux: nel backup solo se scelti, perché possono essere tanti */
-static bool backup_game(const char *rel) { return !strncmp(rel, "Roms/", 5) || !strncmp(rel, "Linux/", 6); }
+/* ROM, giochi Linux e app: nel backup solo se scelti, perché possono essere tanti */
+static bool backup_game(const char *rel) { return !strncmp(rel, "Roms/", 5) || !strncmp(rel, "Linux/", 6) || !strncmp(rel, "Apps/", 5); }
 
 static bool backup_path_ok(const char *rel, bool wifi) {
     if (!rel_ok(rel) || !*rel) return false;
@@ -748,7 +749,7 @@ static void do_backup(req_t *r) {
         if (stat(full, &sb) == 0 && S_ISREG(sb.st_mode)) zadd(&z, "System/wifi.conf", (long long)sb.st_size);
     }
     if (media) zwalk(&z, "Media", 0);
-    if (games) { zwalk(&z, "Roms", 0); zwalk(&z, "Linux", 0); }
+    if (games) { zwalk(&z, "Roms", 0); zwalk(&z, "Linux", 0); zwalk(&z, "Apps", 0); }
     if (z.total >= 0xFFFF0000LL || z.n > 65000) { free(z.f); reply_err(r->fd, 413, "toolarge"); return; }
     time_t now = time(NULL);
     struct tm tmv;
