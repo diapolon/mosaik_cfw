@@ -28,13 +28,13 @@
 ## Cosa c'è dentro
 
 - **FinalBurn Neo e MAME 2003-Plus**: Neo Geo, CPS1, CPS2 e gran parte dei classici arcade.
-- **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket**, con i salvataggi a batteria (anche l'orologio dei Pokémon) e le ROM zippate.
+- **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket**, con i salvataggi a batteria scritti ogni 10 secondi (anche l'orologio dei Pokémon), salvataggi separati per ogni console e le ROM zippate.
 - **Copertine e informazioni anche per le console**: scatola, titolo, anno, editore, genere e giocatori, trovati dalla ROM stessa.
 - **Giochi Linux**, con menu sopra al gioco e sospensione.
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
 - **Tre temi con varianti di colore**, lingue, LED e filtri video configurabili.
-- **Aggiornamenti firmati** via Wi-Fi, con un tentativo di ritorno alla versione precedente se uno fallisce.
+- **Aggiornamenti firmati** via Wi-Fi, tutto o niente: se uno si interrompe o la versione nuova non parte, la console torna a tutti i file di prima.
 - **Profilo CPU per ogni gioco** e avviso nella home quando c'è un aggiornamento.
 - **Diagnosi dei giochi**: quando un gioco non parte, ti dice cosa manca e dove copiarlo.
 - **Tre slot di salvataggio per gioco** con anteprima e data, più un salvataggio automatico con copia precedente.
@@ -167,7 +167,7 @@ Sulla Brick Pro, HOME torna al launcher, le due barrette sotto lo schermo salvan
 
 Apri **Impostazioni → Sistema**: **Wi-Fi** accende e spegne, **Reti Wi-Fi** mostra le reti a cui collegarsi. Sulla tastiera a schermo, X passa tra maiuscole, minuscole e simboli.
 
-Per aggiornare, apri **Impostazioni → Aggiornamenti → Aggiorna sistema** e premi A per scaricare. Quando il download è stato controllato, premi di nuovo A per installare. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato, e se un sistema nuovo non parte la console prova a tornare da sola a quello precedente. Non copre ogni guasto: nel caso peggiore, riscrivi l'immagine sulla scheda.
+Per aggiornare, apri **Impostazioni → Aggiornamenti → Aggiorna sistema** e scegli **Scarica**. Quando il download è stato controllato, scegli **Installa**. ROM, salvataggi e impostazioni non vengono toccati. Ogni aggiornamento è firmato e controllato prima di essere installato. I file sostituiti restano finché il sistema nuovo non arriva al menu: se la corrente salta durante l'installazione, o il sistema nuovo non parte per tre volte, la console torna alla versione precedente con tutti i suoi file. Non copre ogni guasto: nel caso peggiore, [riscrivi l'immagine sulla scheda](https://github.com/diapolon/mosaik_cfw/wiki/Installazione#riscrivere-la-scheda-senza-perdere-niente).
 
 **Impostazioni → Aggiornamenti → Canale aggiornamenti** passa tra Stabile e Sviluppo (versioni di prova, che possono avere problemi). Tornando a Stabile si resta così fino alla prossima versione stabile.
 

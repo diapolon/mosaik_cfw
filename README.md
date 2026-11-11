@@ -28,13 +28,13 @@
 ## What's inside
 
 - **FinalBurn Neo and MAME 2003-Plus**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
-- **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves (also the clock of the Pokémon games) and zipped ROMs.
+- **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
 - **Linux games**, with an in-game menu and sleep.
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
 - **Three themes with color variants**, languages, LEDs and video filters you can configure.
-- **Signed updates** over Wi-Fi, with an attempt to return to the previous version if one fails.
+- **Signed updates** over Wi-Fi, all or nothing: if one is interrupted or the new version fails to start, the console goes back to all the previous files.
 - **CPU profile for each game**, and a notice on the home screen when an update is available.
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
 - **Three save slots per game** with preview and date, plus an automatic save with a previous copy.
@@ -167,7 +167,7 @@ On the Brick Pro, HOME goes back to the launcher, the two bars below the screen 
 
 Open **Settings → System**: **Wi-Fi** turns it on and off, **Wi-Fi networks** shows the networks to connect to. On the on-screen keyboard, X switches between uppercase, lowercase and symbols.
 
-To update, open **Settings → Updates → Update system** and press A to download. When the download has been checked, press A again to install. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed, and if a new system fails to start, the console tries to go back to the previous one by itself. This does not cover every failure: in the worst case, write the image to the card again.
+To update, open **Settings → Updates → Update system** and choose **Download**. When the download has been checked, choose **Install**. ROMs, saves and settings are left untouched. Every update is signed and checked before it is installed. The replaced files are kept until the new system reaches the menu: if the power goes off while installing, or the new system fails to start three times, the console goes back to the previous version with all its files. This does not cover every failure: in the worst case, [write the image to the card again](https://github.com/diapolon/mosaik_cfw/wiki/Installation#writing-the-card-again-without-losing-anything).
 
 **Settings → Updates → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
 
