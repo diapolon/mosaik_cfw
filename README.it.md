@@ -82,7 +82,7 @@
 
 Servono una microSD di buona qualità (da 4 GB a 256 GB) e [balenaEtcher](https://etcher.balena.io/).
 
-1. **Scarica l'immagine** del tuo modello da [Releases](https://github.com/diapolon/mosaik_cfw/releases). Non serve decomprimerla. **Controlla il nome del file: con l'immagine dell'altro modello la console non parte.** Non si rovina nulla: basta scrivere quella giusta.
+1. **Scarica l'immagine** del tuo modello dall'[ultima versione](https://github.com/diapolon/mosaik_cfw/releases/latest), sotto **Assets**: `mosaik-<versione>-smartpro.img.gz` per la Smart Pro, `mosaik-<versione>-brickpro.img.gz` per la Brick Pro. Non serve decomprimerla. **Controlla il nome del file: con l'immagine dell'altro modello la console non parte.** Non si rovina nulla: basta scrivere quella giusta. **Ignora tutti gli altri file** (`file-0`, `file-1`…, `update.txt`, `update.sig`, archivi dei sorgenti): li usa da sola la console per l'aggiornamento Wi-Fi.
 2. **Scrivila sulla microSD** con balenaEtcher. Tutto ciò che c'è sulla scheda viene cancellato. Se poi il computer chiede di formattare una parte della scheda, rispondi di no.
 3. **Metti la scheda nella console e accendi.** Alla prima accensione la partizione si allarga a tutta la scheda, quindi l'avvio dura un po' di più.
 4. **Apri le impostazioni con Start** per scegliere la lingua (Aspetto) e impostare data e ora (Sistema).
