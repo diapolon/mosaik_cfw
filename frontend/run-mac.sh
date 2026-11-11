@@ -12,7 +12,7 @@ while :; do
     [ "$rc" -eq 10 ] || exit 0
 
     # next.txt: tipo <TAB> core <TAB> rom/script <TAB> titolo [<TAB> resume]
-    IFS="$(printf '\t')" read -r kind core rom title resume system < "$ROOT/System/next.txt"
+    IFS="$(printf '\t')" read -r kind core rom title resume system key < "$ROOT/System/next.txt"
     rm -f "$ROOT/System/next.txt"
 
     if [ "$kind" = "linux" ]; then
@@ -32,6 +32,8 @@ while :; do
     [ "$resume" = "resume" ] && set -- "$@" --resume
     # console del gioco: salvataggi in Saves/<console> (issue #5)
     case "$system" in ""|-) ;; *) set -- "$@" --system "$system" ;; esac
+    # identità del gioco per i suoi file (diversa dal nome solo per due ROM omonime)
+    case "$key" in ""|-) ;; *) set -- "$@" --key "$key" ;; esac
     "$BIN/runner" "$@"
     [ $? -eq 20 ] && exit 0
 done

@@ -165,6 +165,49 @@ static game_t *push(list_t *l) {
     return g;
 }
 
+/* Identità dei giochi di un emulatore (audit prelancio R04): salvataggi, stati e statistiche
+   usano il nome della ROM senza estensione, quindi due ROM diverse con lo stesso nome (in due
+   sottocartelle, o .zip e ROM nella stessa) li condividevano. La prima (meno annidata, poi in
+   ordine di percorso) tiene il nome e i file che ha già; le altre ricevono "nome [sottocartella]"
+   o "nome [estensione]", anche nel titolo, così in libreria si distinguono. */
+static int path_depth(const char *p) { int d = 0; for (; *p; p++) d += *p == '/'; return d; }
+
+static void assign_keys(game_t *g, int n, const char *dir) {
+    for (int i = 0; i < n; i++) snprintf(g[i].key, sizeof g[i].key, "%s", g[i].name);
+    size_t dl = strlen(dir);
+    for (int i = 0; i < n; i++) {
+        /* il primo del gruppo: quello meno annidato, poi il percorso minore */
+        int keep = i;
+        bool dup = false;
+        for (int k = 0; k < n; k++) {
+            if (k == i || strcmp(g[k].name, g[i].name)) continue;
+            dup = true;
+            int dk = path_depth(g[k].path), dkeep = path_depth(g[keep].path);
+            if (dk < dkeep || (dk == dkeep && strcmp(g[k].path, g[keep].path) < 0)) keep = k;
+        }
+        if (!dup || keep == i) continue;
+        /* sottocartella rispetto alla cartella dell'emulatore, "/" -> "-" */
+        char sub[160] = "";
+        const char *rel = !strncmp(g[i].path, dir, dl) && g[i].path[dl] == '/' ? g[i].path + dl + 1 : g[i].path;
+        const char *slash = strrchr(rel, '/');
+        if (slash) {
+            snprintf(sub, sizeof sub, "%.*s", (int)(slash - rel), rel);
+            for (char *c = sub; *c; c++) if (*c == '/') *c = '-';
+        }
+        /* stessa cartella del primo: si distingue con l'estensione */
+        const char *keep_slash = strrchr(g[keep].path, '/'), *my_slash = strrchr(g[i].path, '/');
+        size_t kd = keep_slash ? (size_t)(keep_slash - g[keep].path) : 0, md = my_slash ? (size_t)(my_slash - g[i].path) : 0;
+        if (kd == md && !strncmp(g[keep].path, g[i].path, kd)) {
+            const char *dot = strrchr(g[i].path, '.');
+            snprintf(sub, sizeof sub, "%s", dot ? dot + 1 : "2");
+        }
+        if (!sub[0]) snprintf(sub, sizeof sub, "2");
+        snprintf(g[i].key, sizeof g[i].key, "%s [%s]", g[i].name, sub);
+        size_t tl = strlen(g[i].title);
+        snprintf(g[i].title + tl, sizeof g[i].title - tl, " [%s]", sub);
+    }
+}
+
 static bool has_ext(const char *f, const char *ext) {
     size_t a = strlen(f), b = strlen(ext);
     return a > b && !strcasecmp(f + a - b, ext);
@@ -428,7 +471,9 @@ int games_scan(const char *root, game_t **out, bool include_missing) {
         if (EMUS[i].roms[0] == '/') snprintf(dir, sizeof dir, "%s", EMUS[i].roms);
         else snprintf(dir, sizeof dir, "%s/%s", root, EMUS[i].roms);
         index_load(&ix, ixp);
+        int first = l.n;
         scan_dir(&l, &ix, &EMUS[i], dir, 0);
+        assign_keys(&l.g[first], l.n - first, dir);
         /* catalogo: giochi dell'indice senza ROM, solo "parent" (i cloni affollerebbero l'elenco) */
         /* le console hanno un indice solo dei giochi che ci sono (lo scrive lo scraper) */
         for (int k = 0; include_missing && !EMUS[i].console && k < ix.n; k++) {
@@ -449,6 +494,7 @@ int games_scan(const char *root, game_t **out, bool include_missing) {
     load_genres(root, l.g, l.n);
     apply_genre_edits(root, l.g, l.n);
     qsort(l.g, (size_t)l.n, sizeof(game_t), title_cmp);
+    for (int i = 0; i < l.n; i++) if (!l.g[i].key[0]) snprintf(l.g[i].key, sizeof l.g[i].key, "%s", l.g[i].name);
     *out = l.g;
     return l.n;
 }
@@ -482,7 +528,7 @@ static void write_list(const char *path, char keys[][LIST_KEY], int n) {
     commit_file(f, tmp, path);
 }
 
-static void key_of(const game_t *g, char *k) { snprintf(k, LIST_KEY, "%s\t%s", g->core, g->name); }
+static void key_of(const game_t *g, char *k) { snprintf(k, LIST_KEY, "%s\t%s", g->core, g->key[0] ? g->key : g->name); }
 
 /* Il runner scrive le statistiche con il nome del core senza "_libretro" (lo stesso della
    cartella Saves/): "genesis_plus_gx" per l'emulatore "md". Per FBNeo e MAME coincide con l'id. */
@@ -501,11 +547,11 @@ static void load_stats(const char *root, game_t *g, int n) {
     FILE *f = fopen(p, "r");
     if (!f) return;
     while (fgets(line, sizeof line, f)) {
-        char c[64], name[128];
+        char c[64], name[200];
         long plays, secs, last;
-        if (sscanf(line, "%63[^\t]\t%127[^\t]\t%ld\t%ld\t%ld", c, name, &plays, &secs, &last) != 5) continue;
+        if (sscanf(line, "%63[^\t]\t%199[^\t]\t%ld\t%ld\t%ld", c, name, &plays, &secs, &last) != 5) continue;
         for (int i = 0; i < n; i++)
-            if (!strcmp(g[i].name, name) && stats_core_is(&g[i], c)) {
+            if (!strcmp(g[i].key[0] ? g[i].key : g[i].name, name) && stats_core_is(&g[i], c)) {
                 g[i].plays = (int)plays;
                 g[i].seconds = secs;
                 g[i].last_played = last;

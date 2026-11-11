@@ -107,4 +107,40 @@ rm $S/Saves/md/Sonic.srm   # "Reimposta il gioco" sulla console nuova
 same "dopo Reimposta il gioco il salvataggio non torna" $S/Saves/md/Sonic.srm "(manca)"
 same "… e il Master System tiene il suo" $S/Saves/sms/Sonic.srm sonic-srm
 
+echo "--- identità dei giochi omonimi nello stesso emulatore (R04)"
+awk '/^static int path_depth/,/^static bool has_ext/' $F/launcher/games.c | sed '$d' > src/keys.inc
+cat > src/k.c <<'C'
+#include <stdio.h>
+#include <string.h>
+#include "games.h"
+#include "keys.inc"
+static game_t G[8];
+static int n;
+static void add(const char *name, const char *path, const char *title) {
+    memset(&G[n], 0, sizeof G[n]);
+    snprintf(G[n].name, sizeof G[n].name, "%s", name);
+    snprintf(G[n].title, sizeof G[n].title, "%s", title);
+    G[n].path = (char *)path;
+    n++;
+}
+int main(void) {
+    add("Sonic", "/sd/Roms/MD/EU/Sonic.md", "Sonic");
+    add("Sonic", "/sd/Roms/MD/Sonic.md", "Sonic");
+    add("Tetris", "/sd/Roms/MD/Tetris.md", "Tetris");
+    add("Sonic", "/sd/Roms/MD/USA/Hack/Sonic.md", "Sonic");
+    add("Golf", "/sd/Roms/MD/Golf.md", "Golf");
+    add("Golf", "/sd/Roms/MD/Golf.zip", "Golf");
+    assign_keys(G, n, "/sd/Roms/MD");
+    for (int i = 0; i < n; i++) printf("%s|%s\n", G[i].key, G[i].title);
+    return 0;
+}
+C
+gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -o k src/k.c && ./k > $W/keys.txt
+line() { sed -n "${1}p" $W/keys.txt; }
+[ "$(line 2)" = "Sonic|Sonic" ] && ok "il gioco nella cartella principale tiene il nome" || ko "principale: $(line 2)"
+[ "$(line 1)" = "Sonic [EU]|Sonic [EU]" ] && ok "omonimo in sottocartella: nome [sottocartella], anche nel titolo" || ko "EU: $(line 1)"
+[ "$(line 4)" = "Sonic [USA-Hack]|Sonic [USA-Hack]" ] && ok "sottocartella annidata con il trattino" || ko "USA/Hack: $(line 4)"
+[ "$(line 3)" = "Tetris|Tetris" ] && ok "nome unico: nulla cambia" || ko "Tetris: $(line 3)"
+{ [ "$(line 5)" = "Golf|Golf" ] && [ "$(line 6)" = "Golf [zip]|Golf [zip]" ]; } || { [ "$(line 6)" = "Golf|Golf" ] && [ "$(line 5)" = "Golf [md]|Golf [md]" ]; } && ok "zip e ROM nella stessa cartella: distinti dall'estensione" || ko "Golf: $(line 5) / $(line 6)"
+
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors errori"; exit 1; }

@@ -45,10 +45,13 @@ static struct {
     void (*unload_game)(void);
 } core;
 
-static char root[1024], core_path[1024], rom_path[1024], title[256], core_id[64], rom_name[128];
+static char root[1024], core_path[1024], rom_path[1024], title[256], core_id[64], rom_name[200], rom_base[128];
 /* console del gioco (id dell'emulatore, "md", "sms"...): salvataggi e statistiche separati per
    console anche quando due console usano lo stesso core (issue #5). Vuoto per gli arcade. */
 static char system_id[32];
+/* identità del gioco per salvataggi, stati e statistiche (--key): il nome della ROM, o per due
+   ROM omonime nello stesso emulatore "nome [sottocartella]" (audit prelancio R04) */
+static char game_key[200];
 static char sys_dir[1100], save_dir[1100];
 static struct retro_system_av_info av;
 static enum retro_pixel_format pixfmt = RETRO_PIXEL_FORMAT_0RGB1555;
@@ -885,7 +888,7 @@ static void bezel_load(bool vertical) {
     bez_tex = NULL;
     bez_vertical = vertical;
     char p[1400];
-    snprintf(p, sizeof p, "%s/Bezels/%s/%s.png", root, core_id, rom_name);
+    snprintf(p, sizeof p, "%s/Bezels/%s/%s.png", root, core_id, rom_base);
     if (bezel_open(p)) return;
     snprintf(p, sizeof p, "%s/Bezels/%s.png", root, rom_name);
     if (bezel_open(p)) return;
@@ -1031,9 +1034,9 @@ static void stats_update(void) {
     if (!out) { if (in) fclose(in); return; }
     bool found = false;
     while (in && fgets(line, sizeof line, in)) {
-        char c[64], n[128];
+        char c[64], n[200];
         long plays = 0, secs = 0, last = 0;
-        if (sscanf(line, "%63[^\t]\t%127[^\t]\t%ld\t%ld\t%ld", c, n, &plays, &secs, &last) == 5 &&
+        if (sscanf(line, "%63[^\t]\t%199[^\t]\t%ld\t%ld\t%ld", c, n, &plays, &secs, &last) == 5 &&
             !strcmp(c, system_id[0] ? system_id : core_id) && !strcmp(n, rom_name)) {
             fprintf(out, "%s\t%s\t%ld\t%ld\t%ld\n", c, n, plays + 1, secs + (long)played, (long)time(NULL));
             found = true;
@@ -1055,7 +1058,7 @@ static void write_resume(void) {
     snprintf(t, sizeof t, "%s.tmp", p);
     FILE *f = fopen(t, "w");
     if (!f) { ui_log("impossibile scrivere %s", t); return; }
-    fprintf(f, "libretro\t%s\t%s\t%s\tresume\t%s\n", core_path, rom_path, title, system_id[0] ? system_id : "-");
+    fprintf(f, "libretro\t%s\t%s\t%s\tresume\t%s\t%s\n", core_path, rom_path, title, system_id[0] ? system_id : "-", game_key[0] ? game_key : "-");
     bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
     if (!ok || durable_replace(t, p) != 0) { ui_log("impossibile scrivere %s", p); remove(t); }
@@ -1810,6 +1813,10 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--title") && i + 1 < argc) snprintf(title, sizeof title, "%s", argv[++i]);
         else if (!strcmp(argv[i], "--auto") && i + 1 < argc) auto_script = argv[++i];
         else if (!strcmp(argv[i], "--resume")) resume = true;
+        else if (!strcmp(argv[i], "--key") && i + 1 < argc) {
+            snprintf(game_key, sizeof game_key, "%s", argv[++i]);
+            if (strchr(game_key, '/') || strstr(game_key, "..")) game_key[0] = 0;   /* finisce in un percorso */
+        }
         else if (!strcmp(argv[i], "--system") && i + 1 < argc) {
             snprintf(system_id, sizeof system_id, "%s", argv[++i]);
             if (strchr(system_id, '/') || strstr(system_id, "..")) system_id[0] = 0;   /* finisce in un percorso */
@@ -1819,6 +1826,8 @@ int main(int argc, char **argv) {
     snprintf(rom_name, sizeof rom_name, "%s", base ? base + 1 : rom_path);
     char *dot = strrchr(rom_name, '.');
     if (dot) *dot = 0;
+    snprintf(rom_base, sizeof rom_base, "%s", rom_name);   /* nome del file, per le cornici */
+    if (game_key[0]) snprintf(rom_name, sizeof rom_name, "%s", game_key);
     if (!title[0]) snprintf(title, sizeof title, "%s", rom_name);
     const char *cb = strrchr(core_path, '/');
     snprintf(core_id, sizeof core_id, "%s", cb ? cb + 1 : core_path);

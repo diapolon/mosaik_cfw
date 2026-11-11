@@ -439,7 +439,7 @@ while :; do
         fi
         sleep 1; continue ;;
     esac
-    IFS="$(printf '\t')" read -r kind core rom title resume system < "$ROOT/System/next.txt"
+    IFS="$(printf '\t')" read -r kind core rom title resume system key < "$ROOT/System/next.txt"
     rm -f "$ROOT/System/next.txt"
     if [ "$kind" = "linux" ]; then
         (
@@ -460,6 +460,8 @@ while :; do
     [ "$resume" = "resume" ] && set -- "$@" --resume
     # console del gioco: salvataggi in Saves/<console> (issue #5)
     case "$system" in ""|-) ;; *) set -- "$@" --system "$system" ;; esac
+    # identità del gioco per i suoi file (diversa dal nome solo per due ROM omonime)
+    case "$key" in ""|-) ;; *) set -- "$@" --key "$key" ;; esac
     step "gioco: $title"
     run_app "$BIN/runner" "$@"
     step "runner: uscita $rc"

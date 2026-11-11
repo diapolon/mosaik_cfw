@@ -131,6 +131,9 @@ int saves_split(const char *root, const game_t *games, int ngames) {
         bool opened = false;
         for (int i = 0; i < ngames; i++) {
             if (strcmp(games[i].core, emu->id) || games[i].missing) continue;
+            /* i file vecchi hanno il nome della ROM: sono del gioco che tiene il nome come
+               identità, non degli omonimi con "nome [sottocartella]" (R04) */
+            if (games[i].key[0] && strcmp(games[i].key, games[i].name)) continue;
             for (int x = 0; x < NEXTS; x++) {
                 char file[600], src[1400], dst[1400], new_dir[1100];
                 snprintf(file, sizeof file, "%s.%s", games[i].name, EXTS[x]);

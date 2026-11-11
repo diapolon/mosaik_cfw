@@ -221,7 +221,7 @@ static void find_resume(void) {
         char base[1200], core[80], st[1300];
         struct stat sb;
         save_base(g, base, sizeof base, core, sizeof core);
-        snprintf(st, sizeof st, "%s/%s.auto.state", base, g->name);
+        snprintf(st, sizeof st, "%s/%s.auto.state", base, g->key);
         if (stat(st, &sb) != 0 || sb.st_size <= 0) return;
         resume_idx = i;
         resume_when = sb.st_mtime;
@@ -496,8 +496,10 @@ static void launch_ex(game_t *g, bool resume) {
     bool written = f != NULL;
     if (f) {
         /* ultimo campo: la console, per i salvataggi in Saves/<console> (issue #5); "-" per gli arcade */
-        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title,
-                resume ? "resume" : "-", core_console(g->core) ? g->core : "-");
+        /* sesto campo: la console ("-" per gli arcade); settimo: l'identità del gioco per i suoi
+           file, diversa dal nome solo per due ROM omonime (audit prelancio R04) */
+        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", !strcmp(g->core, "linux") ? "linux" : "libretro", core, g->path, g->title,
+                resume ? "resume" : "-", core_console(g->core) ? g->core : "-", g->key[0] ? g->key : "-");
         written = !ferror(f) && fflush(f) == 0;
         if (fclose(f) != 0) written = false;
     }
@@ -794,7 +796,7 @@ static bool game_autosave(int gi, time_t *when) {
             char base[1200], core[80], st[1300];
             struct stat sb;
             save_base(g, base, sizeof base, core, sizeof core);
-            snprintf(st, sizeof st, "%s/%s.auto.state", base, g->name);
+            snprintf(st, sizeof st, "%s/%s.auto.state", base, g->key);
             if (stat(st, &sb) == 0 && sb.st_size > 0) { has = true; at = sb.st_mtime; }
         }
     }
@@ -4337,29 +4339,29 @@ static void game_reset(const game_t *g, bool states) {
     detail_slots_for = -2;
     char core[80], base[1200], sub[1300];
     save_base(g, base, sizeof base, core, sizeof core);
-    reset_remove(base, g->name, "cfg");
-    reset_remove(base, g->name, "opt");
+    reset_remove(base, g->key, "cfg");
+    reset_remove(base, g->key, "opt");
     if (states) {
         /* con gli stati anche il salvataggio a batteria delle console (.srm e .rtc): è la partita */
         static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev", "auto.state.rot",
                                            "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png", "srm", "rtc" };
-        for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->name, ext[i]);
+        for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->key, ext[i]);
     }
     /* FBNeo: memoria interna e punteggi */
     snprintf(sub, sizeof sub, "%s/fbneo", base);
-    reset_remove(sub, g->name, "fs");
-    reset_remove(sub, g->name, "nv");
-    reset_remove(sub, g->name, "hi");
-    reset_remove(sub, g->name, "diff");
+    reset_remove(sub, g->key, "fs");
+    reset_remove(sub, g->key, "nv");
+    reset_remove(sub, g->key, "hi");
+    reset_remove(sub, g->key, "diff");
     snprintf(sub, sizeof sub, "%s/Bios/fbneo", UI.root);
-    reset_remove(sub, g->name, "hi");
+    reset_remove(sub, g->key, "hi");
     /* MAME 2003-Plus */
     snprintf(sub, sizeof sub, "%s/mame2003-plus/nvram", base);
-    reset_remove(sub, g->name, "nv");
+    reset_remove(sub, g->key, "nv");
     snprintf(sub, sizeof sub, "%s/mame2003-plus/hi", base);
-    reset_remove(sub, g->name, "hi");
+    reset_remove(sub, g->key, "hi");
     snprintf(sub, sizeof sub, "%s/mame2003-plus/cfg", base);
-    reset_remove(sub, g->name, "cfg");
+    reset_remove(sub, g->key, "cfg");
     ui_toast(T(reset_failed ? "reset.partial" : "reset.done"));
     reset_failed = 0;
 }
@@ -4589,7 +4591,7 @@ static void detail_draw(void) {
             struct stat sb;
             save_base(g, base, sizeof base, core, sizeof core);
             for (int k = 0; k < 3; k++) {
-                snprintf(st, sizeof st, "%s/%s.%s", base, g->name, sl[k]);
+                snprintf(st, sizeof st, "%s/%s.%s", base, g->key, sl[k]);
                 if (stat(st, &sb) == 0 && sb.st_size > 0) {
                     size_t len = strlen(slots);
                     snprintf(slots + len, sizeof slots - len, "%s%d", len ? ", " : "", k + 1);

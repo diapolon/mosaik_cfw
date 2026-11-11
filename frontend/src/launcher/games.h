@@ -5,10 +5,14 @@
 
 /* nomi delle ROM: i set No-Intro delle console superano spesso i 64 caratteri */
 #define ROM_NAME 128
-#define LIST_KEY 160    /* riga "core<TAB>rom" di preferiti, recenti, collezioni, nascosti */
+#define LIST_KEY 208    /* riga "core<TAB>chiave" di preferiti, recenti, collezioni, nascosti */
 
 typedef struct {
     char name[ROM_NAME]; /* nome ROM senza estensione, o cartella del gioco Linux */
+    /* identità per salvataggi, stati, statistiche e liste: di solito uguale a name; due ROM
+       con lo stesso nome nello stesso emulatore (sottocartelle diverse, o .zip e ROM) ricevono
+       "nome [sottocartella]" o "nome [estensione]", tranne la prima (audit prelancio R04) */
+    char key[ROM_NAME + 40];
     char title[160];
     char year[8];
     char maker[64];
