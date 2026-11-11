@@ -566,7 +566,7 @@
     "checking": "A comparar os ficheiros do cartão…",
     "none": "Atualizações indisponíveis",
     "none_hint": "Tenta mais tarde.",
-    "current": "O sistema já está atualizado",
+    "current": "Já tens a versão mais recente",
     "available": "Atualização %s disponível",
     "download": "Transferir",
     "install": "Instalar",

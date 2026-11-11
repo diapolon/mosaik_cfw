@@ -566,7 +566,7 @@
     "checking": "Comparing the files on the card…",
     "none": "Updates not available",
     "none_hint": "Try again later.",
-    "current": "The system is already up to date",
+    "current": "You already have the latest version",
     "available": "Update %s available",
     "download": "Download",
     "install": "Install",

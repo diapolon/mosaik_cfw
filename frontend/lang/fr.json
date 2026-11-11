@@ -566,7 +566,7 @@
     "checking": "Comparaison des fichiers de la carte…",
     "none": "Mises à jour indisponibles",
     "none_hint": "Réessayez plus tard.",
-    "current": "Le système est déjà à jour",
+    "current": "Vous avez déjà la dernière version",
     "available": "Mise à jour %s disponible",
     "download": "Télécharger",
     "install": "Installer",
