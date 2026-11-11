@@ -233,7 +233,9 @@
     "led_brightness": "LED brightness",
     "autosave_exit": "Save when leaving a game",
     "box_covers": "Box art as cover",
-    "speaker_rest": "Speaker at rest"
+    "speaker_rest": "Speaker at rest",
+    "reset_settings": "Reset settings",
+    "erase_all": "Erase everything"
   },
   "settings_desc": {
     "file_server": "Manage the card's files from a computer or phone on the same Wi-Fi network.",
@@ -284,7 +286,9 @@
     "led_brightness": "Brightness of the console lights.",
     "autosave_exit": "When you leave to the menu, the game goes into the automatic save, and on the home screen you pick it up with “Resume”. Off: it is saved only when the console turns off or sleeps.",
     "box_covers": "For console games, show the box, if it was downloaded, instead of the screenshot.",
-    "speaker_rest": "The hiss comes from the amplifier: off after 4 s without sound, back on at the next sound. A and B: two ways of switching it off, to compare."
+    "speaker_rest": "The hiss comes from the amplifier: off after 4 s without sound, back on at the next sound. A and B: two ways of switching it off, to compare.",
+    "reset_settings": "Settings, lists and Wi-Fi networks go back to new. Games and saves stay.",
+    "erase_all": "Erases games, saves, BIOS files, images and settings: the card goes back to freshly written."
   },
   "aspect": {
     "original": "Original",
@@ -625,7 +629,7 @@
     "look": "Theme, language, screensaver",
     "games": "Picture, filters",
     "system": "Wi-Fi, date and time, power",
-    "tools": "Verify ROMs, images, transfer files",
+    "tools": "Verify ROMs, images, files, reset",
     "updates": "Update, channel, log, information"
   },
   "settings_cat_desc": {
@@ -635,7 +639,7 @@
     "look": "Launcher theme, its variant, language and screensaver.",
     "games": "How games look and play: aspect, filters, bezels, duplicates, performance.",
     "system": "Wi-Fi, date, time and time zone, automatic power off.",
-    "tools": "Verify ROMs, download images and clean up the ones no longer needed, transfer files over Wi-Fi.",
+    "tools": "Verify ROMs, download images and clean up the ones no longer needed, transfer files over Wi-Fi. Reset the settings or the whole card.",
     "updates": "System updates, channel, notice, diagnostic log and card space."
   },
   "loglvl": {
@@ -825,5 +829,19 @@
     "always": "Always on",
     "rest_a": "Off (A)",
     "rest_b": "Off (B)"
+  },
+  "reset_all": {
+    "settings_title": "Reset settings?",
+    "settings_body": "Settings, lists and Wi-Fi networks go back to new. Games and saves stay.",
+    "settings_go": "Reset",
+    "erase_title": "Erase everything?",
+    "erase_body": "Games, saves, BIOS files, images, settings and Wi-Fi networks will be erased.",
+    "erase_go": "Erase everything",
+    "erase2_title": "Are you sure?",
+    "erase2_body": "This can't be undone. If you need anything, make a backup first.",
+    "working": "Erasing…",
+    "done": "Done, restarting",
+    "count": "%d files removed",
+    "partial": "Some files could not be removed"
   }
 }

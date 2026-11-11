@@ -233,7 +233,9 @@
     "led_brightness": "Luminosité des LED",
     "autosave_exit": "Sauvegarder en quittant le jeu",
     "box_covers": "Boîte comme couverture",
-    "speaker_rest": "Haut-parleur au repos"
+    "speaker_rest": "Haut-parleur au repos",
+    "reset_settings": "Réinitialiser les réglages",
+    "erase_all": "Tout effacer"
   },
   "settings_desc": {
     "file_server": "Gère les fichiers de la carte depuis un ordinateur ou un téléphone sur le même réseau Wi-Fi.",
@@ -284,7 +286,9 @@
     "led_brightness": "Intensité des lumières de la console.",
     "autosave_exit": "En quittant vers le menu, la partie va dans la sauvegarde automatique, et sur l'accueil vous la reprenez avec « Reprendre ». Désactivé : sauvegarde seulement à l'extinction et en veille.",
     "box_covers": "Pour les jeux de console, affiche la boîte, si elle a été téléchargée, au lieu de la capture.",
-    "speaker_rest": "Le souffle vient de l'amplificateur : éteint après 4 s sans son, rallumé au son suivant. A et B : deux façons de l'éteindre, à comparer."
+    "speaker_rest": "Le souffle vient de l'amplificateur : éteint après 4 s sans son, rallumé au son suivant. A et B : deux façons de l'éteindre, à comparer.",
+    "reset_settings": "Réglages, listes et réseaux Wi-Fi reviennent à neuf. Jeux et sauvegardes restent.",
+    "erase_all": "Efface jeux, sauvegardes, BIOS, images et réglages : la carte redevient comme juste écrite."
   },
   "aspect": {
     "original": "Original",
@@ -625,7 +629,7 @@
     "look": "Thème, langue, écran de veille",
     "games": "Image, filtres",
     "system": "Wi-Fi, date et heure, extinction",
-    "tools": "Vérifier les ROM, images, transférer des fichiers",
+    "tools": "Vérifier les ROM, images, fichiers, réinitialiser",
     "updates": "Mise à jour, canal, journal, infos"
   },
   "settings_cat_desc": {
@@ -635,7 +639,7 @@
     "look": "Thème du launcher, sa variante, langue et écran de veille.",
     "games": "Affichage et jeu : proportions, filtres, cadres, doublons, performances.",
     "system": "Wi-Fi, date, heure et fuseau horaire, extinction automatique.",
-    "tools": "Vérifier les ROM, télécharger les images et supprimer celles qui ne servent plus, transférer des fichiers par Wi-Fi.",
+    "tools": "Vérifier les ROM, télécharger les images et supprimer celles qui ne servent plus, transférer des fichiers par Wi-Fi. Réinitialiser les réglages ou toute la carte.",
     "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte."
   },
   "loglvl": {
@@ -825,5 +829,19 @@
     "always": "Toujours allumé",
     "rest_a": "Éteint (A)",
     "rest_b": "Éteint (B)"
+  },
+  "reset_all": {
+    "settings_title": "Réinitialiser les réglages ?",
+    "settings_body": "Réglages, listes et réseaux Wi-Fi reviennent à neuf. Jeux et sauvegardes restent.",
+    "settings_go": "Réinitialiser",
+    "erase_title": "Tout effacer ?",
+    "erase_body": "Jeux, sauvegardes, BIOS, images, réglages et réseaux Wi-Fi seront effacés.",
+    "erase_go": "Tout effacer",
+    "erase2_title": "Vous êtes sûr ?",
+    "erase2_body": "Impossible d'annuler. Si vous avez besoin de quelque chose, faites d'abord une sauvegarde.",
+    "working": "Effacement…",
+    "done": "Terminé, redémarrage",
+    "count": "%d fichiers supprimés",
+    "partial": "Certains fichiers n'ont pas pu être supprimés"
   }
 }

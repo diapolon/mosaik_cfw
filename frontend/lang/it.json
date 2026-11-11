@@ -233,7 +233,9 @@
     "led_brightness": "Luminosità dei LED",
     "autosave_exit": "Salva uscendo dal gioco",
     "box_covers": "Scatola come copertina",
-    "speaker_rest": "Altoparlante a riposo"
+    "speaker_rest": "Altoparlante a riposo",
+    "reset_settings": "Reimposta impostazioni",
+    "erase_all": "Cancella tutto"
   },
   "settings_desc": {
     "file_server": "Gestisci i file della scheda da un computer o da un telefono sulla stessa rete Wi-Fi.",
@@ -284,7 +286,9 @@
     "led_brightness": "Intensità delle luci della console.",
     "autosave_exit": "Uscendo al menu la partita va nel salvataggio automatico e in home la ritrovi con «Riprendi». Spento: si salva solo allo spegnimento e in standby.",
     "box_covers": "Per i giochi per console mostra la scatola, se è stata scaricata, invece della schermata.",
-    "speaker_rest": "Il fruscio viene dall'amplificatore: spento dopo 4 s senza suoni, si riaccende al primo suono. A e B: due modi di spegnerlo, da confrontare."
+    "speaker_rest": "Il fruscio viene dall'amplificatore: spento dopo 4 s senza suoni, si riaccende al primo suono. A e B: due modi di spegnerlo, da confrontare.",
+    "reset_settings": "Impostazioni, liste e reti Wi-Fi tornano come nuove. Giochi e salvataggi restano.",
+    "erase_all": "Cancella giochi, salvataggi, BIOS, immagini e impostazioni: la scheda torna come appena scritta."
   },
   "aspect": {
     "original": "Originale",
@@ -625,7 +629,7 @@
     "look": "Tema, lingua, salvaschermo",
     "games": "Immagine, filtri",
     "system": "Wi-Fi, data e ora, spegnimento",
-    "tools": "Verifica ROM, immagini, trasferisci file",
+    "tools": "Verifica ROM, immagini, file, reimposta",
     "updates": "Aggiorna, canale, registro, informazioni"
   },
   "settings_cat_desc": {
@@ -635,7 +639,7 @@
     "look": "Tema del launcher, sua variante, lingua e salvaschermo.",
     "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni.",
     "system": "Wi-Fi, data, ora e fuso orario, spegnimento automatico.",
-    "tools": "Verifica delle ROM, scaricamento e pulizia delle immagini, trasferimento di file via Wi-Fi.",
+    "tools": "Verifica delle ROM, scaricamento e pulizia delle immagini, trasferimento di file via Wi-Fi. Reimpostazione delle impostazioni o di tutta la scheda.",
     "updates": "Aggiornamento del sistema, canale, avviso, registro diagnostico e spazio sulla scheda."
   },
   "loglvl": {
@@ -825,5 +829,19 @@
     "always": "Sempre acceso",
     "rest_a": "Spento (A)",
     "rest_b": "Spento (B)"
+  },
+  "reset_all": {
+    "settings_title": "Reimpostare le impostazioni?",
+    "settings_body": "Impostazioni, liste e reti Wi-Fi tornano come nuove. Giochi e salvataggi restano.",
+    "settings_go": "Reimposta",
+    "erase_title": "Cancellare tutto?",
+    "erase_body": "Si cancellano giochi, salvataggi, BIOS, immagini, impostazioni e reti Wi-Fi.",
+    "erase_go": "Cancella tutto",
+    "erase2_title": "Sei sicuro?",
+    "erase2_body": "Non si può annullare. Se ti serve qualcosa, fai prima un backup.",
+    "working": "Cancellazione…",
+    "done": "Fatto, riavvio",
+    "count": "%d file tolti",
+    "partial": "Alcuni file non si sono potuti togliere"
   }
 }

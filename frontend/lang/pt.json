@@ -233,7 +233,9 @@
     "led_brightness": "Brilho dos LED",
     "autosave_exit": "Guardar ao sair do jogo",
     "box_covers": "Caixa como capa",
-    "speaker_rest": "Altifalante em repouso"
+    "speaker_rest": "Altifalante em repouso",
+    "reset_settings": "Repor definições",
+    "erase_all": "Apagar tudo"
   },
   "settings_desc": {
     "file_server": "Gere os ficheiros do cartão a partir de um computador ou telemóvel na mesma rede Wi-Fi.",
@@ -284,7 +286,9 @@
     "led_brightness": "Intensidade das luzes da consola.",
     "autosave_exit": "Ao sair para o menu, o jogo vai para a gravação automática e no início retomas com «Continuar». Desligado: só se grava ao desligar e em suspensão.",
     "box_covers": "Nos jogos de consola mostra a caixa, se foi descarregada, em vez da captura de ecrã.",
-    "speaker_rest": "O chiado vem do amplificador: desliga após 4 s sem som e volta no som seguinte. A e B: duas formas de o desligar, para comparar."
+    "speaker_rest": "O chiado vem do amplificador: desliga após 4 s sem som e volta no som seguinte. A e B: duas formas de o desligar, para comparar.",
+    "reset_settings": "Definições, listas e redes Wi-Fi voltam a ficar como novas. Jogos e jogos guardados ficam.",
+    "erase_all": "Apaga jogos, jogos guardados, BIOS, imagens e definições: o cartão fica como acabado de gravar."
   },
   "aspect": {
     "original": "Original",
@@ -625,7 +629,7 @@
     "look": "Tema, idioma, proteção de ecrã",
     "games": "Imagem, filtros",
     "system": "Wi-Fi, data e hora, desligar",
-    "tools": "Verificar ROM, imagens, transferir ficheiros",
+    "tools": "Verificar ROM, imagens, ficheiros, repor",
     "updates": "Atualizar, canal, registo, informações"
   },
   "settings_cat_desc": {
@@ -635,7 +639,7 @@
     "look": "Tema do launcher, variante, idioma e proteção de ecrã.",
     "games": "Como os jogos se veem e jogam: proporção, filtros, molduras, duplicados, desempenho.",
     "system": "Wi-Fi, data, hora e fuso horário, desligar automático.",
-    "tools": "Verificar as ROM, descarregar imagens e apagar as que já não servem, transferir ficheiros por Wi-Fi.",
+    "tools": "Verificar as ROM, descarregar imagens e apagar as que já não servem, transferir ficheiros por Wi-Fi. Repor as definições ou todo o cartão.",
     "updates": "Atualização do sistema, canal, aviso, registo de diagnóstico e espaço do cartão."
   },
   "loglvl": {
@@ -825,5 +829,19 @@
     "always": "Sempre ligado",
     "rest_a": "Desligado (A)",
     "rest_b": "Desligado (B)"
+  },
+  "reset_all": {
+    "settings_title": "Repor as definições?",
+    "settings_body": "Definições, listas e redes Wi-Fi voltam a ficar como novas. Jogos e jogos guardados ficam.",
+    "settings_go": "Repor",
+    "erase_title": "Apagar tudo?",
+    "erase_body": "Serão apagados jogos, jogos guardados, BIOS, imagens, definições e redes Wi-Fi.",
+    "erase_go": "Apagar tudo",
+    "erase2_title": "Tem a certeza?",
+    "erase2_body": "Não é possível anular. Se precisar de algo, faça primeiro uma cópia.",
+    "working": "A apagar…",
+    "done": "Feito, a reiniciar",
+    "count": "%d ficheiros removidos",
+    "partial": "Alguns ficheiros não puderam ser removidos"
   }
 }

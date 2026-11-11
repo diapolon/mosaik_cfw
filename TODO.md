@@ -47,6 +47,7 @@
 - [ ] Backup and restore over Wi-Fi (Transfer files page: **Download backup** with saves, settings, favorites, collections, play time and BIOS, optionally Wi-Fi networks and images; **Restore backup** uploads the zip, the console asks for confirmation, writes each file as `.part` and restarts; `m2/test-fileserver.sh`): to test on a console, also between the two models. A backup zip copied to the card (main folder or `Arcade/`) is offered for import at the first start, after the language on a new card, once per file (`System/backup-visti.txt`): to test on a console with a rewritten card. Optional **Also the games** (Roms and Linux, shown with its size, off above 3.5 GB); a restore without games says to copy the ROMs again
 - [ ] File transfer over Wi-Fi (Settings → Tools → Transfer files, 0.9.19, `launcher/fileserver.c`, `m2/test-fileserver.sh`): tested on a console from a Mac and an Android phone (fast, mosaik.local opens). Still to test: power-off during an upload (the `.part` file is removed at the next opening), a PS disc, `mosaik.local` from Windows, "Remember this browser"
 - [ ] Console scraper, phase 2: ScreenScraper as a second source (needs developer credentials, requested on the screenscraper.fr forum)
+- [ ] Reset settings and Erase everything (Settings → Tools, `rst_*` in launcher.c): tested on the Mac; to test on a console
 - [ ] Game list cache, for very large libraries
 - [ ] Apps section in the launcher
 - [x] Console scraper: game data from libretro-database by the ROM's CRC, box art from the libretro thumbnails (0.9.17)

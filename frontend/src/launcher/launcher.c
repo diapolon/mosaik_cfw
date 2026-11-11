@@ -459,6 +459,9 @@ static void write_linux_env(const game_t *g) {
 /* altoparlante spento durante i lavori su SD e Wi-Fi: si spegne PRIMA di iniziare, perché il
    rumore arriva già con le prime letture; lo riaccende upd_audio quando il lavoro finisce */
 static bool audio_quiet;
+/* "Reimposta impostazioni" e "Cancella tutto" (più avanti): stato del lavoro in sottofondo */
+enum { RST_NONE, RST_RUN, RST_DONE, RST_FAILED };
+static atomic_int rst_state;
 
 static void quiet_begin(void) {
     if (audio_quiet) return;
@@ -468,7 +471,7 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_ERASE, CFM_ERASE2 };
 static int cfm_kind, cfm_sel;
 static char cfm_ssid[33];
 
@@ -2054,12 +2057,12 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
@@ -2070,7 +2073,7 @@ static const int cat_items[SC_COUNT][12] = {
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
-    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_FILESERVER, -1 },
+    { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_FILESERVER, S_RESETSET, S_ERASE, -1 },
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
@@ -2094,11 +2097,11 @@ static bool has_extra_keys(void) {
 }
 
 /* righe della pagina corrente: voci S_* oppure ROW_CAT + categoria */
-#define SC_POWERPAGE SC_COUNT   /* pagina "Spegni": in Onda è una sezione come le altre */
+#define SC_LAST (SC_COUNT - 1)   /* ultima sezione; sospendi, riavvia e spegni sono nella schermata iniziale */
 static int page_rows_of(int page, int *rows) {
     int n = 0;
     if (page < 0) {
-        for (int c = 0; c <= SC_COUNT; c++) rows[n++] = ROW_CAT + c;
+        for (int c = 0; c < SC_COUNT; c++) rows[n++] = ROW_CAT + c;
         return n;
     }
     if (page >= SC_COUNT) {   /* sospendi solo nel sistema su SD; nell'app sul firmware TrimUI "riavvia" torna al suo menu */
@@ -2116,6 +2119,7 @@ static int page_rows_of(int page, int *rows) {
         if ((it == S_KEYF1 || it == S_KEYF2 || it == S_KEYHOME) && !has_extra_keys()) continue;
         if ((it == S_UPDATE || it == S_CHANNEL || it == S_UPDNOTIFY) && !update_supported()) continue;
         if (it == S_FILESERVER && !wifi_supported()) continue;   /* serve il Wi-Fi del sistema su SD */   /* nell'app sul firmware TrimUI no */
+        if ((it == S_RESETSET || it == S_ERASE) && plat_is_device() && !plat_standalone()) continue;   /* app sul firmware: la cartella è nella memoria interna */
         rows[n++] = it;
     }
     return n;
@@ -2135,7 +2139,7 @@ static bool set_disabled(int i) {
 }
 
 static void settings_open(int page, int row) {
-    if (page < 0 && is_bar_layout()) { page = row >= 0 && row <= SC_POWERPAGE ? row : 0; row = 0; }   /* Onda: le sezioni sono pulsanti in alto */
+    if (page < 0 && is_bar_layout()) { page = row >= 0 && row <= SC_LAST ? row : 0; row = 0; }   /* Onda: le sezioni sono pulsanti in alto */
     set_page = page;
     set_row = row;
     int rows[16], n = page_rows(rows);
@@ -3313,7 +3317,7 @@ static void upd_audio(void) {
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
                 || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open || fsrv_open
-                || atomic_load(&imp_state) == IMP_RUN || atomic_load(&imp_state) == IMP_DONE;
+                || atomic_load(&imp_state) == IMP_RUN || atomic_load(&imp_state) == IMP_DONE || atomic_load(&rst_state);
     if (want == audio_quiet) return;
     if (want) { quiet_begin(); return; }
     audio_quiet = false;
@@ -3748,7 +3752,7 @@ static void settings_input(void) {
         if (in->pressed[BTN_DOWN]) { set_row = (set_row + 1) % n; ui_sound(SND_MOVE); }
     }
     if (set_page >= 0 && is_bar_layout() && (in->pressed[BTN_L] || in->pressed[BTN_R])) {   /* Onda: sezione */
-        settings_open((set_page + (in->pressed[BTN_L] ? SC_POWERPAGE : 1)) % (SC_POWERPAGE + 1), 0);
+        settings_open((set_page + (in->pressed[BTN_L] ? SC_LAST : 1)) % SC_COUNT, 0);
         ui_sound(SND_MOVE);
         return;
     }
@@ -3814,6 +3818,7 @@ static void settings_input(void) {
         }
         else if (set_sel == S_INFO) { sdinfo_start(); ui_sound(SND_OK); }
         else if (set_sel == S_FILESERVER) fsrv_start();
+        else if (set_sel == S_RESETSET || set_sel == S_ERASE) { cfm_kind = set_sel == S_ERASE ? CFM_ERASE : CFM_RESETSET; cfm_sel = 0; ui_sound(SND_OK); }
         else set_change(set_sel, +1);
     }
 }
@@ -3836,7 +3841,7 @@ static const char *set_cat_sub(int row) {
     snprintf(k, sizeof k, "settings_cat_sum.%s", cat_key[row - ROW_CAT]);
     return T(k);
 }
-static bool set_has_value(int i) { return i != S_FILESERVER && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
+static bool set_has_value(int i) { return i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
 static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER; }
 
@@ -3977,15 +3982,15 @@ static int settings_draw_tabs(int y) {
     theme_t *t = &UI.th;
     int mx = M(t->margin), avail = UI.w - 2 * mx, gap = M(0.014f);
     static float off, off_target;
-    const char *lab[SC_POWERPAGE + 1];
-    for (int c = 0; c <= SC_POWERPAGE; c++) lab[c] = set_cat_title(ROW_CAT + c);
+    const char *lab[SC_COUNT];
+    for (int c = 0; c <= SC_LAST; c++) lab[c] = set_cat_title(ROW_CAT + c);
     TTF_Font *f = UI.f_normal;
     int tot = 0;
-    for (int c = 0; c <= SC_POWERPAGE; c++) tot += ui_text_w(f, lab[c]) + 2 * M(0.022f) + gap;
+    for (int c = 0; c <= SC_LAST; c++) tot += ui_text_w(f, lab[c]) + 2 * M(0.022f) + gap;
     if (tot - gap > avail) f = UI.f_small;
-    int xs[SC_POWERPAGE + 1], ws[SC_POWERPAGE + 1];
+    int xs[SC_COUNT], ws[SC_COUNT];
     tot = 0;
-    for (int c = 0; c <= SC_POWERPAGE; c++) {
+    for (int c = 0; c <= SC_LAST; c++) {
         ws[c] = ui_text_w(f, lab[c]) + 2 * M(f == UI.f_small ? 0.018f : 0.022f);
         xs[c] = tot;
         tot += ws[c] + gap;
@@ -3998,7 +4003,7 @@ static int settings_draw_tabs(int y) {
     off = ui_approach(off, off_target);
     int h = TTF_FontHeight(f) + M(0.022f);
     ui_clip_push(mx - 2, y - 2, avail + 4, h + 4);
-    for (int c = 0; c <= SC_POWERPAGE; c++) {   /* solo pulsanti interi: quelli tagliati compaiono scorrendo */
+    for (int c = 0; c <= SC_LAST; c++) {   /* solo pulsanti interi: quelli tagliati compaiono scorrendo */
         int x = mx + xs[c] - (int)off;
         if (x >= mx - M(0.004f) && x + ws[c] <= mx + avail + M(0.004f)) pill_f(f, lab[c], x, y, c == cur);
     }
@@ -4066,7 +4071,8 @@ static void settings_draw(void) {
     } else {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
                    set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
-                   set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER;
+                   set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER ||
+                   set_sel == S_RESETSET || set_sel == S_ERASE;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
                             "L/R", T("common.section"), "" };
         end = ui_keybar(h, onda ? 9 : 6);
@@ -4719,6 +4725,146 @@ static void cp_draw(void) {
     ui_hints(hint, 6);
 }
 
+/* ------------------------------------------------- reimposta e cancella tutto */
+/* Strumenti → Reimposta impostazioni: impostazioni, liste, collezioni, reti Wi-Fi e browser
+   ricordati tornano come nuovi; giochi, BIOS, salvataggi e tempo di gioco restano.
+   Strumenti → Cancella tutto: anche ROM, BIOS, salvataggi, immagini, musica, giochi Linux, dati
+   dello scraper e tempo di gioco, come una scheda appena scritta. In tutti e due i casi restano
+   sistema, core, temi, lingue, filtri, cornici, indici arcade, registri, file degli aggiornamenti
+   e calibrazione delle levette (dell'hardware); poi si riparte con la prima accensione. */
+static atomic_int rst_count;
+static bool rst_all;
+
+static const char *const RST_SYSTEM[] = { "settings.json", "favorites.txt", "recent.txt", "hidden.txt", "core-options.txt",
+                                          "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "wifi.conf",
+                                          "fileserver-browsers.txt", "resume.txt", "next.txt", "next.env", "backup-visti.txt",
+                                          "menu-rotazione", NULL };
+static const char *const RST_SYSTEM_ALL[] = { "stats.tsv", "romcheck.tsv", NULL };
+/* cartelle svuotate da "Cancella tutto"; in Roms restano le cartelle degli emulatori e LEGGIMI.txt */
+static const char *const RST_DIRS[] = { "Bios", "Saves", "Media", "Music", "Linux", NULL };
+
+/* toglie il contenuto di dir (e dir stessa se self); falso se qualcosa non si è potuto togliere */
+static bool rst_tree(const char *dir, bool self) {
+    struct stat ds;
+    if (lstat(dir, &ds) != 0) return errno == ENOENT;
+    if (!S_ISDIR(ds.st_mode)) return true;   /* collegamento (raccolte sul Mac): non si segue */
+    DIR *d = opendir(dir);
+    if (!d) return errno == ENOENT;
+    bool ok = true;
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        char p[2048];
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        struct stat sb;
+        if (lstat(p, &sb) != 0) continue;
+        if (S_ISDIR(sb.st_mode)) ok = rst_tree(p, true) && ok;
+        else if (unlink(p) != 0) ok = false;
+        else atomic_fetch_add(&rst_count, 1);
+    }
+    closedir(d);
+    if (self && rmdir(dir) != 0) ok = false;
+    return ok;
+}
+
+static bool rst_file(const char *rel) {
+    char p[1200];
+    snprintf(p, sizeof p, "%s/%s", UI.root, rel);
+    if (unlink(p) == 0) { atomic_fetch_add(&rst_count, 1); return true; }
+    return errno == ENOENT;
+}
+
+static void *rst_thread(void *arg) {
+    (void)arg;
+    bool ok = true;
+    char p[1200];
+    for (int i = 0; RST_SYSTEM[i]; i++) { snprintf(p, sizeof p, "System/%s", RST_SYSTEM[i]); ok = rst_file(p) && ok; }
+    snprintf(p, sizeof p, "%s/System/collections", UI.root);
+    ok = rst_tree(p, true) && ok;
+    if (rst_all) {
+        for (int i = 0; RST_SYSTEM_ALL[i]; i++) { snprintf(p, sizeof p, "System/%s", RST_SYSTEM_ALL[i]); ok = rst_file(p) && ok; }
+        for (int i = 0; RST_DIRS[i]; i++) { snprintf(p, sizeof p, "%s/%s", UI.root, RST_DIRS[i]); ok = rst_tree(p, false) && ok; }
+        /* Roms: il contenuto delle cartelle, non le cartelle né LEGGIMI.txt */
+        snprintf(p, sizeof p, "%s/Roms", UI.root);
+        DIR *d = opendir(p);
+        struct dirent *e;
+        while (d && (e = readdir(d))) {
+            if (e->d_name[0] == '.') continue;
+            char q[1600];
+            struct stat sb;
+            snprintf(q, sizeof q, "%s/%s", p, e->d_name);
+            if (lstat(q, &sb) == 0 && S_ISDIR(sb.st_mode)) ok = rst_tree(q, false) && ok;
+        }
+        if (d) closedir(d);
+        /* Dats: restano solo gli indici arcade (<id>.tsv con accanto <id>.roms) */
+        snprintf(p, sizeof p, "%s/Dats", UI.root);
+        d = opendir(p);
+        while (d && (e = readdir(d))) {
+            if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+            char q[1600], r[1600];
+            struct stat sb;
+            snprintf(q, sizeof q, "%s/%s", p, e->d_name);
+            if (lstat(q, &sb) != 0) continue;
+            if (S_ISDIR(sb.st_mode)) { ok = rst_tree(q, true) && ok; continue; }
+            size_t l = strlen(e->d_name);
+            bool arcade = false;
+            if (l > 4 && !strcmp(e->d_name + l - 4, ".tsv")) { snprintf(r, sizeof r, "%s/%.*s.roms", p, (int)(l - 4), e->d_name); arcade = access(r, F_OK) == 0; }
+            else if (l > 5 && !strcmp(e->d_name + l - 5, ".roms")) arcade = true;
+            if (!arcade) { if (unlink(q) == 0) atomic_fetch_add(&rst_count, 1); else ok = false; }
+        }
+        if (d) closedir(d);
+    }
+    sync();
+    atomic_store(&rst_state, ok ? RST_DONE : RST_FAILED);
+    return NULL;
+}
+
+static void rst_start(bool all) {
+    rst_all = all;
+    atomic_store(&rst_count, 0);
+    ui_log("%s", all ? "cancella tutto: inizio" : "reimposta impostazioni: inizio");
+    UI.set.music_vol = 0;   /* niente brano successivo da Music, che si svuota */
+    music_stop();
+    if (fsrv_open) fsrv_close();
+    quiet_begin();
+    atomic_store(&rst_state, RST_RUN);
+    pthread_t t;
+    if (pthread_create(&t, NULL, rst_thread, NULL) != 0) atomic_store(&rst_state, RST_FAILED);
+    else pthread_detach(t);
+}
+
+/* alla fine si riparte sempre: le impostazioni in memoria tornano quelle predefinite, così il
+   riavvio non riscrive le vecchie, e la prima accensione chiede lingua e Wi-Fi */
+static void rst_input(void) {
+    int st = atomic_load(&rst_state);
+    if (st == RST_RUN) return;
+    if (st == RST_FAILED) {
+        ui_log("%s: qualche file non si è potuto togliere (%d tolti)", rst_all ? "cancella tutto" : "reimposta impostazioni", atomic_load(&rst_count));
+        ui_toast(T("reset_all.partial"));
+        atomic_store(&rst_state, RST_DONE);
+    }
+    static double t0;
+    if (!t0) { t0 = UI.t; ui_log("%s: fatto, %d file tolti", rst_all ? "cancella tutto" : "reimposta impostazioni", atomic_load(&rst_count)); }
+    if (UI.t - t0 > 1.5) {
+        settings_load(&UI.set, UI.root);   /* senza file: i valori predefiniti, prima accensione */
+        restart_system();
+    }
+}
+
+static void rst_draw(void) {
+    theme_t *t = &UI.th;
+    int st = atomic_load(&rst_state);
+    TTF_Font *ft = UI.f_title, *fs = UI.f_small;
+    int pw = M(0.8f), ph = M(0.26f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2, r = M(t->panel_radius), fth = TTF_FontHeight(ft);
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 160));
+    ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_text(ft, T(st == RST_RUN ? "reset_all.working" : "reset_all.done"), px + pw / 2, py + M(0.07f), t->text, ALIGN_CENTER);
+    char line[96];
+    snprintf(line, sizeof line, T("reset_all.count"), atomic_load(&rst_count));
+    ui_text(fs, line, px + pw / 2, py + M(0.07f) + fth + M(0.02f), t->text_dim, ALIGN_CENTER);
+}
+
 /* ------------------------------------------------- conferme */
 
 static void cfm_input(void) {
@@ -4739,6 +4885,11 @@ static void cfm_input(void) {
         sc_restore_factory();
     } else if (k == CFM_RESTART) {
         restart_system();
+    } else if (k == CFM_ERASE) {   /* "Cancella tutto": una seconda conferma */
+        cfm_kind = CFM_ERASE2;
+        cfm_sel = 0;
+    } else if (k == CFM_RESETSET || k == CFM_ERASE2) {
+        rst_start(k == CFM_ERASE2);
     } else if (k == CFM_FORGET) {
         char m[160];
         snprintf(m, sizeof m, T("wifi.forgot"), cfm_ssid);
@@ -4754,6 +4905,9 @@ static void cfm_input(void) {
 
 static void cfm_draw(void) {
     if (cfm_kind == CFM_RESTART) ui_confirm_draw(T("dialog.restart_title"), T("dialog.power_body"), T("common.cancel"), T("common.restart"), cfm_sel);
+    else if (cfm_kind == CFM_RESETSET) ui_confirm_draw(T("reset_all.settings_title"), T("reset_all.settings_body"), T("common.cancel"), T("reset_all.settings_go"), cfm_sel);
+    else if (cfm_kind == CFM_ERASE) ui_confirm_draw(T("reset_all.erase_title"), T("reset_all.erase_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
+    else if (cfm_kind == CFM_ERASE2) ui_confirm_draw(T("reset_all.erase2_title"), T("reset_all.erase2_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
     else if (cfm_kind == CFM_STICKS) ui_confirm_draw(T("confirm.sticks_title"), T("confirm.sticks_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
     else if (cfm_kind == CFM_COLL) ui_confirm_draw(T("confirm.coll_title"), T("confirm.coll_body"), T("common.cancel"), T("coll.delete"), cfm_sel);
     else if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
@@ -5659,7 +5813,7 @@ int main(int argc, char **argv) {
         }
         /* tasto di accensione (sistema su SD): finestra per spegnere */
         /* tasto di accensione (sistema su SD): breve sospende, tenuto premuto chiede se spegnere */
-        if (UI.in.power && !upd_busy() && atomic_load(&imp_state) != IMP_RUN && !(dlg_open && dlg_suspend)) {
+        if (UI.in.power && !upd_busy() && atomic_load(&imp_state) != IMP_RUN && !atomic_load(&rst_state) && !(dlg_open && dlg_suspend)) {
             dlg_open = dlg_suspend = true;
             dlg_sel = 1;
             saver_on = false;
@@ -5667,9 +5821,9 @@ int main(int argc, char **argv) {
             UI.in.power = false;   /* questa pressione ha solo aperto la finestra */
             ui_sound(SND_OK);
         }
-        if (UI.in.power_long && (!dlg_open || dlg_suspend) && !upd_open && atomic_load(&imp_state) != IMP_RUN) { dlg_open = true; dlg_suspend = false; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
+        if (UI.in.power_long && (!dlg_open || dlg_suspend) && !upd_open && atomic_load(&imp_state) != IMP_RUN && !atomic_load(&rst_state)) { dlg_open = true; dlg_suspend = false; dlg_sel = dlg_buttons() - 1; ui_sound(SND_OK); }
         /* HOME (tasto laterale della Brick Pro): chiude finestre e torna alla schermata iniziale */
-        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open && !sc_state && !atomic_load(&imp_state)) {
+        if (UI.in.home && !romcheck_open && !scrape_open && !upd_open && !setup_step && !ptest_open && !sc_state && !atomic_load(&imp_state) && !atomic_load(&rst_state)) {
             dlg_suspend = false;
             reset_step = 0;
             cfm_kind = CFM_NONE;
@@ -5700,6 +5854,7 @@ int main(int argc, char **argv) {
             if (r == 1) { ui_suspend(); last_input = UI.t; }
         }
         else if (rdy_open) rdy_input();
+        else if (atomic_load(&rst_state)) rst_input();
         else if (atomic_load(&imp_state)) imp_input();
         else if (cfm_kind) cfm_input();
         else if (setup_step) setup_input();
@@ -5787,6 +5942,7 @@ int main(int argc, char **argv) {
         if (ptest_open) ptest_draw();
         if (setup_step && !atomic_load(&imp_state)) setup_draw();
         if (atomic_load(&imp_state)) imp_draw();
+        if (atomic_load(&rst_state)) rst_draw();
         if (rdy_open) rdy_draw();
         if (sdbad_open) sdbad_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);

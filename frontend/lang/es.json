@@ -233,7 +233,9 @@
     "led_brightness": "Brillo de los LED",
     "autosave_exit": "Guardar al salir del juego",
     "box_covers": "Caja como portada",
-    "speaker_rest": "Altavoz en reposo"
+    "speaker_rest": "Altavoz en reposo",
+    "reset_settings": "Restablecer ajustes",
+    "erase_all": "Borrar todo"
   },
   "settings_desc": {
     "file_server": "Gestiona los archivos de la tarjeta desde un ordenador o un teléfono en la misma red Wi-Fi.",
@@ -284,7 +286,9 @@
     "led_brightness": "Intensidad de las luces de la consola.",
     "autosave_exit": "Al salir al menú, la partida va al guardado automático y en el inicio la retomas con «Continuar». Apagado: solo se guarda al apagar la consola y en reposo.",
     "box_covers": "En los juegos de consola muestra la caja, si se ha descargado, en lugar de la captura.",
-    "speaker_rest": "El siseo viene del amplificador: se apaga tras 4 s sin sonido y vuelve con el siguiente. A y B: dos formas de apagarlo, para comparar."
+    "speaker_rest": "El siseo viene del amplificador: se apaga tras 4 s sin sonido y vuelve con el siguiente. A y B: dos formas de apagarlo, para comparar.",
+    "reset_settings": "Ajustes, listas y redes Wi-Fi vuelven a estar como nuevos. Juegos y partidas se quedan.",
+    "erase_all": "Borra juegos, partidas, BIOS, imágenes y ajustes: la tarjeta queda como recién grabada."
   },
   "aspect": {
     "original": "Original",
@@ -625,7 +629,7 @@
     "look": "Tema, idioma, salvapantallas",
     "games": "Imagen, filtros",
     "system": "Wi-Fi, fecha y hora, apagado",
-    "tools": "Verificar ROM, imágenes, transferir archivos",
+    "tools": "Verificar ROM, imágenes, archivos, restablecer",
     "updates": "Actualizar, canal, registro, información"
   },
   "settings_cat_desc": {
@@ -635,7 +639,7 @@
     "look": "Tema del launcher, su variante, idioma y salvapantallas.",
     "games": "Cómo se ven y se juegan los juegos: proporción, filtros, marcos, duplicados, rendimiento.",
     "system": "Wi-Fi, fecha, hora y zona horaria, apagado automático.",
-    "tools": "Verificar las ROM, descargar imágenes y borrar las que ya no sirven, transferir archivos por Wi-Fi.",
+    "tools": "Verificar las ROM, descargar imágenes y borrar las que ya no sirven, transferir archivos por Wi-Fi. Restablecer los ajustes o toda la tarjeta.",
     "updates": "Actualización del sistema, canal, aviso, registro de diagnóstico y espacio de la tarjeta."
   },
   "loglvl": {
@@ -825,5 +829,19 @@
     "always": "Siempre encendido",
     "rest_a": "Apagado (A)",
     "rest_b": "Apagado (B)"
+  },
+  "reset_all": {
+    "settings_title": "¿Restablecer los ajustes?",
+    "settings_body": "Ajustes, listas y redes Wi-Fi vuelven a estar como nuevos. Juegos y partidas se quedan.",
+    "settings_go": "Restablecer",
+    "erase_title": "¿Borrar todo?",
+    "erase_body": "Se borran juegos, partidas, BIOS, imágenes, ajustes y redes Wi-Fi.",
+    "erase_go": "Borrar todo",
+    "erase2_title": "¿Seguro?",
+    "erase2_body": "No se puede deshacer. Si necesitas algo, haz antes una copia.",
+    "working": "Borrando…",
+    "done": "Hecho, reiniciando",
+    "count": "%d archivos borrados",
+    "partial": "Algunos archivos no se pudieron borrar"
   }
 }

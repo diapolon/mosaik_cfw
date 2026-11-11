@@ -233,7 +233,9 @@
     "led_brightness": "LED-Helligkeit",
     "autosave_exit": "Beim Verlassen speichern",
     "box_covers": "Verpackung als Cover",
-    "speaker_rest": "Lautsprecher in Ruhe"
+    "speaker_rest": "Lautsprecher in Ruhe",
+    "reset_settings": "Einstellungen zurücksetzen",
+    "erase_all": "Alles löschen"
   },
   "settings_desc": {
     "file_server": "Dateien der Karte von einem Computer oder Telefon im selben WLAN verwalten.",
@@ -284,7 +286,9 @@
     "led_brightness": "Helligkeit der Konsolenlichter.",
     "autosave_exit": "Beim Verlassen zum Menü kommt das Spiel in den automatischen Spielstand, und auf dem Startbildschirm setzt du es mit „Fortsetzen“ fort. Aus: gespeichert wird nur beim Ausschalten und im Standby.",
     "box_covers": "Bei Konsolenspielen wird die Verpackung angezeigt, falls heruntergeladen, statt des Screenshots.",
-    "speaker_rest": "Das Rauschen kommt vom Verstärker: aus nach 4 s ohne Ton, beim nächsten Ton wieder an. A und B: zwei Arten, ihn auszuschalten, zum Vergleich."
+    "speaker_rest": "Das Rauschen kommt vom Verstärker: aus nach 4 s ohne Ton, beim nächsten Ton wieder an. A und B: zwei Arten, ihn auszuschalten, zum Vergleich.",
+    "reset_settings": "Einstellungen, Listen und WLAN-Netze werden wie neu. Spiele und Spielstände bleiben.",
+    "erase_all": "Löscht Spiele, Spielstände, BIOS, Bilder und Einstellungen: die Karte ist wie frisch beschrieben."
   },
   "aspect": {
     "original": "Original",
@@ -625,7 +629,7 @@
     "look": "Thema, Sprache, Bildschirmschoner",
     "games": "Bild, Filter",
     "system": "WLAN, Datum und Uhrzeit, Ausschalten",
-    "tools": "ROMs prüfen, Bilder, Dateien übertragen",
+    "tools": "ROMs prüfen, Bilder, Dateien, zurücksetzen",
     "updates": "Update, Kanal, Protokoll, Infos"
   },
   "settings_cat_desc": {
@@ -635,7 +639,7 @@
     "look": "Launcher-Thema, Variante, Sprache und Bildschirmschoner.",
     "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung.",
     "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
-    "tools": "ROMs prüfen, Bilder herunterladen und nicht mehr benötigte entfernen, Dateien per WLAN übertragen.",
+    "tools": "ROMs prüfen, Bilder herunterladen und nicht mehr benötigte entfernen, Dateien per WLAN übertragen. Einstellungen oder die ganze Karte zurücksetzen.",
     "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte."
   },
   "loglvl": {
@@ -825,5 +829,19 @@
     "always": "Immer an",
     "rest_a": "Aus (A)",
     "rest_b": "Aus (B)"
+  },
+  "reset_all": {
+    "settings_title": "Einstellungen zurücksetzen?",
+    "settings_body": "Einstellungen, Listen und WLAN-Netze werden wie neu. Spiele und Spielstände bleiben.",
+    "settings_go": "Zurücksetzen",
+    "erase_title": "Alles löschen?",
+    "erase_body": "Spiele, Spielstände, BIOS, Bilder, Einstellungen und WLAN-Netze werden gelöscht.",
+    "erase_go": "Alles löschen",
+    "erase2_title": "Bist du sicher?",
+    "erase2_body": "Das lässt sich nicht rückgängig machen. Mach vorher eine Sicherung, falls du etwas brauchst.",
+    "working": "Löschen…",
+    "done": "Fertig, Neustart",
+    "count": "%d Dateien entfernt",
+    "partial": "Einige Dateien konnten nicht entfernt werden"
   }
 }
