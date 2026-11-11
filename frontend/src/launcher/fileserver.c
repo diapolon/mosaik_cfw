@@ -1010,16 +1010,14 @@ static bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n) {
 
 static atomic_int restore_state;   /* FS_RS_* */
 static atomic_bool restore_go, restore_drop;
-static char restore_date[32];
-static int restore_files, restore_games;
+static atomic_int restore_parts;   /* parti scelte sulla console, 1 << FS_PART_* */
+static fs_backup_t restore_bk;     /* il backup arrivato: data, file per parte */
 
 static void restore_set(int s) {
     atomic_store(&restore_state, s);
     pthread_mutex_lock(&mu);
     st.restore = s;
-    snprintf(st.restore_date, sizeof st.restore_date, "%s", restore_date);
-    st.restore_files = restore_files;
-    st.restore_games = restore_games;
+    st.restore_bk = restore_bk;
     pthread_mutex_unlock(&mu);
 }
 
@@ -1029,32 +1027,41 @@ static void restore_remove_zip(void) {
     remove(full);
 }
 
-/* lo zip (percorso completo) è un backup di Mosaik? data e numero dei file che si ripristinerebbero */
-static bool backup_read(const char *zipfull, char *date, size_t dn, int *nfiles, int *ngames) {
+/* parte del backup a cui appartiene un file (per scegliere cosa ripristinare) */
+static int backup_part(const char *rel) {
+    if (!strncmp(rel, "Saves/", 6)) return FS_PART_SAVES;
+    if (!strncmp(rel, "Bios/", 5)) return FS_PART_BIOS;
+    if (!strncmp(rel, "Media/", 6)) return FS_PART_MEDIA;
+    if (backup_game(rel)) return FS_PART_GAMES;
+    if (!strcmp(rel, "System/wifi.conf")) return FS_PART_WIFI;
+    return FS_PART_SETTINGS;   /* impostazioni, liste, collezioni, tempo di gioco */
+}
+
+/* lo zip (percorso completo) è un backup di Mosaik? data e file che si ripristinerebbero, per parte */
+static bool backup_read(const char *zipfull, fs_backup_t *bk) {
     char info[512];
+    memset(bk, 0, sizeof *bk);
     FILE *f = fopen(zipfull, "rb");
     if (!f) return false;
     zent_t *z;
-    int n = zip_dir(f, &z), files = 0, games = 0;
+    int n = zip_dir(f, &z);
     bool found = false;
     for (int i = 0; i < n; i++) {
         if (!strcmp(z[i].name, BACKUP_INFO)) found = zip_entry(f, &z[i], NULL, info, sizeof info) && !strncmp(info, "Mosaik backup", 13);
-        else if (backup_path_ok(z[i].name, true)) { files++; if (backup_game(z[i].name)) games++; }
+        else if (backup_path_ok(z[i].name, true)) { bk->files++; bk->count[backup_part(z[i].name)]++; }
     }
     free(z);
     fclose(f);
     if (!found) return false;
     const char *d = strstr(info, "date=");
-    snprintf(date, dn, "%.*s", d ? (int)strcspn(d + 5, "\n") : 0, d ? d + 5 : "");
-    *nfiles = files;
-    if (ngames) *ngames = games;
+    snprintf(bk->date, sizeof bk->date, "%.*s", d ? (int)strcspn(d + 5, "\n") : 0, d ? d + 5 : "");
     return true;
 }
 
 static bool restore_check(void) {
     char full[1200];
     full_path(full, sizeof full, RESTORE_ZIP);
-    return backup_read(full, restore_date, sizeof restore_date, &restore_files, &restore_games);
+    return backup_read(full, &restore_bk);
 }
 
 static void do_restore_upload(req_t *r) {
@@ -1091,9 +1098,9 @@ static void do_restore_upload(req_t *r) {
     if (!ok || rename(part, full) != 0) { remove(part); reply_err(r->fd, 500, "io"); return; }
     if (!restore_check()) { restore_remove_zip(); restore_set(FS_RS_NONE); reply_err(r->fd, 400, "notbackup"); return; }
     restore_set(FS_RS_PENDING);   /* ora la conferma sulla console */
-    event(FS_EV_RESTORE, restore_date);
+    event(FS_EV_RESTORE, restore_bk.date);
     char j[160];
-    snprintf(j, sizeof j, "{\"ok\":true,\"date\":\"%s\",\"files\":%d}", restore_date, restore_files);
+    snprintf(j, sizeof j, "{\"ok\":true,\"date\":\"%s\",\"files\":%d}", restore_bk.date, restore_bk.files);
     reply_json(r->fd, 200, j);
 }
 
@@ -1101,14 +1108,14 @@ static void do_restore_upload(req_t *r) {
    solo se è completo e con il CRC giusto */
 /* scrive i file permessi dello zip sotto root: ognuno passa da ".nome.part" e prende il suo
    nome solo se è completo e con il CRC giusto */
-static bool backup_extract(const char *zipfull, int total) {
+static bool backup_extract(const char *zipfull, int parts, int total) {
     FILE *f = fopen(zipfull, "rb");
     zent_t *z = NULL;
     int n = f ? zip_dir(f, &z) : -1, done = 0;
     bool ok = n >= 0;
     for (int i = 0; ok && i < n; i++) {
         const char *rel = z[i].name;
-        if (!backup_path_ok(rel, true)) continue;   /* altro: si ignora */
+        if (!backup_path_ok(rel, true) || !(parts & (1 << backup_part(rel)))) continue;   /* altro o non scelto: si ignora */
         set_state(FS_RECEIVING, base_name(rel), done, total);
         char dst[2400], part[2500];
         full_path(dst, sizeof dst, rel);
@@ -1135,26 +1142,31 @@ static void restore_run(void) {
     restore_set(FS_RS_RUNNING);
     char full[1200];
     full_path(full, sizeof full, RESTORE_ZIP);
-    bool ok = backup_extract(full, restore_files);
+    int parts = atomic_load(&restore_parts), total = 0;
+    for (int p = 0; p < FS_NPARTS; p++) if (parts & (1 << p)) total += restore_bk.count[p];
+    bool ok = backup_extract(full, parts, total);
     restore_remove_zip();
     restore_set(ok ? FS_RS_DONE : FS_RS_FAILED);
 }
 
-bool fs_backup_info(const char *zip, char *date, size_t dn, int *files, int *games) {
-    return backup_read(zip, date, dn, files, games);
+bool fs_backup_info(const char *zip, fs_backup_t *out) {
+    return backup_read(zip, out);
 }
 
-bool fs_backup_import(const char *dir, const char *zip) {
+bool fs_backup_import(const char *dir, const char *zip, int parts) {
     if (thr_on) return false;   /* il server ha già la sua cartella */
     snprintf(root, sizeof root, "%s", dir);
-    char d[32];
-    int n;
-    return backup_read(zip, d, sizeof d, &n, NULL) && backup_extract(zip, n);
+    fs_backup_t bk;
+    if (!backup_read(zip, &bk)) return false;
+    int total = 0;
+    for (int p = 0; p < FS_NPARTS; p++) if (parts & (1 << p)) total += bk.count[p];
+    return backup_extract(zip, parts, total);
 }
 
-void fs_restore_answer(bool yes) {
+void fs_restore_answer(int parts) {
     if (atomic_load(&restore_state) != FS_RS_PENDING) return;
-    if (yes) atomic_store(&restore_go, true);
+    atomic_store(&restore_parts, parts);
+    if (parts) atomic_store(&restore_go, true);
     else atomic_store(&restore_drop, true);
 }
 

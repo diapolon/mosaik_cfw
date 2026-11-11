@@ -72,7 +72,6 @@
     "restore_console": "Cópia recebida: confirma na consola.",
     "err_notbackup": "Este ficheiro não é uma cópia do Mosaik",
     "restore_title": "Restaurar a cópia?",
-    "restore_body": "Cópia de %s, %d ficheiros. Os jogos guardados e definições atuais serão substituídos.",
     "restore_go": "Restaurar",
     "restoring": "A restaurar %d%%",
     "restore_done": "Cópia restaurada",
@@ -80,7 +79,6 @@
     "restore_no_games": "As ROM não estão na cópia: copie-as de novo para o cartão.",
     "restore_failed": "Falha ao restaurar",
     "import_title": "Importar a cópia?",
-    "import_body": "Cópia de %s no cartão, %d ficheiros. Substitui jogos guardados e definições.",
     "import_go": "Importar",
     "ev_backup": "Cópia enviada: %s",
     "ev_restore": "Cópia recebida (%s)",
@@ -137,7 +135,15 @@
     "ev_login": "Navegador ligado%s",
     "ev_fail": "Falhou: %s",
     "close": "Fechar",
-    "no_port": "Transferência indisponível"
+    "no_port": "Transferência indisponível",
+    "backup_of": "Cópia de %s",
+    "part_files": "%d ficheiros",
+    "part_saves": "Jogos guardados",
+    "part_settings": "Definições e listas",
+    "part_bios": "BIOS",
+    "part_wifi": "Redes Wi-Fi",
+    "part_media": "Imagens",
+    "part_games": "Jogos"
   },
   "plat": {
     "title": "Plataformas",
@@ -837,11 +843,14 @@
     "erase_title": "Apagar tudo?",
     "erase_body": "Serão apagados jogos, jogos guardados, BIOS, imagens, definições e redes Wi-Fi.",
     "erase_go": "Apagar tudo",
-    "erase2_title": "Tem a certeza?",
     "erase2_body": "Não é possível anular. Se precisar de algo, faça primeiro uma cópia.",
     "working": "A apagar…",
     "done": "Feito, a reiniciar",
     "count": "%d ficheiros removidos",
-    "partial": "Alguns ficheiros não puderam ser removidos"
+    "partial": "Alguns ficheiros não puderam ser removidos",
+    "sure_title": "Tem a certeza?",
+    "settings2_body": "As definições, listas e redes Wi-Fi não poderão ser recuperadas.",
+    "erase3_title": "Última confirmação",
+    "erase3_body": "Mantenha A premido em Apagar tudo durante 3 segundos."
   }
 }

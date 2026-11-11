@@ -72,7 +72,6 @@
     "restore_console": "Backup received: confirm on the console.",
     "err_notbackup": "This file is not a Mosaik backup",
     "restore_title": "Restore the backup?",
-    "restore_body": "Backup from %s, %d files. Your current saves and settings will be replaced.",
     "restore_go": "Restore",
     "restoring": "Restoring %d%%",
     "restore_done": "Backup restored",
@@ -80,7 +79,6 @@
     "restore_no_games": "ROMs are not in the backup: copy them to the card again.",
     "restore_failed": "Restore failed",
     "import_title": "Import the backup?",
-    "import_body": "Backup from %s on the card, %d files. It replaces your saves and settings.",
     "import_go": "Import",
     "ev_backup": "Backup sent: %s",
     "ev_restore": "Backup received (%s)",
@@ -137,7 +135,15 @@
     "ev_login": "Browser connected%s",
     "ev_fail": "Failed: %s",
     "close": "Close",
-    "no_port": "Transfer not available"
+    "no_port": "Transfer not available",
+    "backup_of": "Backup from %s",
+    "part_files": "%d files",
+    "part_saves": "Saves",
+    "part_settings": "Settings and lists",
+    "part_bios": "BIOS files",
+    "part_wifi": "Wi-Fi networks",
+    "part_media": "Images",
+    "part_games": "Games"
   },
   "plat": {
     "title": "Platforms",
@@ -837,11 +843,14 @@
     "erase_title": "Erase everything?",
     "erase_body": "Games, saves, BIOS files, images, settings and Wi-Fi networks will be erased.",
     "erase_go": "Erase everything",
-    "erase2_title": "Are you sure?",
     "erase2_body": "This can't be undone. If you need anything, make a backup first.",
     "working": "Erasing…",
     "done": "Done, restarting",
     "count": "%d files removed",
-    "partial": "Some files could not be removed"
+    "partial": "Some files could not be removed",
+    "sure_title": "Are you sure?",
+    "settings2_body": "Settings, lists and Wi-Fi networks can't be recovered.",
+    "erase3_title": "Last confirmation",
+    "erase3_body": "Hold A on Erase everything for 3 seconds."
   }
 }

@@ -76,6 +76,7 @@ static int set_page = -1;        /* -1: elenco delle categorie; altrimenti la ca
 static int set_row;              /* riga scelta nella pagina */
 static float set_scroll, set_hl;
 static void settings_open(int page, int row);
+static void draw_switch(int x, int y, int h, bool on);
 static void plat_open(int sel);
 static void quit_to_menu(void);
 enum { SC_DISPLAY, SC_LOOK, SC_GAMES, SC_CONTROLS, SC_SYSTEM, SC_TOOLS, SC_UPDATES, SC_COUNT };
@@ -471,7 +472,9 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_ERASE, CFM_ERASE2 };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3 };
+static double cfm_hold;   /* ultima conferma di "Cancella tutto": A tenuto premuto da quando */
+#define CFM_HOLD_S 3.0
 static int cfm_kind, cfm_sel;
 static char cfm_ssid[33];
 
@@ -2753,16 +2756,87 @@ static void fsrv_close(void) {
 }
 
 /* pulsanti della finestra: Chiudi e, se ce ne sono, Dimentica i browser */
+/* scelta delle parti di un backup da ripristinare: le parti presenti nello zip, tutte spuntate;
+   su e giù fra le righe e i pulsanti, A spunta o toglie, B annulla */
+static const char *const PART_KEY[FS_NPARTS] = { "fileserver.part_saves", "fileserver.part_settings", "fileserver.part_bios",
+                                                 "fileserver.part_wifi", "fileserver.part_media", "fileserver.part_games" };
+typedef struct { int mask, sel, btn; } partpick_t;   /* sel == righe: si è sui pulsanti */
+
+static int pp_rows(const fs_backup_t *bk, int *rows) {
+    int n = 0;
+    for (int p = 0; p < FS_NPARTS; p++) if (bk->count[p] > 0) rows[n++] = p;
+    return n;
+}
+
+static void pp_reset(partpick_t *pp, const fs_backup_t *bk) {
+    int rows[FS_NPARTS], n = pp_rows(bk, rows);
+    pp->mask = 0;
+    for (int i = 0; i < n; i++) pp->mask |= 1 << rows[i];
+    pp->sel = n;   /* si parte dal pulsante che ripristina tutto */
+    pp->btn = 1;
+}
+
+/* -1 ancora aperta, 0 annullata, altrimenti le parti scelte */
+static int pp_input(partpick_t *pp, const fs_backup_t *bk) {
+    input_t *in = &UI.in;
+    int rows[FS_NPARTS], n = pp_rows(bk, rows);
+    if (in->pressed[BTN_UP] && pp->sel > 0) { pp->sel--; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN] && pp->sel < n) { pp->sel++; ui_sound(SND_MOVE); }
+    if (pp->sel == n && (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT])) { pp->btn = !pp->btn; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { ui_sound(SND_BACK); return 0; }
+    if (!in->pressed[BTN_A]) return -1;
+    if (pp->sel < n) { pp->mask ^= 1 << rows[pp->sel]; ui_sound(SND_MOVE); return -1; }
+    if (!pp->btn) { ui_sound(SND_BACK); return 0; }
+    if (!pp->mask) { ui_sound(SND_ERROR); return -1; }
+    ui_sound(SND_OK);
+    return pp->mask;
+}
+
+static void pp_draw(const partpick_t *pp, const fs_backup_t *bk, const char *title, const char *go) {
+    theme_t *t = &UI.th;
+    int rows[FS_NPARTS], n = pp_rows(bk, rows);
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), r = M(t->panel_radius);
+    int pw = M(0.8f), rh = fnh + M(0.026f);
+    int ph = M(0.045f) + fth + M(0.008f) + fsh + M(0.025f) + n * rh + ui_popup_buttons_h();
+    int px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(px, py, pw, ph, r, t->surface);
+    int y = py + M(0.045f);
+    ui_text(ft, title, px + pw / 2, y, t->text, ALIGN_CENTER);
+    y += fth + M(0.008f);
+    char line[160];
+    snprintf(line, sizeof line, T("fileserver.backup_of"), bk->date);
+    ui_text(fs, line, px + pw / 2, y, t->text_dim, ALIGN_CENTER);
+    y += fsh + M(0.025f);
+    int lx = px + M(0.03f), lw = pw - M(0.06f), sh = fnh * 3 / 4;
+    for (int i = 0; i < n; i++, y += rh) {
+        bool on = pp->mask & (1 << rows[i]), sel = pp->sel == i;
+        if (sel) ui_rrect(lx, y, lw, rh - M(0.006f), M(t->panel_radius), t->accent);
+        int ty = y + (rh - M(0.006f) - fnh) / 2;
+        ui_text(fn, T(PART_KEY[rows[i]]), lx + M(0.025f), ty, sel ? t->accent_text : t->text, ALIGN_LEFT);
+        int sw = sh * 9 / 5, sx = lx + lw - M(0.025f) - sw;
+        draw_switch(sx, y + (rh - M(0.006f) - sh) / 2, sh, on);
+        snprintf(line, sizeof line, T("fileserver.part_files"), bk->count[rows[i]]);
+        ui_text(fs, line, sx - M(0.02f), y + (rh - M(0.006f) - fsh) / 2, sel ? t->accent_text : t->text_dim, ALIGN_RIGHT);
+    }
+    const char *lb[] = { T("common.cancel"), go };
+    ui_popup_buttons(px, py, pw, ph, lb, 2, pp->sel == n ? pp->btn : -1, -1);
+}
+
 static int fsrv_nbuttons(void) { return fs_browsers() > 0 ? 2 : 1; }
 
-static int fsrv_rsel;   /* scelta nella domanda del ripristino */
+static partpick_t fsrv_pp;   /* scelta delle parti nel ripristino */
+static bool fsrv_pp_on;
 
 static void fsrv_input(void) {
     fs_status_t s;
     fs_get_status(&s);
     if (s.restore == FS_RS_PENDING) {   /* un backup arrivato dalla pagina: si ripristina? */
-        int r = ui_confirm_input(&fsrv_rsel);
-        if (r >= 0) { fs_restore_answer(r == 1); ui_log("trasferimento file: ripristino %s", r == 1 ? "confermato" : "annullato"); ui_sound(r == 1 ? SND_OK : SND_BACK); }
+        if (!fsrv_pp_on) { pp_reset(&fsrv_pp, &s.restore_bk); fsrv_pp_on = true; }
+        int r = pp_input(&fsrv_pp, &s.restore_bk);
+        if (r >= 0) { fs_restore_answer(r); fsrv_pp_on = false; ui_log("trasferimento file: ripristino %s (parti %x)", r ? "confermato" : "annullato", (unsigned)r); }
         return;
     }
     if (s.restore == FS_RS_RUNNING) return;
@@ -2902,10 +2976,9 @@ static void fsrv_draw(void) {
     ui_popup_buttons(x, y, w, h, labels, n, fsrv_sel, 1);
     /* ripristino: la domanda, e alla fine il riavvio */
     if (s.restore == FS_RS_PENDING) {
-        char body[300];
-        snprintf(body, sizeof body, T("fileserver.restore_body"), s.restore_date, s.restore_files);
-        ui_confirm_draw(T("fileserver.restore_title"), body, T("common.cancel"), T("fileserver.restore_go"), fsrv_rsel);
-    } else if (s.restore == FS_RS_DONE) restore_done_draw(s.restore_games > 0);
+        if (!fsrv_pp_on) pp_reset(&fsrv_pp, &s.restore_bk);
+        pp_draw(&fsrv_pp, &s.restore_bk, T("fileserver.restore_title"), T("fileserver.restore_go"));
+    } else if (s.restore == FS_RS_DONE) restore_done_draw(s.restore_bk.count[FS_PART_GAMES] > 0);
 }
 
 /* ------------------------------------------------- backup copiato sulla scheda */
@@ -2917,8 +2990,11 @@ enum { IMP_NONE, IMP_ASK, IMP_RUN, IMP_DONE, IMP_FAILED };
 #define IMP_MAX 8
 static atomic_int imp_state;
 static bool imp_checked;
-static char imp_zip[1200], imp_date[32];
-static int imp_files, imp_games, imp_sel, imp_ncand;
+static char imp_zip[1200];
+static fs_backup_t imp_bk;
+static partpick_t imp_pp;
+static atomic_int imp_parts;
+static int imp_ncand;
 static char imp_cand[IMP_MAX][300];   /* "nome\tdimensione" dei backup trovati */
 
 static void imp_seen_path(char *p, size_t n) { snprintf(p, n, "%s/System/backup-visti.txt", UI.root); }
@@ -2976,27 +3052,24 @@ static bool imp_find(void) {
             if (stat(full, &sb) != 0 || !S_ISREG(sb.st_mode)) continue;
             snprintf(key, sizeof key, "%s\t%lld", n, (long long)sb.st_size);
             if (imp_seen(key)) continue;
-            char date[32];
-            int files = 0, ngames = 0;
-            if (!fs_backup_info(full, date, sizeof date, &files, &ngames)) { ui_log("backup sulla scheda: %s non è un backup", n); imp_mark_seen(key); continue; }
+            fs_backup_t bk;
+            if (!fs_backup_info(full, &bk)) { ui_log("backup sulla scheda: %s non è un backup", n); imp_mark_seen(key); continue; }
             if (imp_ncand < IMP_MAX) snprintf(imp_cand[imp_ncand++], sizeof imp_cand[0], "%s", key);
             if (!best[0] || strcmp(n, best) > 0) {
                 snprintf(best, sizeof best, "%s", n);
                 snprintf(imp_zip, sizeof imp_zip, "%s", full);
-                snprintf(imp_date, sizeof imp_date, "%s", date);
-                imp_files = files;
-                imp_games = ngames;
+                imp_bk = bk;
             }
         }
         closedir(dp);
     }
-    if (best[0]) ui_log("backup sulla scheda: %s (%s, %d file)", imp_zip, imp_date, imp_files);
+    if (best[0]) ui_log("backup sulla scheda: %s (%s, %d file)", imp_zip, imp_bk.date, imp_bk.files);
     return best[0] != 0;
 }
 
 static void *imp_thread(void *arg) {
     (void)arg;
-    bool ok = fs_backup_import(UI.root, imp_zip);
+    bool ok = fs_backup_import(UI.root, imp_zip, atomic_load(&imp_parts));
     atomic_store(&imp_state, ok ? IMP_DONE : IMP_FAILED);
     return NULL;
 }
@@ -3004,12 +3077,12 @@ static void *imp_thread(void *arg) {
 static void imp_input(void) {
     int st = atomic_load(&imp_state);
     if (st == IMP_ASK) {
-        int r = ui_confirm_input(&imp_sel);
+        int r = pp_input(&imp_pp, &imp_bk);
         if (r < 0) return;
         imp_mark_all();
-        if (r != 1) { ui_log("backup sulla scheda: non importato"); atomic_store(&imp_state, IMP_NONE); ui_sound(SND_BACK); return; }
-        ui_log("backup sulla scheda: importazione");
-        ui_sound(SND_OK);
+        if (!r) { ui_log("backup sulla scheda: non importato"); atomic_store(&imp_state, IMP_NONE); return; }
+        ui_log("backup sulla scheda: importazione (parti %x)", (unsigned)r);
+        atomic_store(&imp_parts, r);
         quiet_begin();
         atomic_store(&imp_state, IMP_RUN);
         pthread_t t;
@@ -3033,9 +3106,7 @@ static void imp_input(void) {
 static void imp_draw(void) {
     int st = atomic_load(&imp_state);
     if (st == IMP_ASK) {
-        char body[300];
-        snprintf(body, sizeof body, T("fileserver.import_body"), imp_date, imp_files);
-        ui_confirm_draw(T("fileserver.import_title"), body, T("common.cancel"), T("fileserver.import_go"), imp_sel);
+        pp_draw(&imp_pp, &imp_bk, T("fileserver.import_title"), T("fileserver.import_go"));
         return;
     }
     if (st != IMP_RUN && st != IMP_DONE) return;
@@ -3045,7 +3116,7 @@ static void imp_draw(void) {
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(px, py, pw, ph, r, t->surface);
-    if (st == IMP_DONE) { restore_done_draw(imp_games > 0); return; }
+    if (st == IMP_DONE) { restore_done_draw(imp_bk.count[FS_PART_GAMES] > 0); return; }
     fs_status_t s;
     fs_get_status(&s);
     int pct = s.total > 0 ? (int)(s.done * 100 / s.total) : 0;
@@ -4868,6 +4939,17 @@ static void rst_draw(void) {
 /* ------------------------------------------------- conferme */
 
 static void cfm_input(void) {
+    bool erase = cfm_kind == CFM_RESETSET || cfm_kind == CFM_RESETSET2 || cfm_kind == CFM_ERASE || cfm_kind == CFM_ERASE2 || cfm_kind == CFM_ERASE3;
+    if (erase) UI.in.power = false;   /* qui il tasto di accensione non conferma */
+    if (cfm_kind == CFM_ERASE3) {   /* ultima: A tenuto premuto, per non passarla premendo A di fila */
+        input_t *in = &UI.in;
+        if (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) { cfm_sel = !cfm_sel; cfm_hold = 0; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_B] || (in->pressed[BTN_A] && !cfm_sel)) { cfm_kind = CFM_NONE; cfm_hold = 0; ui_sound(SND_BACK); return; }
+        if (cfm_sel && in->pressed[BTN_A]) cfm_hold = UI.t;
+        if (!cfm_sel || !in->down[BTN_A]) { cfm_hold = 0; return; }
+        if (cfm_hold > 0 && UI.t - cfm_hold >= CFM_HOLD_S) { cfm_kind = CFM_NONE; cfm_hold = 0; ui_sound(SND_OK); rst_start(true); }
+        return;
+    }
     int r = ui_confirm_input(&cfm_sel);
     if (r < 0) return;
     int k = cfm_kind;
@@ -4885,11 +4967,12 @@ static void cfm_input(void) {
         sc_restore_factory();
     } else if (k == CFM_RESTART) {
         restart_system();
-    } else if (k == CFM_ERASE) {   /* "Cancella tutto": una seconda conferma */
-        cfm_kind = CFM_ERASE2;
+    } else if (k == CFM_RESETSET || k == CFM_ERASE || k == CFM_ERASE2) {   /* conferma successiva, di nuovo su Annulla */
+        cfm_kind = k == CFM_RESETSET ? CFM_RESETSET2 : k == CFM_ERASE ? CFM_ERASE2 : CFM_ERASE3;
         cfm_sel = 0;
-    } else if (k == CFM_RESETSET || k == CFM_ERASE2) {
-        rst_start(k == CFM_ERASE2);
+        cfm_hold = 0;
+    } else if (k == CFM_RESETSET2) {
+        rst_start(false);
     } else if (k == CFM_FORGET) {
         char m[160];
         snprintf(m, sizeof m, T("wifi.forgot"), cfm_ssid);
@@ -4907,7 +4990,17 @@ static void cfm_draw(void) {
     if (cfm_kind == CFM_RESTART) ui_confirm_draw(T("dialog.restart_title"), T("dialog.power_body"), T("common.cancel"), T("common.restart"), cfm_sel);
     else if (cfm_kind == CFM_RESETSET) ui_confirm_draw(T("reset_all.settings_title"), T("reset_all.settings_body"), T("common.cancel"), T("reset_all.settings_go"), cfm_sel);
     else if (cfm_kind == CFM_ERASE) ui_confirm_draw(T("reset_all.erase_title"), T("reset_all.erase_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
-    else if (cfm_kind == CFM_ERASE2) ui_confirm_draw(T("reset_all.erase2_title"), T("reset_all.erase2_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
+    else if (cfm_kind == CFM_RESETSET2) ui_confirm_draw(T("reset_all.sure_title"), T("reset_all.settings2_body"), T("common.cancel"), T("reset_all.settings_go"), cfm_sel);
+    else if (cfm_kind == CFM_ERASE2) ui_confirm_draw(T("reset_all.sure_title"), T("reset_all.erase2_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
+    else if (cfm_kind == CFM_ERASE3) {
+        double held = cfm_hold > 0 ? UI.t - cfm_hold : 0;
+        ui_confirm_draw(T("reset_all.erase3_title"), T("reset_all.erase3_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
+        /* avanzamento della pressione, sopra i pulsanti */
+        int w = M(0.75f), h = M(0.36f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, bh = M(0.012f);
+        int bx = x + M(0.06f), bw = w - M(0.12f), by = y + h - ui_popup_buttons_h() - bh - M(0.012f);
+        ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(UI.th.text_dim, 50));
+        if (held > 0) ui_rrect(bx, by, (int)(bw * (held < CFM_HOLD_S ? held / CFM_HOLD_S : 1)), bh, bh / 2, rgba(220, 70, 70, 255));
+    }
     else if (cfm_kind == CFM_STICKS) ui_confirm_draw(T("confirm.sticks_title"), T("confirm.sticks_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
     else if (cfm_kind == CFM_COLL) ui_confirm_draw(T("confirm.coll_title"), T("confirm.coll_body"), T("common.cancel"), T("coll.delete"), cfm_sel);
     else if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
@@ -5958,7 +6051,7 @@ int main(int argc, char **argv) {
         /* un backup copiato sulla scheda: dopo la lingua, prima del Wi-Fi della prima accensione */
         if (!imp_checked && setup_step != 1 && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open) {
             imp_checked = true;
-            if (imp_find()) { atomic_store(&imp_state, IMP_ASK); imp_sel = 1; }
+            if (imp_find()) { atomic_store(&imp_state, IMP_ASK); pp_reset(&imp_pp, &imp_bk); }
         }
         if (!rdy_asked && update_resume_ready() && !upd_open && !dlg_open && !cfm_kind && !setup_step && !atomic_load(&imp_state)) {
             rdy_asked = rdy_open = true;

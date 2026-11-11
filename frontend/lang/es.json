@@ -72,7 +72,6 @@
     "restore_console": "Copia recibida: confirma en la consola.",
     "err_notbackup": "Este archivo no es una copia de Mosaik",
     "restore_title": "¿Restaurar la copia?",
-    "restore_body": "Copia del %s, %d archivos. Las partidas y ajustes actuales se reemplazarán.",
     "restore_go": "Restaurar",
     "restoring": "Restaurando %d%%",
     "restore_done": "Copia restaurada",
@@ -80,7 +79,6 @@
     "restore_no_games": "Las ROM no están en la copia: cópialas otra vez a la tarjeta.",
     "restore_failed": "No se pudo restaurar",
     "import_title": "¿Importar la copia?",
-    "import_body": "Copia del %s en la tarjeta, %d archivos. Sustituye partidas y ajustes.",
     "import_go": "Importar",
     "ev_backup": "Copia enviada: %s",
     "ev_restore": "Copia recibida (%s)",
@@ -137,7 +135,15 @@
     "ev_login": "Navegador conectado%s",
     "ev_fail": "Error: %s",
     "close": "Cerrar",
-    "no_port": "Transferencia no disponible"
+    "no_port": "Transferencia no disponible",
+    "backup_of": "Copia del %s",
+    "part_files": "%d archivos",
+    "part_saves": "Partidas",
+    "part_settings": "Ajustes y listas",
+    "part_bios": "BIOS",
+    "part_wifi": "Redes Wi-Fi",
+    "part_media": "Imágenes",
+    "part_games": "Juegos"
   },
   "plat": {
     "title": "Plataformas",
@@ -837,11 +843,14 @@
     "erase_title": "¿Borrar todo?",
     "erase_body": "Se borran juegos, partidas, BIOS, imágenes, ajustes y redes Wi-Fi.",
     "erase_go": "Borrar todo",
-    "erase2_title": "¿Seguro?",
     "erase2_body": "No se puede deshacer. Si necesitas algo, haz antes una copia.",
     "working": "Borrando…",
     "done": "Hecho, reiniciando",
     "count": "%d archivos borrados",
-    "partial": "Algunos archivos no se pudieron borrar"
+    "partial": "Algunos archivos no se pudieron borrar",
+    "sure_title": "¿Seguro?",
+    "settings2_body": "Los ajustes, las listas y las redes Wi-Fi no se podrán recuperar.",
+    "erase3_title": "Última confirmación",
+    "erase3_body": "Mantén pulsado A en Borrar todo durante 3 segundos."
   }
 }

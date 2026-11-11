@@ -24,6 +24,14 @@ enum { FS_IDLE, FS_RECEIVING, FS_SENDING };
 enum { FS_EV_UPLOAD, FS_EV_DOWNLOAD, FS_EV_ZIP, FS_EV_DELETE, FS_EV_RENAME, FS_EV_MKDIR, FS_EV_LOGIN, FS_EV_FAIL, FS_EV_BACKUP, FS_EV_RESTORE };
 /* ripristino di un backup: arrivato e in attesa della conferma, in corso, finito, non riuscito */
 enum { FS_RS_NONE, FS_RS_PENDING, FS_RS_RUNNING, FS_RS_DONE, FS_RS_FAILED };
+/* parti di un backup, per scegliere cosa ripristinare (maschere 1 << FS_PART_*) */
+enum { FS_PART_SAVES, FS_PART_SETTINGS, FS_PART_BIOS, FS_PART_WIFI, FS_PART_MEDIA, FS_PART_GAMES, FS_NPARTS };
+#define FS_PARTS_ALL ((1 << FS_NPARTS) - 1)
+typedef struct {
+    char date[32];           /* data del backup */
+    int files;               /* file che si ripristinerebbero, tutti */
+    int count[FS_NPARTS];    /* di cui per parte (0: la parte non c'è) */
+} fs_backup_t;
 
 typedef struct {
     bool running;
@@ -35,9 +43,7 @@ typedef struct {
     char ev_name[3][96];
     int uploads;             /* file caricati da quando è aperto */
     int restore;             /* FS_RS_* */
-    char restore_date[32];   /* data del backup arrivato */
-    int restore_files;       /* file che si ripristinano */
-    int restore_games;       /* di cui ROM e giochi Linux (0: i giochi vanno ricopiati) */
+    fs_backup_t restore_bk;  /* il backup arrivato */
 } fs_status_t;
 
 /* avvia il server sulla cartella root; restituisce falso se la porta non si apre */
@@ -59,11 +65,11 @@ void fs_forget_browsers(void);
    Wi-Fi, immagini, ROM e giochi Linux): si scarica
    dalla pagina; uno caricato per il ripristino aspetta la risposta della console. Dopo
    FS_RS_DONE la console va riavviata (impostazioni nuove); fs_restore_clear dopo un errore. */
-void fs_restore_answer(bool yes);
+void fs_restore_answer(int parts);   /* parti da ripristinare; 0 annulla */
 void fs_restore_clear(void);
 /* lo stesso backup copiato sulla scheda (prima schermata dopo una nuova installazione): zip è il
    percorso completo. fs_backup_info dice se è un backup di Mosaik, la sua data e quanti file
-   ripristina; fs_backup_import li scrive sotto dir (la cartella Arcade), solo a server spento.
-   Dopo un'importazione riuscita la console va riavviata. */
-bool fs_backup_info(const char *zip, char *date, size_t dn, int *files, int *games);
-bool fs_backup_import(const char *dir, const char *zip);
+   ripristina per parte; fs_backup_import scrive le parti scelte sotto dir (la cartella Arcade),
+   solo a server spento. Dopo un'importazione riuscita la console va riavviata. */
+bool fs_backup_info(const char *zip, fs_backup_t *out);
+bool fs_backup_import(const char *dir, const char *zip, int parts);

@@ -72,7 +72,6 @@
     "restore_console": "Sauvegarde reçue : confirme sur la console.",
     "err_notbackup": "Ce fichier n'est pas une sauvegarde Mosaik",
     "restore_title": "Restaurer la sauvegarde ?",
-    "restore_body": "Sauvegarde du %s, %d fichiers. Les sauvegardes de jeu et réglages actuels seront remplacés.",
     "restore_go": "Restaurer",
     "restoring": "Restauration %d%%",
     "restore_done": "Sauvegarde restaurée",
@@ -80,7 +79,6 @@
     "restore_no_games": "ROM absentes de la sauvegarde : recopiez-les sur la carte.",
     "restore_failed": "Échec de la restauration",
     "import_title": "Importer la sauvegarde ?",
-    "import_body": "Sauvegarde du %s sur la carte, %d fichiers. Elle remplace parties et réglages.",
     "import_go": "Importer",
     "ev_backup": "Sauvegarde envoyée : %s",
     "ev_restore": "Sauvegarde reçue (%s)",
@@ -137,7 +135,15 @@
     "ev_login": "Navigateur connecté%s",
     "ev_fail": "Échec : %s",
     "close": "Fermer",
-    "no_port": "Transfert indisponible"
+    "no_port": "Transfert indisponible",
+    "backup_of": "Sauvegarde du %s",
+    "part_files": "%d fichiers",
+    "part_saves": "Sauvegardes de jeu",
+    "part_settings": "Réglages et listes",
+    "part_bios": "BIOS",
+    "part_wifi": "Réseaux Wi-Fi",
+    "part_media": "Images",
+    "part_games": "Jeux"
   },
   "plat": {
     "title": "Plateformes",
@@ -837,11 +843,14 @@
     "erase_title": "Tout effacer ?",
     "erase_body": "Jeux, sauvegardes, BIOS, images, réglages et réseaux Wi-Fi seront effacés.",
     "erase_go": "Tout effacer",
-    "erase2_title": "Vous êtes sûr ?",
     "erase2_body": "Impossible d'annuler. Si vous avez besoin de quelque chose, faites d'abord une sauvegarde.",
     "working": "Effacement…",
     "done": "Terminé, redémarrage",
     "count": "%d fichiers supprimés",
-    "partial": "Certains fichiers n'ont pas pu être supprimés"
+    "partial": "Certains fichiers n'ont pas pu être supprimés",
+    "sure_title": "Vous êtes sûr ?",
+    "settings2_body": "Réglages, listes et réseaux Wi-Fi ne pourront pas être récupérés.",
+    "erase3_title": "Dernière confirmation",
+    "erase3_body": "Maintenez A sur Tout effacer pendant 3 secondes."
   }
 }

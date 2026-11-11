@@ -29,12 +29,13 @@ int main(int argc, char **argv) {
     fflush(stdout);
     while (!fine) {   /* le risposte della console al ripristino arrivano come file "si" e "no" */
         usleep(100000);
-        if (access("si", F_OK) == 0) { unlink("si"); fs_restore_answer(true); }
-        if (access("no", F_OK) == 0) { unlink("no"); fs_restore_answer(false); }
+        if (access("si", F_OK) == 0) { unlink("si"); fs_restore_answer(FS_PARTS_ALL); }
+        if (access("no", F_OK) == 0) { unlink("no"); fs_restore_answer(0); }
+        if (access("salvataggi", F_OK) == 0) { unlink("salvataggi"); fs_restore_answer(1 << FS_PART_SAVES); }
         fs_status_t r;
         fs_get_status(&r);
         FILE *f = fopen("stato.tmp", "w");
-        if (f) { fprintf(f, "%d %d\n", r.restore, r.restore_files); fclose(f); rename("stato.tmp", "stato"); }
+        if (f) { fprintf(f, "%d %d %d %d\n", r.restore, r.restore_bk.files, r.restore_bk.count[FS_PART_SAVES], r.restore_bk.count[FS_PART_SETTINGS]); fclose(f); rename("stato.tmp", "stato"); }
     }
     fs_status_t s;
     fs_get_status(&s);
@@ -147,6 +148,13 @@ check "core non toccato" "core" "$(cat sd/Cores/core.so)"
 rm "sd/Roms/FBNEO/gioco uno.zip"
 q -T bg.zip "$U/api/restore" >/dev/null; wait_rst 1; touch si; wait_rst 3
 check "ROM ripristinata dal backup" "0" "$(cmp -s "sd/Roms/FBNEO/gioco uno.zip" big.zip; echo $?)"
+# solo alcune parti: con i soli salvataggi le impostazioni non cambiano
+echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiate > sd/System/stats.tsv
+q -T b.zip "$U/api/restore" >/dev/null; wait_rst 1
+check "parti contate (salvataggi)" "1" "$(cut -d' ' -f3 stato)"
+touch salvataggi; wait_rst 3
+check "salvataggio ripristinato da solo" "salvataggio" "$(cat sd/Saves/fbneo/gioco.srm)"
+check "impostazioni non toccate" "cambiate" "$(cat sd/System/stats.tsv)"
 check "file dei browser non elencato" "no" "$(q "$U/api/list?path=System" | grep -q browsers && echo si || echo no)"
 # mosaik.local: domanda mDNS da un'altra porta (come fanno i programmi semplici), risposta diretta
 cat > mdns.py <<'P'
@@ -165,14 +173,14 @@ check "chiusura e riepilogo" "caricati 4, cambiato 1" "$(tail -1 srv.log)"
 cat > imp.c <<'C'
 #include "fileserver.h"
 #include <stdio.h>
+#include <stdlib.h>
 const char *T(const char *k) { return k; }
 const char *plat_model(void) { return "prova"; }
 const char *update_current(void) { return "0.0.0"; }
 int main(int argc, char **argv) {
-    char d[32];
-    int n = 0;
-    if (argc < 3 || !fs_backup_info(argv[2], d, sizeof d, &n, NULL)) { puts("non un backup"); return 1; }
-    printf("%d %s\n", n, fs_backup_import(argv[1], argv[2]) ? "importato" : "errore");
+    fs_backup_t bk;
+    if (argc < 3 || !fs_backup_info(argv[2], &bk)) { puts("non un backup"); return 1; }
+    printf("%d %s\n", bk.files, fs_backup_import(argv[1], argv[2], argc > 3 ? atoi(argv[3]) : FS_PARTS_ALL) ? "importato" : "errore");
     return 0;
 }
 C
@@ -187,6 +195,9 @@ check "salvataggio importato" "vecchio" "$(cat sd/Saves/fbneo/gioco.srm)"
 check "cartella nuova creata" "nuovo" "$(cat sd/Saves/nuovo/a.srm)"
 check "core non toccato dall'importazione" "core" "$(cat sd/Cores/core.so)"
 check "nessun .part dall'importazione" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"
+echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiato > sd/Saves/nuovo/a.srm
+check "importazione dei soli BIOS" "importato" "$(./imp $W/sd r2.zip 4 2>&1 | cut -d' ' -f2)"
+check "salvataggi non toccati dall'importazione parziale" "cambiato" "$(cat sd/Saves/fbneo/gioco.srm)"
 head -c 300 r2.zip > tronco.zip
 check "zip tronco: non un backup" "non un backup" "$(./imp $W/sd tronco.zip 2>&1)"
 # codice QR: testi di varie lunghezze, letti da zbarimg

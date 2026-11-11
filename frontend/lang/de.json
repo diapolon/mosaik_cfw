@@ -72,7 +72,6 @@
     "restore_console": "Sicherung empfangen: an der Konsole bestätigen.",
     "err_notbackup": "Diese Datei ist keine Mosaik-Sicherung",
     "restore_title": "Sicherung wiederherstellen?",
-    "restore_body": "Sicherung vom %s, %d Dateien. Die aktuellen Spielstände und Einstellungen werden ersetzt.",
     "restore_go": "Wiederherstellen",
     "restoring": "Wiederherstellung %d%%",
     "restore_done": "Sicherung wiederhergestellt",
@@ -80,7 +79,6 @@
     "restore_no_games": "ROMs nicht in der Sicherung: wieder auf die Karte kopieren.",
     "restore_failed": "Wiederherstellung fehlgeschlagen",
     "import_title": "Sicherung importieren?",
-    "import_body": "Sicherung vom %s auf der Karte, %d Dateien. Ersetzt Spielstände und Einstellungen.",
     "import_go": "Importieren",
     "ev_backup": "Sicherung gesendet: %s",
     "ev_restore": "Sicherung empfangen (%s)",
@@ -137,7 +135,15 @@
     "ev_login": "Browser verbunden%s",
     "ev_fail": "Fehlgeschlagen: %s",
     "close": "Schließen",
-    "no_port": "Übertragung nicht verfügbar"
+    "no_port": "Übertragung nicht verfügbar",
+    "backup_of": "Sicherung vom %s",
+    "part_files": "%d Dateien",
+    "part_saves": "Spielstände",
+    "part_settings": "Einstellungen und Listen",
+    "part_bios": "BIOS",
+    "part_wifi": "WLAN-Netze",
+    "part_media": "Bilder",
+    "part_games": "Spiele"
   },
   "plat": {
     "title": "Plattformen",
@@ -837,11 +843,14 @@
     "erase_title": "Alles löschen?",
     "erase_body": "Spiele, Spielstände, BIOS, Bilder, Einstellungen und WLAN-Netze werden gelöscht.",
     "erase_go": "Alles löschen",
-    "erase2_title": "Bist du sicher?",
     "erase2_body": "Das lässt sich nicht rückgängig machen. Mach vorher eine Sicherung, falls du etwas brauchst.",
     "working": "Löschen…",
     "done": "Fertig, Neustart",
     "count": "%d Dateien entfernt",
-    "partial": "Einige Dateien konnten nicht entfernt werden"
+    "partial": "Einige Dateien konnten nicht entfernt werden",
+    "sure_title": "Bist du sicher?",
+    "settings2_body": "Einstellungen, Listen und WLAN-Netze lassen sich nicht wiederherstellen.",
+    "erase3_title": "Letzte Bestätigung",
+    "erase3_body": "Halte A auf Alles löschen 3 Sekunden lang gedrückt."
   }
 }

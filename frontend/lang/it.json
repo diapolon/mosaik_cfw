@@ -72,7 +72,6 @@
     "restore_console": "Backup ricevuto: conferma sulla console.",
     "err_notbackup": "Questo file non è un backup di Mosaik",
     "restore_title": "Ripristinare il backup?",
-    "restore_body": "Backup del %s, %d file. Salvataggi e impostazioni di adesso vengono sostituiti.",
     "restore_go": "Ripristina",
     "restoring": "Ripristino %d%%",
     "restore_done": "Backup ripristinato",
@@ -80,7 +79,6 @@
     "restore_no_games": "Le ROM non sono nel backup: ricopiale nella scheda.",
     "restore_failed": "Ripristino non riuscito",
     "import_title": "Importare il backup?",
-    "import_body": "Backup del %s sulla scheda, %d file. Sostituisce salvataggi e impostazioni.",
     "import_go": "Importa",
     "ev_backup": "Backup inviato: %s",
     "ev_restore": "Backup ricevuto (%s)",
@@ -137,7 +135,15 @@
     "ev_login": "Browser collegato%s",
     "ev_fail": "Non riuscito: %s",
     "close": "Chiudi",
-    "no_port": "Trasferimento non disponibile"
+    "no_port": "Trasferimento non disponibile",
+    "backup_of": "Backup del %s",
+    "part_files": "%d file",
+    "part_saves": "Salvataggi",
+    "part_settings": "Impostazioni e liste",
+    "part_bios": "BIOS",
+    "part_wifi": "Reti Wi-Fi",
+    "part_media": "Immagini",
+    "part_games": "Giochi"
   },
   "plat": {
     "title": "Piattaforme",
@@ -837,11 +843,14 @@
     "erase_title": "Cancellare tutto?",
     "erase_body": "Si cancellano giochi, salvataggi, BIOS, immagini, impostazioni e reti Wi-Fi.",
     "erase_go": "Cancella tutto",
-    "erase2_title": "Sei sicuro?",
     "erase2_body": "Non si può annullare. Se ti serve qualcosa, fai prima un backup.",
     "working": "Cancellazione…",
     "done": "Fatto, riavvio",
     "count": "%d file tolti",
-    "partial": "Alcuni file non si sono potuti togliere"
+    "partial": "Alcuni file non si sono potuti togliere",
+    "sure_title": "Sei sicuro?",
+    "settings2_body": "Impostazioni, liste e reti Wi-Fi non si potranno recuperare.",
+    "erase3_title": "Ultima conferma",
+    "erase3_body": "Tieni premuto A su Cancella tutto per 3 secondi."
   }
 }
