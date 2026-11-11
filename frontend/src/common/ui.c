@@ -96,14 +96,37 @@ void ui_confirm_draw(const char *title, const char *body, const char *no, const 
     ui_text(UI.f_title, buf, x + w / 2, y + M(0.06f), t->text, ALIGN_CENTER);
     ui_text_fit(UI.f_small, body, w - M(0.06f), buf, sizeof buf);
     ui_text(UI.f_small, buf, x + w / 2, y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
-    int bw = (w - M(0.03f) * 3) / 2, bh = M(0.085f), by = y + h - bh - M(0.04f);
     const char *labels[2] = { no, yes };
-    for (int i = 0; i < 2; i++) {
-        int bx = x + M(0.03f) + i * (bw + M(0.03f));
+    ui_popup_buttons(x, y, w, h, labels, 2, sel, -1);
+}
+
+int ui_popup_buttons_h(void) { return M(0.085f) + M(0.04f) + M(0.02f); }
+
+void ui_popup_buttons(int x, int y, int w, int h, const char *const *labels, int n, int sel, int danger) {
+    theme_t *t = &UI.th;
+    if (n < 1) return;
+    /* un pulsante solo: al centro, largo come uno di due */
+    int gap = M(0.03f), bw = n == 1 ? (w - gap * 3) / 2 : (w - gap * (n + 1)) / n, bh = M(0.085f), by = y + h - bh - M(0.04f);
+    for (int i = 0; i < n; i++) {
+        int bx = n == 1 ? x + (w - bw) / 2 : x + gap + i * (bw + gap);
         bool on = sel == i;
-        ui_rrect(bx, by, bw, bh, bh / 2, on ? t->accent : with_alpha(t->text_dim, 40));
-        ui_text(UI.f_normal, labels[i], bx + bw / 2, by + (bh - TTF_FontHeight(UI.f_normal)) / 2, on ? t->accent_text : t->text, ALIGN_CENTER);
+        color_t bg = on ? (i == danger ? rgba(220, 70, 70, 255) : t->accent) : with_alpha(t->text_dim, 40);
+        ui_rrect(bx, by, bw, bh, bh / 2, bg);
+        TTF_Font *f = ui_text_w(UI.f_normal, labels[i]) > bw - M(0.02f) ? UI.f_small : UI.f_normal;
+        color_t fg = on ? (i == danger ? rgba(255, 255, 255, 255) : t->accent_text) : t->text;
+        ui_text(f, labels[i], bx + bw / 2, by + (bh - TTF_FontHeight(f)) / 2, fg, ALIGN_CENTER);
     }
+}
+
+int ui_popup_input(int *sel, int n) {
+    input_t *in = &UI.in;
+    if (n > 1 && in->pressed[BTN_LEFT] && *sel > 0) { (*sel)--; ui_sound(SND_MOVE); }
+    if (n > 1 && in->pressed[BTN_RIGHT] && *sel < n - 1) { (*sel)++; ui_sound(SND_MOVE); }
+    if (*sel >= n) *sel = n - 1;
+    if (*sel < 0) *sel = 0;
+    if (in->pressed[BTN_B]) return -2;
+    if (in->pressed[BTN_A]) return *sel;
+    return -1;
 }
 
 /* tasti della finestra: 1 sì, 0 no, -1 ancora aperta. Il tasto di accensione conferma. */

@@ -2763,9 +2763,9 @@ static void sdinfo_draw(void) {
     TTF_Font *f = UI.f_normal, *fs = UI.f_small;
     int fh = TTF_FontHeight(f), sh = TTF_FontHeight(fs), rh = fh + M(0.008f);
     int w = M(0.9f), pad = M(0.04f);
-    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + M(0.03f) + M(0.015f) + sh + M(0.03f) + nsdrows * rh + M(0.02f) + sh + pad;
-    if (h > UI.h - M(t->hintbar_h) - M(0.02f)) h = UI.h - M(t->hintbar_h) - M(0.02f);
-    int x = (UI.w - w) / 2, y = (UI.h - M(t->hintbar_h) - h) / 2, r = M(t->panel_radius) * 2;
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + M(0.03f) + M(0.015f) + sh + M(0.03f) + nsdrows * rh + M(0.02f) + sh + pad + ui_popup_buttons_h() - pad;
+    if (h > UI.h - M(0.04f)) h = UI.h - M(0.04f);
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(x, y, w, h, r, t->surface);
     int cy = y + pad, lx = x + pad, rx = x + w - pad, bw = w - 2 * pad;
@@ -2793,7 +2793,7 @@ static void sdinfo_draw(void) {
         ui_text(fs, T("sdinfo.unknown"), lx, cy, t->text_dim, ALIGN_LEFT);
     }
     cy += sh + M(0.03f);
-    int bottom = y + h - pad - sh - M(0.02f);
+    int foot = y + h - ui_popup_buttons_h() - sh, bottom = foot - M(0.02f);   /* sopra il pulsante */
     for (int i = 0; i < nsdrows && cy + rh <= bottom; i++) {
         sdrow_t *rw = &sdrows[i];
         ui_text(f, rw->label, lx, cy, t->text, ALIGN_LEFT);
@@ -2809,9 +2809,9 @@ static void sdinfo_draw(void) {
     const char *model = plat_model();
     snprintf(line, sizeof line, T("sdinfo.footer"), update_current(),
              model ? (!strcmp(model, "brickpro") ? "TrimUI Brick Pro" : "TrimUI Smart Pro") : device_label(UI.set.device));
-    ui_text(fs, line, lx, y + h - pad - sh, t->text_dim, ALIGN_LEFT);
-    const char *hint[] = { "B", T("common.back") };
-    ui_hints(hint, 2);
+    ui_text(fs, line, lx, foot, t->text_dim, ALIGN_LEFT);
+    const char *label[1] = { T("common.ok") };
+    ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
 }
 
 /* Pulisci immagini: le immagini in Media/<tipo>/ di giochi che non sono sulla scheda (ROM
@@ -2933,16 +2933,8 @@ static void clean_draw(void) {
     int n = ui_wrap(UI.f_small, body, w - M(0.08f), lines, 2);
     int ty = y + M(0.05f) + TTF_FontHeight(UI.f_title) + M(0.015f);
     for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], x + w / 2, ty + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_CENTER);
-    int bw = (w - M(0.09f)) / 2, bh = M(0.085f), by = y + h - bh - M(0.04f);
     const char *labels[2] = { T("common.cancel"), T("clean.delete") };
-    for (int i = 0; i < 2; i++) {
-        int bx = x + M(0.03f) + i * (bw + M(0.03f));
-        bool sel = clean_sel == i;
-        ui_rrect(bx, by, bw, bh, bh / 2, sel ? (i == 1 ? rgba(220, 70, 70, 255) : t->accent) : with_alpha(t->text_dim, 40));
-        ui_text(UI.f_normal, labels[i], bx + bw / 2, by + (bh - TTF_FontHeight(UI.f_normal)) / 2, sel ? rgba(255, 255, 255, 255) : t->text, ALIGN_CENTER);
-    }
-    const char *hint[] = { "B", T("common.cancel"), "<>", T("common.change"), "A", T("common.ok") };
-    ui_hints(hint, 6);
+    ui_popup_buttons(x, y, w, h, labels, 2, clean_sel, 1);
 }
 
 /* Aggiorna sistema: cerca, chiede conferma, scarica, verifica, installa e riavvia */
@@ -3010,52 +3002,60 @@ static bool upd_battery_ok(void) {
     return false;
 }
 
+/* pulsanti della finestra secondo la fase; con due, il secondo è l'azione (scelto all'inizio) */
+static int upd_sel = 1, upd_sel_phase = -1;
+static int upd_buttons(const update_status_t *s, const char **labels) {
+    int p = s->phase;
+    if (p == UPD_AVAILABLE) { labels[0] = T("common.cancel"); labels[1] = T("update.download"); return 2; }
+    if (p == UPD_READY) { labels[0] = T("common.cancel"); labels[1] = T("update.install"); return 2; }
+    if (p == UPD_DONE) { labels[0] = T("update.restart"); return 1; }
+    if (p == UPD_INSTALL) return 0;
+    if (upd_busy()) { labels[0] = T("common.cancel"); return 1; }
+    labels[0] = T("common.ok");
+    return 1;
+}
+
 static void upd_input(void) {
-    input_t *in = &UI.in;
     const update_status_t *s = update_status();
     last_input = UI.t;   /* niente salvaschermo o spegnimento automatico durante l'aggiornamento */
-    if (upd_busy()) {
-        if (in->pressed[BTN_B] && s->phase != UPD_INSTALL) { update_cancel(); ui_sound(SND_BACK); }
+    const char *labels[2];
+    int n = upd_buttons(s, labels);
+    if (upd_sel_phase != s->phase) { upd_sel_phase = s->phase; upd_sel = n - 1; }
+    if (!n) return;
+    int r = ui_popup_input(&upd_sel, n);
+    if (r == -1) return;
+    bool action = n == 2 ? r == 1 : r == 0;   /* B (-2) annulla sempre */
+    if (upd_busy()) { if (s->phase != UPD_INSTALL) { update_cancel(); ui_sound(SND_BACK); } return; }
+    if (s->phase == UPD_AVAILABLE) {
+        if (action) { update_install(); ui_sound(SND_OK); }
+        else { update_join(); upd_open = false; ui_sound(SND_BACK); }
         return;
     }
-    if (s->phase == UPD_AVAILABLE && in->pressed[BTN_A]) { update_install(); ui_sound(SND_OK); return; }
     if (s->phase == UPD_READY) {
-        if (in->pressed[BTN_A]) {
+        if (action) {
             if (!upd_battery_ok()) { ui_sound(SND_ERROR); return; }
             update_apply(); ui_sound(SND_OK);
         }
-        else if (in->pressed[BTN_B]) { update_discard(); ui_sound(SND_BACK); }
+        else { update_discard(); ui_sound(SND_BACK); }
         return;
     }
-    if (s->phase == UPD_DONE) { if (in->pressed[BTN_A]) { update_join(); upd_reboot(); } return; }
-    if (in->pressed[BTN_A] || in->pressed[BTN_B]) { update_join(); upd_open = false; ui_sound(SND_BACK); }
+    if (s->phase == UPD_DONE) { if (r == 0) { update_join(); upd_reboot(); } return; }   /* solo A riavvia */
+    update_join(); upd_open = false; ui_sound(SND_BACK);
 }
 
 static void upd_draw(void) {
     theme_t *t = &UI.th;
     const update_status_t *s = update_status();
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
-    /* con l'invito a riscrivere la SD la spiegazione può prendere una riga in più */
-    int w = M(0.95f), h = M(0.42f) + (s->reinstall ? TTF_FontHeight(UI.f_small) : 0), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
-    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
-    if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
-    int pad = M(0.05f), ty = y + pad, bw = w - 2 * pad;
-    char upd_title[120];
-    snprintf(upd_title, sizeof upd_title, "%s%s%s", T("update.title"), UI.set.update_channel ? " · " : "", UI.set.update_channel ? T("update.channel_dev") : "");
-    ui_text(UI.f_title, upd_title, x + pad, ty, t->text, ALIGN_LEFT);
-    ty += TTF_FontHeight(UI.f_title) + M(0.03f);
-    char line[200], key[32], size[32], sub[400] = "";
+    char line[200], key[32], sub[400] = "";
     switch (s->phase) {
     case UPD_SEARCH: snprintf(line, sizeof line, "%s", T("update.searching")); break;
     case UPD_CHECK: snprintf(line, sizeof line, "%s", T("update.checking")); break;
     case UPD_NO_SERVER: snprintf(line, sizeof line, "%s", T("update.none")); snprintf(sub, sizeof sub, "%s", T("update.none_hint")); break;
     case UPD_CURRENT: snprintf(line, sizeof line, "%s", T("update.current")); snprintf(sub, sizeof sub, "%s", update_current()); break;
     case UPD_AVAILABLE:
-        fmt_bytes(s->total, size, sizeof size);
         snprintf(line, sizeof line, T("update.available"), s->version);
-        snprintf(sub, sizeof sub, T("update.details_max"), update_current(), size);
-        if (s->reinstall) { size_t l = strlen(sub); snprintf(sub + l, sizeof sub - l, " %s", T("update.reinstall")); }
+        if (s->reinstall) snprintf(sub, sizeof sub, "%s", T("update.reinstall"));
         break;
     case UPD_DOWNLOAD: case UPD_VERIFY: snprintf(line, sizeof line, "%s", T("update.downloading")); break;
     case UPD_READY:
@@ -3073,36 +3073,42 @@ static void upd_draw(void) {
         snprintf(line, sizeof line, "%s", T(key));
         snprintf(sub, sizeof sub, "%s", T("update.err_safe"));
     }
+    bool bar = s->phase == UPD_CHECK || s->phase == UPD_DOWNLOAD || s->phase == UPD_VERIFY || s->phase == UPD_INSTALL;
+    if (bar && s->total) {
+        char a[32], b[32];
+        fmt_bytes(s->done, a, sizeof a);
+        fmt_bytes(s->total, b, sizeof b);
+        snprintf(sub, sizeof sub, "%s / %s", a, b);
+    }
+    /* finestra alta quanto il contenuto, pulsanti dentro come in sospensione e spegnimento */
+    const char *blabels[2];
+    int nb = upd_buttons(s, blabels);
+    int w = M(0.95f), pad = M(0.05f), bw = w - 2 * pad, bh = M(0.02f), sh = TTF_FontHeight(UI.f_small);
+    char lines[3][160];
+    int nl = sub[0] ? ui_wrap(UI.f_small, sub, bw, lines, 3) : 0;
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.03f) + TTF_FontHeight(UI.f_normal) + M(0.03f)
+          + (bar ? bh + M(0.03f) : 0) + nl * sh + (nb ? ui_popup_buttons_h() : pad);
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
+    int ty = y + pad;
+    char upd_title[120];
+    snprintf(upd_title, sizeof upd_title, "%s%s%s", T("update.title"), UI.set.update_channel ? " · " : "", UI.set.update_channel ? T("update.channel_dev") : "");
+    ui_text(UI.f_title, upd_title, x + pad, ty, t->text, ALIGN_LEFT);
+    ty += TTF_FontHeight(UI.f_title) + M(0.03f);
     ui_text(UI.f_normal, line, x + pad, ty, s->phase == UPD_FAILED ? rgba(220, 70, 70, 255) : t->text, ALIGN_LEFT);
     ty += TTF_FontHeight(UI.f_normal) + M(0.03f);
-    if (s->phase == UPD_CHECK || s->phase == UPD_DOWNLOAD || s->phase == UPD_VERIFY || s->phase == UPD_INSTALL) {
-        int bh = M(0.02f);
+    if (bar) {
         float frac = s->total ? (float)s->done / (float)s->total : 0.f;
         if (s->phase == UPD_INSTALL) frac = 1.f;
         if (frac > 1) frac = 1;
         ui_rrect(x + pad, ty, bw, bh, bh / 2, with_alpha(t->text_dim, 70));
         if (frac > 0) ui_rrect(x + pad, ty, (int)(bw * frac), bh, bh / 2, t->accent);
         ty += bh + M(0.03f);
-        if (s->total) {
-            char a[32], b[32];
-            fmt_bytes(s->done, a, sizeof a);
-            fmt_bytes(s->total, b, sizeof b);
-            snprintf(sub, sizeof sub, "%s / %s", a, b);
-        }
     }
-    if (sub[0]) {
-        char lines[3][160];
-        int n = ui_wrap(UI.f_small, sub, bw, lines, s->reinstall ? 3 : 2);
-        for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_LEFT);
-    }
-    int hb = M(t->hintbar_h);
-    ui_rect(0, UI.h - hb, UI.w, hb, t->bg);
-    if (s->phase == UPD_AVAILABLE) { const char *h2[] = { "B", T("common.cancel"), "A", T("update.download") }; ui_hints(h2, 4); }
-    else if (s->phase == UPD_READY) { const char *h2[] = { "B", T("common.cancel"), "A", T("update.install") }; ui_hints(h2, 4); }
-    else if (s->phase == UPD_DONE) { const char *h2[] = { "A", T("update.restart") }; ui_hints(h2, 2); }
-    else if (s->phase == UPD_INSTALL) {}
-    else if (upd_busy()) { const char *h2[] = { "B", T("common.cancel") }; ui_hints(h2, 2); }
-    else { const char *h2[] = { "A", T("common.ok") }; ui_hints(h2, 2); }
+    for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text_dim, ALIGN_LEFT);
+    ui_popup_buttons(x, y, w, h, blabels, nb, upd_sel_phase == s->phase ? upd_sel : nb - 1, -1);
 }
 
 /* Generi: scelta per il singolo gioco (opzioni della scheda) e gestione (Impostazioni > Giochi):
@@ -3815,6 +3821,7 @@ static void setup_finish(bool wifi) {
     }
 }
 
+static int setup_sel = 1;
 static void setup_input(void) {
     input_t *in = &UI.in;
     if (setup_step == 1) {
@@ -3826,8 +3833,9 @@ static void setup_input(void) {
             else setup_finish(false);
         }
     } else {
-        if (in->pressed[BTN_A]) { ui_sound(SND_OK); setup_finish(true); }
-        else if (in->pressed[BTN_B]) { ui_sound(SND_BACK); setup_finish(false); }
+        int r = ui_popup_input(&setup_sel, 2);   /* "Più tardi" o "Collega" */
+        if (r == 1) { ui_sound(SND_OK); setup_finish(true); }
+        else if (r == 0 || r == -2) { ui_sound(SND_BACK); setup_finish(false); }
     }
 }
 
@@ -3852,13 +3860,14 @@ static void setup_draw(void) {
     } else {
         char lines[4][160];
         int n = ui_wrap(UI.f_normal, T("setup.wifi_body"), tw, lines, 4);
-        panel_box(w, pad * 2 + ft + M(0.03f) + fn * n, &x, &y);
+        int h = pad + ft + M(0.03f) + fn * n + ui_popup_buttons_h();
+        panel_box(w, h, &x, &y);
         int ty = y + pad;
         ui_text(UI.f_title, T("setup.wifi_title"), x + pad, ty, t->text, ALIGN_LEFT);
         ty += ft + M(0.03f);
         for (int i = 0; i < n; i++, ty += fn) ui_text(UI.f_normal, lines[i], x + pad, ty, t->text, ALIGN_LEFT);
-        const char *hint[] = { "B", T("setup.later"), "A", T("setup.connect") };
-        ui_hints(hint, 4);
+        const char *labels[2] = { T("setup.later"), T("setup.connect") };
+        ui_popup_buttons(x, y, w, h, labels, 2, setup_sel, -1);
     }
 }
 
@@ -4207,6 +4216,7 @@ static void diag_draw(void) {
     int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.01f) + fs + M(0.03f) + fn + M(0.015f) + fn * nb, x, y;
     if (nm) h += M(0.02f) + fs * nm;
     if (nf) h += M(0.02f) + fs * nf;
+    h += ui_popup_buttons_h() - pad;
     panel_box(w, h, &x, &y);
     int ty = y + pad;
     ui_text(UI.f_title, T("diag.title"), x + pad, ty, t->text, ALIGN_LEFT);
@@ -4221,8 +4231,8 @@ static void diag_draw(void) {
     for (int i = 0; i < nm; i++, ty += fs) ui_text(UI.f_small, mlines[i], x + pad, ty, t->text_dim, ALIGN_LEFT);
     if (nf) ty += M(0.02f);
     for (int i = 0; i < nf; i++, ty += fs) ui_text(UI.f_small, flines[i], x + pad, ty, t->text_dim, ALIGN_LEFT);
-    const char *hint[] = { "A", T("common.ok") };
-    ui_hints(hint, 2);
+    const char *label[1] = { T("common.ok") };
+    ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
 }
 
 /* ------------------------------------------------- gestione delle collezioni */
@@ -4658,8 +4668,9 @@ static void detail_draw(void) {
 static void romcheck_input(void) {
     last_input = UI.t;   /* niente spegnimento automatico mentre lavora */
     const romcheck_status_t *s = romcheck_status();
-    if (!s->finished && UI.in.pressed[BTN_B]) { romcheck_cancel(); ui_sound(SND_BACK); }
-    if (s->finished && (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B])) {
+    bool press = UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B];
+    if (!s->finished && press) { romcheck_cancel(); ui_sound(SND_BACK); }
+    if (s->finished && press) {
         romcheck_join();
         romcheck_open = false;
         romcheck_load(UI.root, games, ngames);
@@ -4672,7 +4683,7 @@ static void romcheck_draw(void) {
     theme_t *t = &UI.th;
     const romcheck_status_t *s = romcheck_status();
     int pad = M(0.05f), w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
-    int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.03f) + TTF_FontHeight(UI.f_normal) * 2 + M(0.06f) + TTF_FontHeight(UI.f_small) * 3, x, y;
+    int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.03f) + TTF_FontHeight(UI.f_normal) * 2 + M(0.06f) + TTF_FontHeight(UI.f_small) * 3 + ui_popup_buttons_h() - pad, x, y;
     panel_box(w, h, &x, &y);
     int ty = y + pad;
     ui_text(UI.f_title, T("rom.title"), x + pad, ty, t->text, ALIGN_LEFT);
@@ -4692,8 +4703,8 @@ static void romcheck_draw(void) {
     for (int i = 0; i < nl; i++, ty += TTF_FontHeight(UI.f_small)) ui_text(UI.f_small, lines[i], x + pad, ty, t->text, ALIGN_LEFT);
     snprintf(line, sizeof line, T("rom.summary2"), s->count[RC_NOTINDAT], s->count[RC_UNCHECKED]);
     ui_text(UI.f_small, line, x + pad, ty, t->text_dim, ALIGN_LEFT);
-    const char *hint[] = { s->finished ? "A" : "B", T(s->finished ? "common.ok" : "scrape.stop") };
-    ui_hints(hint, 2);
+    const char *label[1] = { T(s->finished ? "common.ok" : "scrape.stop") };
+    ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
 }
 
 /* ------------------------------------------------ filtri e ricerca */
@@ -4946,8 +4957,10 @@ static void scrape_input(void) {
     last_input = UI.t;   /* niente spegnimento automatico mentre lavora */
     const scrape_status_t *s = scraper_status();
     bool finished = s->phase == SCRAPE_DONE || s->phase == SCRAPE_FAILED;
-    if (!finished && UI.in.pressed[BTN_B]) { scraper_cancel(); ui_sound(SND_BACK); }
-    if (finished && (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B])) {
+    /* un pulsante solo nella finestra: "Interrompi" mentre lavora, "OK" alla fine */
+    bool press = UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B];
+    if (!finished && press && !s->cancel) { scraper_cancel(); ui_sound(SND_BACK); }
+    if (finished && press) {
         scraper_join();
         scrape_open = false;
         ui_image_forget_missing();
@@ -4960,11 +4973,14 @@ static void scrape_draw(void) {
     theme_t *t = &UI.th;
     const scrape_status_t *s = scraper_status();
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
-    int w = M(0.95f), h = M(0.42f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    int pad = M(0.05f), bh = M(0.02f);
+    int w = M(0.95f), h = pad + TTF_FontHeight(UI.f_title) + M(0.03f) + TTF_FontHeight(UI.f_normal) + M(0.03f) + bh + M(0.03f)
+                        + TTF_FontHeight(UI.f_small) + ui_popup_buttons_h();
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(x, y, w, h, r, t->surface);
     if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));   /* temi con superfici trasparenti */
-    int pad = M(0.05f), ty = y + pad;
+    int ty = y + pad;
     ui_text(UI.f_title, T("scrape.title"), x + pad, ty, t->text, ALIGN_LEFT);
     ty += TTF_FontHeight(UI.f_title) + M(0.03f);
     char line[200];
@@ -4973,7 +4989,7 @@ static void scrape_draw(void) {
     ui_text(UI.f_normal, phase, x + pad, ty, t->text_dim, ALIGN_LEFT);
     ty += TTF_FontHeight(UI.f_normal) + M(0.03f);
     /* barra di avanzamento */
-    int bw = w - 2 * pad, bh = M(0.02f);
+    int bw = w - 2 * pad;
     float frac = s->total ? (float)s->done / s->total : (s->phase == SCRAPE_DONE ? 1.f : 0.f);
     ui_rrect(x + pad, ty, bw, bh, bh / 2, with_alpha(t->text_dim, 70));
     if (frac > 0) ui_rrect(x + pad, ty, (int)(bw * frac), bh, bh / 2, t->accent);
@@ -4981,10 +4997,8 @@ static void scrape_draw(void) {
     snprintf(line, sizeof line, T("scrape.progress"), s->done, s->total, s->saved, s->missing);
     ui_text(UI.f_small, line, x + pad, ty, t->text_dim, ALIGN_LEFT);
     bool finished = s->phase == SCRAPE_DONE || s->phase == SCRAPE_FAILED;
-    int hb = M(t->hintbar_h);
-    ui_rect(0, UI.h - hb, UI.w, hb, t->bg);   /* copre gli aiuti della schermata sotto */
-    const char *hint[] = { finished ? "A" : "B", T(finished ? "common.ok" : "scrape.stop") };
-    ui_hints(hint, 2);
+    const char *label[1] = { T(finished ? "common.ok" : "scrape.stop") };
+    ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
 }
 
 /* ---------------------------------------------- salvaschermo, batteria */
