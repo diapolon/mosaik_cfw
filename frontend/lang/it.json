@@ -731,5 +731,9 @@
     "no_preview": "Nessuna anteprima",
     "load_failed": "Questo salvataggio non si carica: forse è di un'altra versione del gioco",
     "note": "Caricando uno slot, la partita in corso resta nel salvataggio automatico."
+  },
+  "sdbad": {
+    "title": "La scheda SD non risponde",
+    "body": "Dopo il risveglio la console non legge più la scheda. Riavviala: giochi e salvataggi restano."
   }
 }

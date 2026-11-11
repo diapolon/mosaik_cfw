@@ -115,6 +115,21 @@ if [ "$(cat "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
 fi
 # si riapre solo quando il codec si è assestato, altrimenti si sente il crack
 if [ -z "$ARCADE_KEEP_MUTE" ]; then sleep 0.4; unmute; fi
+# La SD risponde ancora? Una volta (Smart Pro, dopo la sospensione automatica) dopo il risveglio
+# niente si scriveva più sulla scheda e nessun gioco partiva. Scrittura, sync e rilettura in
+# sottofondo, al massimo 5 s: con la scheda bloccata sync non tornerebbe più. Se non risponde,
+# lo si scrive nei messaggi del kernel e in /run (in memoria) e il launcher propone di riavviare.
+rm -f /run/sd-ok
+( echo ok > "$ROOT/System/.prova-sd" && sync && [ "$(cat "$ROOT/System/.prova-sd")" = ok ] \
+    && rm -f "$ROOT/System/.prova-sd" && : > /run/sd-ok ) 2> /dev/null &
+i=0
+while [ $i -lt 25 ] && [ ! -f /run/sd-ok ]; do sleep 0.2; i=$((i + 1)); done
+if [ ! -f /run/sd-ok ]; then
+    echo "arcade: la SD non risponde dopo il risveglio (sospensione $r, tentativi $tries)" > /dev/kmsg
+    { echo "risveglio senza SD: $(date)"; dmesg | tail -60; } > /run/sd-guasta 2>&1
+    [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
+    exit 0
+fi
 step "risveglio (sospensione $r, tentativi $tries, batteria $(battery)%)"
 sync   # la riga del risveglio sulla SD anche se poi la console viene spenta a forza
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )

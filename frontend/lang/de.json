@@ -731,5 +731,9 @@
     "no_preview": "Keine Vorschau",
     "load_failed": "Dieser Spielstand lässt sich nicht laden: vielleicht von einer anderen Spielversion",
     "note": "Beim Laden eines Platzes bleibt das laufende Spiel im automatischen Speicherstand."
+  },
+  "sdbad": {
+    "title": "Die SD-Karte antwortet nicht",
+    "body": "Nach dem Aufwachen liest die Konsole die Karte nicht mehr. Neu starten: Spiele und Spielstände bleiben erhalten."
   }
 }

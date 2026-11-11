@@ -731,5 +731,9 @@
     "no_preview": "Pas d'aperçu",
     "load_failed": "Cette sauvegarde ne se charge pas : elle vient peut-être d'une autre version du jeu",
     "note": "En chargeant un emplacement, la partie en cours reste dans la sauvegarde automatique."
+  },
+  "sdbad": {
+    "title": "La carte SD ne répond pas",
+    "body": "Après le réveil, la console ne lit plus la carte. Redémarrez-la : les jeux et les sauvegardes sont conservés."
   }
 }

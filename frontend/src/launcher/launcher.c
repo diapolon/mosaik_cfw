@@ -3018,6 +3018,30 @@ static bool upd_battery_ok(void) {
    lo ricontrolla (update_resume_start) e chiede se installarlo. Più tardi lo tiene per l'avvio
    dopo, Elimina cancella i file scaricati. */
 static bool rdy_open, rdy_asked;
+/* SD che non risponde più dopo un risveglio (arcade-suspend scrive /run/sd-guasta): l'unica
+   cosa da fare è riavviare. Nessuna scrittura sulla scheda: non tornerebbe più. */
+static bool sdbad_open;
+static void sdbad_input(void) {
+    if (UI.in.pressed[BTN_A]) {
+        ui_log("SD che non risponde: riavvio");
+        _exit(21);   /* system-init vede /run/sd-guasta e riavvia subito dal kernel */
+    }
+}
+static void sdbad_draw(void) {
+    theme_t *t = &UI.th;
+    char lines[3][160];
+    int w = M(0.85f), pad = M(0.05f), sh = TTF_FontHeight(UI.f_small);
+    int nl = ui_wrap(UI.f_small, T("sdbad.body"), w - 2 * pad, lines, 3);
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + ui_popup_buttons_h();
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 160));
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_text(UI.f_title, T("sdbad.title"), x + pad, y + pad, rgba(230, 130, 20, 255), ALIGN_LEFT);
+    int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
+    const char *label[1] = { T("common.restart") };
+    ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
+}
 static int rdy_sel = 2;
 
 static bool upd_battery_ok(void);
@@ -5305,7 +5329,14 @@ int main(int argc, char **argv) {
             notify_started = true;
             update_notify_start(UI.root, UI.set.update_channel);
         }
-        if (dlg_open && dlg_suspend) {
+        /* SD bloccata dopo un risveglio: prima di tutto il resto */
+        static double sdbad_t;
+        if (!sdbad_open && plat_standalone() && UI.t - sdbad_t > 1.0) {
+            sdbad_t = UI.t;
+            sdbad_open = access("/run/sd-guasta", F_OK) == 0 || getenv("ARCADE_TEST_SDBAD");
+        }
+        if (sdbad_open) sdbad_input();
+        else if (dlg_open && dlg_suspend) {
             int r = ui_confirm_input(&dlg_sel);
             if (r >= 0) dlg_open = dlg_suspend = false;
             if (r == 1) { ui_suspend(); last_input = UI.t; }
@@ -5344,7 +5375,7 @@ int main(int argc, char **argv) {
         upd_audio();
         /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
         if (UI.t > 0.4) plat_audio_release();
-        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open;
+        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open;
         /* nei primi 30 s il Wi-Fi carica il driver e si collega: niente cambi di frequenza della CPU */
         bool idle = !working && !UI.automation && UI.t > 30 && UI.t - last_input > IDLE_AFTER_S;
         plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);
@@ -5395,6 +5426,7 @@ int main(int argc, char **argv) {
         if (ptest_open) ptest_draw();
         if (setup_step) setup_draw();
         if (rdy_open) rdy_draw();
+        if (sdbad_open) sdbad_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
         if (first_frame) {

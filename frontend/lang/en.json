@@ -731,5 +731,9 @@
     "no_preview": "No preview",
     "load_failed": "This save won't load: it may be from another version of the game",
     "note": "When you load a slot, the current game stays in the automatic save."
+  },
+  "sdbad": {
+    "title": "The SD card does not respond",
+    "body": "After waking, the console can no longer read the card. Restart it: games and saves are kept."
   }
 }

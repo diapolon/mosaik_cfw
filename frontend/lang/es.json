@@ -731,5 +731,9 @@
     "no_preview": "Sin vista previa",
     "load_failed": "Esta partida no se carga: quizá es de otra versión del juego",
     "note": "Al cargar una ranura, la partida en curso queda en el guardado automático."
+  },
+  "sdbad": {
+    "title": "La tarjeta SD no responde",
+    "body": "Tras despertar, la consola ya no lee la tarjeta. Reiníciala: los juegos y las partidas se conservan."
   }
 }

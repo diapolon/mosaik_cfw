@@ -731,5 +731,9 @@
     "no_preview": "Sem pré-visualização",
     "load_failed": "Esta gravação não carrega: talvez seja de outra versão do jogo",
     "note": "Ao carregar uma ranhura, o jogo em curso fica na gravação automática."
+  },
+  "sdbad": {
+    "title": "O cartão SD não responde",
+    "body": "Depois de acordar, a consola já não lê o cartão. Reinicia-a: os jogos e os progressos mantêm-se."
   }
 }

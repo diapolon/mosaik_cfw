@@ -483,6 +483,14 @@ fails=0
 while :; do
     step "10 AVVIO DEL LAUNCHER"
     run_app "$BIN/launcher" --root "$ROOT"
+    # SD bloccata dopo un risveglio (arcade-suspend): niente scritture, che non tornerebbero
+    # più. Riavvio subito dal kernel; col caricatore si spegne (U-Boot resterebbe nella carica)
+    if [ -f /run/sd-guasta ]; then
+        echo "arcade: riavvio senza SD" > /dev/kmsg
+        if charger_online; then axpctl poweroff 2> /dev/null; fi
+        echo b > /proc/sysrq-trigger
+        reboot -f
+    fi
     step "launcher: uscita $rc"
     case $rc in
     10) fails=0 ;;
