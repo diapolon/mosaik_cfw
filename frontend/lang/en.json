@@ -152,7 +152,8 @@
     "led_color": "LED colour",
     "led_brightness": "LED brightness",
     "autosave_exit": "Save when leaving a game",
-    "box_covers": "Box art as cover"
+    "box_covers": "Box art as cover",
+    "speaker_rest": "Speaker at rest"
   },
   "settings_desc": {
     "restart": "Restarts Mosaik. Settings and favorites are already saved.",
@@ -201,7 +202,8 @@
     "led_color": "Light colour; “Theme” uses the main colour of the chosen theme.",
     "led_brightness": "Brightness of the console lights.",
     "autosave_exit": "When you leave to the menu, the game goes into the automatic save, and on the home screen you pick it up with “Resume”. Off: it is saved only when the console turns off or sleeps.",
-    "box_covers": "For console games, show the box, if it was downloaded, instead of the screenshot."
+    "box_covers": "For console games, show the box, if it was downloaded, instead of the screenshot.",
+    "speaker_rest": "The hiss comes from the amplifier: off after 4 s without sound, back on at the next sound. A and B: two ways of switching it off, to compare."
   },
   "aspect": {
     "original": "Original",
@@ -735,5 +737,10 @@
   "sdbad": {
     "title": "The SD card does not respond",
     "body": "After waking, the console can no longer read the card. Restart it: games and saves are kept."
+  },
+  "speaker": {
+    "always": "Always on",
+    "rest_a": "Off (A)",
+    "rest_b": "Off (B)"
   }
 }

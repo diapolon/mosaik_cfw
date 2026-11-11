@@ -152,7 +152,8 @@
     "led_color": "Cor dos LED",
     "led_brightness": "Brilho dos LED",
     "autosave_exit": "Guardar ao sair do jogo",
-    "box_covers": "Caixa como capa"
+    "box_covers": "Caixa como capa",
+    "speaker_rest": "Altifalante em repouso"
   },
   "settings_desc": {
     "restart": "Reinicia o Mosaik. Definições e favoritos já estão guardados.",
@@ -201,7 +202,8 @@
     "led_color": "Cor das luzes; «Tema» usa a cor principal do tema escolhido.",
     "led_brightness": "Intensidade das luzes da consola.",
     "autosave_exit": "Ao sair para o menu, o jogo vai para a gravação automática e no início retomas com «Continuar». Desligado: só se grava ao desligar e em suspensão.",
-    "box_covers": "Nos jogos de consola mostra a caixa, se foi descarregada, em vez da captura de ecrã."
+    "box_covers": "Nos jogos de consola mostra a caixa, se foi descarregada, em vez da captura de ecrã.",
+    "speaker_rest": "O chiado vem do amplificador: desliga após 4 s sem som e volta no som seguinte. A e B: duas formas de o desligar, para comparar."
   },
   "aspect": {
     "original": "Original",
@@ -735,5 +737,10 @@
   "sdbad": {
     "title": "O cartão SD não responde",
     "body": "Depois de acordar, a consola já não lê o cartão. Reinicia-a: os jogos e os progressos mantêm-se."
+  },
+  "speaker": {
+    "always": "Sempre ligado",
+    "rest_a": "Desligado (A)",
+    "rest_b": "Desligado (B)"
   }
 }

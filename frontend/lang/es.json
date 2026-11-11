@@ -152,7 +152,8 @@
     "led_color": "Color de los LED",
     "led_brightness": "Brillo de los LED",
     "autosave_exit": "Guardar al salir del juego",
-    "box_covers": "Caja como portada"
+    "box_covers": "Caja como portada",
+    "speaker_rest": "Altavoz en reposo"
   },
   "settings_desc": {
     "restart": "Reinicia Mosaik. Los ajustes y favoritos ya están guardados.",
@@ -201,7 +202,8 @@
     "led_color": "Color de las luces; «Tema» usa el color principal del tema elegido.",
     "led_brightness": "Intensidad de las luces de la consola.",
     "autosave_exit": "Al salir al menú, la partida va al guardado automático y en el inicio la retomas con «Continuar». Apagado: solo se guarda al apagar la consola y en reposo.",
-    "box_covers": "En los juegos de consola muestra la caja, si se ha descargado, en lugar de la captura."
+    "box_covers": "En los juegos de consola muestra la caja, si se ha descargado, en lugar de la captura.",
+    "speaker_rest": "El siseo viene del amplificador: se apaga tras 4 s sin sonido y vuelve con el siguiente. A y B: dos formas de apagarlo, para comparar."
   },
   "aspect": {
     "original": "Original",
@@ -735,5 +737,10 @@
   "sdbad": {
     "title": "La tarjeta SD no responde",
     "body": "Tras despertar, la consola ya no lee la tarjeta. Reiníciala: los juegos y las partidas se conservan."
+  },
+  "speaker": {
+    "always": "Siempre encendido",
+    "rest_a": "Apagado (A)",
+    "rest_b": "Apagado (B)"
   }
 }

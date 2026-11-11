@@ -954,6 +954,7 @@ void ui_play_pcm(const Sint16 *stereo, int frames) {
 
 void ui_sound(int kind) {
     if ((!UI.audio && !pcm_hook) || UI.automation || !snd_buf[kind]) return;
+    plat_amp_wake();
     if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
     ui_play_pcm(snd_buf[kind], snd_len[kind]);
 }
@@ -1815,6 +1816,7 @@ void ui_exit_now(int code) {
 
 void ui_shutdown_code(int code) {
     plat_cpu_release(&UI.set);
+    plat_amp_restore();
     if (vol_save_at > 0) { vol_save_at = 0; settings_save(&UI.set, UI.root); }
     /* System/exit.txt: chi ci ha avviati sa già come siamo usciti, anche se la chiusura
        dovesse bloccarsi (sul sistema su SD lo script ci chiude dopo qualche secondo) */

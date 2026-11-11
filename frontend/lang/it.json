@@ -152,7 +152,8 @@
     "led_color": "Colore dei LED",
     "led_brightness": "Luminosità dei LED",
     "autosave_exit": "Salva uscendo dal gioco",
-    "box_covers": "Scatola come copertina"
+    "box_covers": "Scatola come copertina",
+    "speaker_rest": "Altoparlante a riposo"
   },
   "settings_desc": {
     "restart": "Riavvia Mosaik. Impostazioni e preferiti sono già salvati.",
@@ -201,7 +202,8 @@
     "led_color": "Colore delle luci; «Tema» usa il colore principale del tema scelto.",
     "led_brightness": "Intensità delle luci della console.",
     "autosave_exit": "Uscendo al menu la partita va nel salvataggio automatico e in home la ritrovi con «Riprendi». Spento: si salva solo allo spegnimento e in standby.",
-    "box_covers": "Per i giochi per console mostra la scatola, se è stata scaricata, invece della schermata."
+    "box_covers": "Per i giochi per console mostra la scatola, se è stata scaricata, invece della schermata.",
+    "speaker_rest": "Il fruscio viene dall'amplificatore: spento dopo 4 s senza suoni, si riaccende al primo suono. A e B: due modi di spegnerlo, da confrontare."
   },
   "aspect": {
     "original": "Originale",
@@ -735,5 +737,10 @@
   "sdbad": {
     "title": "La scheda SD non risponde",
     "body": "Dopo il risveglio la console non legge più la scheda. Riavviala: giochi e salvataggi restano."
+  },
+  "speaker": {
+    "always": "Sempre acceso",
+    "rest_a": "Spento (A)",
+    "rest_b": "Spento (B)"
   }
 }

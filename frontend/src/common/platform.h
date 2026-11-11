@@ -49,3 +49,10 @@ bool plat_suspend(void);
 void plat_audio_release(void);  /* primo avvio: riattiva l'audio tenuto muto da system-init */
 void plat_audio_mute(void);     /* altoparlante spento: Wi-Fi e SD al massimo lo fanno ronzare */
 void plat_audio_unmute(void);   /* dopo il risveglio, a uscita audio riaperta */
+/* Amplificatore spento a riposo (fruscio della Brick Pro, issue #4): method 0 = sempre acceso.
+   plat_amp_wake prima di un suono; plat_amp_idle a ogni fotogramma (keep: musica o altro audio
+   in corso); plat_amp_restore prima di uscire (il runner lo vuole acceso). */
+void plat_amp_config(int method);
+void plat_amp_wake(void);
+void plat_amp_idle(bool keep);
+void plat_amp_restore(void);

@@ -152,7 +152,8 @@
     "led_color": "LED-Farbe",
     "led_brightness": "LED-Helligkeit",
     "autosave_exit": "Beim Verlassen speichern",
-    "box_covers": "Verpackung als Cover"
+    "box_covers": "Verpackung als Cover",
+    "speaker_rest": "Lautsprecher in Ruhe"
   },
   "settings_desc": {
     "restart": "Startet Mosaik neu. Einstellungen und Favoriten sind bereits gespeichert.",
@@ -201,7 +202,8 @@
     "led_color": "Lichtfarbe; „Thema“ nutzt die Hauptfarbe des gewählten Themas.",
     "led_brightness": "Helligkeit der Konsolenlichter.",
     "autosave_exit": "Beim Verlassen zum Menü kommt das Spiel in den automatischen Spielstand, und auf dem Startbildschirm setzt du es mit „Fortsetzen“ fort. Aus: gespeichert wird nur beim Ausschalten und im Standby.",
-    "box_covers": "Bei Konsolenspielen wird die Verpackung angezeigt, falls heruntergeladen, statt des Screenshots."
+    "box_covers": "Bei Konsolenspielen wird die Verpackung angezeigt, falls heruntergeladen, statt des Screenshots.",
+    "speaker_rest": "Das Rauschen kommt vom Verstärker: aus nach 4 s ohne Ton, beim nächsten Ton wieder an. A und B: zwei Arten, ihn auszuschalten, zum Vergleich."
   },
   "aspect": {
     "original": "Original",
@@ -735,5 +737,10 @@
   "sdbad": {
     "title": "Die SD-Karte antwortet nicht",
     "body": "Nach dem Aufwachen liest die Konsole die Karte nicht mehr. Neu starten: Spiele und Spielstände bleiben erhalten."
+  },
+  "speaker": {
+    "always": "Immer an",
+    "rest_a": "Aus (A)",
+    "rest_b": "Aus (B)"
   }
 }

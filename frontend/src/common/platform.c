@@ -12,6 +12,7 @@ bool plat_standalone(void) { const char *e = getenv("ARCADE_STANDALONE"); return
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <time.h>
 
 bool plat_is_device(void) { return true; }
 
@@ -305,8 +306,49 @@ void plat_audio_mute(void) {
     if (system("arcade-suspend mute") != 0) ui_log("audio: spegnimento non riuscito");
 }
 
+static int amp_method;
+static bool amp_off;
+static unsigned amp_t;
+static unsigned amp_ms(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (unsigned)(t.tv_sec * 1000 + t.tv_nsec / 1000000); }
+
+static void amp_set(bool on) {
+    if (amp_method == 1) {
+        FILE *f = fopen("/sys/class/speaker/mute", "w");
+        if (f) { fputs(on ? "0" : "1", f); fclose(f); }
+    } else if (amp_method == 2) {
+        if (system(on ? "amixer -q cset name='HpSpeaker Switch' on" : "amixer -q cset name='HpSpeaker Switch' off") != 0)
+            ui_log("audio: HpSpeaker Switch non riuscito");
+    }
+    amp_off = !on;
+    ui_log("altoparlante %s (metodo %d)", on ? "acceso" : "spento a riposo", amp_method);
+}
+
+void plat_amp_config(int method) {
+    if (method == amp_method) return;
+    if (amp_off) amp_set(true);   /* il metodo cambia: prima si riaccende con quello vecchio */
+    amp_method = method;
+    amp_t = amp_ms();
+}
+
+void plat_amp_wake(void) {
+    amp_t = amp_ms();
+    if (amp_method && amp_off) amp_set(true);
+}
+
+void plat_amp_idle(bool keep) {
+    if (!amp_method || amp_off) return;
+    if (keep) { amp_t = amp_ms(); return; }
+    if (amp_ms() - amp_t > 4000) amp_set(false);   /* 4 s senza suoni */
+}
+
+void plat_amp_restore(void) {
+    if (amp_off) amp_set(true);
+}
+
 void plat_audio_unmute(void) {
     if (system("arcade-suspend unmute") != 0) ui_log("audio: riattivazione non riuscita");
+    amp_off = false;   /* lo script riaccende tutto */
+    amp_t = amp_ms();
 }
 
 bool plat_set_time(time_t t) {
@@ -342,5 +384,9 @@ bool plat_suspend(void) { return false; }
 void plat_audio_release(void) {}
 void plat_audio_mute(void) {}
 void plat_audio_unmute(void) {}
+void plat_amp_config(int method) { (void)method; }
+void plat_amp_wake(void) {}
+void plat_amp_idle(bool keep) { (void)keep; }
+void plat_amp_restore(void) {}
 
 #endif

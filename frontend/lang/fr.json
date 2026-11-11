@@ -152,7 +152,8 @@
     "led_color": "Couleur des LED",
     "led_brightness": "Luminosité des LED",
     "autosave_exit": "Sauvegarder en quittant le jeu",
-    "box_covers": "Boîte comme couverture"
+    "box_covers": "Boîte comme couverture",
+    "speaker_rest": "Haut-parleur au repos"
   },
   "settings_desc": {
     "restart": "Redémarre Mosaik. Les réglages et favoris sont déjà enregistrés.",
@@ -201,7 +202,8 @@
     "led_color": "Couleur des lumières ; « Thème » utilise la couleur principale du thème choisi.",
     "led_brightness": "Intensité des lumières de la console.",
     "autosave_exit": "En quittant vers le menu, la partie va dans la sauvegarde automatique, et sur l'accueil vous la reprenez avec « Reprendre ». Désactivé : sauvegarde seulement à l'extinction et en veille.",
-    "box_covers": "Pour les jeux de console, affiche la boîte, si elle a été téléchargée, au lieu de la capture."
+    "box_covers": "Pour les jeux de console, affiche la boîte, si elle a été téléchargée, au lieu de la capture.",
+    "speaker_rest": "Le souffle vient de l'amplificateur : éteint après 4 s sans son, rallumé au son suivant. A et B : deux façons de l'éteindre, à comparer."
   },
   "aspect": {
     "original": "Original",
@@ -735,5 +737,10 @@
   "sdbad": {
     "title": "La carte SD ne répond pas",
     "body": "Après le réveil, la console ne lit plus la carte. Redémarrez-la : les jeux et les sauvegardes sont conservés."
+  },
+  "speaker": {
+    "always": "Toujours allumé",
+    "rest_a": "Éteint (A)",
+    "rest_b": "Éteint (B)"
   }
 }

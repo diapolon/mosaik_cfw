@@ -2050,18 +2050,18 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
 static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "updates", "power" };
 static const int cat_items[SC_COUNT][12] = {
-    { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
+    { S_BRIGHT, S_VOLUME, S_SPEAKER, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_BOXCOVER, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
@@ -2278,6 +2278,7 @@ static void set_value(int item, char *buf, size_t n) {
     case S_RESUME: snprintf(buf, n, "%s", T(s->resume_last ? "common.yes" : "common.no")); break;
     case S_AUTOSAVE: snprintf(buf, n, "%s", T(s->autosave_exit ? "common.yes" : "common.no")); break;
     case S_BOXCOVER: snprintf(buf, n, "%s", T(s->box_covers ? "common.yes" : "common.no")); break;
+    case S_SPEAKER: { static const char *k[3] = { "speaker.always", "speaker.rest_a", "speaker.rest_b" }; snprintf(buf, n, "%s", T(k[s->speaker_rest % 3])); break; }
     case S_CLOCK: {
         time_t now = time(NULL);
         struct tm tmv;
@@ -2386,6 +2387,7 @@ static void set_change(int item, int dir) {
     case S_RESUME: s->resume_last = !s->resume_last; break;
     case S_AUTOSAVE: s->autosave_exit = !s->autosave_exit; break;
     case S_BOXCOVER: s->box_covers = !s->box_covers; break;
+    case S_SPEAKER: s->speaker_rest = (s->speaker_rest + dir + 3) % 3; plat_amp_config(s->speaker_rest); break;
     case S_LED: s->led_mode = (s->led_mode + dir + 4) % 4; break;
     case S_LEDCOLOR: s->led_color = (s->led_color + dir + NLED_COLORS) % NLED_COLORS; break;
     case S_LOGLEVEL: s->log_level = (s->log_level + dir + 4) % 4; break;
@@ -5275,6 +5277,7 @@ int main(int argc, char **argv) {
     reload_games();
     ui_mark("giochi pronti");
     music_init(UI.root);
+    plat_amp_config(UI.set.speaker_rest);   /* fruscio della Brick Pro (issue #4) */
     ui_mark("musica");
     screen = SCR_HOME;
 #ifndef TRIMUI_DEVICE
@@ -5289,6 +5292,7 @@ int main(int argc, char **argv) {
     while (!UI.in.quit) {
         ui_poll();
         music_update();
+        plat_amp_idle(music_title()[0] || audio_quiet);   /* amplificatore spento dopo 4 s senza suoni */
         if (UI.in.any) last_input = UI.t;
         /* salvaschermo: il tasto che lo chiude non arriva al resto del launcher */
         if (saver_on && UI.in.any) {
