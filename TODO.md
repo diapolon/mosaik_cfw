@@ -37,7 +37,7 @@
 ## Emulators
 
 - [ ] PlayStation with PCSX ReARMed (`Roms/PS`: .chd, .cue, .pbp, .m3u for several discs, disc change in the game menu): to test on console with real games; analog sticks passed to the cores (DualShock chosen from the core's controller list, left stick stops acting as D-pad when the game reads the sticks), to test on console with an analog game; release sources must include the libpicofe submodule and `pcsx-rearmed-lr.patch`
-- [ ] Dreamcast (shown greyed as "coming soon" on the Platforms screen: `"planned": true` in `Emulators/dc.json`)
+- [ ] Dreamcast with Deadcast 1.2.5 (author's package pinned by `toolchain/fetch-deadcast.sh`, in `Cores/deadcast` with Mosaik's `frontend/package/deadcast/launch.sh`; Vulkan driver and libcurl copied from the firmware into the system): loads on ARM64 with the system's libraries; to test on a Brick Pro and a Smart Pro (1280x720 screen) with real games and a BIOS. Release: attach the Deadcast source (with its `ui` submodule) to the release, it is GPL-2.0. Fallback if needed: Flycast libretro in the runner (needs hardware rendering in the runner; Flycast cloned in `deps/flycast`)
 - [ ] MAME 2010 core (`Roms/MAME2010`, romset 0.139, `Emulators/mame2010.json`, index from `metadata/mame2010.xml`), for games missing from FinalBurn Neo and MAME 2003-Plus: runs on the Mac and on ARM64 (Bubble Bobble, Snow Bros.); to test on a console for speed. The Neo Geo BIOS must sit next to the games (the core looks only in the game's folder)
 - [ ] Flycast core for Naomi and Atomiswave (check performance first)
 - [x] NES (FCEUmm), SNES (Snes9x), Mega Drive, Master System and Game Gear (Genesis Plus GX), PC Engine (Beetle PCE Fast), Game Boy and Game Boy Color (Gambatte, with the cartridge clock), GBA (mGBA), Neo Geo Pocket (Beetle NeoPop): zipped ROMs and battery saves (0.9.17)
@@ -50,6 +50,11 @@
 - [ ] Reset settings and Erase everything (Settings → Tools, `rst_*` in launcher.c): tested on the Mac; to test on a console
 - [ ] Game list cache, for very large libraries: measured on a Brick Pro with 33 games, the library reads in 0.01 s (first screen at about 4.9 s from kernel start), so not needed for now
 - [ ] Apps section in the launcher (`Arcade/Apps/<app>/launch.sh`, `app.json`, `icon.png`; home entry only when there are apps): tested on the Mac in the three themes; to test on a console with a real app, and document the format in `frontend/README.md`
+- [ ] Built-in apps, shipped with the system (not in `Arcade/Apps`, so Erase everything keeps them; the Apps entry is then always there), built from `frontend/src/apps/` with the launcher's UI library and started by `system-init` like the runner (a new `app` kind in `next.txt`, `run-mac.sh` too):
+  - [ ] File explorer: browse the card, copy, move, rename and delete files and folders, free space
+  - [ ] Comic and image viewer: images, folders of images and `.cbz` comics, zoom and next page (game manuals too)
+  - [ ] SD card test: read and write speed, and write-then-verify to find fake or failing cards
+  - [ ] Music player: the `Music` folder with track list, pause, next, repeat, also with the screen off
 - [x] Console scraper: game data from libretro-database by the ROM's CRC, box art from the libretro thumbnails (0.9.17)
 - [x] Scraper checks (audit R08): database at a fixed commit, DAT files validated before replacing the copy on the card, multi-ROM zips get no data, network loss stops the run without marking images as missing, write errors retried; `m2/test-scraper.sh`
 - [x] Boot area generation visible (audit R07): the system carries its images' generation in `/etc/area-avvio`, Settings → Updates → Information shows the card's and warns when it is older; wiki: writing the card again without losing anything (pushed with the next stable)

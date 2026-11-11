@@ -25,10 +25,21 @@ chmod +x "$APP/launch.sh" "$APP/bin/"*
 # dati del sistema (i file dell'utente, come settings.json e i salvataggi, non ci sono:
 # aggiornando non vengono sovrascritti)
 mkdir -p "$DATA/Cores" "$DATA/Roms/FBNEO" "$DATA/Roms/MAME2003P" "$DATA/Roms/MAME2010" "$DATA/Roms/NES" "$DATA/Roms/MD" "$DATA/Roms/SMS" "$DATA/Roms/GG" "$DATA/Roms/PCE" "$DATA/Roms/SNES" \
-         "$DATA/Roms/GB" "$DATA/Roms/GBC" "$DATA/Roms/GBA" "$DATA/Roms/NGP" "$DATA/Roms/PS" "$DATA/Bios" "$DATA/Saves" "$DATA/System" \
+         "$DATA/Roms/GB" "$DATA/Roms/GBC" "$DATA/Roms/GBA" "$DATA/Roms/NGP" "$DATA/Roms/PS" "$DATA/Roms/DC" "$DATA/Bios" "$DATA/Saves" "$DATA/System" \
          "$DATA/Logs" "$DATA/Music" "$DATA/Linux" "$DATA/Apps" "$DATA/Media"
 cp "$DIST/cores/fbneo_libretro.so" "$DATA/Cores/fbneo_libretro.so"
 cp "$DIST/cores/mame2003_plus_libretro.so" "$DATA/Cores/mame2003p_libretro.so"
+# Dreamcast: Deadcast, programma a sé (non un core libretro), dal pacchetto del suo autore
+# scaricato a versione fissa da toolchain/fetch-deadcast.sh; lo avvia Cores/deadcast/launch.sh
+DZ=$(ls "$TOP"/deps/deadcast/DC-DEADCAST-*.pak.zip 2>/dev/null | tail -1)
+if [ -n "$DZ" ]; then
+    mkdir -p "$DATA/Cores/deadcast"
+    unzip -q -o "$DZ" deadcast 'config/*' 'licenses/*' -d "$DATA/Cores/deadcast"
+    cp "$FE/package/deadcast/launch.sh" "$DATA/Cores/deadcast/launch.sh"
+    chmod +x "$DATA/Cores/deadcast/deadcast" "$DATA/Cores/deadcast/launch.sh"
+else
+    echo "attenzione: manca Deadcast (sh toolchain/fetch-deadcast.sh): Dreamcast senza emulatore" >&2
+fi
 for c in mame2010 fceumm genesis_plus_gx snes9x gambatte mgba mednafen_pce_fast mednafen_ngp pcsx_rearmed; do cp "$DIST/cores/${c}_libretro.so" "$DATA/Cores/"; done
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
@@ -63,6 +74,8 @@ anche zippati, uno per zip. Il BIOS GBA (gba_bios.bin) in Bios/ non serve, ma se
 PS: giochi PlayStation (.chd consigliato, .cue con i suoi .bin, .pbp). Più dischi: un file .m3u
 con i nomi dei dischi, uno per riga, nella stessa cartella; in elenco compare solo il .m3u.
 Il BIOS PlayStation (scph5501.bin, scph1001.bin...) in Bios/ è consigliato ma non obbligatorio.
+DC: giochi Dreamcast (.chd consigliato, .gdi con le sue tracce, .cdi), anche .m3u. Serve il BIOS
+dc_boot.bin in Bios/dc/ (oppure in Bios/). Emulatore: Deadcast.
 Il BIOS Neo Geo (neogeo.zip) va in Bios/ oppure accanto ai giochi Neo Geo.
 Le ROM possono stare anche altrove: in Emulators/<id>.json "roms" accetta un percorso
 assoluto, per esempio "/mnt/SDCARD/Roms/FBNEO".

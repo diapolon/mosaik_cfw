@@ -1,8 +1,12 @@
 {
   "name": "Dreamcast",
   "kind": "console",
-  "planned": true,
+  "core": "deadcast",
+  "launch": "Cores/deadcast/launch.sh",
+  "roms": "Roms/DC",
+  "extensions": ["chd", "gdi", "cdi", "m3u"],
   "art": "disc-white",
   "short": "DC",
+  "thumbnails": "Sega - Dreamcast",
   "order": 71
 }

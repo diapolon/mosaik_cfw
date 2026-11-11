@@ -544,9 +544,32 @@ static void launch_ex(game_t *g, bool resume) {
         return;
     }
     bool sh = !strcmp(g->core, "linux") || !strcmp(g->core, "app");   /* script: giochi Linux e app */
+    /* emulatore a sé (non libretro): parte come un gioco Linux, il suo script riceve il gioco */
+    const emulator_t *xemu = sh ? NULL : emulator_find(g->core);
+    char xscript[1100] = "";
+    if (xemu && xemu->launch[0]) {
+        snprintf(xscript, sizeof xscript, "%s/%s", UI.root, xemu->launch);
+        if (access(xscript, R_OK) != 0) {
+            ui_log("emulatore %s: manca %s", xemu->id, xscript);
+            ui_toast(T("common.launch_error"));
+            ui_sound(SND_ERROR);
+            return;
+        }
+    }
     if (strcmp(g->core, "app")) games_add_recent(UI.root, g);          /* le app non sono giochi */
     if (sh) write_linux_env(g);
-    if (sh) snprintf(core, sizeof core, "-");
+    if (xscript[0]) {
+        char envp[1100];
+        snprintf(envp, sizeof envp, "%s/System/next.env", UI.root);
+        FILE *ef = fopen(envp, "w");
+        if (ef) {   /* fra apici singoli: un apice nel nome diventa '\'' */
+            fputs("export ARCADE_ROM='", ef);
+            for (const char *c = g->path; *c; c++) { if (*c == '\'') fputs("'\\''", ef); else fputc(*c, ef); }
+            fputs("'\n", ef);
+            fclose(ef);
+        }
+    }
+    if (sh || xscript[0]) snprintf(core, sizeof core, "-");
     else {
         const emulator_t *emu = emulator_find(g->core);
         snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
@@ -558,7 +581,7 @@ static void launch_ex(game_t *g, bool resume) {
         /* ultimo campo: la console, per i salvataggi in Saves/<console> (issue #5); "-" per gli arcade */
         /* sesto campo: la console ("-" per gli arcade); settimo: l'identità del gioco per i suoi
            file, diversa dal nome solo per due ROM omonime (audit prelancio R04) */
-        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", sh ? "linux" : "libretro", core, g->path, g->title,
+        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", sh || xscript[0] ? "linux" : "libretro", core, xscript[0] ? xscript : g->path, g->title,
                 resume ? "resume" : "-", core_console(g->core) ? g->core : "-", g->key[0] ? g->key : "-");
         written = !ferror(f) && fflush(f) == 0;
         if (fclose(f) != 0) written = false;
@@ -4750,7 +4773,8 @@ static void diag_show(const game_t *g, bool failed, bool core_failed, const char
     ui_busy(T("diag.checking"), 0);
     const emulator_t *emu = emulator_find(g->core);
     char core[1100];
-    snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
+    if (emu && emu->launch[0]) snprintf(core, sizeof core, "%s/%s", UI.root, emu->launch);   /* emulatore a sé: il suo script */
+    else snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
     plat_audio_mute();
     romcheck_diagnose(UI.root, g, core, core_failed, &diag);
     plat_audio_unmute();

@@ -10,7 +10,7 @@ ricostruito, così le console sanno dove cercare gli aggiornamenti (vedi site/RE
 import gzip
 import hashlib
 import json
-import os
+import glob, os
 import shutil
 import subprocess
 import sys
@@ -126,6 +126,13 @@ files = [os.path.join(out, "download", n) for n in sorted(os.listdir(os.path.joi
 files.append(os.path.join(dist, "arcade-system.squashfs"))
 cores_dir = os.path.join(dist, "SD", "Arcade", "Cores")
 files += [os.path.join(cores_dir, n) for n in sorted(os.listdir(cores_dir)) if n.endswith(".so")]
+dc = os.path.join(cores_dir, "deadcast", "deadcast")   # Dreamcast: programma dell'autore, non compilato qui
+if os.path.exists(dc):
+    files.append(dc)
+    dz = sorted(glob.glob(os.path.join(os.path.dirname(dist), "deps", "deadcast", "DC-DEADCAST-*.pak.zip")))
+    if dz:
+        info.insert(info.index("core (commit compilato, da /build/src):") + len(cores.splitlines()) + 1,
+                    f"  deadcast {os.path.basename(dz[-1])[12:-8]} (pacchetto dell'autore, SHA-256 {sha256(dz[-1])})")
 upd = os.path.join(out, "update")
 files += [os.path.join(upd, n) for n in ("update.txt", "update.sig")]
 for f in files:

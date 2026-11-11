@@ -68,13 +68,18 @@ ln -s /run/fw/alsa $R/usr/share/alsa
 models | while IFS="|" read -r id fw name file; do
     F=/build/fw/$fw/root; L=$R/fw/$id
     mkdir -p $L/bin $L/modules
-    python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/cores/*.so \
+    # Deadcast (Dreamcast) non lo compiliamo noi: si controlla che il firmware gli basti
+    DC=; [ -f $T/dist/SD/Arcade/Cores/deadcast/deadcast ] && DC=$T/dist/SD/Arcade/Cores/deadcast/deadcast
+    python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/cores/*.so $DC \
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
         $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw \
         +libEGL.so.1 +libGLESv2.so.2 +libasound.so.2 +libIMGegl.so +libsrv_um.so +libusc.so +libglslcompiler.so +libudev.so.1 \
+        +libvulkan.so.1 +libVK_IMG.so.1 +libcurl.so.4 +libSDL2-2.0.so.0 \
         > $W/libs-$id.txt 2> $W/libs-mancanti-$id.txt || { echo "strato $id:"; cat $W/libs-mancanti-$id.txt; exit 1; }
     for l in $(cat $W/libs-$id.txt); do mkdir -p $L/$(dirname $l); cp -L $F/$l $L/$l; done
-    for pat in "libEGL*" "libGLES*" "libpvr*" "libPVR*" "libIMG*" "libsrv_um*" "libusc*" "libglslcompiler*" "libasound*"; do
+    # Vulkan della PowerVR: lo usa Deadcast (Dreamcast, Cores/deadcast), che chiede anche libcurl e SDL2
+    for pat in "libEGL*" "libGLES*" "libpvr*" "libPVR*" "libIMG*" "libsrv_um*" "libusc*" "libglslcompiler*" "libasound*" \
+               "libvulkan*" "libVK_IMG*" "libufwriter*"; do
         for f in $F/usr/lib/$pat; do [ -e "$f" ] && cp -a "$f" $L/usr/lib/; done
     done
     # il caricatore dinamico e la glibc vanno anche nel percorso fisso /lib (sono uguali nei
