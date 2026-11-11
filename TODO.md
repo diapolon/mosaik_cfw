@@ -48,7 +48,7 @@
 - [ ] File transfer over Wi-Fi (Settings → Tools → Transfer files, 0.9.19, `launcher/fileserver.c`, `m2/test-fileserver.sh`): tested on a console from a Mac and an Android phone (fast, mosaik.local opens). Still to test: power-off during an upload (the `.part` file is removed at the next opening), a PS disc, `mosaik.local` from Windows, "Remember this browser"
 - [ ] Console scraper, phase 2: ScreenScraper as a second source (needs developer credentials, requested on the screenscraper.fr forum)
 - [ ] Reset settings and Erase everything (Settings → Tools, `rst_*` in launcher.c): tested on the Mac; to test on a console
-- [ ] Game list cache, for very large libraries
+- [ ] Game list cache, for very large libraries: measured on a Brick Pro with 33 games, the library reads in 0.01 s (first screen at about 4.9 s from kernel start), so not needed for now
 - [ ] Apps section in the launcher
 - [x] Console scraper: game data from libretro-database by the ROM's CRC, box art from the libretro thumbnails (0.9.17)
 - [x] Scraper checks (audit R08): database at a fixed commit, DAT files validated before replacing the copy on the card, multi-ROM zips get no data, network loss stops the run without marking images as missing, write errors retried; `m2/test-scraper.sh`

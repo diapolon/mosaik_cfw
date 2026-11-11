@@ -541,6 +541,13 @@ static void leave_system(int code, const char *msg) {
     settings_save(&UI.set, UI.root);
     ui_busy(msg, 0.5);
     music_quit();
+    /* Riavvio, o uscita dopo un lavoro con l'altoparlante spento (ripristino, Cancella tutto):
+       la chiusura dell'audio lì si blocca e system-init ci fermava dopo 10 s. Tanto si riparte:
+       si esce subito, come dopo un aggiornamento. */
+    if (plat_is_device() && (code == EXIT_REBOOT || audio_quiet)) {
+        plat_amp_restore();
+        ui_exit_now(code);
+    }
     ui_shutdown_code(code);
     exit(code);
 }
