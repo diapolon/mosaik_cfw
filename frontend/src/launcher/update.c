@@ -185,6 +185,7 @@ static bool thread_on;
 
 bool update_supported(void) { const char *e = getenv("ARCADE_STANDALONE"); return e && *e == '1'; }
 
+static int probe_pause;   /* "prova-pausa N" nell'elenco firmato: solo per le prove (R03) */
 static void fail(int err) { st.error = err; st.phase = UPD_FAILED; }
 
 /* indirizzo fisso: System/update-url.txt se c'è, altrimenti quello online scritto nel programma
@@ -329,11 +330,13 @@ static bool parse_manifest(char *text) {
     nitems = 0;
     st.version[0] = 0;
     st.reinstall = false;
+    probe_pause = 0;
     for (line = strtok_r(NULL, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
         if (!strncmp(line, "version ", 8)) { snprintf(st.version, sizeof st.version, "%s", line + 8); continue; }
         /* "reinstall N": le schede con l'area di avvio (initramfs, kernel) di generazione più
            bassa di N non hanno cose che il Wi-Fi non può portare: si invita a riscrivere la SD.
            La generazione la scrive l'initramfs in System/area-avvio.txt (manca: 0). */
+        if (!strncmp(line, "prova-pausa ", 12)) { probe_pause = atoi(line + 12); if (probe_pause > 60) probe_pause = 60; continue; }
         if (!strncmp(line, "reinstall ", 10)) {
             st.reinstall = update_boot_gen(root_dir, NULL) < atoi(line + 10);
             continue;
@@ -633,10 +636,11 @@ static void *apply_worker(void *arg) {
        system-init rimette i file di prima */
     char probe[1100];
     snprintf(probe, sizeof probe, "%s/System/prova-aggiornamento.txt", root_dir);
-    if (unlink(probe) == 0) {
-        ui_log("aggiornamento: prova, pausa di 30 s con i dati nuovi e il sistema vecchio: spegni ora");
+    int pause_s = unlink(probe) == 0 ? 30 : probe_pause;
+    if (pause_s > 0) {
+        ui_log("aggiornamento: prova, pausa di %d s con i dati nuovi e il sistema vecchio: spegni ora", pause_s);
         sync();
-        sleep(30);
+        sleep((unsigned)pause_s);
     }
     char pend_all[1100];
     snprintf(pend_all, sizeof pend_all, "%s/System/update-pending", root_dir);

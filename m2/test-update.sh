@@ -266,6 +266,14 @@ rm -f $S/System/area-avvio.txt
 expect "$(./t $W/sd reinstall 2>/dev/null)" "0" "soglia 0 (nessuna riga reinstall): niente invito"
 stop
 
+echo "--- pausa di prova chiesta dall'elenco firmato (R03)"
+card; export ARCADE_VERSION_FILE=$W/old.txt
+MOSAIK_PROVA_PAUSA=1 serve key.pem
+out=$(./t $W/sd install 2>$W/pausa.log)
+expect "$out" "10 0 6" "installato dopo la pausa"
+grep -q "pausa di 1 s" $W/pausa.log && ok "pausa fatta" || ko "pausa non fatta: $(cat $W/pausa.log | tail -3)"
+stop
+
 echo "--- nessun server"
 rm -f $S/System/update-url.txt
 expect "$(./t $W/sd install 2>/dev/null)" "3 0 0" "nessun server"

@@ -82,6 +82,11 @@ if args.reinstall is not None:
     reinstall = args.reinstall
 if reinstall > 0:
     lines.append(f"reinstall {reinstall}")
+# solo per le prove sul canale Sviluppo: MOSAIK_PROVA_PAUSA=30 ferma l'installazione a metà (dati
+# nuovi, sistema vecchio) per spegnere a forza e vedere il ritorno ai file di prima (audit R03)
+pausa = int(os.environ.get("MOSAIK_PROVA_PAUSA", "0") or 0)
+if pausa > 0:
+    lines.append(f"prova-pausa {min(pausa, 60)}")
 for sd, path in files:
     lines.append(f"file {sha256(path)} {os.path.getsize(path)} {sd}")
 manifest = ("\n".join(lines) + "\n").encode()
