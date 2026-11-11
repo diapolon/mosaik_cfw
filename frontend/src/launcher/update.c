@@ -118,12 +118,14 @@ void update_confirm_boot(const char *root) {
         /* prima il segno di prova, poi le copie di sicurezza, per ultimo il giornale: se la corrente
            salta a metà, system-init finisce il lavoro (giornale senza segno di prova) */
         if (unlink(p) == 0) ui_log("aggiornamento: il sistema nuovo funziona");
+        int gone = 0;
         for (int i = 0; i < j.n; i++) {
             char b[1100];
             snprintf(b, sizeof b, "%s/%s.annulla", root, j.path[i]);
-            unlink(b);
+            if (unlink(b) == 0) gone++;
         }
         unlink(j_path);
+        ui_log("aggiornamento: giornale chiuso, %d file nell'elenco, %d copie di sicurezza tolte", j.n, gone);
         sync();
         return;
     }
@@ -617,6 +619,7 @@ static void *apply_worker(void *arg) {
     item_t *sys = NULL;
     /* prima di toccare qualsiasi file: il giornale, così un'interruzione si può sempre disfare */
     if (!journal_write("applico")) { ui_log("aggiornamento: impossibile scrivere il giornale"); remove_tmps(); fail(UPE_WRITE); return NULL; }
+    ui_log("aggiornamento: giornale scritto, gli originali restano fino al primo avvio");
     for (int i = 0; i < nitems; i++) {
         item_t *it = &items[i];
         if (!it->need) continue;
