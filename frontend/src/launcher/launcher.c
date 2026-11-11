@@ -2792,6 +2792,25 @@ static void fsrv_qr(int x, int y, int size, const char *url) {
             if (m[r * side + c]) ui_rect(ox + (quiet + c) * cell, oy + (quiet + r) * cell, cell, cell, rgba(0, 0, 0, 255));
 }
 
+/* backup ripristinato: si riparte con le sue impostazioni; senza giochi nel backup, si ricorda
+   di ricopiarli (salvataggi e liste restano invisibili finché le ROM non tornano) */
+static void restore_done_draw(bool had_games) {
+    theme_t *t = &UI.th;
+    TTF_Font *ft = UI.f_title, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fsh = TTF_FontHeight(fs), r = M(t->panel_radius);
+    int pw = M(0.8f), ph = M(0.34f) + (had_games ? 0 : fsh + M(0.01f)), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(px, py, pw, ph, r, t->surface);
+    int y = py + M(0.05f);
+    ui_text(ft, T("fileserver.restore_done"), px + pw / 2, y, t->text, ALIGN_CENTER);
+    y += fth + M(0.01f);
+    ui_text(fs, T("fileserver.restore_done_body"), px + pw / 2, y, t->text_dim, ALIGN_CENTER);
+    if (!had_games) ui_text(fs, T("fileserver.restore_no_games"), px + pw / 2, y + fsh + M(0.01f), t->text, ALIGN_CENTER);
+    const char *lb[] = { T("common.restart") };
+    ui_popup_buttons(px, py, pw, ph, lb, 1, 0, -1);
+}
+
 static void fsrv_draw(void) {
     theme_t *t = &UI.th;
     if (UI.t - fsrv_ip_t > 2) { fs_local_ip(fsrv_ip, sizeof fsrv_ip); fsrv_ip_t = UI.t; }
@@ -2882,16 +2901,7 @@ static void fsrv_draw(void) {
         char body[300];
         snprintf(body, sizeof body, T("fileserver.restore_body"), s.restore_date, s.restore_files);
         ui_confirm_draw(T("fileserver.restore_title"), body, T("common.cancel"), T("fileserver.restore_go"), fsrv_rsel);
-    } else if (s.restore == FS_RS_DONE) {
-        int pw = M(0.8f), ph = M(0.34f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
-        ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
-        ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-        ui_rrect(px, py, pw, ph, r, t->surface);
-        ui_text(ft, T("fileserver.restore_done"), px + pw / 2, py + M(0.05f), t->text, ALIGN_CENTER);
-        ui_text(fs, T("fileserver.restore_done_body"), px + pw / 2, py + M(0.05f) + fth + M(0.01f), t->text_dim, ALIGN_CENTER);
-        const char *lb[] = { T("common.restart") };
-        ui_popup_buttons(px, py, pw, ph, lb, 1, 0, -1);
-    }
+    } else if (s.restore == FS_RS_DONE) restore_done_draw(s.restore_games > 0);
 }
 
 /* ------------------------------------------------- backup copiato sulla scheda */
@@ -2904,7 +2914,7 @@ enum { IMP_NONE, IMP_ASK, IMP_RUN, IMP_DONE, IMP_FAILED };
 static atomic_int imp_state;
 static bool imp_checked;
 static char imp_zip[1200], imp_date[32];
-static int imp_files, imp_sel, imp_ncand;
+static int imp_files, imp_games, imp_sel, imp_ncand;
 static char imp_cand[IMP_MAX][300];   /* "nome\tdimensione" dei backup trovati */
 
 static void imp_seen_path(char *p, size_t n) { snprintf(p, n, "%s/System/backup-visti.txt", UI.root); }
@@ -2963,14 +2973,15 @@ static bool imp_find(void) {
             snprintf(key, sizeof key, "%s\t%lld", n, (long long)sb.st_size);
             if (imp_seen(key)) continue;
             char date[32];
-            int files = 0;
-            if (!fs_backup_info(full, date, sizeof date, &files)) { ui_log("backup sulla scheda: %s non è un backup", n); imp_mark_seen(key); continue; }
+            int files = 0, ngames = 0;
+            if (!fs_backup_info(full, date, sizeof date, &files, &ngames)) { ui_log("backup sulla scheda: %s non è un backup", n); imp_mark_seen(key); continue; }
             if (imp_ncand < IMP_MAX) snprintf(imp_cand[imp_ncand++], sizeof imp_cand[0], "%s", key);
             if (!best[0] || strcmp(n, best) > 0) {
                 snprintf(best, sizeof best, "%s", n);
                 snprintf(imp_zip, sizeof imp_zip, "%s", full);
                 snprintf(imp_date, sizeof imp_date, "%s", date);
                 imp_files = files;
+                imp_games = ngames;
             }
         }
         closedir(dp);
@@ -3030,13 +3041,7 @@ static void imp_draw(void) {
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(px, py, pw, ph, r, t->surface);
-    if (st == IMP_DONE) {
-        ui_text(ft, T("fileserver.restore_done"), px + pw / 2, py + M(0.05f), t->text, ALIGN_CENTER);
-        ui_text(fs, T("fileserver.restore_done_body"), px + pw / 2, py + M(0.05f) + fth + M(0.01f), t->text_dim, ALIGN_CENTER);
-        const char *lb[] = { T("common.restart") };
-        ui_popup_buttons(px, py, pw, ph, lb, 1, 0, -1);
-        return;
-    }
+    if (st == IMP_DONE) { restore_done_draw(imp_games > 0); return; }
     fs_status_t s;
     fs_get_status(&s);
     int pct = s.total > 0 ? (int)(s.done * 100 / s.total) : 0;
@@ -4799,6 +4804,13 @@ static void game_reset(const game_t *g, bool states) {
     snprintf(sub, sizeof sub, "%s/mame2003-plus/hi", base);
     reset_remove(sub, g->key, "hi");
     snprintf(sub, sizeof sub, "%s/mame2003-plus/cfg", base);
+    reset_remove(sub, g->key, "cfg");
+    /* MAME 2010 */
+    snprintf(sub, sizeof sub, "%s/mame2010/nvram", base);
+    reset_remove(sub, g->key, "nv");
+    snprintf(sub, sizeof sub, "%s/mame2010/hi", base);
+    reset_remove(sub, g->key, "hi");
+    snprintf(sub, sizeof sub, "%s/mame2010/cfg", base);
     reset_remove(sub, g->key, "cfg");
     ui_toast(T(reset_failed ? "reset.partial" : "reset.done"));
     reset_failed = 0;

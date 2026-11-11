@@ -41,6 +41,7 @@ done
 # core compilati per macOS
 ln -sf "$DEPS/fbneo/src/burner/libretro/fbneo_libretro.dylib" "$SD/Cores/fbneo_libretro.dylib"
 ln -sf "$DEPS/mame2003-plus/mame2003_plus_libretro.dylib" "$SD/Cores/mame2003p_libretro.dylib"
+ln -sf "$DEPS/mame2010-libretro/mame2010_libretro.dylib" "$SD/Cores/mame2010_libretro.dylib"
 ln -sf "$DEPS/libretro-fceumm/fceumm_libretro.dylib" "$SD/Cores/fceumm_libretro.dylib"
 ln -sf "$DEPS/Genesis-Plus-GX/genesis_plus_gx_libretro.dylib" "$SD/Cores/genesis_plus_gx_libretro.dylib"
 ln -sf "$DEPS/snes9x/libretro/snes9x_libretro.dylib" "$SD/Cores/snes9x_libretro.dylib"
@@ -52,17 +53,19 @@ ln -sf "$DEPS/beetle-ngp-libretro/mednafen_ngp_libretro.dylib" "$SD/Cores/mednaf
 # indici dei titoli dai DAT ufficiali
 python3 -I tools/build_index.py fbneo "$DEPS/fbneo/dats/FinalBurn Neo (ClrMame Pro XML, Arcade only).dat" "$SD/Dats/fbneo.tsv"
 python3 -I tools/build_index.py mame2003p "$DEPS/mame2003-plus/metadata/mame2003-plus.xml" "$SD/Dats/mame2003p.tsv"
+python3 -I tools/build_index.py mame2010 "$DEPS/mame2010-libretro/metadata/mame2010.xml" "$SD/Dats/mame2010.tsv"
 
 # cartelle ROM: collegamenti in sola lettura alle raccolte già presenti sul Mac
 [ -n "$FBNEO_ROMS" ] && ln -sfn "$FBNEO_ROMS" "$SD/Roms/FBNEO"
 [ -n "$MAME_ROMS" ] && ln -sfn "$MAME_ROMS" "$SD/Roms/MAME2003P"
+[ -n "$MAME2010_ROMS" ] && ln -sfn "$MAME2010_ROMS" "$SD/Roms/MAME2010"
 [ -n "$NES_ROMS" ] && ln -sfn "$NES_ROMS" "$SD/Roms/NES"
 [ -n "$MD_ROMS" ] && ln -sfn "$MD_ROMS" "$SD/Roms/MD"
 [ -n "$SNES_ROMS" ] && ln -sfn "$SNES_ROMS" "$SD/Roms/SNES"
 [ -n "$GB_ROMS" ] && ln -sfn "$GB_ROMS" "$SD/Roms/GB"
 [ -n "$GBC_ROMS" ] && ln -sfn "$GBC_ROMS" "$SD/Roms/GBC"
 [ -n "$GBA_ROMS" ] && ln -sfn "$GBA_ROMS" "$SD/Roms/GBA"
-for d in FBNEO MAME2003P NES MD SMS GG PCE SNES GB GBC GBA NGP; do mkdir -p "$SD/Roms/$d" 2>/dev/null || true; done
+for d in FBNEO MAME2003P MAME2010 NES MD SMS GG PCE SNES GB GBC GBA NGP; do mkdir -p "$SD/Roms/$d" 2>/dev/null || true; done
 
 # esempio di gioco Linux: una cartella con launch.sh (e facoltativi game.json, cover.png)
 mkdir -p "$SD/Linux/esempio"

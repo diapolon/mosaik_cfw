@@ -4,14 +4,14 @@
 # Si compila in una copia pulita dentro il volume Docker: il Mac ha i suoi file oggetto
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
-#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp] [pcsx]
+#       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [mame2010] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp] [pcsx]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx}
+WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -40,6 +40,19 @@ for core in $WHICH; do
             > "$SRC/mame2003p.log" 2>&1 \
             || { tail -30 "$SRC/mame2003p.log"; exit 1; }
         cp "$SRC/mame2003-plus/mame2003_plus_libretro.so" "$OUT/"
+        ;;
+    mame2010)
+        clone mame2010-libretro mame2010
+        echo "== MAME 2010 (ci vuole molto)"
+        # Compilazione incrociata da amd64: i ricompilatori dinamici x86 (SH-2 e DRC) non vanno
+        # compilati, al loro posto il backend in C; PTR64 per i puntatori a 64 bit dell'A53; la zlib
+        # interna, perché il kit non ha quella per aarch64.
+        make -C "$SRC/mame2010" -j"$JOBS" platform=unix PTR64=1 BUILD_ZLIB=1 X86_SH2DRC=0 FORCE_DRC_C_BACKEND=1 \
+            CC="$CXX -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" LD="$CXX -mcpu=cortex-a53" \
+            CC_AS="$CC -mcpu=cortex-a53" AR="$AR" \
+            > "$SRC/mame2010.log" 2>&1 \
+            || { tail -30 "$SRC/mame2010.log"; exit 1; }
+        cp "$SRC/mame2010/mame2010_libretro.so" "$OUT/"
         ;;
     fceumm)
         clone libretro-fceumm fceumm

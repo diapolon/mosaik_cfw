@@ -38,13 +38,13 @@
 
 - [ ] PlayStation with PCSX ReARMed (`Roms/PS`: .chd, .cue, .pbp, .m3u for several discs, disc change in the game menu): to test on console with real games; analog sticks passed to the cores (DualShock chosen from the core's controller list, left stick stops acting as D-pad when the game reads the sticks), to test on console with an analog game; release sources must include the libpicofe submodule and `pcsx-rearmed-lr.patch`
 - [ ] Dreamcast (shown greyed as "coming soon" on the Platforms screen: `"planned": true` in `Emulators/dc.json`)
-- [ ] MAME 2010 core, for games missing from FinalBurn Neo and MAME 2003-Plus
+- [ ] MAME 2010 core (`Roms/MAME2010`, romset 0.139, `Emulators/mame2010.json`, index from `metadata/mame2010.xml`), for games missing from FinalBurn Neo and MAME 2003-Plus: runs on the Mac and on ARM64 (Bubble Bobble, Snow Bros.); to test on a console for speed. The Neo Geo BIOS must sit next to the games (the core looks only in the game's folder)
 - [ ] Flycast core for Naomi and Atomiswave (check performance first)
 - [x] NES (FCEUmm), SNES (Snes9x), Mega Drive, Master System and Game Gear (Genesis Plus GX), PC Engine (Beetle PCE Fast), Game Boy and Game Boy Color (Gambatte, with the cartridge clock), GBA (mGBA), Neo Geo Pocket (Beetle NeoPop): zipped ROMs and battery saves (0.9.17)
 
 ## Launcher
 
-- [ ] Backup and restore over Wi-Fi (Transfer files page: **Download backup** with saves, settings, favorites, collections, play time and BIOS, optionally Wi-Fi networks and images; **Restore backup** uploads the zip, the console asks for confirmation, writes each file as `.part` and restarts; `m2/test-fileserver.sh`): to test on a console, also between the two models. Next step: offer an import at the first start of a rewritten card
+- [ ] Backup and restore over Wi-Fi (Transfer files page: **Download backup** with saves, settings, favorites, collections, play time and BIOS, optionally Wi-Fi networks and images; **Restore backup** uploads the zip, the console asks for confirmation, writes each file as `.part` and restarts; `m2/test-fileserver.sh`): to test on a console, also between the two models. A backup zip copied to the card (main folder or `Arcade/`) is offered for import at the first start, after the language on a new card, once per file (`System/backup-visti.txt`): to test on a console with a rewritten card. Optional **Also the games** (Roms and Linux, shown with its size, off above 3.5 GB); a restore without games says to copy the ROMs again
 - [ ] File transfer over Wi-Fi (Settings → Tools → Transfer files, 0.9.19, `launcher/fileserver.c`, `m2/test-fileserver.sh`): tested on a console from a Mac and an Android phone (fast, mosaik.local opens). Still to test: power-off during an upload (the `.part` file is removed at the next opening), a PS disc, `mosaik.local` from Windows, "Remember this browser"
 - [ ] Console scraper, phase 2: ScreenScraper as a second source (needs developer credentials, requested on the screenscraper.fr forum)
 - [ ] Game list cache, for very large libraries

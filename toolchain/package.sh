@@ -24,12 +24,12 @@ chmod +x "$APP/launch.sh" "$APP/bin/"*
 
 # dati del sistema (i file dell'utente, come settings.json e i salvataggi, non ci sono:
 # aggiornando non vengono sovrascritti)
-mkdir -p "$DATA/Cores" "$DATA/Roms/FBNEO" "$DATA/Roms/MAME2003P" "$DATA/Roms/NES" "$DATA/Roms/MD" "$DATA/Roms/SMS" "$DATA/Roms/GG" "$DATA/Roms/PCE" "$DATA/Roms/SNES" \
+mkdir -p "$DATA/Cores" "$DATA/Roms/FBNEO" "$DATA/Roms/MAME2003P" "$DATA/Roms/MAME2010" "$DATA/Roms/NES" "$DATA/Roms/MD" "$DATA/Roms/SMS" "$DATA/Roms/GG" "$DATA/Roms/PCE" "$DATA/Roms/SNES" \
          "$DATA/Roms/GB" "$DATA/Roms/GBC" "$DATA/Roms/GBA" "$DATA/Roms/NGP" "$DATA/Roms/PS" "$DATA/Bios" "$DATA/Saves" "$DATA/System" \
          "$DATA/Logs" "$DATA/Music" "$DATA/Linux" "$DATA/Media"
 cp "$DIST/cores/fbneo_libretro.so" "$DATA/Cores/fbneo_libretro.so"
 cp "$DIST/cores/mame2003_plus_libretro.so" "$DATA/Cores/mame2003p_libretro.so"
-for c in fceumm genesis_plus_gx snes9x gambatte mgba mednafen_pce_fast mednafen_ngp pcsx_rearmed; do cp "$DIST/cores/${c}_libretro.so" "$DATA/Cores/"; done
+for c in mame2010 fceumm genesis_plus_gx snes9x gambatte mgba mednafen_pce_fast mednafen_ngp pcsx_rearmed; do cp "$DIST/cores/${c}_libretro.so" "$DATA/Cores/"; done
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"
@@ -51,6 +51,7 @@ cp "$TOP/deps/cacert.pem" "$DATA/System/cacert.pem"
 cat > "$DATA/Roms/LEGGIMI.txt" <<'EOF'
 FBNEO: ROM per FinalBurn Neo (romset FBNeo attuale), anche in sottocartelle (neogeo/, cps2/...).
 MAME2003P: ROM per MAME 2003-Plus (romset 0.78-plus).
+MAME2010: ROM per MAME 2010 (romset MAME 0.139), per i giochi che mancano agli altri due.
 NES: giochi NES/Famicom (.nes, .fds, .unf), anche zippati, uno per zip.
 MD: giochi Mega Drive/Genesis (.md, .gen, .smd, .bin), anche zippati, uno per zip.
 SMS, GG: giochi Master System (.sms, .sg) e Game Gear (.gg), anche zippati, uno per zip.

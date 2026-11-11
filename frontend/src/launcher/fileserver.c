@@ -39,7 +39,7 @@ static const char *const PAGE_KEYS[] = {
     "download", "download_zip", "exists", "empty", "uploading", "done", "failed", "drop",
     "err_space", "err_readonly", "err_exists", "err_path", "err_toolarge", "err_io", "err_auth", "err_notfound",
     "closed", "home", "remember", "backup", "backup_note", "backup_download", "backup_wifi", "backup_media", "backup_restore",
-    "restore_console", "err_notbackup", NULL
+    "restore_console", "err_notbackup", "backup_games", "backup_games_big", NULL
 };
 /* nome fisso sulla rete (mDNS): http://mosaik.local */
 #define MDNS_NAME "mosaik"
@@ -431,6 +431,8 @@ static void do_login(req_t *r) {
     reply(r->fd, 200, "application/json; charset=utf-8", "{\"ok\":true}", 11, hdr);
 }
 
+static long long games_size(void);
+
 static void do_info(req_t *r) {
     struct statvfs vs;
     long long fr = 0, tot = 0;
@@ -441,7 +443,7 @@ static void do_info(req_t *r) {
     b_json(&b, update_current());
     b_str(&b, ",\"model\":");
     b_json(&b, m ? m : "");
-    b_fmt(&b, ",\"free\":%lld,\"total\":%lld,\"writable\":[", fr, tot);
+    b_fmt(&b, ",\"free\":%lld,\"total\":%lld,\"games\":%lld,\"writable\":[", fr, tot, games_size());
     for (int i = 0; WRITABLE[i]; i++) { if (i) b_str(&b, ","); b_json(&b, WRITABLE[i]); }
     b_str(&b, "]}");
     reply_json(r->fd, 200, b.p ? b.p : "{}");
@@ -582,6 +584,15 @@ static void zwalk(zlist_t *z, const char *rel, int lvl) {
     closedir(d);
 }
 
+/* ROM e giochi Linux: quanto pesano, per la casella "Anche i giochi" del backup */
+static long long games_size(void) {
+    zlist_t g = { 0 };
+    zwalk(&g, "Roms", 0);
+    zwalk(&g, "Linux", 0);
+    free(g.f);
+    return g.total;
+}
+
 static void put16(unsigned char *p, unsigned v) { p[0] = (unsigned char)v; p[1] = (unsigned char)(v >> 8); }
 static void put32(unsigned char *p, uint32_t v) { put16(p, v & 0xFFFF); put16(p + 2, v >> 16); }
 
@@ -698,9 +709,13 @@ static const char *const BACKUP_SYSTEM[] = { "settings.json", "favorites.txt", "
                                              "core-options.txt", "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", NULL };
 #define BACKUP_INFO "mosaik-backup.txt"
 
+/* ROM e giochi Linux: nel backup solo se scelti, perché possono essere tanti */
+static bool backup_game(const char *rel) { return !strncmp(rel, "Roms/", 5) || !strncmp(rel, "Linux/", 6); }
+
 static bool backup_path_ok(const char *rel, bool wifi) {
     if (!rel_ok(rel) || !*rel) return false;
-    if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "Bios/", 5) || !strncmp(rel, "Media/", 6) || !strncmp(rel, "System/collections/", 19))
+    if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "Bios/", 5) || !strncmp(rel, "Media/", 6) || !strncmp(rel, "System/collections/", 19)
+        || backup_game(rel))
         return depth(rel) >= 2;
     if (wifi && !strcmp(rel, "System/wifi.conf")) return true;
     for (int i = 0; BACKUP_SYSTEM[i]; i++) {
@@ -713,7 +728,8 @@ static bool backup_path_ok(const char *rel, bool wifi) {
 
 static void do_backup(req_t *r) {
     char v[8];
-    bool wifi = qget(r->query, "wifi", v, sizeof v) && v[0] == '1', media = qget(r->query, "media", v, sizeof v) && v[0] == '1';
+    bool wifi = qget(r->query, "wifi", v, sizeof v) && v[0] == '1', media = qget(r->query, "media", v, sizeof v) && v[0] == '1',
+         games = qget(r->query, "games", v, sizeof v) && v[0] == '1';
     zlist_t z = { 0 };
     zwalk(&z, "Saves", 0);
     zwalk(&z, "Bios", 0);
@@ -732,6 +748,7 @@ static void do_backup(req_t *r) {
         if (stat(full, &sb) == 0 && S_ISREG(sb.st_mode)) zadd(&z, "System/wifi.conf", (long long)sb.st_size);
     }
     if (media) zwalk(&z, "Media", 0);
+    if (games) { zwalk(&z, "Roms", 0); zwalk(&z, "Linux", 0); }
     if (z.total >= 0xFFFF0000LL || z.n > 65000) { free(z.f); reply_err(r->fd, 413, "toolarge"); return; }
     time_t now = time(NULL);
     struct tm tmv;
@@ -994,7 +1011,7 @@ static bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n) {
 static atomic_int restore_state;   /* FS_RS_* */
 static atomic_bool restore_go, restore_drop;
 static char restore_date[32];
-static int restore_files;
+static int restore_files, restore_games;
 
 static void restore_set(int s) {
     atomic_store(&restore_state, s);
@@ -1002,6 +1019,7 @@ static void restore_set(int s) {
     st.restore = s;
     snprintf(st.restore_date, sizeof st.restore_date, "%s", restore_date);
     st.restore_files = restore_files;
+    st.restore_games = restore_games;
     pthread_mutex_unlock(&mu);
 }
 
@@ -1012,16 +1030,16 @@ static void restore_remove_zip(void) {
 }
 
 /* lo zip (percorso completo) è un backup di Mosaik? data e numero dei file che si ripristinerebbero */
-static bool backup_read(const char *zipfull, char *date, size_t dn, int *nfiles) {
+static bool backup_read(const char *zipfull, char *date, size_t dn, int *nfiles, int *ngames) {
     char info[512];
     FILE *f = fopen(zipfull, "rb");
     if (!f) return false;
     zent_t *z;
-    int n = zip_dir(f, &z), files = 0;
+    int n = zip_dir(f, &z), files = 0, games = 0;
     bool found = false;
     for (int i = 0; i < n; i++) {
         if (!strcmp(z[i].name, BACKUP_INFO)) found = zip_entry(f, &z[i], NULL, info, sizeof info) && !strncmp(info, "Mosaik backup", 13);
-        else if (backup_path_ok(z[i].name, true)) files++;
+        else if (backup_path_ok(z[i].name, true)) { files++; if (backup_game(z[i].name)) games++; }
     }
     free(z);
     fclose(f);
@@ -1029,18 +1047,19 @@ static bool backup_read(const char *zipfull, char *date, size_t dn, int *nfiles)
     const char *d = strstr(info, "date=");
     snprintf(date, dn, "%.*s", d ? (int)strcspn(d + 5, "\n") : 0, d ? d + 5 : "");
     *nfiles = files;
+    if (ngames) *ngames = games;
     return true;
 }
 
 static bool restore_check(void) {
     char full[1200];
     full_path(full, sizeof full, RESTORE_ZIP);
-    return backup_read(full, restore_date, sizeof restore_date, &restore_files);
+    return backup_read(full, restore_date, sizeof restore_date, &restore_files, &restore_games);
 }
 
 static void do_restore_upload(req_t *r) {
     long long body = r->clen - (r->have > 0 ? r->have : 0);
-    if (r->clen <= 0 || r->clen > 0x7FFFFFFFLL) { drain(r, body); reply_err(r->fd, 413, "toolarge"); return; }
+    if (r->clen <= 0 || r->clen > 0xFFFFFFFFLL - 1) { drain(r, body); reply_err(r->fd, 413, "toolarge"); return; }   /* limite del FAT */
     if (atomic_load(&restore_state) == FS_RS_RUNNING) { drain(r, body); reply_err(r->fd, 409, "exists"); return; }
     struct statvfs vs;
     if (statvfs(root, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < 2 * r->clen + (1 << 20)) { drain(r, body); reply_err(r->fd, 507, "space"); return; }
@@ -1121,8 +1140,8 @@ static void restore_run(void) {
     restore_set(ok ? FS_RS_DONE : FS_RS_FAILED);
 }
 
-bool fs_backup_info(const char *zip, char *date, size_t dn, int *files) {
-    return backup_read(zip, date, dn, files);
+bool fs_backup_info(const char *zip, char *date, size_t dn, int *files, int *games) {
+    return backup_read(zip, date, dn, files, games);
 }
 
 bool fs_backup_import(const char *dir, const char *zip) {
@@ -1130,7 +1149,7 @@ bool fs_backup_import(const char *dir, const char *zip) {
     snprintf(root, sizeof root, "%s", dir);
     char d[32];
     int n;
-    return backup_read(zip, d, sizeof d, &n) && backup_extract(zip, n);
+    return backup_read(zip, d, sizeof d, &n, NULL) && backup_extract(zip, n);
 }
 
 void fs_restore_answer(bool yes) {

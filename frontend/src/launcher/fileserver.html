@@ -83,6 +83,7 @@ td.a { text-align:right; white-space:nowrap; }
     <b id="bt"></b><div class="note" id="bn"></div>
     <label><input type="checkbox" id="bw"> <span id="bwt"></span></label>
     <label><input type="checkbox" id="bm"> <span id="bmt"></span></label>
+    <label id="bgl" style="display:none"><input type="checkbox" id="bg"> <span id="bgt"></span></label>
     <div class="row"><a class="btn primary" id="bdl"></a><button id="brs"></button></div>
   </div>
   <div id="tools"></div>
@@ -147,6 +148,7 @@ async function info() {
   $("model").textContent = j.version;
   $("spacet").textContent = txt("free", size(j.free));
   $("bar").firstChild.style.width = j.total ? Math.round(100 * (j.total - j.free) / j.total) + "%" : "0";
+  backupGames(j.games || 0);
 }
 
 async function load(path) {
@@ -157,12 +159,20 @@ async function load(path) {
 }
 
 /* backup: si scarica con le scelte del momento; il ripristino si conferma sulla console */
-function backupLink() { $("bdl").href = "/api/backup?wifi=" + ($("bw").checked ? 1 : 0) + "&media=" + ($("bm").checked ? 1 : 0); }
+function backupLink() { $("bdl").href = "/api/backup?wifi=" + ($("bw").checked ? 1 : 0) + "&media=" + ($("bm").checked ? 1 : 0) + "&games=" + ($("bg").checked ? 1 : 0); }
+/* i giochi nel backup solo se ci stanno: un file sul FAT non supera i 4 GB */
+function backupGames(n) {
+  const big = n > 3.5 * 1024 * 1024 * 1024;
+  $("bgl").style.display = n > 0 ? "block" : "none";
+  $("bg").disabled = big; if (big) $("bg").checked = false;
+  $("bgt").textContent = txt(big ? "backup_games_big" : "backup_games", size(n));
+  backupLink();
+}
 function setupBackup() {
   $("bt").textContent = S.backup; $("bn").textContent = S.backup_note;
   $("bwt").textContent = S.backup_wifi; $("bmt").textContent = S.backup_media;
   $("bdl").textContent = S.backup_download; $("brs").textContent = S.backup_restore;
-  $("bw").onchange = $("bm").onchange = backupLink; backupLink();
+  $("bw").onchange = $("bm").onchange = $("bg").onchange = backupLink; backupLink();
   $("brs").onclick = () => $("rpick").click();
 }
 $("rpick").onchange = e => {

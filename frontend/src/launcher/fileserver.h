@@ -37,6 +37,7 @@ typedef struct {
     int restore;             /* FS_RS_* */
     char restore_date[32];   /* data del backup arrivato */
     int restore_files;       /* file che si ripristinano */
+    int restore_games;       /* di cui ROM e giochi Linux (0: i giochi vanno ricopiati) */
 } fs_status_t;
 
 /* avvia il server sulla cartella root; restituisce falso se la porta non si apre */
@@ -54,7 +55,8 @@ int fs_browsers(void);
 void fs_forget_browsers(void);
 /* nome fisso sulla rete, per l'indirizzo da mostrare: "mosaik.local" */
 #define FS_HOSTNAME "mosaik.local"
-/* backup (salvataggi, impostazioni, preferiti, collezioni, tempo di gioco, BIOS): si scarica
+/* backup (salvataggi, impostazioni, preferiti, collezioni, tempo di gioco, BIOS; a scelta reti
+   Wi-Fi, immagini, ROM e giochi Linux): si scarica
    dalla pagina; uno caricato per il ripristino aspetta la risposta della console. Dopo
    FS_RS_DONE la console va riavviata (impostazioni nuove); fs_restore_clear dopo un errore. */
 void fs_restore_answer(bool yes);
@@ -63,5 +65,5 @@ void fs_restore_clear(void);
    percorso completo. fs_backup_info dice se è un backup di Mosaik, la sua data e quanti file
    ripristina; fs_backup_import li scrive sotto dir (la cartella Arcade), solo a server spento.
    Dopo un'importazione riuscita la console va riavviata. */
-bool fs_backup_info(const char *zip, char *date, size_t dn, int *files);
+bool fs_backup_info(const char *zip, char *date, size_t dn, int *files, int *games);
 bool fs_backup_import(const char *dir, const char *zip);

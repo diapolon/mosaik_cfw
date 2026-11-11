@@ -1,0 +1,8 @@
+{
+  "name": "MAME 2010",
+  "core": "mame2010_libretro",
+  "roms": "Roms/MAME2010",
+  "extensions": ["zip"],
+  "index": "Dats/mame2010.tsv",
+  "order": 25
+}

@@ -678,7 +678,7 @@ static int worker(void *arg) {
                 for (char *c = safe; *c; c++)
                     if (strchr("&*/:`<>?\\|\"", *c)) *c = '_';
                 const char *repos[2] = { "FBNeo - Arcade Games", "MAME" };
-                if (!strcmp(it->core, "mame2003p")) { repos[0] = "MAME"; repos[1] = "FBNeo - Arcade Games"; }
+                if (!strncmp(it->core, "mame", 4)) { repos[0] = "MAME"; repos[1] = "FBNeo - Arcade Games"; }
                 const char *repo_name = it->console ? it->thumbs : repos[try];
                 CURL *c = curl_easy_init();
                 char *er = curl_easy_escape(c, repo_name, 0), *en = curl_easy_escape(c, safe, 0);

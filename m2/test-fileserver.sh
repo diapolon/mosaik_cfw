@@ -115,6 +115,11 @@ check "backup con salvataggi, BIOS, collezioni" "3" "$(unzip -l b.zip | grep -c 
 check "backup senza Wi-Fi" "0" "$(unzip -l b.zip | grep -c wifi.conf)"
 check "backup senza core" "0" "$(unzip -l b.zip | grep -c Cores)"
 check "backup con il Wi-Fi se chiesto" "1" "$(q -o bw.zip "$U/api/backup?wifi=1"; unzip -l bw.zip | grep -c System/wifi.conf)"
+check "backup senza giochi" "0" "$(unzip -l b.zip | grep -c ' Roms/')"
+# il peso è quello dello zip: i file più le intestazioni
+check "peso dei giochi nella pagina" "$(find sd/Roms sd/Linux -type f ! -name '.*' -exec stat -c %s {} + | awk '{t+=$1} END {print int(t/10000)}')" "$(q "$U/api/info" | sed 's/.*"games":\([0-9]*\).*/\1/' | awk '{print int($1/10000)}')"
+q -o bg.zip "$U/api/backup?games=1"
+check "backup con i giochi se chiesto" "0" "$(unzip -p bg.zip 'Roms/FBNEO/gioco uno.zip' | cmp -s - big.zip; echo $?)"
 # ripristino: il salvataggio cambiato torna com'era, solo dopo la conferma
 echo cambiato > sd/Saves/fbneo/gioco.srm
 check "ripristino ricevuto" "true" "$(q -T b.zip "$U/api/restore" | sed 's/.*"ok":\([a-z]*\).*/\1/')"
@@ -138,6 +143,10 @@ echo cambiato > sd/Saves/fbneo/gioco.srm
 q -T r.zip "$U/api/restore" >/dev/null; wait_rst 1; touch si; wait_rst 3
 check "backup compresso ripristinato" "vecchio" "$(cat sd/Saves/fbneo/gioco.srm)"
 check "core non toccato" "core" "$(cat sd/Cores/core.so)"
+# backup con i giochi: la ROM tolta torna
+rm "sd/Roms/FBNEO/gioco uno.zip"
+q -T bg.zip "$U/api/restore" >/dev/null; wait_rst 1; touch si; wait_rst 3
+check "ROM ripristinata dal backup" "0" "$(cmp -s "sd/Roms/FBNEO/gioco uno.zip" big.zip; echo $?)"
 check "file dei browser non elencato" "no" "$(q "$U/api/list?path=System" | grep -q browsers && echo si || echo no)"
 # mosaik.local: domanda mDNS da un'altra porta (come fanno i programmi semplici), risposta diretta
 cat > mdns.py <<'P'
@@ -162,7 +171,7 @@ const char *update_current(void) { return "0.0.0"; }
 int main(int argc, char **argv) {
     char d[32];
     int n = 0;
-    if (argc < 3 || !fs_backup_info(argv[2], d, sizeof d, &n)) { puts("non un backup"); return 1; }
+    if (argc < 3 || !fs_backup_info(argv[2], d, sizeof d, &n, NULL)) { puts("non un backup"); return 1; }
     printf("%d %s\n", n, fs_backup_import(argv[1], argv[2]) ? "importato" : "errore");
     return 0;
 }
