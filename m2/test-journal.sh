@@ -17,7 +17,7 @@ card() {  # stato, versione nel giornale
     echo nuovo > $ROOT/Lang/x.json
     echo vecchio > $ROOT/Lang/y.json; echo nuovo > $ROOT/Lang/y.json.nuovo
     echo fuori > /tmp/j/fuori.txt.annulla; echo resta > /tmp/j/fuori.txt
-    echo sistema > $SYSF
+    echo sistema > $SYSF; echo scaricato > $SYSF.nuovo
     printf 'mosaik-giornale 1\nversion %s\nstato %s\nfile Cores/a.so\nnuovo Lang/x.json\nfile Lang/y.json\nfile ../fuori.txt\n' "$2" "$1" > $J
 }
 run() {  # RUNVER
@@ -39,6 +39,7 @@ outside_ok() { [ "$(cat /tmp/j/fuori.txt)" = resta ] && [ -f /tmp/j/fuori.txt.an
 echo "--- corrente mancata durante l'installazione (stato applico)"
 card applico "1.0 B"; run "1.0 A"
 restored && ok "tutti i file di prima rimessi, quelli nuovi tolti" || ko "non ripristinato: $(ls -R $ROOT)"
+[ ! -e $SYSF.nuovo ] && ok "tolto anche il sistema scaricato e mai installato" || ko "resta il sistema .nuovo"
 outside_ok && ok "percorso fuori da Arcade ignorato" || ko "toccato un file fuori da Arcade"
 grep -q rollback /tmp/j/log && ko "sistema rimesso senza bisogno" || ok "sistema vecchio ancora in uso: nessun riavvio"
 card applico "1.0 B"; echo 0 > $PENDING; run "1.0 B"

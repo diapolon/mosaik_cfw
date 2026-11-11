@@ -425,7 +425,7 @@ journal_restore() {
         fi
         rm -f "$p.nuovo"
     done < "$JOURNAL"
-    rm -f "$JOURNAL"
+    rm -f "$JOURNAL" "$SYSF.nuovo"   # anche il sistema scaricato e mai messo al suo posto
     sync
 }
 journal_finish() {   # sistema nuovo confermato, corrente saltata prima di togliere le copie
