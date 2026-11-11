@@ -87,7 +87,8 @@ static int nthemes;
 static bool dlg_open, dlg_suspend;   /* dlg_suspend: la finestra chiede di sospendere, non di spegnere */
 
 /* scaricamento immagini e verifica ROM in corso (finestre di avanzamento) */
-static bool scrape_open, romcheck_open;
+static bool scrape_open, romcheck_open, rcq_open;   /* rcq: scelta fra verifica rapida e completa */
+static int rcq_sel;
 static bool only_problems;   /* filtro: solo giochi con ROM da sistemare */
 
 /* pannello filtri e tastiera a schermo */
@@ -334,7 +335,7 @@ static void build_tabs(void) {
 }
 
 static bool rom_problem(const game_t *g) {
-    return g->romstatus == RC_MISSING || g->romstatus == RC_BADCRC || g->romstatus == RC_NOPARENT;
+    return g->romstatus == RC_MISSING || g->romstatus == RC_BADCRC || g->romstatus == RC_NOPARENT || g->romstatus == RC_DAMAGED;
 }
 
 /* ricerca: parole cercate nel titolo o nel nome ROM, senza distinguere maiuscole */
@@ -2782,7 +2783,8 @@ static int pp_input(partpick_t *pp, const fs_backup_t *bk) {
     int rows[FS_NPARTS], n = pp_rows(bk, rows);
     if (in->pressed[BTN_UP] && pp->sel > 0) { pp->sel--; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN] && pp->sel < n) { pp->sel++; ui_sound(SND_MOVE); }
-    if (pp->sel == n && (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT])) { pp->btn = !pp->btn; ui_sound(SND_MOVE); }
+    if (pp->sel == n && in->pressed[BTN_LEFT] && pp->btn) { pp->btn = 0; ui_sound(SND_MOVE); }
+    if (pp->sel == n && in->pressed[BTN_RIGHT] && !pp->btn) { pp->btn = 1; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B]) { ui_sound(SND_BACK); return 0; }
     if (!in->pressed[BTN_A]) return -1;
     if (pp->sel < n) { pp->mask ^= 1 << rows[pp->sel]; ui_sound(SND_MOVE); return -1; }
@@ -3335,7 +3337,8 @@ static void clean_start(void) {
 
 static void clean_input(void) {
     input_t *in = &UI.in;
-    if (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) { clean_sel = !clean_sel; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_LEFT] && clean_sel) { clean_sel = 0; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_RIGHT] && !clean_sel) { clean_sel = 1; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B]) { clean_open = false; ui_sound(SND_BACK); return; }
     if (in->pressed[BTN_A]) {
         clean_open = false;
@@ -3877,7 +3880,7 @@ static void settings_input(void) {
         }
         else if (set_sel == S_ROMCHECK) {
             quiet_begin();
-            if (romcheck_start(UI.root, games, ngames)) { romcheck_open = true; ui_sound(SND_OK); }
+            rcq_open = true; rcq_sel = 0; ui_sound(SND_OK);
         }
         else if (set_sel == S_SCRAPE) {
             if (!UI.set.wifi) { ui_toast(T("scrape.no_wifi")); ui_sound(SND_ERROR); }
@@ -4943,7 +4946,8 @@ static void cfm_input(void) {
     if (erase) UI.in.power = false;   /* qui il tasto di accensione non conferma */
     if (cfm_kind == CFM_ERASE3) {   /* ultima: A tenuto premuto, per non passarla premendo A di fila */
         input_t *in = &UI.in;
-        if (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) { cfm_sel = !cfm_sel; cfm_hold = 0; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_LEFT] && cfm_sel) { cfm_sel = 0; cfm_hold = 0; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_RIGHT] && !cfm_sel) { cfm_sel = 1; cfm_hold = 0; ui_sound(SND_MOVE); }
         if (in->pressed[BTN_B] || (in->pressed[BTN_A] && !cfm_sel)) { cfm_kind = CFM_NONE; cfm_hold = 0; ui_sound(SND_BACK); return; }
         if (cfm_sel && in->pressed[BTN_A]) cfm_hold = UI.t;
         if (!cfm_sel || !in->down[BTN_A]) { cfm_hold = 0; return; }
@@ -5351,6 +5355,18 @@ static void detail_draw(void) {
 
 /* ------------------------------------------------------ verifica ROM */
 
+/* prima di cominciare: rapida (l'indice degli zip) o completa (decomprime tutto, più lenta) */
+static void rcq_input(void) {
+    int r = ui_popup_input(&rcq_sel, 2);
+    if (r == -1) return;
+    rcq_open = false;
+    if (r < 0) { ui_sound(SND_BACK); return; }
+    ui_log("verifica ROM %s", r ? "completa" : "rapida");
+    if (romcheck_start(UI.root, games, ngames, r == 1)) { romcheck_open = true; ui_sound(SND_OK); }
+}
+
+static void rcq_draw(void) { ui_confirm_draw(T("rom.choose_title"), T("rom.choose_body"), T("rom.quick"), T("rom.full"), rcq_sel); }
+
 static void romcheck_input(void) {
     last_input = UI.t;   /* niente spegnimento automatico mentre lavora */
     const romcheck_status_t *s = romcheck_status();
@@ -5372,7 +5388,7 @@ static void romcheck_draw(void) {
     int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.03f) + TTF_FontHeight(UI.f_normal) * 2 + M(0.06f) + TTF_FontHeight(UI.f_small) * 3 + ui_popup_buttons_h() - pad, x, y;
     panel_box(w, h, &x, &y);
     int ty = y + pad;
-    ui_text(UI.f_title, T("rom.title"), x + pad, ty, t->text, ALIGN_LEFT);
+    ui_text(UI.f_title, T(s->full ? "rom.title_full" : "rom.title"), x + pad, ty, t->text, ALIGN_LEFT);
     ty += TTF_FontHeight(UI.f_title) + M(0.03f);
     char line[300];
     snprintf(line, sizeof line, T("rom.progress"), s->done, s->total);
@@ -5388,6 +5404,10 @@ static void romcheck_draw(void) {
     int nl = ui_wrap(UI.f_small, line, w - 2 * pad, lines, 2);
     for (int i = 0; i < nl; i++, ty += TTF_FontHeight(UI.f_small)) ui_text(UI.f_small, lines[i], x + pad, ty, t->text, ALIGN_LEFT);
     snprintf(line, sizeof line, T("rom.summary2"), s->count[RC_NOTINDAT], s->count[RC_UNCHECKED]);
+    if (s->full) {   /* i rovinati in testa: è il motivo della verifica completa */
+        size_t l = strlen(line);
+        snprintf(line + l, sizeof line - l, T("rom.summary3"), s->count[RC_DAMAGED]);
+    }
     ui_text(UI.f_small, line, x + pad, ty, t->text_dim, ALIGN_LEFT);
     const char *label[1] = { T(s->finished ? "common.ok" : "scrape.stop") };
     ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
@@ -5921,7 +5941,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = rcq_open = false;
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
             ui_sound(SND_BACK);
@@ -5955,6 +5975,7 @@ int main(int argc, char **argv) {
         else if (ptest_open) ptest_input();
         else if (reset_step) reset_input();
         else if (diag_open) diag_input();
+        else if (rcq_open) rcq_input();
         else if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
         else if (upd_open) upd_input();
@@ -6028,6 +6049,7 @@ int main(int argc, char **argv) {
         if (scrape_open) scrape_draw();
         if (upd_open) upd_draw();
         if (romcheck_open) romcheck_draw();
+        if (rcq_open) rcq_draw();
         if (diag_open) diag_draw();
         if (reset_step) reset_draw();
         if (sc_state) sc_draw();

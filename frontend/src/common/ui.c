@@ -134,7 +134,10 @@ int ui_popup_input(int *sel, int n) {
 /* tasti della finestra: 1 sì, 0 no, -1 ancora aperta. Il tasto di accensione conferma. */
 int ui_confirm_input(int *sel) {
     input_t *in = &UI.in;
-    if (in->pressed[BTN_LEFT] || in->pressed[BTN_RIGHT]) { *sel = !*sel; ui_sound(SND_MOVE); }
+    /* sinistra e destra spostano, non scambiano: con la ripetizione automatica (tasto o levetta
+       tenuti) lo scambio faceva rimbalzare il cursore fra i due pulsanti */
+    if (in->pressed[BTN_LEFT] && *sel != 0) { *sel = 0; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_RIGHT] && *sel != 1) { *sel = 1; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B]) { ui_sound(SND_BACK); return 0; }
     if (in->power) { ui_sound(SND_OK); return 1; }
     if (in->pressed[BTN_A]) { ui_sound(*sel ? SND_OK : SND_BACK); return *sel; }

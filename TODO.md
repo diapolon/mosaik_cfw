@@ -18,7 +18,7 @@
 - [ ] Games with the same file name on two platforms that share a core (MD/SMS/GG, GB/GBC) share saves, states, statistics and pictures: keep each platform apart and move existing files ([#5](https://github.com/diapolon/mosaik_cfw/issues/5))
 - [ ] Neo Geo Pocket: flash save now goes through the frontend as `.srm` (`toolchain/patches/beetle-ngp-saveram.patch`, [#6](https://github.com/diapolon/mosaik_cfw/issues/6)); to test on console with a real game that saves to flash: forced power-off, sleep, low battery, 0.9.17 `.flash` migration
 - [ ] Survive a power loss while files are being replaced (journal or A/B slots); the rollback after three failed boots restores only the system ([#3](https://github.com/diapolon/mosaik_cfw/issues/3))
-- [ ] Full ROM check that decompresses the data, as an option next to the quick check
+- [ ] Full ROM check that decompresses the data, as an option next to the quick check (Verify ROMs → Full, `romcheck_zip_verify`, `m2/test-romcheck.sh`; also in the diagnosis of a game that doesn't start): tested on the Mac; to time on a console with a large library
 - [ ] SD not closed cleanly on restart (9 and 10 Nov, Smart Pro): the logged open file was the listing itself (its output went to `passi.txt`), so most likely the stopped programs had not closed their files yet. `finish` now retries the read-only remount for 2 s and, if it still fails, logs the real open files and the stopped programs: to confirm on a console (no "SD non chiusa" in `passi.txt` and no card check after restarts)
 - [x] Undo the files already replaced when an update stops with an error
 - [x] Replace `volatile` status fields with atomics or a mutex in the worker threads

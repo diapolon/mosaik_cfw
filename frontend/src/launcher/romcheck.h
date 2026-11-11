@@ -1,6 +1,8 @@
 /* Verifica delle ROM: confronta i file dentro ogni zip con quelli attesi dal DAT
-   (Dats/<emulatore>.roms, generato da tools/build_index.py). Legge solo l'indice dello
-   zip (nome, dimensione, CRC), senza decomprimere. Risultati in System/romcheck.tsv. */
+   (Dats/<emulatore>.roms, generato da tools/build_index.py). La verifica rapida legge solo
+   l'indice dello zip (nome, dimensione, CRC dichiarati); quella completa decomprime anche ogni
+   file e ne calcola il CRC, così trova gli zip rovinati (anche delle console, che non hanno un
+   elenco dei file). Risultati in System/romcheck.tsv. */
 #pragma once
 #include <stdbool.h>
 #include "games.h"
@@ -13,16 +15,21 @@ enum {
     RC_NOPARENT,    /* servono il gioco "parent" o il BIOS, che non ci sono */
     RC_NOTINDAT,    /* il nome non è nel DAT dell'emulatore */
     RC_UNCHECKED,   /* formato non verificabile (7z) o emulatore senza elenco dei file */
+    RC_DAMAGED,     /* verifica completa: dati rovinati (CRC sbagliato) o zip che non si legge */
     RC_COUNT
 };
 
 typedef struct {
-    _Atomic bool running, finished, cancel;
+    _Atomic bool running, finished, cancel, full;
     _Atomic int done, total;
     _Atomic int count[RC_COUNT];
 } romcheck_status_t;
 
-bool romcheck_start(const char *root, const game_t *games, int n);
+/* full: decomprime e controlla ogni file (più lenta) */
+bool romcheck_start(const char *root, const game_t *games, int n, bool full);
+/* lo zip si decomprime tutto con i CRC giusti? 1 sì, 0 no (bad: il file rovinato), -1 non si
+   legge. Le voci con un metodo di compressione diverso da store e deflate non si controllano. */
+int romcheck_zip_verify(const char *path, char *bad, int bn);
 void romcheck_cancel(void);
 const romcheck_status_t *romcheck_status(void);
 void romcheck_join(void);

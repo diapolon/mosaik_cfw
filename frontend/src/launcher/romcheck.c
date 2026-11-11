@@ -6,6 +6,7 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
+#include <zlib.h>
 
 /* --------------------------------------------------------- lettura zip */
 /* Solo la "central directory": per ogni file nome, dimensione e CRC32. */
@@ -58,6 +59,101 @@ static bool zip_list(const char *path, zlist_t *out) {
     }
     free(cd);
     return true;
+}
+
+/* ------------------------------------------- verifica completa di uno zip */
+
+static romcheck_status_t st;
+
+/* stop: si interrompe con "Ferma" (solo dentro la verifica di tutte le ROM) */
+static int zip_verify(const char *path, char *bad, int bn, bool stop) {
+    if (bad && bn > 0) bad[0] = 0;
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f), tail = size < 65557 ? size : 65557;
+    if (size < 22) { fclose(f); return -1; }
+    unsigned char *buf = malloc((size_t)tail);
+    fseek(f, size - tail, SEEK_SET);
+    bool ok = buf && fread(buf, 1, (size_t)tail, f) == (size_t)tail;
+    long eocd = -1;
+    for (long i = tail - 22; ok && i >= 0; i--)
+        if (rd32(buf + i) == 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) { free(buf); fclose(f); return -1; }
+    unsigned entries = rd16(buf + eocd + 10), cd_size = rd32(buf + eocd + 12), cd_off = rd32(buf + eocd + 16);
+    free(buf);
+    if ((long long)cd_off + cd_size > size) { fclose(f); return -1; }
+    unsigned char *cd = malloc(cd_size ? cd_size : 1);
+    fseek(f, (long)cd_off, SEEK_SET);
+    if (!cd || fread(cd, 1, cd_size, f) != cd_size) { free(cd); fclose(f); return -1; }
+    static unsigned char in[65536], out[65536];
+    int res = 1;
+    unsigned pos = 0;
+    for (unsigned i = 0; i < entries && res == 1 && !(stop && st.cancel); i++) {
+        if (pos + 46 > cd_size || rd32(cd + pos) != 0x02014b50) { res = -1; break; }
+        unsigned method = rd16(cd + pos + 10), crc = rd32(cd + pos + 16), csize = rd32(cd + pos + 20), usize = rd32(cd + pos + 24);
+        unsigned nlen = rd16(cd + pos + 28), xlen = rd16(cd + pos + 30), clen = rd16(cd + pos + 32), loff = rd32(cd + pos + 42);
+        if (pos + 46 + nlen > cd_size) { res = -1; break; }
+        char name[256];
+        snprintf(name, sizeof name, "%.*s", (int)(nlen < 255 ? nlen : 255), (const char *)cd + pos + 46);
+        pos += 46 + nlen + xlen + clen;
+        if (nlen && name[strlen(name) - 1] == '/') continue;   /* cartella */
+        if (method != 0 && method != 8) continue;              /* compressione non controllabile */
+        unsigned char lh[30];
+        bool good = fseek(f, (long)loff, SEEK_SET) == 0 && fread(lh, 1, 30, f) == 30 && rd32(lh) == 0x04034b50
+                    && fseek(f, (long)rd16(lh + 26) + rd16(lh + 28), SEEK_CUR) == 0;
+        uLong c = crc32(0L, Z_NULL, 0);
+        unsigned long long got = 0;
+        if (good && method == 0) {
+            for (unsigned left = csize; left && good && !(stop && st.cancel);) {
+                size_t k = left < sizeof in ? left : sizeof in;
+                if (fread(in, 1, k, f) != k) { good = false; break; }
+                c = crc32(c, in, (uInt)k);
+                got += k;
+                left -= (unsigned)k;
+            }
+        } else if (good) {
+            z_stream zs;
+            memset(&zs, 0, sizeof zs);
+            if (inflateInit2(&zs, -MAX_WBITS) != Z_OK) good = false;
+            int zr = Z_OK;
+            for (unsigned left = csize; good && zr != Z_STREAM_END && !(stop && st.cancel);) {
+                if (!zs.avail_in) {
+                    size_t k = left < sizeof in ? left : sizeof in;
+                    if (!k || fread(in, 1, k, f) != k) { good = false; break; }
+                    zs.next_in = in;
+                    zs.avail_in = (uInt)k;
+                    left -= (unsigned)k;
+                }
+                zs.next_out = out;
+                zs.avail_out = sizeof out;
+                zr = inflate(&zs, Z_NO_FLUSH);
+                if (zr != Z_OK && zr != Z_STREAM_END) { good = false; break; }
+                size_t n = sizeof out - zs.avail_out;
+                c = crc32(c, out, (uInt)n);
+                got += n;
+            }
+            inflateEnd(&zs);
+        }
+        if (stop && st.cancel) break;
+        if (!good || (unsigned)c != crc || got != usize) {
+            res = 0;
+            if (bad && bn > 0) {
+                const char *b = strrchr(name, '/');
+                snprintf(bad, (size_t)bn, "%s", b ? b + 1 : name);
+            }
+        }
+    }
+    free(cd);
+    fclose(f);
+    return res;
+}
+
+int romcheck_zip_verify(const char *path, char *bad, int bn) { return zip_verify(path, bad, bn, false); }
+
+static bool is_zip(const char *p) {
+    size_t n = p ? strlen(p) : 0;
+    return n > 4 && !strcasecmp(p + n - 4, ".zip");
 }
 
 /* -------------------------------------------- elenchi attesi dal DAT */
@@ -276,7 +372,6 @@ static int check_game(emu_data_t *d, const game_t *g, char *detail, size_t dn, b
 
 typedef struct { char name[ROM_NAME], core[16], *path; } job_t;
 
-static romcheck_status_t st;
 static SDL_Thread *thread;
 static char root_dir[1024];
 static job_t *jobs;
@@ -300,6 +395,14 @@ static int worker(void *arg) {
             bool needs_bios;
             int rc = have ? check_game(&d, &g, detail, sizeof detail, &needs_bios) : RC_UNCHECKED;
             if (!have) detail[0] = 0;
+            /* completa: i dati di ogni file; per le console (senza elenco) è l'unico controllo */
+            if (st.full && is_zip(g.path)) {
+                char bad[200];
+                int v = zip_verify(g.path, bad, sizeof bad, true);
+                if (st.cancel) break;
+                if (v != 1) { rc = RC_DAMAGED; snprintf(detail, sizeof detail, "%s", v < 0 ? "zip" : bad); }
+                else if (!have) rc = RC_OK;
+            }
             st.count[rc]++;
             st.done++;
             if (f) fprintf(f, "%s\t%s\t%d\t%s\n", jobs[i].core, jobs[i].name, rc, detail);
@@ -315,9 +418,10 @@ static int worker(void *arg) {
     return 0;
 }
 
-bool romcheck_start(const char *root, const game_t *games, int n) {
+bool romcheck_start(const char *root, const game_t *games, int n, bool full) {
     if (thread) return false;
     memset((void *)&st, 0, sizeof st);
+    st.full = full;
     snprintf(root_dir, sizeof root_dir, "%s", root);
     for (int i = 0; i < njobs; i++) free(jobs[i].path);
     free(jobs);
@@ -372,6 +476,15 @@ void romcheck_diagnose(const char *root, const game_t *g, const char *core_path,
         out->kind = DG_NO_ROM;
         snprintf(out->file, sizeof out->file, "%s", g->path && *g->path ? base_name(g->path) : g->name);
         return;
+    }
+    /* zip con i dati rovinati: l'indice può essere giusto e il contenuto no (copia sbagliata) */
+    if (is_zip(g->path)) {
+        int v = romcheck_zip_verify(g->path, NULL, 0);
+        if (v != 1) {
+            out->kind = DG_BAD_ZIP;
+            snprintf(out->file, sizeof out->file, "%s", base_name(g->path));
+            return;
+        }
     }
     emu_data_t d;
     if (!emu || !load_emu(&d, root, emu)) { out->kind = DG_UNKNOWN; return; }

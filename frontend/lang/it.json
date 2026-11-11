@@ -284,7 +284,7 @@
     "missing": "Mostra anche i giochi del catalogo degli emulatori che non hai (solo le versioni principali, non i cloni).",
     "genres": "Rinomina i generi, accorpali o torna a quelli originali. Il genere di un singolo gioco si cambia dalla sua scheda (X, poi X).",
     "screensaver": "Dopo un po' senza usare i tasti: le schermate dei tuoi giochi oppure lo schermo spento.",
-    "romcheck": "Controlla che a ogni gioco non manchi nessun file. È un controllo rapido: non legge tutto il contenuto.",
+    "romcheck": "Controlla che a ogni gioco non manchi nessun file. La verifica completa legge anche i dati e trova i file rovinati.",
     "pads": "I comandi della console sono il giocatore 1, un controller Bluetooth o USB il 2. Con «giocatore 1» si gioca da soli con il controller esterno.",
     "music": "Musica di sottofondo dai file nella cartella Music della SD (MP3, OGG, FLAC). A passa al brano successivo.",
     "led": "Effetto delle luci della console: spente, fisse, respiro o pulsazione. A batteria scarica lampeggiano in rosso.",
@@ -514,7 +514,15 @@
     "status4": "Serve il gioco principale o il BIOS",
     "badge4": "Manca principale/BIOS",
     "status5": "Gioco non riconosciuto dall'emulatore",
-    "status6": "Non controllabile (file 7z)"
+    "status6": "Non controllabile (file 7z)",
+    "choose_title": "Verifica ROM",
+    "choose_body": "Rapida: controlla l'elenco dei file. Completa: legge tutti i dati e trova i file rovinati, ma è più lenta.",
+    "quick": "Rapida",
+    "full": "Completa",
+    "title_full": "Verifica completa delle ROM",
+    "summary3": " · %d rovinati",
+    "status7": "Dati rovinati: copia di nuovo il file",
+    "badge7": "Rovinata"
   },
   "pad": {
     "connected": "Controller collegato: %s · giocatore %d",

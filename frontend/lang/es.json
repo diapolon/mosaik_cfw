@@ -284,7 +284,7 @@
     "missing": "Muestra también los juegos del catálogo que no tienes (solo versiones principales).",
     "genres": "Renombra los géneros, combínalos o vuelve a los originales. El género de un juego se cambia desde su ficha (X y luego X).",
     "screensaver": "Tras un rato sin usar los botones: capturas de tus juegos o pantalla apagada.",
-    "romcheck": "Comprueba que a ningún juego le falten archivos. Es una comprobación rápida: no lee todo el contenido.",
+    "romcheck": "Comprueba que a ningún juego le falte un archivo. La verificación completa también lee los datos y encuentra archivos dañados.",
     "pads": "Los controles de la consola son el jugador 1, un mando Bluetooth o USB el 2. Con «jugador 1» se juega solo con el mando externo.",
     "music": "Música de fondo desde la carpeta Music de la SD (MP3, OGG, FLAC). A pasa a la siguiente pista.",
     "led": "Efecto de las luces de la consola: apagadas, fijas, respiración o pulso. Con batería baja parpadean en rojo.",
@@ -514,7 +514,15 @@
     "status4": "Necesita el juego principal o la BIOS",
     "badge4": "Falta principal/BIOS",
     "status5": "Juego no reconocido por el emulador",
-    "status6": "No comprobable (archivo 7z)"
+    "status6": "No comprobable (archivo 7z)",
+    "choose_title": "Verificar ROM",
+    "choose_body": "Rápida: revisa la lista de archivos. Completa: lee todos los datos y encuentra archivos dañados, pero tarda más.",
+    "quick": "Rápida",
+    "full": "Completa",
+    "title_full": "Verificación completa de las ROM",
+    "summary3": " · %d dañadas",
+    "status7": "Datos dañados: vuelve a copiar el archivo",
+    "badge7": "Dañada"
   },
   "pad": {
     "connected": "Mando conectado: %s · jugador %d",

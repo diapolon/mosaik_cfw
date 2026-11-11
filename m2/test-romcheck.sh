@@ -2,7 +2,7 @@
 # Prova della diagnosi di un singolo gioco, con il modulo vero e zip veri:
 #   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-romcheck.sh
 set -e
-apk add -q build-base sdl2-dev python3 >/dev/null
+apk add -q build-base sdl2-dev zlib-dev python3 >/dev/null
 W=/tmp/rc; rm -rf $W; mkdir -p $W/sd/Dats $W/sd/Roms/FBNEO $W/sd/Bios $W/sd/Cores; cd $W
 touch sd/Cores/fbneo_libretro.so
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
 }
 C
 gcc -std=c11 -D_DEFAULT_SOURCE -g -fsanitize=undefined -fsanitize-undefined-trap-on-error -Wall -Wextra -I/trimui/frontend/src/launcher $(sdl2-config --cflags) \
-    t.c /trimui/frontend/src/launcher/romcheck.c -o t $(sdl2-config --libs)
+    t.c /trimui/frontend/src/launcher/romcheck.c -o t $(sdl2-config --libs) -lz
 
 C=sd/Cores/fbneo_libretro.so
 F=Arcade/Roms/FBNEO
@@ -88,6 +88,89 @@ import zipfile
 with zipfile.ZipFile('sd/Bios/neogeo.zip','w') as f: f.writestr('n.bin', b'NNNNN')"
 expect "BIOS trovato in Bios"  "$(r nobios zip)"  "0||$F"
 
+# verifica completa: zip salvati e compressi, sani e con i dati rovinati (l'indice resta giusto)
+cat > rovina.py <<'P'
+import zipfile, sys
+def z(path, method, data):
+    with zipfile.ZipFile(path, 'w', method) as f: f.writestr('dir/a.bin', data); f.writestr('b.bin', b'B' * 5000)
+data = bytes(range(256)) * 400
+for m, tag in ((zipfile.ZIP_STORED, 'st'), (zipfile.ZIP_DEFLATED, 'df')):
+    z(f'sano-{tag}.zip', m, data)
+    z(f'rotto-{tag}.zip', m, data)
+    b = bytearray(open(f'rotto-{tag}.zip', 'rb').read())
+    b[200] ^= 0x55                      # un byte dentro i dati del primo file
+    open(f'rotto-{tag}.zip', 'wb').write(b)
+P
+python3 rovina.py
+cat > v.c <<'C'
+#include "romcheck.h"
+#include <stdio.h>
+#include <string.h>
+emulator_t EMUS[16];
+int NEMUS = 0;
+const emulator_t *emulator_find(const char *id) { (void)id; return NULL; }
+int main(int argc, char **argv) {
+    (void)argc;
+    char bad[200];
+    int v = romcheck_zip_verify(argv[1], bad, sizeof bad);
+    printf("%d|%s\n", v, bad);
+    return 0;
+}
+C
+gcc -std=c11 -D_DEFAULT_SOURCE -g -fsanitize=undefined -fsanitize-undefined-trap-on-error -Wall -Wextra -I/trimui/frontend/src/launcher $(sdl2-config --cflags) \
+    v.c /trimui/frontend/src/launcher/romcheck.c -o v $(sdl2-config --libs) -lz
+expect "zip salvato sano"      "$(./v sano-st.zip)"  "1|"
+expect "zip compresso sano"    "$(./v sano-df.zip)"  "1|"
+expect "zip salvato rovinato"  "$(./v rotto-st.zip)" "0|a.bin"
+expect "zip compresso rovinato" "$(./v rotto-df.zip)" "0|a.bin"
+expect "non uno zip"           "$(./v sd/Roms/FBNEO/badzip.zip)" "-1|"
+expect "zip del gioco intero"  "$(./v sd/Roms/FBNEO/okgame.zip)" "1|"
+# il gioco con l'indice giusto ma i dati rovinati: la diagnosi lo dice
+python3 -c "
+b = bytearray(open('sd/Roms/FBNEO/okgame.zip','rb').read()); b[b.find(b'AAAA')] ^= 1; open('sd/Roms/FBNEO/okgame.zip','wb').write(b)"
+expect "diagnosi: dati rovinati" "$(r okgame zip)" "4|okgame.zip|$F"
+
+# verifica di tutte le ROM, completa: un arcade rovinato, uno sano, una console senza elenco
+mkdir -p sd/Roms/NES sd/System
+cp sano-df.zip sd/Roms/NES/buono.zip; cp rotto-df.zip sd/Roms/NES/cattivo.zip
+cat > b.c <<'C'
+#include "romcheck.h"
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+emulator_t EMUS[16] = { { .id = "fbneo", .name = "FinalBurn Neo", .core = "fbneo_libretro", .roms = "Roms/FBNEO", .index = "Dats/fbneo.tsv" },
+                        { .id = "nes", .name = "NES", .core = "fceumm_libretro", .roms = "Roms/NES", .index = "Dats/nes.tsv" } };
+int NEMUS = 2;
+const emulator_t *emulator_find(const char *id) { return !strcmp(id, "nes") ? &EMUS[1] : !strcmp(id, "fbneo") ? &EMUS[0] : NULL; }
+int main(int argc, char **argv) {
+    game_t g[4];
+    memset(g, 0, sizeof g);
+    (void)argv;
+    const char *nm[4] = { "okgame", "biosinzip", "buono", "cattivo" }, *co[4] = { "fbneo", "fbneo", "nes", "nes" };
+    char path[4][200];
+    for (int i = 0; i < 4; i++) {
+        snprintf(g[i].name, sizeof g[i].name, "%s", nm[i]);
+        snprintf(g[i].core, sizeof g[i].core, "%s", co[i]);
+        snprintf(path[i], sizeof path[i], "sd/Roms/%s/%s.zip", i < 2 ? "FBNEO" : "NES", nm[i]);
+        g[i].path = path[i];
+    }
+    romcheck_start("sd", g, 4, argc > 1);
+    while (!romcheck_status()->finished) usleep(10000);
+    romcheck_join();
+    return 0;
+}
+C
+gcc -std=c11 -D_DEFAULT_SOURCE -g -fsanitize=undefined -fsanitize-undefined-trap-on-error -Wall -Wextra -I/trimui/frontend/src/launcher $(sdl2-config --cflags) \
+    b.c /trimui/frontend/src/launcher/romcheck.c -o b $(sdl2-config --libs) -lz
+./b
+expect "rapida: arcade rovinato non visto" "$(grep okgame sd/System/romcheck.tsv | cut -f3)" "1"
+expect "rapida: console non controllabile" "$(grep buono sd/System/romcheck.tsv | cut -f3)" "6"
+./b completa
+expect "completa: arcade rovinato"   "$(grep okgame sd/System/romcheck.tsv | cut -f3-4)" "$(printf '7\ta.bin')"
+expect "completa: arcade sano"       "$(grep biosinzip sd/System/romcheck.tsv | cut -f3)" "1"
+expect "completa: console sana"      "$(grep buono sd/System/romcheck.tsv | cut -f3)" "1"
+expect "completa: console rovinata"  "$(grep cattivo sd/System/romcheck.tsv | cut -f3-4)" "$(printf '7\ta.bin')"
+
 rm sd/Dats/fbneo.roms
-expect "emulatore senza elenco" "$(r okgame zip)" "10||$F"
+expect "emulatore senza elenco" "$(./t biosinzip sd/Roms/FBNEO/biosinzip.zip $C)" "10||$F"
 echo "TUTTO OK"

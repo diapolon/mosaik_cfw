@@ -284,7 +284,7 @@
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
     "genres": "Rename genres, merge them or go back to the originals. A single game's genre is changed from its page (X, then X).",
     "screensaver": "After a while without input: your games' screenshots or a blank screen.",
-    "romcheck": "Checks that no game is missing any files. It's a quick check: it doesn't read everything inside.",
+    "romcheck": "Checks that no game is missing any file. The full check also reads the data and finds damaged files.",
     "pads": "The console controls are player 1, a Bluetooth or USB controller is player 2. With “player 1” you play alone with the external controller.",
     "music": "Background music from the files in the SD card's Music folder (MP3, OGG, FLAC). A skips to the next track.",
     "led": "Console lights effect: off, steady, breathing or pulse. They blink red when the battery is low.",
@@ -514,7 +514,15 @@
     "status4": "Needs the main game or the BIOS",
     "badge4": "No main game/BIOS",
     "status5": "Game not recognised by the emulator",
-    "status6": "Can't be checked (7z file)"
+    "status6": "Can't be checked (7z file)",
+    "choose_title": "Verify ROMs",
+    "choose_body": "Quick: checks the list of files. Full: reads all the data and finds damaged files, but takes longer.",
+    "quick": "Quick",
+    "full": "Full",
+    "title_full": "Full ROM check",
+    "summary3": " · %d damaged",
+    "status7": "Damaged data: copy the file again",
+    "badge7": "Damaged"
   },
   "pad": {
     "connected": "Controller connected: %s · player %d",

@@ -284,7 +284,7 @@
     "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
     "genres": "Renomme les genres, fusionne-les ou reviens aux originaux. Le genre d'un jeu se change depuis sa fiche (X, puis X).",
     "screensaver": "Après un moment sans action : captures de vos jeux ou écran éteint.",
-    "romcheck": "Vérifie qu'il ne manque aucun fichier à chaque jeu. C'est un contrôle rapide : tout le contenu n'est pas lu.",
+    "romcheck": "Vérifie qu'aucun jeu ne manque de fichier. La vérification complète lit aussi les données et trouve les fichiers abîmés.",
     "pads": "Les commandes de la console sont le joueur 1, une manette Bluetooth ou USB le 2. Avec « joueur 1 » on joue seul avec la manette externe.",
     "music": "Musique de fond depuis le dossier Music de la carte SD (MP3, OGG, FLAC). A passe au morceau suivant.",
     "led": "Effet des lumières de la console : éteintes, fixes, respiration ou pulsation. Batterie faible : elles clignotent en rouge.",
@@ -514,7 +514,15 @@
     "status4": "Jeu principal ou BIOS requis",
     "badge4": "Principal/BIOS absent",
     "status5": "Jeu non reconnu par l'émulateur",
-    "status6": "Non vérifiable (fichier 7z)"
+    "status6": "Non vérifiable (fichier 7z)",
+    "choose_title": "Vérifier les ROM",
+    "choose_body": "Rapide : contrôle la liste des fichiers. Complète : lit toutes les données et trouve les fichiers abîmés, mais prend plus de temps.",
+    "quick": "Rapide",
+    "full": "Complète",
+    "title_full": "Vérification complète des ROM",
+    "summary3": " · %d abîmées",
+    "status7": "Données abîmées : recopiez le fichier",
+    "badge7": "Abîmée"
   },
   "pad": {
     "connected": "Manette connectée : %s · joueur %d",
