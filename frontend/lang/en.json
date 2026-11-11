@@ -590,7 +590,8 @@
     "channel_stable": "Stable",
     "channel_dev": "Development",
     "channel_warn": "Test builds: they may have problems",
-    "notice": "Update available"
+    "notice": "Update available",
+    "boot_failed": "Update failed: the previous version comes back at the next start."
   },
   "look": {
     "auto": "Auto",

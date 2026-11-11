@@ -41,9 +41,92 @@ static void sim_tick(void);
 const update_status_t *update_status(void) { sim_tick(); return &st; }
 void update_cancel(void) { st.cancel = true; }
 
+/* Giornale dell'aggiornamento (audit R03, issue #3): System/update-journal.txt
+     mosaik-giornale 1 / version <versione> / stato applico|installato / file <percorso> / nuovo <percorso>
+   Si scrive prima di sostituire qualsiasi file; "file" ha l'originale in <percorso>.annulla,
+   "nuovo" non esisteva. Gli .annulla restano finché il sistema nuovo non arriva al menu con i suoi
+   core caricabili: solo allora si cancellano. Se l'installazione si interrompe (stato applico) o
+   l'avvio torna al sistema precedente (versione diversa da quella in uso), system-init rimette
+   tutti i file di prima: niente versioni miste. */
+#define JOURNAL "System/update-journal.txt"
+#define JMAX 512
+static bool boot_failed;
+bool update_boot_failed(void) { return boot_failed; }
+
+typedef struct { char version[64], state[16]; int n; char kind[JMAX]; char path[JMAX][512]; } journal_t;
+
+static bool journal_read(const char *root, journal_t *j) {
+    char p[1100], line[600];
+    snprintf(p, sizeof p, "%s/" JOURNAL, root);
+    FILE *f = fopen(p, "r");
+    if (!f) return false;
+    memset(j, 0, sizeof *j);
+    bool ok = fgets(line, sizeof line, f) && !strncmp(line, "mosaik-giornale 1", 17);
+    while (ok && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (!strncmp(line, "version ", 8)) snprintf(j->version, sizeof j->version, "%s", line + 8);
+        else if (!strncmp(line, "stato ", 6)) snprintf(j->state, sizeof j->state, "%s", line + 6);
+        else if (j->n < JMAX && (!strncmp(line, "file ", 5) || !strncmp(line, "nuovo ", 6))) {
+            j->kind[j->n] = line[0];
+            snprintf(j->path[j->n], sizeof j->path[0], "%s", line + (line[0] == 'f' ? 5 : 6));
+            j->n++;
+        }
+    }
+    fclose(f);
+    return ok;
+}
+
+#ifdef __linux__
+#include <dlfcn.h>
+/* i core arrivati con l'aggiornamento si caricano davvero (librerie, simboli): un core che non
+   parte non deve passare per buono */
+static bool cores_load(const char *root, const journal_t *j) {
+    for (int i = 0; i < j->n; i++) {
+        const char *q = j->path[i];
+        size_t l = strlen(q);
+        if (strncmp(q, "Cores/", 6) || l < 4 || strcmp(q + l - 3, ".so")) continue;
+        char p[1100];
+        snprintf(p, sizeof p, "%s/%s", root, q);
+        void *h = dlopen(p, RTLD_NOW | RTLD_LOCAL);
+        if (!h) { ui_log("aggiornamento: %s non si carica: %s", q, dlerror()); return false; }
+        unsigned (*api)(void) = (unsigned (*)(void))dlsym(h, "retro_api_version");
+        bool ok = api && api() == 1;
+        dlclose(h);
+        if (!ok) { ui_log("aggiornamento: %s non è un core libretro valido", q); return false; }
+    }
+    return true;
+}
+#else
+static bool cores_load(const char *root, const journal_t *j) { (void)root; (void)j; return true; }
+#endif
+
 void update_confirm_boot(const char *root) {
-    char p[1100];
+    char p[1100], j_path[1100];
     snprintf(p, sizeof p, "%s/System/update-pending", root);
+    snprintf(j_path, sizeof j_path, "%s/" JOURNAL, root);
+    static journal_t j;
+    if (journal_read(root, &j) && !strcmp(j.state, "installato") && !strcmp(j.version, update_current())) {
+        if (!cores_load(root, &j)) {
+            /* il prossimo avvio è il terzo di prova: l'initramfs rimette il sistema precedente e
+               system-init i file di prima */
+            FILE *f = fopen(p, "w");
+            if (f) { fputs("2\n", f); fflush(f); fsync(fileno(f)); fclose(f); }
+            boot_failed = true;
+            ui_log("aggiornamento: al prossimo avvio si torna alla versione precedente");
+            return;
+        }
+        /* prima il segno di prova, poi le copie di sicurezza, per ultimo il giornale: se la corrente
+           salta a metà, system-init finisce il lavoro (giornale senza segno di prova) */
+        if (unlink(p) == 0) ui_log("aggiornamento: il sistema nuovo funziona");
+        for (int i = 0; i < j.n; i++) {
+            char b[1100];
+            snprintf(b, sizeof b, "%s/%s.annulla", root, j.path[i]);
+            unlink(b);
+        }
+        unlink(j_path);
+        sync();
+        return;
+    }
     if (unlink(p) == 0) ui_log("aggiornamento: il sistema nuovo funziona");
 }
 
@@ -433,10 +516,6 @@ static void undo_items(void) {
     }
 }
 
-static void drop_backups(void) {
-    char bak[1120];
-    for (int i = 0; i < nitems; i++) if (items[i].backed) { backup_name(&items[i], bak, sizeof bak); unlink(bak); }
-}
 
 /* mette il file nuovo al suo posto tenendo da parte il vecchio */
 static bool place_item(item_t *it, const char *tmp, const char *dst) {
@@ -491,17 +570,68 @@ static void *install_worker(void *arg) {
 }
 
 /* si sostituiscono i file, il sistema per ultimo */
+/* scrittura sicura del giornale: file provvisorio, fsync, rename */
+static bool journal_write(const char *state) {
+    char p[1100], t[1120];
+    snprintf(p, sizeof p, "%s/" JOURNAL, root_dir);
+    snprintf(t, sizeof t, "%s.tmp", p);
+    FILE *f = fopen(t, "w");
+    if (!f) return false;
+    bool ok = fprintf(f, "mosaik-giornale 1\nversion %s\nstato %s\n", st.version, state) > 0;
+    for (int i = 0; ok && i < nitems; i++) {
+        item_t *it = &items[i];
+        if (!it->need || !strcmp(it->path, SYSFILE)) continue;
+        char dst[1100];
+        struct stat sb;
+        snprintf(dst, sizeof dst, "%s/%s", root_dir, it->path);
+        /* "file": c'è un originale da tenere (prima della sostituzione è dst, dopo è .annulla) */
+        bool orig = !strcmp(state, "applico") ? stat(dst, &sb) == 0 : it->backed;
+        ok = fprintf(f, "%s %s\n", orig ? "file" : "nuovo", it->path) > 0;
+    }
+    ok = fflush(f) == 0 && fsync(fileno(f)) == 0 && ok;
+    if (fclose(f) != 0) ok = false;
+    if (!ok || rename(t, p) != 0) { unlink(t); return false; }
+    char d[1100];
+    snprintf(d, sizeof d, "%s/System", root_dir);
+    int fd = open(d, O_RDONLY);
+    if (fd >= 0) { fsync(fd); close(fd); }
+    return true;
+}
+
+static void journal_clear(void) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/" JOURNAL, root_dir);
+    unlink(p);
+}
+
+static bool write_pending(const char *pend) {
+    FILE *f = fopen(pend, "w");
+    bool marked = f && fputs("0\n", f) >= 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (f && fclose(f) != 0) marked = false;
+    return marked;
+}
+
 static void *apply_worker(void *arg) {
     (void)arg;
     char tmp[1100], dst[1100];
     item_t *sys = NULL;
+    /* prima di toccare qualsiasi file: il giornale, così un'interruzione si può sempre disfare */
+    if (!journal_write("applico")) { ui_log("aggiornamento: impossibile scrivere il giornale"); remove_tmps(); fail(UPE_WRITE); return NULL; }
     for (int i = 0; i < nitems; i++) {
         item_t *it = &items[i];
         if (!it->need) continue;
         if (!strcmp(it->path, SYSFILE)) { sys = it; continue; }
         tmp_name(it, tmp, sizeof tmp);
         snprintf(dst, sizeof dst, "%s/%s", root_dir, it->path);
-        if (!place_item(it, tmp, dst)) { ui_log("aggiornamento: rename %s: %s", it->path, strerror(errno)); undo_items(); remove_tmps(); fail(UPE_WRITE); return NULL; }
+        if (!place_item(it, tmp, dst)) { ui_log("aggiornamento: rename %s: %s", it->path, strerror(errno)); undo_items(); remove_tmps(); journal_clear(); fail(UPE_WRITE); return NULL; }
+    }
+    char pend_all[1100];
+    snprintf(pend_all, sizeof pend_all, "%s/System/update-pending", root_dir);
+    /* anche senza sistema nuovo si contano gli avvii di prova: alla terza prova fallita
+       system-init rimette i file di prima */
+    if (!sys && !write_pending(pend_all)) {
+        ui_log("aggiornamento: impossibile scrivere update-pending");
+        unlink(pend_all); undo_items(); remove_tmps(); journal_clear(); fail(UPE_WRITE); return NULL;
     }
     if (sys) {
         char prev[1100], pend[1100];
@@ -519,19 +649,17 @@ static void *apply_worker(void *arg) {
         bool keep_prev = run == RUN_PREV || (run == RUN_UNKNOWN && stat(prev, &prev_st) == 0);
         if (!keep_prev && stat(dst, &main_st) == 0) {
             unlink(prev);
-            if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); undo_items(); remove_tmps(); fail(UPE_WRITE); return NULL; }
+            if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); undo_items(); remove_tmps(); journal_clear(); fail(UPE_WRITE); return NULL; }
             moved = true;
         }
         /* senza questo file non si contano gli avvii di prova: non si prosegue */
-        FILE *f = fopen(pend, "w");
-        bool marked = f && fputs("0\n", f) >= 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
-        if (f && fclose(f) != 0) marked = false;
-        if (!marked) {
+        if (!write_pending(pend)) {
             ui_log("aggiornamento: impossibile scrivere update-pending");
             unlink(pend);
             if (moved) restore_system(prev, dst);
             undo_items();
             remove_tmps();
+            journal_clear();
             fail(UPE_WRITE);
             return NULL;
         }
@@ -541,11 +669,13 @@ static void *apply_worker(void *arg) {
             unlink(pend);
             undo_items();
             remove_tmps();
+            journal_clear();
             fail(UPE_WRITE);
             return NULL;
         }
     }
-    drop_backups();
+    /* le copie .annulla restano fino alla conferma del primo avvio (update_confirm_boot) */
+    if (!journal_write("installato")) ui_log("aggiornamento: giornale non aggiornato: al prossimo avvio si torna ai file di prima");
     sync();
     ui_log("aggiornamento: installata la versione %s", st.version);
     st.phase = UPD_DONE;

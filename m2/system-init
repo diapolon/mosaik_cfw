@@ -397,8 +397,62 @@ run_app() {
 # il sistema precedente, tenuto come arcade-system.squashfs.prec.
 SYSF="$ROOT/System/arcade-system.squashfs"
 PENDING="$ROOT/System/update-pending"
+RUNVER=$(cat /etc/arcade-version 2>/dev/null)
+# >>> giornale dell'aggiornamento (m2/test-journal.sh prova questo blocco)
+# Il launcher scrive System/update-journal.txt prima di sostituire i file (audit R03, issue #3):
+# "file P" ha l'originale in P.annulla, "nuovo P" prima non c'era. Le copie restano finché il
+# sistema nuovo non arriva al menu; se l'installazione si è interrotta o l'avvio è tornato al
+# sistema precedente, qui si rimettono tutti i file di prima, così non restano versioni miste.
+JOURNAL="$ROOT/System/update-journal.txt"
+journal_paths() {   # "file|nuovo PERCORSO" del giornale, senza percorsi fuori da Arcade
+    sed -n -e 's/^file //p' -e 's/^nuovo //p' "$JOURNAL" | while IFS= read -r rel; do
+        case "$rel" in ""|/*|*..*) continue ;; esac
+        echo "$rel"
+    done
+}
+journal_restore() {
+    [ -f "$JOURNAL" ] || return 0
+    step "aggiornamento: rimetto i file della versione precedente"
+    while IFS= read -r l; do
+        kind=${l%% *}; rel=${l#* }
+        case "$kind" in file|nuovo) ;; *) continue ;; esac
+        case "$rel" in ""|/*|*..*) continue ;; esac
+        p="$ROOT/$rel"
+        if [ "$kind" = file ]; then
+            [ -f "$p.annulla" ] && mv -f "$p.annulla" "$p"
+        else
+            rm -f "$p"
+        fi
+        rm -f "$p.nuovo"
+    done < "$JOURNAL"
+    rm -f "$JOURNAL"
+    sync
+}
+journal_finish() {   # sistema nuovo confermato, corrente saltata prima di togliere le copie
+    journal_paths | while IFS= read -r rel; do rm -f "$ROOT/$rel.annulla"; done
+    rm -f "$JOURNAL"
+    sync
+}
+journal_check() {
+    [ -f "$JOURNAL" ] || return 0
+    jst=$(sed -n 's/^stato //p' "$JOURNAL" | head -n 1)
+    jver=$(sed -n 's/^version //p' "$JOURNAL" | head -n 1)
+    if [ "$jst" != installato ]; then
+        step "aggiornamento interrotto durante l'installazione"
+        journal_restore
+        [ -f "$PENDING" ] && rollback   # il sistema nuovo era già al suo posto: si riparte dal precedente
+        if [ ! -f "$SYSF" ] && [ -f "$SYSF.prec" ]; then mv -f "$SYSF.prec" "$SYSF"; sync; fi
+    elif [ "$jver" != "$RUNVER" ]; then
+        journal_restore                 # l'avvio è tornato al sistema precedente
+    elif [ ! -f "$PENDING" ]; then
+        journal_finish
+    fi
+}
+# <<< giornale
 rollback() {
-    [ -f "$SYSF.prec" ] || return 1
+    journal_restore
+    # aggiornamento senza sistema nuovo: bastano i file di prima, nessun riavvio
+    if [ ! -f "$SYSF.prec" ]; then rm -f "$PENDING"; sync; return 1; fi
     step "aggiornamento non riuscito: torno al sistema precedente"
     # il sistema può mancare se la corrente è saltata durante lo scambio dei file
     if { [ ! -f "$SYSF" ] || mv -f "$SYSF" "$SYSF.guasto"; } && mv -f "$SYSF.prec" "$SYSF"; then
@@ -416,8 +470,14 @@ if [ -f "$PENDING" ] && [ ! -f /run/boot-counted ]; then
     n=$((n + 1))
     echo "$n" > "$PENDING"
     step "sistema appena aggiornato: avvio di prova $n"
+fi
+# terza prova fallita (contata qui o dall'initramfs, che se c'è il .prec lo ha già rimesso)
+if [ -f "$PENDING" ]; then
+    n=$(cat "$PENDING" 2>/dev/null)
+    case $n in ''|*[!0-9]*) n=0 ;; esac
     [ "$n" -gt 2 ] && rollback
 fi
+journal_check
 sync
 fails=0
 while :; do

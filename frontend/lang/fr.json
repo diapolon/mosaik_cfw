@@ -590,7 +590,8 @@
     "channel_stable": "Stable",
     "channel_dev": "Développement",
     "channel_warn": "Versions de test : des problèmes sont possibles",
-    "notice": "Mise à jour disponible"
+    "notice": "Mise à jour disponible",
+    "boot_failed": "Échec de la mise à jour : la version précédente revient au prochain démarrage."
   },
   "look": {
     "auto": "Automatique",

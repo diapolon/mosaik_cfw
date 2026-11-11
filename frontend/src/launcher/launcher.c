@@ -5346,7 +5346,12 @@ int main(int argc, char **argv) {
         if (setup_step) setup_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
-        if (first_frame) { first_frame = false; ui_mark("prima schermata"); update_confirm_boot(UI.root); }
+        if (first_frame) {
+            first_frame = false;
+            ui_mark("prima schermata");
+            update_confirm_boot(UI.root);
+            if (update_boot_failed()) ui_toast(T("update.boot_failed"));
+        }
         /* avviso di aggiornamento, solo nella schermata iniziale */
         if (update_notify_version()[0] && !saver_on && (screen == SCR_HOME || (is_list_layout() && screen == SCR_LIBRARY)) && !dlg_open) {
             const char *msg = T("update.notice");

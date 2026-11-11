@@ -30,6 +30,7 @@ int main(int c, char **v) {
         puts(update_notify_version()[0] ? update_notify_version() : "niente");
         return 0;
     }
+    if (c > 2 && !strcmp(v[2], "confirm")) { update_confirm_boot(v[1]); printf("%d\n", (int)update_boot_failed()); return 0; }
     update_check(v[1]); update_join();
     const update_status_t *s = update_status();
     if (c > 2 && !strcmp(v[2], "reinstall")) { printf("%d\n", s->phase == UPD_AVAILABLE ? (int)s->reinstall : -1); return 0; }
@@ -89,6 +90,7 @@ expect "$(./t $W/sd install 2>/dev/null)" "11 6 6" "aggiornamento fermato"
 cmp $W/vecchio $S/System/arcade-system.squashfs && ok "il sistema resta il vecchio"
 [ ! -e $S/Cores/a.so ] && ok "file nuovi tolti" || ko "file nuovo rimasto"
 [ -z "$(find $S -name '*.annulla' -o -name '*.nuovo')" ] && ok "nessun file provvisorio" || ko "file provvisori rimasti: $(find $S -name '*.annulla' -o -name '*.nuovo')"
+[ ! -e $S/System/update-journal.txt ] && ok "nessun giornale dopo l'errore" || ko "giornale rimasto"
 card
 echo "--- impossibile scrivere il segno degli avvii di prova"
 mkdir $S/System/update-pending
@@ -146,7 +148,11 @@ rm -rf $W/block
 card
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 6" "fine installazione, 6 file"
 cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nuovo identico"
-[ -z "$(find $S -name '*.annulla' -o -name '*.nuovo')" ] && ok "nessun file provvisorio dopo l'installazione" || ko "file provvisori rimasti"
+[ -z "$(find $S -name '*.nuovo')" ] && ok "nessun file scaricato rimasto dopo l'installazione" || ko "file .nuovo rimasti"
+[ "$(cat $S/Lang/it.json.annulla 2>/dev/null)" = vecchio ] && ok "l'originale resta come .annulla fino alla conferma (R03)" || ko "copia .annulla mancante"
+J=$S/System/update-journal.txt
+grep -qx 'stato installato' $J && grep -qx 'version 0.9.0 20270101.0000' $J && grep -qx 'file Lang/it.json' $J && grep -qx 'nuovo Cores/a.so' $J \
+    && ok "giornale: versione, stato, file sostituiti e file nuovi" || ko "giornale: $(cat $J 2>&1)"
 cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio conservato"
 cmp $A/Cores/a.so $S/Cores/a.so && cmp $A/Lang/it.json $S/Lang/it.json && cmp $A/Themes/t/theme.json $S/Themes/t/theme.json && ok "dati aggiornati"
 cmp $A/Dats/fbneo.roms $S/Dats/fbneo.roms && [ ! -e $S/Dats/md.tsv ] && [ ! -e $S/Dats/libretro ] && ok "indice arcade sì, indice della console e dati libretro no" || ko "indici sbagliati"
@@ -154,6 +160,15 @@ cmp $A/Dats/fbneo.roms $S/Dats/fbneo.roms && [ ! -e $S/Dats/md.tsv ] && [ ! -e $
 [ -f $S/System/update-pending ] && ok "segno di prova del sistema nuovo"
 [ ! -e $S/Dats/history ] && [ "$(cat $S/Dats/arcadedb.tsv)" = scaricato ] && ok "dati dello scraper non toccati"
 [ -z "$(find $S -name '*.nuovo')" ] && ok "nessun file provvisorio rimasto"
+
+echo "--- conferma del primo avvio: i core nuovi si devono caricare (R03)"
+export ARCADE_VERSION_FILE=$W/same.txt
+expect "$(./t $W/sd confirm 2>/dev/null)" "1" "core che non si carica: niente conferma"
+[ "$(cat $S/System/update-pending)" = 2 ] && [ -f $J ] && [ -f $S/Lang/it.json.annulla ] && ok "prossimo avvio = terza prova: si torna indietro, copie e giornale restano" || ko "dopo il core rotto: $(cat $S/System/update-pending)"
+printf 'unsigned retro_api_version(void) { return 1; }\n' > $W/core.c && gcc -shared -fPIC -o $S/Cores/a.so $W/core.c
+expect "$(./t $W/sd confirm 2>/dev/null)" "0" "core caricabile: confermato"
+[ ! -e $S/System/update-pending ] && [ ! -e $J ] && [ -z "$(find $S -name '*.annulla')" ] && ok "conferma: via segno di prova, copie e giornale" || ko "dopo la conferma: $(ls $S/System; find $S -name '*.annulla')"
+cp $A/Cores/a.so $S/Cores/a.so
 
 echo "--- seconda volta: già aggiornato"
 export ARCADE_VERSION_FILE=$W/same.txt
@@ -169,7 +184,9 @@ before=$(cd $S && find . -type f | sort | xargs md5sum | md5sum)
 expect "$(./t $W/sd 2>/dev/null)" "5 0 6" "versione nuova annunciata subito, col massimo di file (confronto solo dopo Scarica)"
 [ "$(cd $S && find . -type f | sort | xargs md5sum | md5sum)" = "$before" ] && ok "il controllo non tocca la scheda"
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 1" "un solo file"
-cmp $A/Lang/it.json $S/Lang/it.json && [ ! -e $S/System/update-pending ] && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema non toccato"
+cmp $A/Lang/it.json $S/Lang/it.json && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema non toccato"
+[ -f $S/System/update-pending ] && grep -qx 'file Lang/it.json' $S/System/update-journal.txt && ok "anche senza sistema nuovo: avvio di prova e giornale" || ko "aggiornamento dei soli dati senza prova"
+rm -f $S/System/update-pending $S/System/update-journal.txt   # come dopo la conferma
 echo "--- versione nuova ma file già tutti uguali"
 expect "$(./t $W/sd install 2>/dev/null)" "4 0 0" "dopo il confronto: già aggiornato, niente scaricato"
 [ ! -e $S/System/update-pending ] && ok "nessun avvio di prova"
