@@ -29,10 +29,12 @@
 
 - **FinalBurn Neo and MAME 2003-Plus**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
+- **PlayStation** (PCSX ReARMed): `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
 - **Linux games**, with an in-game menu and sleep.
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
+- **Transfer files over Wi-Fi** from a computer or phone: scan the QR code or open `mosaik.local`, then upload ROMs and download saves without taking the card out.
 - **Three themes with color variants**, languages, LEDs and video filters you can configure.
 - **Signed updates** over Wi-Fi, all or nothing: if one is interrupted or the new version fails to start, the console goes back to all the previous files.
 - **CPU profile for each game**, and a notice on the home screen when an update is available.
@@ -79,7 +81,7 @@
     <td><img src="docs/images/transfer-page.png" alt="Transfer page"></td>
   </tr>
   <tr>
-    <td align="center">Transfer files over Wi-Fi (for now in the Development channel)</td>
+    <td align="center">Transfer files over Wi-Fi: scan the QR code or open mosaik.local</td>
     <td align="center">The transfer page, in any browser</td>
   </tr>
 </table>
@@ -110,17 +112,18 @@ Turn the console off and connect the card to your computer. Everything is in the
 | `Roms/NES`, `Roms/SNES`, `Roms/MD` | NES, Super Nintendo and Mega Drive games |
 | `Roms/SMS`, `Roms/GG`, `Roms/PCE` | Master System, Game Gear and PC Engine (HuCard) games |
 | `Roms/GB`, `Roms/GBC`, `Roms/GBA`, `Roms/NGP` | Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket games |
+| `Roms/PS` | PlayStation games: `.chd` (recommended), `.cue` with its `.bin` files, or `.pbp` |
 | `Bios` | `neogeo.zip` and other BIOS files |
 | `Linux` | Linux games, one per folder |
 | `Media` | Game images |
 | `Music` | Background music (MP3, OGG, FLAC, WAV) |
 | `Saves` | Saves |
 
-Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
+Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
 
 For covers and information, connect to Wi-Fi and use **Settings → Tools → Download images**.
 
-You can also copy files without taking the card out (for now in the Development channel): open **Settings → Tools → Transfer files**, then scan the QR code with your phone, or open **http://mosaik.local** in a browser on a computer connected to the same Wi-Fi network and type the PIN (tick **Remember this browser** to skip it next time). From the page you can upload ROMs, BIOS files, images, music and Linux games (files or whole folders, also by dragging them onto the page), download saves and logs (a folder becomes a zip), create, rename and delete. System files can only be downloaded. The transfer stays on only while the window is open on the console, and the PIN changes every time.
+You can also copy files without taking the card out: open **Settings → Tools → Transfer files**, then scan the QR code with your phone, or open **http://mosaik.local** in a browser on a computer connected to the same Wi-Fi network and type the PIN (tick **Remember this browser** to skip it next time). From the page you can upload ROMs, BIOS files, images, music and Linux games (files or whole folders, also by dragging them onto the page), download saves and logs (a folder becomes a zip), create, rename and delete. System files can only be downloaded. The transfer stays on only while the window is open on the console, and the PIN changes every time.
 
 ### Linux games
 

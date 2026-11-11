@@ -45,7 +45,7 @@
 ## Launcher
 
 - [ ] Backup and restore: Tools → Backup makes one zip on the card (saves, settings, favorites, collections, play time, Wi-Fi networks; optionally images and ROMs). Copy it to a computer, write the card again, put the zip back: at the first start the console finds it and offers to import it. Pairs with the reinstall notice (`m2/area-avvio.conf`)
-- [ ] File transfer over Wi-Fi (Settings → Tools → Transfer files, `launcher/fileserver.c`, page in `fileserver.html`, `m2/test-fileserver.sh`): to test on a console, from a computer and a phone: big uploads (a PS disc), folder upload, zip of Saves, power-off during an upload (the `.part` file is removed at the next opening), speed on the Brick Pro and the Smart Pro, the QR code with a real phone camera, `mosaik.local` from Windows and Android, "Remember this browser". Then README and wiki
+- [ ] File transfer over Wi-Fi (Settings → Tools → Transfer files, 0.9.19, `launcher/fileserver.c`, `m2/test-fileserver.sh`): tested on a console from a Mac and an Android phone (fast, mosaik.local opens). Still to test: power-off during an upload (the `.part` file is removed at the next opening), a PS disc, `mosaik.local` from Windows, "Remember this browser"
 - [ ] Console scraper, phase 2: ScreenScraper as a second source (needs developer credentials, requested on the screenscraper.fr forum)
 - [ ] Game list cache, for very large libraries
 - [ ] Apps section in the launcher

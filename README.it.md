@@ -29,10 +29,12 @@
 
 - **FinalBurn Neo e MAME 2003-Plus**: Neo Geo, CPS1, CPS2 e gran parte dei classici arcade.
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket**, con i salvataggi a batteria scritti ogni 10 secondi (anche l'orologio dei Pokémon), salvataggi separati per ogni console e le ROM zippate.
+- **PlayStation** (PCSX ReARMed): dischi `.chd`, `.cue` e `.pbp`, giochi su più dischi con un file `.m3u` e il cambio disco nel menu di gioco.
 - **Copertine e informazioni anche per le console**: scatola, titolo, anno, editore, genere e giocatori, trovati dalla ROM stessa.
 - **Giochi Linux**, con menu sopra al gioco e sospensione.
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
+- **Trasferimento file via Wi-Fi** da computer o telefono: inquadri il QR o apri `mosaik.local`, poi carichi ROM e scarichi salvataggi senza togliere la scheda.
 - **Tre temi con varianti di colore**, lingue, LED e filtri video configurabili.
 - **Aggiornamenti firmati** via Wi-Fi, tutto o niente: se uno si interrompe o la versione nuova non parte, la console torna a tutti i file di prima.
 - **Profilo CPU per ogni gioco** e avviso nella home quando c'è un aggiornamento.
@@ -79,7 +81,7 @@
     <td><img src="docs/images/it/transfer-page.png" alt="Pagina del trasferimento"></td>
   </tr>
   <tr>
-    <td align="center">Trasferisci file via Wi-Fi (per ora nel canale Sviluppo)</td>
+    <td align="center">Trasferisci file via Wi-Fi: inquadra il QR o apri mosaik.local</td>
     <td align="center">La pagina del trasferimento, in qualsiasi browser</td>
   </tr>
 </table>
@@ -110,17 +112,18 @@ Spegni la console e collega la scheda al computer. Tutto si trova nella cartella
 | `Roms/NES`, `Roms/SNES`, `Roms/MD` | Giochi NES, Super Nintendo e Mega Drive |
 | `Roms/SMS`, `Roms/GG`, `Roms/PCE` | Giochi Master System, Game Gear e PC Engine (HuCard) |
 | `Roms/GB`, `Roms/GBC`, `Roms/GBA`, `Roms/NGP` | Giochi Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket |
+| `Roms/PS` | Giochi PlayStation: `.chd` (consigliato), `.cue` con i suoi `.bin`, oppure `.pbp` |
 | `Bios` | `neogeo.zip` e gli altri BIOS |
 | `Linux` | Giochi Linux, uno per cartella |
 | `Media` | Immagini dei giochi |
 | `Music` | Musica di sottofondo (MP3, OGG, FLAC, WAV) |
 | `Saves` | Salvataggi |
 
-Tieni le ROM arcade in `.zip` e non cambiare il nome. I giochi per console possono essere zippati o no, un gioco per zip; il GBA non ha bisogno del BIOS. **Impostazioni → Strumenti → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
+Tieni le ROM arcade in `.zip` e non cambiare il nome. I giochi per console possono essere zippati o no, un gioco per zip; il GBA non ha bisogno del BIOS. Per un gioco PlayStation su più dischi, elenca i dischi in un file `.m3u` nella stessa cartella: in elenco compare solo il `.m3u`, e **Disco** nel menu di gioco cambia disco. Un BIOS PlayStation (`scph5501.bin`…) in `Bios` è facoltativo. **Impostazioni → Strumenti → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
 
 Per copertine e informazioni, collega il Wi-Fi e usa **Impostazioni → Strumenti → Scarica immagini**.
 
-Puoi anche copiare i file senza togliere la scheda (per ora nel canale Sviluppo): apri **Impostazioni → Strumenti → Trasferisci file**, poi inquadra il codice QR con il telefono, oppure apri **http://mosaik.local** nel browser di un computer collegato alla stessa rete Wi-Fi e scrivi il PIN (con **Ricorda questo browser** le volte dopo non serve). Dalla pagina carichi ROM, BIOS, immagini, musica e giochi Linux (file o cartelle intere, anche trascinandoli sulla pagina), scarichi salvataggi e registri (una cartella diventa uno zip), crei, rinomini ed elimini. I file del sistema si possono solo scaricare. Il trasferimento resta acceso solo finché la finestra è aperta sulla console, e il PIN cambia ogni volta.
+Puoi anche copiare i file senza togliere la scheda: apri **Impostazioni → Strumenti → Trasferisci file**, poi inquadra il codice QR con il telefono, oppure apri **http://mosaik.local** nel browser di un computer collegato alla stessa rete Wi-Fi e scrivi il PIN (con **Ricorda questo browser** le volte dopo non serve). Dalla pagina carichi ROM, BIOS, immagini, musica e giochi Linux (file o cartelle intere, anche trascinandoli sulla pagina), scarichi salvataggi e registri (una cartella diventa uno zip), crei, rinomini ed elimini. I file del sistema si possono solo scaricare. Il trasferimento resta acceso solo finché la finestra è aperta sulla console, e il PIN cambia ogni volta.
 
 ### Giochi Linux
 
