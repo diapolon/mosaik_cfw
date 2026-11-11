@@ -214,6 +214,11 @@ int main(int argc, char **argv) {
        (SIGSTOP) finché la console non si risveglia; tenuto premuto 1,2 s = chiude il gioco e
        chiede lo spegnimento (codice di uscita 120 per system-init) */
     bool standalone = getenv("ARCADE_STANDALONE") && getenv("ARCADE_STANDALONE")[0] == '1';
+    /* GAMEWATCH_NOMENU=1: il programma ha un suo menu e la sua uscita, e chiuderlo da fuori fa
+       perdere dati (Deadcast: salvataggi della VMU ancora nel buffer). Menu tenuto e HOME non fanno
+       nulla, e il tasto di accensione sospende senza la domanda (il nostro livello lì non si vede). */
+    bool nomenu = getenv("GAMEWATCH_NOMENU") && getenv("GAMEWATCH_NOMENU")[0] == '1';
+    if (nomenu) fprintf(stderr, "gamewatch: senza il menu di Mosaik (si esce dal menu del programma)\n");
     double power_at = 0;
     double power_block_until = 0;   /* dopo un risveglio il tasto non vale per un momento */
     double pressed_at = 0;
@@ -250,7 +255,7 @@ int main(int argc, char **argv) {
                             if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }   /* un livello alla volta */
                             kill(-pid, SIGSTOP);
                             /* chiede conferma: senza un sì non si sospende */
-                            int ask = run_menu("--ask-suspend");
+                            int ask = nomenu ? 30 : run_menu("--ask-suspend");
                             fprintf(stderr, "gamewatch: conferma della sospensione: %d\n", ask);
                             if (ask == 20) {
                                 kill(-pid, SIGCONT);
@@ -272,13 +277,13 @@ int main(int argc, char **argv) {
                             break;
                         }
                     }
-                    if (ev.type == EV_KEY && ev.code == quick_key && ev.value == 1) {
+                    if (!nomenu && ev.type == EV_KEY && ev.code == quick_key && ev.value == 1) {
                         fprintf(stderr, "gamewatch: HOME, chiudo il gioco\n");
                         stop_group(pid);
                         if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
                         return 0;
                     }
-                    if (ev.type == EV_KEY)
+                    if (ev.type == EV_KEY && !nomenu)
                         for (int k = 0; k < nkeys; k++)
                             if (ev.code == keys[k]) {
                                 if (ev.value != 2) fprintf(stderr, "gamewatch: Menu %s\n", ev.value ? "premuto" : "rilasciato");

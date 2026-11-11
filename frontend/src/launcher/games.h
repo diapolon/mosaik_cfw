@@ -50,6 +50,7 @@ typedef struct {
     char id[16], name[48], core[64], roms[256], index[256], thumbs[64], shortname[16], art[16];
     char launch[128];   /* emulatore che non è un core libretro: script sotto Arcade/ che riceve il gioco
                            in ARCADE_ROM (Dreamcast: Cores/deadcast/launch.sh) */
+    bool nomenu;        /* "menu": false, l'emulatore ha un suo menu: niente menu di Mosaik (gamewatch) */
     char exts[8][12];
     int nexts, order;
     bool console, planned;

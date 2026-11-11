@@ -3,8 +3,14 @@
   "kind": "console",
   "core": "deadcast",
   "launch": "Cores/deadcast/launch.sh",
+  "menu": false,
   "roms": "Roms/DC",
-  "extensions": ["chd", "gdi", "cdi", "m3u"],
+  "extensions": [
+    "chd",
+    "gdi",
+    "cdi",
+    "m3u"
+  ],
   "art": "disc-white",
   "short": "DC",
   "thumbnails": "Sega - Dreamcast",

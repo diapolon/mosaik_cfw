@@ -59,6 +59,7 @@ int emulators_load(const char *root) {
         snprintf(m->shortname, sizeof m->shortname, "%s", json_str(j, "short", upper));
         snprintf(m->art, sizeof m->art, "%s", json_str(j, "art", ""));
         snprintf(m->launch, sizeof m->launch, "%s", json_str(j, "launch", ""));
+        m->nomenu = !json_bool(j, "menu", true);
         m->planned = planned;
         jval *ex = json_get(j, "extensions");
         for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v && m->nexts < 8; v = v->next)

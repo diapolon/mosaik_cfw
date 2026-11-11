@@ -566,6 +566,7 @@ static void launch_ex(game_t *g, bool resume) {
             fputs("export ARCADE_ROM='", ef);
             for (const char *c = g->path; *c; c++) { if (*c == '\'') fputs("'\\''", ef); else fputc(*c, ef); }
             fputs("'\n", ef);
+            if (xemu->nomenu) fputs("export GAMEWATCH_NOMENU=1\n", ef);
             fclose(ef);
         }
     }

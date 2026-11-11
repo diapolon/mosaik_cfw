@@ -177,7 +177,15 @@ static bool layer_open(void) {
     ov_h = (int)game.info.screen_win.height;
     size_t need = (size_t)ov_w * ov_h * 4;
     if (need + 4096 > fx.smem_len) return false;
+    /* Memoria per il menu: in fondo a fb0, se il gioco mostra le prime righe (runner); se le sue
+       immagini stanno più avanti (Deadcast le tiene dalla riga 12288 in poi, fino quasi in fondo)
+       si usa l'inizio, che resta libero. Prima il menu finiva su righe del gioco e non si vedeva. */
+    long long gy = game.info.fb.crop.y >> 32, line = fx.line_length ? fx.line_length : (long long)v.xres_virtual * 4;
+    size_t game_off = (size_t)(game.info.fb.addr[0] > fx.smem_start ? game.info.fb.addr[0] - fx.smem_start : 0) + (size_t)(gy * line);
     size_t off = (fx.smem_len - need) & ~(size_t)4095;
+    if (game_off >= need) off = 0;
+    ui_log("menu: fb0 %u byte, %ux%u virtuali, riga %u; gioco da %zu (riga %lld), menu da %zu", fx.smem_len, v.xres_virtual,
+           v.yres_virtual, fx.line_length, game_off, gy, off);
     fblen = fx.smem_len;
     fbmem = mmap(NULL, fblen, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
     if (fbmem == MAP_FAILED) { fbmem = NULL; return false; }
