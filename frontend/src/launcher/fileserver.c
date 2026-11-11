@@ -90,11 +90,12 @@ void fs_get_status(fs_status_t *out) {
     pthread_mutex_unlock(&mu);
 }
 const char *fs_pin(void) { return pin; }
-int fs_port(void) { return port_used; }
+int fs_port(void) { return getenv("ARCADE_FS_SHOWPORT") ? atoi(getenv("ARCADE_FS_SHOWPORT")) : port_used; }   /* schermate: la porta della console */
 bool fs_changed(void) { return atomic_load(&any_change); }
 
 void fs_local_ip(char *out, int n) {
     out[0] = 0;
+    if (getenv("ARCADE_FS_IP")) { snprintf(out, (size_t)n, "%s", getenv("ARCADE_FS_IP")); return; }   /* schermate del README */
     struct ifaddrs *ifs, *i;
     if (getifaddrs(&ifs) != 0) return;
     for (int pass = 0; pass < 2 && !out[0]; pass++)

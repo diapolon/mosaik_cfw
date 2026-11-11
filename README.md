@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/logo.png" width="396" alt="Mosaik">
+  <img src="docs/images/logo.png" width="444" alt="Mosaik cfw">
 </p>
 
 <h3 align="center">All your games, in your pocket.</h3>
@@ -74,6 +74,14 @@
     <td align="center">Cabinato theme: the numbered arcade menu</td>
     <td align="center">Onda theme: the library as a vertical list</td>
   </tr>
+  <tr>
+    <td><img src="docs/images/transfer.png" alt="Transfer files window"></td>
+    <td><img src="docs/images/transfer-page.png" alt="Transfer page"></td>
+  </tr>
+  <tr>
+    <td align="center">Transfer files over Wi-Fi (for now in the Development channel)</td>
+    <td align="center">The transfer page, in any browser</td>
+  </tr>
 </table>
 
 <sub>The games and covers in these pictures are made up, just to show the interface.</sub>
@@ -111,6 +119,8 @@ Turn the console off and connect the card to your computer. Everything is in the
 Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
 
 For covers and information, connect to Wi-Fi and use **Settings → Tools → Download images**.
+
+You can also copy files without taking the card out (for now in the Development channel): open **Settings → Tools → Transfer files**, then scan the QR code with your phone, or open **http://mosaik.local** in a browser on a computer connected to the same Wi-Fi network and type the PIN (tick **Remember this browser** to skip it next time). From the page you can upload ROMs, BIOS files, images, music and Linux games (files or whole folders, also by dragging them onto the page), download saves and logs (a folder becomes a zip), create, rename and delete. System files can only be downloaded. The transfer stays on only while the window is open on the console, and the PIN changes every time.
 
 ### Linux games
 

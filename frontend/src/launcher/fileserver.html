@@ -87,6 +87,7 @@ const S = __STRINGS__;
 const $ = id => document.getElementById(id);
 let cur = { path: "", writable: false, entries: [] };
 let busy = false;
+let start = "";   /* cartella da aprire subito: "#pin=…&path=Roms" */
 
 function txt(k, a) { let s = S[k] || k; if (a !== undefined) s = s.replace("%s", a); return s; }
 function enc(s) { return encodeURIComponent(s); }
@@ -120,7 +121,7 @@ async function login(code) {
   const body = "pin=" + enc(code || $("pin").value.trim()) + ($("remember").checked ? "&remember=1" : "");
   try { r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body }); }
   catch (e) { closed(); return; }
-  if (r.ok) { $("login").style.display = "none"; $("app").style.display = "block"; info(); load(""); return; }
+  if (r.ok) { $("login").style.display = "none"; $("app").style.display = "block"; info(); load(start ? decodeURIComponent(start) : ""); start = ""; return; }
   const j = await r.json().catch(() => ({}));
   showLogin(j.error === "locked" ? S.locked : S.wrong_pin);
 }
@@ -265,8 +266,7 @@ document.addEventListener("drop", async e => {
   if (r.status === 401) {
     /* aperta dal codice QR della console: il PIN è nell'indirizzo, dopo il # (non arriva al server) */
     const m = location.hash.match(/pin=(\d{6})/);
-    history.replaceState(null, "", location.pathname);
-    if (m) { await login(m[1]); return; }
+    if (m) { start = (location.hash.match(/path=([^&]*)/) || [])[1]; history.replaceState(null, "", location.pathname); await login(m[1]); return; }
     showLogin(); return;
   }
   $("app").style.display = "block"; info(); load("");

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/logo.png" width="396" alt="Mosaik">
+  <img src="docs/images/logo.png" width="444" alt="Mosaik cfw">
 </p>
 
 <h3 align="center">Tutti i tuoi giochi, in tasca.</h3>
@@ -74,6 +74,14 @@
     <td align="center">Tema Cabinato: il menu numerato da sala giochi</td>
     <td align="center">Tema Onda: la libreria come elenco verticale</td>
   </tr>
+  <tr>
+    <td><img src="docs/images/it/transfer.png" alt="Finestra Trasferisci file"></td>
+    <td><img src="docs/images/it/transfer-page.png" alt="Pagina del trasferimento"></td>
+  </tr>
+  <tr>
+    <td align="center">Trasferisci file via Wi-Fi (per ora nel canale Sviluppo)</td>
+    <td align="center">La pagina del trasferimento, in qualsiasi browser</td>
+  </tr>
 </table>
 
 <sub>I giochi e le copertine in queste immagini sono inventati, solo per mostrare l'interfaccia.</sub>
@@ -111,6 +119,8 @@ Spegni la console e collega la scheda al computer. Tutto si trova nella cartella
 Tieni le ROM arcade in `.zip` e non cambiare il nome. I giochi per console possono essere zippati o no, un gioco per zip; il GBA non ha bisogno del BIOS. **Impostazioni → Strumenti → Verifica ROM** controlla che ogni zip contenga i file giusti, e la scheda del gioco (X) mostra cosa manca, compreso un BIOS.
 
 Per copertine e informazioni, collega il Wi-Fi e usa **Impostazioni → Strumenti → Scarica immagini**.
+
+Puoi anche copiare i file senza togliere la scheda (per ora nel canale Sviluppo): apri **Impostazioni → Strumenti → Trasferisci file**, poi inquadra il codice QR con il telefono, oppure apri **http://mosaik.local** nel browser di un computer collegato alla stessa rete Wi-Fi e scrivi il PIN (con **Ricorda questo browser** le volte dopo non serve). Dalla pagina carichi ROM, BIOS, immagini, musica e giochi Linux (file o cartelle intere, anche trascinandoli sulla pagina), scarichi salvataggi e registri (una cartella diventa uno zip), crei, rinomini ed elimini. I file del sistema si possono solo scaricare. Il trasferimento resta acceso solo finché la finestra è aperta sulla console, e il PIN cambia ogni volta.
 
 ### Giochi Linux
 
