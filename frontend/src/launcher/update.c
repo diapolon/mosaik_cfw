@@ -628,6 +628,16 @@ static void *apply_worker(void *arg) {
         snprintf(dst, sizeof dst, "%s/%s", root_dir, it->path);
         if (!place_item(it, tmp, dst)) { ui_log("aggiornamento: rename %s: %s", it->path, strerror(errno)); undo_items(); remove_tmps(); journal_clear(); fail(UPE_WRITE); return NULL; }
     }
+    /* prova su console (System/prova-aggiornamento.txt, vale una volta): i dati sono già
+       sostituiti, il sistema non ancora. 30 s per spegnere a forza e vedere che all'avvio dopo
+       system-init rimette i file di prima */
+    char probe[1100];
+    snprintf(probe, sizeof probe, "%s/System/prova-aggiornamento.txt", root_dir);
+    if (unlink(probe) == 0) {
+        ui_log("aggiornamento: prova, pausa di 30 s con i dati nuovi e il sistema vecchio: spegni ora");
+        sync();
+        sleep(30);
+    }
     char pend_all[1100];
     snprintf(pend_all, sizeof pend_all, "%s/System/update-pending", root_dir);
     /* anche senza sistema nuovo si contano gli avvii di prova: alla terza prova fallita

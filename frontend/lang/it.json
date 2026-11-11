@@ -566,7 +566,7 @@
     "checking": "Confronto i file sulla scheda…",
     "none": "Aggiornamenti non disponibili",
     "none_hint": "Riprova più tardi.",
-    "current": "Il sistema è aggiornato",
+    "current": "Il sistema è già aggiornato",
     "available": "Disponibile aggiornamento %s",
     "download": "Scarica",
     "install": "Installa",

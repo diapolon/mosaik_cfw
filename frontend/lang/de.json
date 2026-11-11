@@ -566,7 +566,7 @@
     "checking": "Vergleiche die Dateien auf der Karte…",
     "none": "Updates nicht verfügbar",
     "none_hint": "Versuche es später erneut.",
-    "current": "Das System ist aktuell",
+    "current": "Das System ist bereits aktuell",
     "available": "Update %s verfügbar",
     "download": "Herunterladen",
     "install": "Installieren",

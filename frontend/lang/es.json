@@ -566,7 +566,7 @@
     "checking": "Comparando los archivos de la tarjeta…",
     "none": "Actualizaciones no disponibles",
     "none_hint": "Inténtalo más tarde.",
-    "current": "El sistema está actualizado",
+    "current": "El sistema ya está actualizado",
     "available": "Actualización %s disponible",
     "download": "Descargar",
     "install": "Instalar",
