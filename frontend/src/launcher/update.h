@@ -42,3 +42,6 @@ const update_status_t *update_status(void);
 void update_join(void);                   /* attende la fine del thread */
 /* il launcher è arrivato alla prima schermata: il sistema nuovo funziona */
 void update_confirm_boot(const char *root);
+/* generazione dell'area di avvio della scheda; in *latest (se non NULL) quella delle immagini di
+   questa versione. Più bassa: alcune correzioni arrivano solo riscrivendo la SD (audit R07) */
+int update_boot_gen(const char *root, int *latest);

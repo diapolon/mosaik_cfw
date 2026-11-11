@@ -475,7 +475,9 @@
     "music": "Musik",
     "system": "System und Einstellungen",
     "footer": "Mosaik %s · %s",
-    "one_game": "1 Spiel"
+    "one_game": "1 Spiel",
+    "boot": "Startbereich %d",
+    "boot_old": "Alter Startbereich: SD neu beschreiben für alle Korrekturen."
   },
   "wifi": {
     "title": "WLAN-Netze",

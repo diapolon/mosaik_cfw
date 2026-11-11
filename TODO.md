@@ -47,6 +47,7 @@
 - [ ] Apps section in the launcher
 - [x] Console scraper: game data from libretro-database by the ROM's CRC, box art from the libretro thumbnails (0.9.17)
 - [x] Scraper checks (audit R08): database at a fixed commit, DAT files validated before replacing the copy on the card, multi-ROM zips get no data, network loss stops the run without marking images as missing, write errors retried; `m2/test-scraper.sh`
+- [x] Boot area generation visible (audit R07): the system carries its images' generation in `/etc/area-avvio`, Settings → Updates → Information shows the card's and warns when it is older; wiki: writing the card again without losing anything (pushed with the next stable)
 
 ## Project
 

@@ -47,6 +47,9 @@ echo arcade > $R/etc/hostname
 # versione: numero (file VERSION) e data di compilazione; l'aggiornamento via Wi-Fi le confronta
 echo "$(cat $T/VERSION) $(date -u +%Y%m%d.%H%M)" > $R/etc/arcade-version
 cp $R/etc/arcade-version $T/dist/arcade-version.txt
+# generazione dell'area di avvio delle immagini di questa versione: il launcher la confronta con
+# quella della scheda (System/area-avvio.txt, scritto dall'initramfs) e lo dice in Informazioni
+sed -n 's/^GENERAZIONE=//p' $T/m2/area-avvio.conf > $R/etc/area-avvio
 cp $F0/lib/firmware/rgx.* $R/lib/firmware/
 # firmware del chip Wi-Fi/Bluetooth XR829 (uguale nei due modelli)
 cp $F0/lib/firmware/*xr829* $R/lib/firmware/

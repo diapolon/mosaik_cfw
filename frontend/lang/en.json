@@ -475,7 +475,9 @@
     "music": "Music",
     "system": "System and settings",
     "footer": "Mosaik %s · %s",
-    "one_game": "1 game"
+    "one_game": "1 game",
+    "boot": "boot area %d",
+    "boot_old": "Old boot area: write the SD card again to get every fix."
   },
   "wifi": {
     "title": "Wi-Fi networks",

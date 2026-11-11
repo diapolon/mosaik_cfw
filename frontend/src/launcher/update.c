@@ -8,6 +8,27 @@
 
 void ui_log(const char *fmt, ...);
 
+
+/* generazione dell'area di avvio: della scheda (System/area-avvio.txt, scritto dall'initramfs;
+   le schede scritte prima della 0.9.17 non lo hanno: 0) e, in *latest, delle immagini di questa
+   versione (/etc/area-avvio nel sistema; sul Mac ARCADE_BOOT_GEN, altrimenti quella della scheda) */
+static int read_int(const char *p, int dflt) {
+    FILE *f = fopen(p, "r");
+    int v = dflt;
+    if (f) { if (fscanf(f, "%d", &v) != 1) v = dflt; fclose(f); }
+    return v;
+}
+int update_boot_gen(const char *root, int *latest) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/System/area-avvio.txt", root);
+    int card = read_int(p, 0);
+    if (latest) {
+        const char *e = getenv("ARCADE_BOOT_GEN");
+        *latest = e ? atoi(e) : read_int("/etc/area-avvio", card);
+    }
+    return card;
+}
+
 static update_status_t st;
 static char current[64];
 
@@ -229,12 +250,7 @@ static bool parse_manifest(char *text) {
            bassa di N non hanno cose che il Wi-Fi non può portare: si invita a riscrivere la SD.
            La generazione la scrive l'initramfs in System/area-avvio.txt (manca: 0). */
         if (!strncmp(line, "reinstall ", 10)) {
-            char p[1100];
-            snprintf(p, sizeof p, "%s/System/area-avvio.txt", root_dir);
-            FILE *f = fopen(p, "r");
-            int gen = 0;
-            if (f) { if (fscanf(f, "%d", &gen) != 1) gen = 0; fclose(f); }
-            st.reinstall = gen < atoi(line + 10);
+            st.reinstall = update_boot_gen(root_dir, NULL) < atoi(line + 10);
             continue;
         }
         /* Una riga che questa versione non conosce si ignora: la firma è già stata controllata, e

@@ -475,7 +475,9 @@
     "music": "Musique",
     "system": "Système et réglages",
     "footer": "Mosaik %s · %s",
-    "one_game": "1 jeu"
+    "one_game": "1 jeu",
+    "boot": "zone de démarrage %d",
+    "boot_old": "Zone de démarrage ancienne : réécrivez la SD pour tout corriger."
   },
   "wifi": {
     "title": "Réseaux Wi-Fi",

@@ -475,7 +475,9 @@
     "music": "Música",
     "system": "Sistema e definições",
     "footer": "Mosaik %s · %s",
-    "one_game": "1 jogo"
+    "one_game": "1 jogo",
+    "boot": "área de arranque %d",
+    "boot_old": "Área de arranque antiga: reescreve o SD para todas as correções."
   },
   "wifi": {
     "title": "Redes Wi-Fi",

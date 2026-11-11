@@ -2763,7 +2763,13 @@ static void sdinfo_draw(void) {
     TTF_Font *f = UI.f_normal, *fs = UI.f_small;
     int fh = TTF_FontHeight(f), sh = TTF_FontHeight(fs), rh = fh + M(0.008f);
     int w = M(0.9f), pad = M(0.04f);
-    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + M(0.03f) + M(0.015f) + sh + M(0.03f) + nsdrows * rh + M(0.02f) + sh + pad + ui_popup_buttons_h() - pad;
+    /* area di avvio della scheda più vecchia di quella delle immagini di questa versione (R07) */
+    int bgen_latest, bgen = update_boot_gen(UI.root, &bgen_latest);
+    bool bold = bgen < bgen_latest;
+    char blines[2][160];
+    int nbl = bold ? ui_wrap(fs, T("sdinfo.boot_old"), w - 2 * pad, blines, 2) : 0;
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + M(0.03f) + M(0.015f) + sh + M(0.03f) + nsdrows * rh + M(0.02f) + sh + pad + ui_popup_buttons_h() - pad
+          + nbl * sh;
     if (h > UI.h - M(0.04f)) h = UI.h - M(0.04f);
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
@@ -2793,7 +2799,7 @@ static void sdinfo_draw(void) {
         ui_text(fs, T("sdinfo.unknown"), lx, cy, t->text_dim, ALIGN_LEFT);
     }
     cy += sh + M(0.03f);
-    int foot = y + h - ui_popup_buttons_h() - sh, bottom = foot - M(0.02f);   /* sopra il pulsante */
+    int foot = y + h - ui_popup_buttons_h() - sh, bottom = foot - M(0.02f) - nbl * sh;   /* sopra il pulsante */
     for (int i = 0; i < nsdrows && cy + rh <= bottom; i++) {
         sdrow_t *rw = &sdrows[i];
         ui_text(f, rw->label, lx, cy, t->text, ALIGN_LEFT);
@@ -2809,6 +2815,11 @@ static void sdinfo_draw(void) {
     const char *model = plat_model();
     snprintf(line, sizeof line, T("sdinfo.footer"), update_current(),
              model ? (!strcmp(model, "brickpro") ? "TrimUI Brick Pro" : "TrimUI Smart Pro") : device_label(UI.set.device));
+    size_t ll = strlen(line);
+    snprintf(line + ll, sizeof line - ll, " · ");
+    ll = strlen(line);
+    snprintf(line + ll, sizeof line - ll, T("sdinfo.boot"), bgen);
+    for (int i = 0; i < nbl; i++) ui_text(fs, blines[i], lx, foot - (nbl - i) * sh, rgba(230, 130, 20, 255), ALIGN_LEFT);
     ui_text(fs, line, lx, foot, t->text_dim, ALIGN_LEFT);
     const char *label[1] = { T("common.ok") };
     ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
