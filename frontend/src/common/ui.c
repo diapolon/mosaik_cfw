@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdint.h>
 #include <time.h>
 
 ui_t UI;
@@ -115,11 +116,46 @@ int ui_confirm_input(int *sel) {
     return -1;
 }
 
+/* riga del log scritta subito sulla SD: dopo un riavvio forzato quelle ancora in memoria si perdono */
+static void log_durable(const char *msg) {
+    ui_log("%s", msg);
+    if (logf_) fsync(fileno(logf_));
+}
+
+/* chiusura dell'uscita audio in un thread a parte. Con l'altoparlante in muto (il launcher lo
+   spegne mentre lavora su SD o Wi-Fi, per esempio con lo scraper) l'uscita si ferma e la
+   chiusura aspetta finché la sospensione non la sblocca: sulla Smart Pro la console restava
+   ferma sulla finestra, coi tasti morti (provato due volte). Dopo 3 s si prosegue senza audio. */
+static SDL_sem *audio_closed;
+static bool audio_stuck;
+static int audio_close_thread(void *dev) {
+    SDL_CloseAudioDevice((SDL_AudioDeviceID)(uintptr_t)dev);
+    SDL_SemPost(audio_closed);
+    return 0;
+}
+static bool audio_close_timed(SDL_AudioDeviceID dev) {
+    if (!audio_closed && !(audio_closed = SDL_CreateSemaphore(0))) { SDL_CloseAudioDevice(dev); return true; }
+    SDL_Thread *t = SDL_CreateThread(audio_close_thread, "audio-close", (void *)(uintptr_t)dev);
+    if (!t) { SDL_CloseAudioDevice(dev); return true; }
+    if (SDL_SemWaitTimeout(audio_closed, 3000) == 0) { SDL_WaitThread(t, NULL); return true; }
+    SDL_DetachThread(t);   /* il semaforo resta: il thread lo userà se mai finisce */
+    return false;
+}
+
 void ui_suspend(void) {
     if (!plat_standalone()) return;
+    log_durable("sospensione richiesta");
     /* l'uscita audio si chiude e si riapre: dopo il risveglio chiuderla poteva bloccarsi */
-    bool had_audio = UI.audio != 0;
-    if (had_audio) { SDL_CloseAudioDevice(UI.audio); UI.audio = 0; }
+    bool had_audio = UI.audio != 0 && !audio_stuck;
+    if (had_audio) {
+        SDL_AudioDeviceID dev = UI.audio;
+        UI.audio = 0;
+        if (!audio_close_timed(dev)) {
+            audio_stuck = true;
+            had_audio = false;
+            log_durable("sospensione: l'uscita audio non si chiude entro 3 s, si prosegue senza audio");
+        } else log_durable("sospensione: uscita audio chiusa");
+    }
     /* schermo spento subito: il sistema può metterci qualche secondo ad addormentarsi */
     plat_screen_off(true);
     plat_apply(&UI.set);
@@ -127,6 +163,13 @@ void ui_suspend(void) {
     plat_screen_off(false);
     /* l'amplificatore si riattiva solo con l'uscita già aperta e assestata: riaprirla ad
        amplificatore acceso fa gracchiare l'altoparlante */
+    /* la chiusura bloccata di prima finisce di solito con la sospensione (l'uscita era ferma
+       con l'altoparlante in muto): allora l'audio si riapre */
+    if (audio_stuck && audio_closed && SDL_SemTryWait(audio_closed) == 0) {
+        audio_stuck = false;
+        had_audio = true;
+        ui_log("risveglio: l'uscita audio si è chiusa, si riapre");
+    }
     if (had_audio) { audio_open(); SDL_Delay(400); }
     plat_audio_unmute();
     /* tasti premuti prima o durante il sonno: non devono valere dopo il risveglio */
@@ -872,7 +915,7 @@ static void audio_open(void) {
 void ui_audio_takeover(void (*play)(const Sint16 *stereo, int frames)) {
     if (play && UI.audio) { SDL_CloseAudioDevice(UI.audio); UI.audio = 0; }
     pcm_hook = play;
-    if (!play && !UI.audio) audio_open();
+    if (!play && !UI.audio && !audio_stuck) audio_open();
 }
 
 void ui_play_pcm(const Sint16 *stereo, int frames) {
