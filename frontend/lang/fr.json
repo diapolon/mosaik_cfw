@@ -563,7 +563,7 @@
     "title": "Mise à jour du système",
     "no_wifi": "Connectez-vous au Wi-Fi pour rechercher les mises à jour",
     "searching": "Recherche d'une mise à jour…",
-    "checking": "Vérification des fichiers de la carte…",
+    "checking": "Comparaison des fichiers de la carte…",
     "none": "Mises à jour indisponibles",
     "none_hint": "Réessayez plus tard.",
     "current": "Le système est à jour",

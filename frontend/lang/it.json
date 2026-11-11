@@ -563,7 +563,7 @@
     "title": "Aggiorna sistema",
     "no_wifi": "Collegati al Wi-Fi per cercare gli aggiornamenti",
     "searching": "Cerco un aggiornamento…",
-    "checking": "Controllo i file sulla scheda…",
+    "checking": "Confronto i file sulla scheda…",
     "none": "Aggiornamenti non disponibili",
     "none_hint": "Riprova più tardi.",
     "current": "Il sistema è aggiornato",

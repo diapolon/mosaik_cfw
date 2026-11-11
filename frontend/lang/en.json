@@ -563,7 +563,7 @@
     "title": "Update system",
     "no_wifi": "Connect to Wi-Fi to check for updates",
     "searching": "Looking for an update…",
-    "checking": "Checking the files on the card…",
+    "checking": "Comparing the files on the card…",
     "none": "Updates not available",
     "none_hint": "Try again later.",
     "current": "The system is up to date",

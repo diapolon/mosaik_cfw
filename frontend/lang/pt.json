@@ -563,7 +563,7 @@
     "title": "Atualizar sistema",
     "no_wifi": "Liga-te ao Wi-Fi para procurar atualizações",
     "searching": "A procurar uma atualização…",
-    "checking": "A verificar os ficheiros do cartão…",
+    "checking": "A comparar os ficheiros do cartão…",
     "none": "Atualizações indisponíveis",
     "none_hint": "Tenta mais tarde.",
     "current": "O sistema está atualizado",

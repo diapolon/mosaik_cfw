@@ -563,7 +563,7 @@
     "title": "System aktualisieren",
     "no_wifi": "Verbinde dich mit dem WLAN, um nach Updates zu suchen",
     "searching": "Suche nach Update…",
-    "checking": "Prüfe die Dateien auf der Karte…",
+    "checking": "Vergleiche die Dateien auf der Karte…",
     "none": "Updates nicht verfügbar",
     "none_hint": "Versuche es später erneut.",
     "current": "Das System ist aktuell",
