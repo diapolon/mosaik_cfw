@@ -10,6 +10,8 @@ CONF=$ROOT/System/wifi.conf
 LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/wifi.log
 CTRL=/run/wpa
 EVPID=/run/wifi-event.pid
+# ora dei registri come nel launcher (fuso scelto nelle impostazioni), chiunque avvii lo script
+TZ=$(cat /run/arcade-tz "$ROOT/System/fuso-orario.txt" 2>/dev/null | head -n 1); [ -n "$TZ" ] && export TZ || unset TZ
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 # righe che servono a capire un Wi-Fi che non torna (dopo la sospensione): subito sulla SD, perché
 # uno spegnimento forzato perde ciò che è ancora in memoria

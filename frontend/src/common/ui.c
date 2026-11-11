@@ -1732,6 +1732,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     ui_log("---- avvio %s", app);
     ui_mark("inizio");
     settings_apply_tz(&UI.set);
+    if (plat_standalone()) settings_save_tz_for_boot(&UI.set, root);
     lang_load(root, UI.set.lang);
     UI.automation = auto_script && *auto_script;
     if (UI.automation) {

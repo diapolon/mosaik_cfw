@@ -40,8 +40,25 @@ int settings_tz_index(const settings_t *s) {
 }
 
 void settings_apply_tz(const settings_t *s) {
-    setenv("TZ", TIMEZONES[settings_tz_index(s)].posix, 1);
+    const char *tz = TIMEZONES[settings_tz_index(s)].posix;
+    setenv("TZ", tz, 1);
     tzset();
+    /* anche per gli script del sistema (wifi-ctl, wifi-event): i loro registri con la stessa ora
+       del launcher, chiunque li avvii. Solo sulla console c'è /run */
+    FILE *f = fopen("/run/arcade-tz", "w");
+    if (f) { fprintf(f, "%s\n", tz); fclose(f); }
+}
+
+void settings_save_tz_for_boot(const settings_t *s, const char *root) {
+    /* copia sulla SD per le righe scritte all'avvio, prima che parta il launcher */
+    const char *tz = TIMEZONES[settings_tz_index(s)].posix;
+    char p[1100], cur[64] = "";
+    snprintf(p, sizeof p, "%s/System/fuso-orario.txt", root);
+    FILE *f = fopen(p, "r");
+    if (f) { if (!fgets(cur, sizeof cur, f)) cur[0] = 0; fclose(f); }
+    cur[strcspn(cur, "\n")] = 0;
+    if (!strcmp(cur, tz)) return;
+    if ((f = fopen(p, "w"))) { fprintf(f, "%s\n", tz); fclose(f); }
 }
 
 void settings_defaults(settings_t *s) {

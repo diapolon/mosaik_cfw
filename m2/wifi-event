@@ -2,6 +2,8 @@
 # Chiamato da wpa_cli (-a) a ogni cambio di stato: wifi-event wlan0 CONNECTED|DISCONNECTED
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
 LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/wifi.log
+# ora dei registri come nel launcher (fuso scelto nelle impostazioni), chiunque avvii lo script
+TZ=$(cat /run/arcade-tz "$ROOT/System/fuso-orario.txt" 2>/dev/null | head -n 1); [ -n "$TZ" ] && export TZ || unset TZ
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 
 case "$2" in

@@ -2405,6 +2405,7 @@ static void set_change(int item, int dir) {
     case S_TZ:
         snprintf(s->tz, sizeof s->tz, "%s", TIMEZONES[(settings_tz_index(s) + dir + NTIMEZONES) % NTIMEZONES].id);
         settings_apply_tz(s);
+        if (plat_standalone()) settings_save_tz_for_boot(s, UI.root);
         break;
     case S_DEVICE:
         snprintf(s->device, sizeof s->device, "%s", !strcmp(s->device, "smartpro") ? "brickpro" : "smartpro");

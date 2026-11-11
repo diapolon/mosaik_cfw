@@ -55,6 +55,8 @@ extern const timezone_t TIMEZONES[];
 extern const int NTIMEZONES;
 int settings_tz_index(const settings_t *s);
 void settings_apply_tz(const settings_t *s);   /* imposta TZ per questo processo e i figli */
+/* System/fuso-orario.txt: il fuso per gli script che scrivono registri prima del launcher */
+void settings_save_tz_for_boot(const settings_t *s, const char *root);
 bool settings_load(settings_t *s, const char *root);
 bool settings_save(const settings_t *s, const char *root);
 
