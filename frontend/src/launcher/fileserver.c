@@ -38,7 +38,8 @@ static const char *const PAGE_KEYS[] = {
     "new_folder", "folder_name", "rename", "new_name", "delete", "confirm_delete", "confirm_delete_folder",
     "download", "download_zip", "exists", "empty", "uploading", "done", "failed", "drop",
     "err_space", "err_readonly", "err_exists", "err_path", "err_toolarge", "err_io", "err_auth", "err_notfound",
-    "closed", "home", "remember", NULL
+    "closed", "home", "remember", "backup", "backup_note", "backup_download", "backup_wifi", "backup_media", "backup_restore",
+    "restore_console", "err_notbackup", NULL
 };
 /* nome fisso sulla rete (mDNS): http://mosaik.local */
 #define MDNS_NAME "mosaik"
@@ -544,10 +545,22 @@ static void do_get(req_t *r) {
     if (ok && done == (long long)sb.st_size) event(FS_EV_DOWNLOAD, base_name(rel));
 }
 
-/* ---- cartella come zip, senza compressione (i file dei giochi sono già compressi) ---- */
+/* ---- zip, senza compressione (i file dei giochi sono già compressi): una cartella, o il backup ---- */
 
 typedef struct { char rel[1100]; long long size; } zfile_t;
 typedef struct { zfile_t *f; int n, cap; long long total; } zlist_t;
+
+static void zadd(zlist_t *z, const char *rel, long long size) {
+    if (z->n == z->cap) {
+        zfile_t *m = realloc(z->f, sizeof *m * (size_t)(z->cap = z->cap ? z->cap * 2 : 256));
+        if (!m) return;
+        z->f = m;
+    }
+    snprintf(z->f[z->n].rel, sizeof z->f[z->n].rel, "%s", rel);
+    z->f[z->n].size = size;
+    z->total += size + 30 + 46 + 2 * (long long)strlen(rel);
+    z->n++;
+}
 
 static void zwalk(zlist_t *z, const char *rel, int lvl) {
     char full[2048];
@@ -564,16 +577,7 @@ static void zwalk(zlist_t *z, const char *rel, int lvl) {
         struct stat sb;
         if (stat(cfull, &sb) != 0) continue;
         if (S_ISDIR(sb.st_mode)) { zwalk(z, crel, lvl + 1); continue; }
-        if (!S_ISREG(sb.st_mode)) continue;
-        if (z->n == z->cap) {
-            zfile_t *m = realloc(z->f, sizeof *m * (size_t)(z->cap = z->cap ? z->cap * 2 : 256));
-            if (!m) break;
-            z->f = m;
-        }
-        snprintf(z->f[z->n].rel, sizeof z->f[z->n].rel, "%s", crel);
-        z->f[z->n].size = (long long)sb.st_size;
-        z->total += (long long)sb.st_size + 30 + 46 + 2 * (long long)strlen(crel);
-        z->n++;
+        if (S_ISREG(sb.st_mode)) zadd(z, crel, (long long)sb.st_size);
     }
     closedir(d);
 }
@@ -581,92 +585,163 @@ static void zwalk(zlist_t *z, const char *rel, int lvl) {
 static void put16(unsigned char *p, unsigned v) { p[0] = (unsigned char)v; p[1] = (unsigned char)(v >> 8); }
 static void put32(unsigned char *p, uint32_t v) { put16(p, v & 0xFFFF); put16(p + 2, v >> 16); }
 
-static void do_zip(req_t *r) {
-    char rel[1024];
-    qget(r->query, "path", rel, sizeof rel);
-    if (!*rel || !rel_ok(rel)) { reply_err(r->fd, 400, "path"); return; }
-    zlist_t z = { 0 };
-    zwalk(&z, rel, 0);
-    if (z.total >= 0xFFFF0000LL || z.n > 65000) { free(z.f); reply_err(r->fd, 413, "toolarge"); return; }
-    const char *top = base_name(rel);
-    size_t cut = strlen(rel) - strlen(top);   /* nei nomi dello zip: dalla cartella scelta in giù */
-    char zname[300], h[1800], disp[1400];
-    snprintf(zname, sizeof zname, "%s.zip", top);
+typedef struct { int fd; buf_t cd; uint32_t off; int count; long long sent, total; bool ok; } zout_t;
+
+static void zdos(time_t mt, unsigned *dtime, unsigned *ddate) {
+    struct tm tmv;
+    localtime_r(&mt, &tmv);
+    *dtime = (unsigned)(tmv.tm_hour << 11 | tmv.tm_min << 5 | tmv.tm_sec / 2);
+    *ddate = (unsigned)((tmv.tm_year > 80 ? tmv.tm_year - 80 : 0) << 9 | (tmv.tm_mon + 1) << 5 | tmv.tm_mday);
+}
+
+/* una voce: intestazione locale, dati, voce della directory centrale */
+static void zentry(zout_t *zo, const char *name, uint32_t crc, uint32_t sz, time_t mt, FILE *f, const char *mem) {
+    unsigned dtime, ddate;
+    zdos(mt, &dtime, &ddate);
+    size_t nl = strlen(name);
+    unsigned char h[30] = { 0 };
+    put32(h, 0x04034b50);
+    put16(h + 4, 20);
+    put16(h + 6, 0x0800);   /* nomi in UTF-8 */
+    put16(h + 10, dtime);
+    put16(h + 12, ddate);
+    put32(h + 14, crc);
+    put32(h + 18, sz);
+    put32(h + 22, sz);
+    put16(h + 26, (unsigned)nl);
+    zo->ok = zo->ok && send_all(zo->fd, h, 30) && send_all(zo->fd, name, nl);
+    if (mem) zo->ok = zo->ok && send_all(zo->fd, mem, sz);
+    else {
+        static char buf[65536];
+        size_t k;
+        while (zo->ok && (k = fread(buf, 1, sizeof buf, f)) > 0 && !atomic_load(&stop_req)) {
+            zo->ok = send_all(zo->fd, buf, k);
+            zo->sent += (long long)k;
+            set_state(FS_SENDING, NULL, zo->sent, zo->total);
+        }
+    }
+    unsigned char c[46] = { 0 };
+    put32(c, 0x02014b50);
+    put16(c + 4, 20);
+    put16(c + 6, 20);
+    put16(c + 8, 0x0800);
+    put16(c + 12, dtime);
+    put16(c + 14, ddate);
+    put32(c + 16, crc);
+    put32(c + 20, sz);
+    put32(c + 24, sz);
+    put16(c + 28, (unsigned)nl);
+    put32(c + 42, zo->off);
+    b_add(&zo->cd, (const char *)c, 46);
+    b_add(&zo->cd, name, nl);
+    zo->off += (uint32_t)(30 + nl + sz);
+    zo->count++;
+}
+
+/* manda lo zip dei file in z; i nomi tolgono i primi cut caratteri; extra: una voce in più
+   scritta qui (il riepilogo del backup) */
+static bool send_zip(int fd, zlist_t *z, size_t cut, const char *zname, const char *extra_name, const char *extra) {
+    char h[1800], disp[1400];
     disposition(disp, sizeof disp, zname);
     int hn = snprintf(h, sizeof h, "HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\n%sCache-Control: no-store\r\nConnection: close\r\n\r\n", disp);
-    bool ok = send_all(r->fd, h, (size_t)hn);
-    buf_t cd = { 0 };
-    uint32_t off = 0;
-    unsigned char hdr[46];
-    char buf[65536];
-    long long sent = 0;
-    int count = 0;
-    set_state(FS_SENDING, zname, 0, z.total);
+    zout_t zo = { .fd = fd, .ok = send_all(fd, h, (size_t)hn), .total = z->total };
+    set_state(FS_SENDING, zname, 0, z->total);
     time_t now = time(NULL);
-    for (int i = 0; ok && i < z.n && !atomic_load(&stop_req); i++) {
+    if (extra) zentry(&zo, extra_name, (uint32_t)crc32(0L, (const Bytef *)extra, (uInt)strlen(extra)), (uint32_t)strlen(extra), now, NULL, extra);
+    static char buf[65536];
+    for (int i = 0; zo.ok && i < z->n && !atomic_load(&stop_req); i++) {
         char full[2048];
-        full_path(full, sizeof full, z.f[i].rel);
+        full_path(full, sizeof full, z->f[i].rel);
         FILE *f = fopen(full, "rb");
         if (!f) continue;
         uLong crc = crc32(0L, Z_NULL, 0);
         size_t k;
         long long sz = 0;
         while ((k = fread(buf, 1, sizeof buf, f)) > 0) { crc = crc32(crc, (const Bytef *)buf, (uInt)k); sz += (long long)k; }
-        if (sz != z.f[i].size) { fclose(f); continue; }   /* cambiato nel frattempo: si salta */
+        if (sz != z->f[i].size) { fclose(f); continue; }   /* cambiato nel frattempo: si salta */
         rewind(f);
         struct stat sb;
-        time_t mt = stat(full, &sb) == 0 ? sb.st_mtime : now;
-        struct tm tmv;
-        localtime_r(&mt, &tmv);
-        unsigned dtime = (unsigned)(tmv.tm_hour << 11 | tmv.tm_min << 5 | tmv.tm_sec / 2);
-        unsigned ddate = (unsigned)((tmv.tm_year > 80 ? tmv.tm_year - 80 : 0) << 9 | (tmv.tm_mon + 1) << 5 | tmv.tm_mday);
-        const char *name = z.f[i].rel + cut;
-        size_t nl = strlen(name);
-        memset(hdr, 0, sizeof hdr);
-        put32(hdr, 0x04034b50);
-        put16(hdr + 4, 20);
-        put16(hdr + 6, 0x0800);   /* nomi in UTF-8 */
-        put16(hdr + 10, dtime);
-        put16(hdr + 12, ddate);
-        put32(hdr + 14, (uint32_t)crc);
-        put32(hdr + 18, (uint32_t)sz);
-        put32(hdr + 22, (uint32_t)sz);
-        put16(hdr + 26, (unsigned)nl);
-        ok = send_all(r->fd, hdr, 30) && send_all(r->fd, name, nl);
-        while (ok && (k = fread(buf, 1, sizeof buf, f)) > 0 && !atomic_load(&stop_req)) {
-            ok = send_all(r->fd, buf, k);
-            sent += (long long)k;
-            set_state(FS_SENDING, NULL, sent, z.total);
-        }
+        zentry(&zo, z->f[i].rel + cut, (uint32_t)crc, (uint32_t)sz, stat(full, &sb) == 0 ? sb.st_mtime : now, f, NULL);
         fclose(f);
-        unsigned char c[46] = { 0 };
-        put32(c, 0x02014b50);
-        put16(c + 4, 20);
-        put16(c + 6, 20);
-        put16(c + 8, 0x0800);
-        put16(c + 12, dtime);
-        put16(c + 14, ddate);
-        put32(c + 16, (uint32_t)crc);
-        put32(c + 20, (uint32_t)sz);
-        put32(c + 24, (uint32_t)sz);
-        put16(c + 28, (unsigned)nl);
-        put32(c + 42, off);
-        b_add(&cd, (const char *)c, 46);
-        b_add(&cd, name, nl);
-        off += (uint32_t)(30 + nl + (size_t)sz);
-        count++;
     }
-    if (ok && !atomic_load(&stop_req)) {
+    if (zo.ok && !atomic_load(&stop_req)) {
         unsigned char e[22] = { 0 };
         put32(e, 0x06054b50);
-        put16(e + 8, (unsigned)count);
-        put16(e + 10, (unsigned)count);
-        put32(e + 12, (uint32_t)cd.n);
-        put32(e + 16, off);
-        ok = (cd.n == 0 || send_all(r->fd, cd.p, cd.n)) && send_all(r->fd, e, 22);
-        if (ok) event(FS_EV_ZIP, zname);
+        put16(e + 8, (unsigned)zo.count);
+        put16(e + 10, (unsigned)zo.count);
+        put32(e + 12, (uint32_t)zo.cd.n);
+        put32(e + 16, zo.off);
+        zo.ok = (zo.cd.n == 0 || send_all(fd, zo.cd.p, zo.cd.n)) && send_all(fd, e, 22);
+    } else zo.ok = false;
+    free(zo.cd.p);
+    return zo.ok;
+}
+
+static void do_zip(req_t *r) {
+    char rel[1024], zname[300];
+    qget(r->query, "path", rel, sizeof rel);
+    if (!*rel || !rel_ok(rel)) { reply_err(r->fd, 400, "path"); return; }
+    zlist_t z = { 0 };
+    zwalk(&z, rel, 0);
+    if (z.total >= 0xFFFF0000LL || z.n > 65000) { free(z.f); reply_err(r->fd, 413, "toolarge"); return; }
+    const char *top = base_name(rel);
+    snprintf(zname, sizeof zname, "%s.zip", top);
+    if (send_zip(r->fd, &z, strlen(rel) - strlen(top), zname, NULL, NULL)) event(FS_EV_ZIP, zname);
+    free(z.f);
+}
+
+/* ---- backup: salvataggi, impostazioni, preferiti, collezioni, tempo di gioco, BIOS ---- */
+
+/* file di System che vanno nel backup e si possono ripristinare (non la calibrazione delle
+   levette, che è dell'hardware, né i file degli aggiornamenti o dei giochi in corso) */
+static const char *const BACKUP_SYSTEM[] = { "settings.json", "favorites.txt", "recent.txt", "stats.tsv", "hidden.txt",
+                                             "core-options.txt", "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", NULL };
+#define BACKUP_INFO "mosaik-backup.txt"
+
+static bool backup_path_ok(const char *rel, bool wifi) {
+    if (!rel_ok(rel) || !*rel) return false;
+    if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "Bios/", 5) || !strncmp(rel, "Media/", 6) || !strncmp(rel, "System/collections/", 19))
+        return depth(rel) >= 2;
+    if (wifi && !strcmp(rel, "System/wifi.conf")) return true;
+    for (int i = 0; BACKUP_SYSTEM[i]; i++) {
+        char p[64];
+        snprintf(p, sizeof p, "System/%s", BACKUP_SYSTEM[i]);
+        if (!strcmp(rel, p)) return true;
     }
-    free(cd.p);
+    return false;
+}
+
+static void do_backup(req_t *r) {
+    char v[8];
+    bool wifi = qget(r->query, "wifi", v, sizeof v) && v[0] == '1', media = qget(r->query, "media", v, sizeof v) && v[0] == '1';
+    zlist_t z = { 0 };
+    zwalk(&z, "Saves", 0);
+    zwalk(&z, "Bios", 0);
+    zwalk(&z, "System/collections", 0);
+    for (int i = 0; BACKUP_SYSTEM[i]; i++) {
+        char rel[64], full[1200];
+        struct stat sb;
+        snprintf(rel, sizeof rel, "System/%s", BACKUP_SYSTEM[i]);
+        full_path(full, sizeof full, rel);
+        if (stat(full, &sb) == 0 && S_ISREG(sb.st_mode)) zadd(&z, rel, (long long)sb.st_size);
+    }
+    if (wifi) {   /* scelto da chi scarica: zwalk non lo prende mai */
+        char full[1200];
+        struct stat sb;
+        full_path(full, sizeof full, "System/wifi.conf");
+        if (stat(full, &sb) == 0 && S_ISREG(sb.st_mode)) zadd(&z, "System/wifi.conf", (long long)sb.st_size);
+    }
+    if (media) zwalk(&z, "Media", 0);
+    if (z.total >= 0xFFFF0000LL || z.n > 65000) { free(z.f); reply_err(r->fd, 413, "toolarge"); return; }
+    time_t now = time(NULL);
+    struct tm tmv;
+    localtime_r(&now, &tmv);
+    char date[32], zname[80], info[300];
+    strftime(date, sizeof date, "%d/%m/%Y %H:%M", &tmv);
+    strftime(zname, sizeof zname, "mosaik-backup-%Y%m%d-%H%M.zip", &tmv);
+    const char *m = plat_model();
+    snprintf(info, sizeof info, "Mosaik backup\nversion=%s\nmodel=%s\ndate=%s\nfiles=%d\n", update_current(), m ? m : "", date, z.n);
+    if (send_zip(r->fd, &z, 0, zname, BACKUP_INFO, info)) event(FS_EV_BACKUP, zname);
     free(z.f);
 }
 
@@ -821,6 +896,227 @@ static void do_delete(req_t *r) {
     reply_json(r->fd, 200, "{\"ok\":true}");
 }
 
+/* ---- ripristino di un backup: lo zip arriva dalla pagina, si controlla, e i file si scrivono
+   solo dopo la conferma sulla console ---- */
+
+#define RESTORE_ZIP "System/.ripristino.zip"
+
+typedef struct { char name[512]; uint32_t crc, csize, usize, off; unsigned method; } zent_t;
+
+static unsigned get16(const unsigned char *p) { return (unsigned)(p[0] | p[1] << 8); }
+static uint32_t get32(const unsigned char *p) { return (uint32_t)get16(p) | (uint32_t)get16(p + 2) << 16; }
+
+/* directory centrale; -1 se non è uno zip leggibile */
+static int zip_dir(FILE *f, zent_t **out) {
+    *out = NULL;
+    if (fseek(f, 0, SEEK_END) != 0) return -1;
+    long size = ftell(f), from = size > 65557 ? size - 65557 : 0;
+    if (size < 22) return -1;
+    unsigned char *tail = malloc((size_t)(size - from));
+    if (!tail || fseek(f, from, SEEK_SET) != 0 || fread(tail, 1, (size_t)(size - from), f) != (size_t)(size - from)) { free(tail); return -1; }
+    long e = -1;
+    for (long i = size - from - 22; i >= 0 && e < 0; i--)
+        if (get32(tail + i) == 0x06054b50) e = i;
+    if (e < 0) { free(tail); return -1; }
+    unsigned n = get16(tail + e + 10);
+    uint32_t cdsize = get32(tail + e + 12), cdoff = get32(tail + e + 16);
+    free(tail);
+    if ((long)cdoff + (long)cdsize > size || n > 65000) return -1;
+    unsigned char *cd = malloc(cdsize ? cdsize : 1);
+    zent_t *z = calloc(n ? n : 1, sizeof *z);
+    if (!cd || !z || fseek(f, (long)cdoff, SEEK_SET) != 0 || fread(cd, 1, cdsize, f) != cdsize) { free(cd); free(z); return -1; }
+    uint32_t p = 0;
+    int k = 0;
+    for (unsigned i = 0; i < n; i++) {
+        if (p + 46 > cdsize || get32(cd + p) != 0x02014b50) { free(cd); free(z); return -1; }
+        unsigned nl = get16(cd + p + 28), xl = get16(cd + p + 30), cl = get16(cd + p + 32);
+        if (p + 46 + nl > cdsize) { free(cd); free(z); return -1; }
+        z[k].method = get16(cd + p + 10);
+        z[k].crc = get32(cd + p + 16);
+        z[k].csize = get32(cd + p + 20);
+        z[k].usize = get32(cd + p + 24);
+        z[k].off = get32(cd + p + 42);
+        snprintf(z[k].name, sizeof z[k].name, "%.*s", (int)nl, (const char *)cd + p + 46);
+        k++;
+        p += 46 + nl + xl + cl;
+    }
+    free(cd);
+    *out = z;
+    return k;
+}
+
+/* dati di una voce (anche compressa): in memoria (to NULL, max n byte in mem) o in un file */
+static bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n) {
+    unsigned char h[30];
+    if (fseek(f, (long)e->off, SEEK_SET) != 0 || fread(h, 1, 30, f) != 30 || get32(h) != 0x04034b50) return false;
+    if (fseek(f, (long)(e->off + 30 + get16(h + 26) + get16(h + 28)), SEEK_SET) != 0) return false;
+    if (e->method != 0 && e->method != 8) return false;
+    if (mem && e->usize >= n) return false;
+    static unsigned char in[65536], outb[65536];
+    uLong crc = crc32(0L, Z_NULL, 0);
+    uint32_t left = e->csize, done = 0;
+    z_stream zs;
+    memset(&zs, 0, sizeof zs);
+    if (e->method == 8 && inflateInit2(&zs, -MAX_WBITS) != Z_OK) return false;
+    bool ok = true;
+    int zr = Z_OK;
+    while (ok && left > 0 && zr != Z_STREAM_END) {
+        size_t want = left < sizeof in ? left : sizeof in, got = fread(in, 1, want, f);
+        if (got == 0) { ok = false; break; }
+        left -= (uint32_t)got;
+        if (e->method == 0) {
+            crc = crc32(crc, in, (uInt)got);
+            if (mem) memcpy(mem + done, in, got);
+            else ok = fwrite(in, 1, got, to) == got;
+            done += (uint32_t)got;
+            continue;
+        }
+        zs.next_in = in;
+        zs.avail_in = (uInt)got;
+        do {
+            zs.next_out = outb;
+            zs.avail_out = sizeof outb;
+            zr = inflate(&zs, Z_NO_FLUSH);
+            if (zr != Z_OK && zr != Z_STREAM_END) { ok = false; break; }
+            size_t k = sizeof outb - zs.avail_out;
+            if (done + k > e->usize) { ok = false; break; }
+            crc = crc32(crc, outb, (uInt)k);
+            if (mem) memcpy(mem + done, outb, k);
+            else if (fwrite(outb, 1, k, to) != k) ok = false;
+            done += (uint32_t)k;
+        } while (ok && zs.avail_out == 0 && zr != Z_STREAM_END);
+    }
+    if (e->method == 8) inflateEnd(&zs);
+    if (mem && ok) mem[done] = 0;
+    return ok && done == e->usize && (uint32_t)crc == e->crc;
+}
+
+static atomic_int restore_state;   /* FS_RS_* */
+static atomic_bool restore_go, restore_drop;
+static char restore_date[32];
+static int restore_files;
+
+static void restore_set(int s) {
+    atomic_store(&restore_state, s);
+    pthread_mutex_lock(&mu);
+    st.restore = s;
+    snprintf(st.restore_date, sizeof st.restore_date, "%s", restore_date);
+    st.restore_files = restore_files;
+    pthread_mutex_unlock(&mu);
+}
+
+static void restore_remove_zip(void) {
+    char full[1200];
+    full_path(full, sizeof full, RESTORE_ZIP);
+    remove(full);
+}
+
+/* lo zip è un backup di Mosaik? data e numero dei file che si ripristinerebbero */
+static bool restore_check(void) {
+    char full[1200], info[512];
+    full_path(full, sizeof full, RESTORE_ZIP);
+    FILE *f = fopen(full, "rb");
+    if (!f) return false;
+    zent_t *z;
+    int n = zip_dir(f, &z), files = 0;
+    bool found = false;
+    for (int i = 0; i < n; i++) {
+        if (!strcmp(z[i].name, BACKUP_INFO)) found = zip_entry(f, &z[i], NULL, info, sizeof info) && !strncmp(info, "Mosaik backup", 13);
+        else if (backup_path_ok(z[i].name, true)) files++;
+    }
+    free(z);
+    fclose(f);
+    if (!found) return false;
+    const char *d = strstr(info, "date=");
+    snprintf(restore_date, sizeof restore_date, "%.*s", d ? (int)strcspn(d + 5, "\n") : 0, d ? d + 5 : "");
+    restore_files = files;
+    return true;
+}
+
+static void do_restore_upload(req_t *r) {
+    long long body = r->clen - (r->have > 0 ? r->have : 0);
+    if (r->clen <= 0 || r->clen > 0x7FFFFFFFLL) { drain(r, body); reply_err(r->fd, 413, "toolarge"); return; }
+    if (atomic_load(&restore_state) == FS_RS_RUNNING) { drain(r, body); reply_err(r->fd, 409, "exists"); return; }
+    struct statvfs vs;
+    if (statvfs(root, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < 2 * r->clen + (1 << 20)) { drain(r, body); reply_err(r->fd, 507, "space"); return; }
+    char full[1200], part[1300];
+    full_path(full, sizeof full, RESTORE_ZIP);
+    snprintf(part, sizeof part, "%s.part", full);
+    FILE *f = fopen(part, "wb");
+    if (!f) { drain(r, body); reply_err(r->fd, 500, "io"); return; }
+    long long got = 0;
+    bool ok = true;
+    set_state(FS_RECEIVING, "backup", 0, r->clen);
+    if (r->have > 0) {
+        int k = r->have < r->clen ? r->have : (int)r->clen;
+        ok = fwrite(r->head + r->body_off, 1, (size_t)k, f) == (size_t)k;
+        got += k;
+    }
+    static char buf[131072];
+    while (ok && got < r->clen && !atomic_load(&stop_req)) {
+        long long want = r->clen - got;
+        ssize_t k = recv(r->fd, buf, want < (long long)sizeof buf ? (size_t)want : sizeof buf, 0);
+        if (k < 0 && errno == EINTR) continue;
+        if (k <= 0) { ok = false; break; }
+        ok = fwrite(buf, 1, (size_t)k, f) == (size_t)k;
+        got += k;
+        set_state(FS_RECEIVING, NULL, got, r->clen);
+    }
+    ok = ok && got == r->clen && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (fclose(f) != 0) ok = false;
+    if (!ok || rename(part, full) != 0) { remove(part); reply_err(r->fd, 500, "io"); return; }
+    if (!restore_check()) { restore_remove_zip(); restore_set(FS_RS_NONE); reply_err(r->fd, 400, "notbackup"); return; }
+    restore_set(FS_RS_PENDING);   /* ora la conferma sulla console */
+    event(FS_EV_RESTORE, restore_date);
+    char j[160];
+    snprintf(j, sizeof j, "{\"ok\":true,\"date\":\"%s\",\"files\":%d}", restore_date, restore_files);
+    reply_json(r->fd, 200, j);
+}
+
+/* dopo la conferma, nel thread del server: ogni file passa da ".nome.part" e prende il suo nome
+   solo se è completo e con il CRC giusto */
+static void restore_run(void) {
+    restore_set(FS_RS_RUNNING);
+    char full[1200];
+    full_path(full, sizeof full, RESTORE_ZIP);
+    FILE *f = fopen(full, "rb");
+    zent_t *z = NULL;
+    int n = f ? zip_dir(f, &z) : -1, done = 0;
+    bool ok = n >= 0;
+    for (int i = 0; ok && i < n; i++) {
+        const char *rel = z[i].name;
+        if (!backup_path_ok(rel, true)) continue;   /* altro: si ignora */
+        set_state(FS_RECEIVING, base_name(rel), done, restore_files);
+        char dst[2400], part[2500];
+        full_path(dst, sizeof dst, rel);
+        const char *bn = base_name(rel);
+        snprintf(part, sizeof part, "%.*s.%s.part", (int)(strlen(dst) - strlen(bn)), dst, bn);
+        if (!make_parents(rel)) { ok = false; break; }
+        FILE *o = fopen(part, "wb");
+        if (!o) { ok = false; break; }
+        bool w = zip_entry(f, &z[i], o, NULL, 0);
+        w = w && fflush(o) == 0 && fsync(fileno(o)) == 0;
+        if (fclose(o) != 0) w = false;
+        if (!w || rename(part, dst) != 0) { remove(part); ok = false; break; }
+        done++;
+    }
+    free(z);
+    if (f) fclose(f);
+    sync();
+    restore_remove_zip();
+    atomic_store(&any_change, true);
+    set_state(FS_IDLE, "", 0, 0);
+    restore_set(ok ? FS_RS_DONE : FS_RS_FAILED);
+}
+
+void fs_restore_answer(bool yes) {
+    if (atomic_load(&restore_state) != FS_RS_PENDING) return;
+    if (yes) atomic_store(&restore_go, true);
+    else atomic_store(&restore_drop, true);
+}
+
+void fs_restore_clear(void) { restore_set(FS_RS_NONE); }
+
 static void handle(int fd) {
     req_t *r = calloc(1, sizeof *r);
     if (!r) return;
@@ -834,6 +1130,8 @@ static void handle(int fd) {
     else if (get && !strcmp(r->path, "/api/list")) do_list(r);
     else if (get && !strcmp(r->path, "/api/get")) do_get(r);
     else if (get && !strcmp(r->path, "/api/zip")) do_zip(r);
+    else if (get && !strcmp(r->path, "/api/backup")) do_backup(r);
+    else if (put && !strcmp(r->path, "/api/restore")) do_restore_upload(r);
     else if (put && !strcmp(r->path, "/api/put")) do_put(r);
     else if (post && !strcmp(r->path, "/api/mkdir")) do_mkdir(r);
     else if (post && !strcmp(r->path, "/api/rename")) do_rename(r);
@@ -990,6 +1288,9 @@ static void *serve(void *arg) {
     mdns_open();
     while (!atomic_load(&stop_req)) {
         struct pollfd p[2] = { { lsock, POLLIN, 0 }, { msock, POLLIN, 0 } };
+        /* le risposte della console al ripristino: anche senza richieste in arrivo */
+        if (atomic_exchange(&restore_go, false)) restore_run();
+        if (atomic_exchange(&restore_drop, false)) { restore_remove_zip(); restore_set(FS_RS_NONE); }
         if (poll(p, msock >= 0 ? 2 : 1, 250) <= 0) continue;
         if (msock >= 0 && (p[1].revents & POLLIN)) mdns_handle();
         if (!(p[0].revents & POLLIN)) continue;
@@ -1085,6 +1386,11 @@ bool fs_start(const char *dir) {
     bad_pins = 0;
     locked_until = 0;
     browsers_load();
+    restore_remove_zip();   /* un ripristino lasciato a metà non si riprende: si ricarica dalla pagina */
+    { char pz[1300]; full_path(pz, sizeof pz, RESTORE_ZIP ".part"); remove(pz); }
+    atomic_store(&restore_go, false);
+    atomic_store(&restore_drop, false);
+    atomic_store(&restore_state, FS_RS_NONE);
     atomic_store(&stop_req, false);
     atomic_store(&any_change, false);
     memset(&st, 0, sizeof st);

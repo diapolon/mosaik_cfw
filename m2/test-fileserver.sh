@@ -3,7 +3,7 @@
 # e un client HTTP vero:
 #   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-fileserver.sh
 set -e
-apk add -q build-base zlib-dev curl unzip python3 zbar imagemagick >/dev/null
+apk add -q build-base zlib-dev curl unzip zip python3 zbar imagemagick >/dev/null
 W=/tmp/fs; rm -rf $W; mkdir -p $W/sd/System $W/sd/Roms/FBNEO $W/sd/Saves/fbneo $W/sd/Cores $W/sd/Linux $W/sd/Media; cd $W
 printf 'network={ssid="x" psk="segreto"}\n' > sd/System/wifi.conf
 echo '{}' > sd/System/settings.json
@@ -27,7 +27,15 @@ int main(int argc, char **argv) {
     if (!fs_start(argv[1])) return 1;
     printf("porta %d\n", fs_port());
     fflush(stdout);
-    while (!fine) usleep(100000);
+    while (!fine) {   /* le risposte della console al ripristino arrivano come file "si" e "no" */
+        usleep(100000);
+        if (access("si", F_OK) == 0) { unlink("si"); fs_restore_answer(true); }
+        if (access("no", F_OK) == 0) { unlink("no"); fs_restore_answer(false); }
+        fs_status_t r;
+        fs_get_status(&r);
+        FILE *f = fopen("stato.tmp", "w");
+        if (f) { fprintf(f, "%d %d\n", r.restore, r.restore_files); fclose(f); rename("stato.tmp", "stato"); }
+    }
     fs_status_t s;
     fs_get_status(&s);
     fs_stop();
@@ -96,6 +104,40 @@ check "entra col solo codice ricordato" "200" "$(curl -s -o /dev/null -w '%{http
 check "codice falso" '{"error":"auth"}' "$(curl -s -H 'Cookie: mosaikr=00000000000000000000000000000000' $U/api/info)"
 check "file dei browser salvato" "1" "$(wc -l < sd/System/fileserver-browsers.txt | tr -d ' ')"
 check "file dei browser invisibile" '{"error":"path"}' "$(q "$U/api/get?path=System/fileserver-browsers.txt")"
+RST() { cut -d' ' -f1 stato; }   # FS_RS_*: 0 niente, 1 in attesa, 3 fatto
+wait_rst() { for i in $(seq 50); do [ "$(RST)" = "$1" ] && return 0; sleep 0.1; done; return 1; }
+# backup: salvataggi, impostazioni, BIOS; il Wi-Fi solo se chiesto; i core mai
+mkdir -p sd/Bios sd/System/collections; echo bios > sd/Bios/neogeo.zip; echo 'fbneo	gioco' > sd/System/collections/Belli.txt; echo stats > sd/System/stats.tsv
+q -o b.zip "$U/api/backup"
+check "backup valido" "0" "$(unzip -tq b.zip >/dev/null 2>&1; echo $?)"
+check "backup con il riepilogo" "Mosaik backup" "$(unzip -p b.zip mosaik-backup.txt | head -1)"
+check "backup con salvataggi, BIOS, collezioni" "3" "$(unzip -l b.zip | grep -c 'Saves/fbneo/gioco.srm\|Bios/neogeo.zip\|System/collections/Belli.txt')"
+check "backup senza Wi-Fi" "0" "$(unzip -l b.zip | grep -c wifi.conf)"
+check "backup senza core" "0" "$(unzip -l b.zip | grep -c Cores)"
+check "backup con il Wi-Fi se chiesto" "1" "$(q -o bw.zip "$U/api/backup?wifi=1"; unzip -l bw.zip | grep -c System/wifi.conf)"
+# ripristino: il salvataggio cambiato torna com'era, solo dopo la conferma
+echo cambiato > sd/Saves/fbneo/gioco.srm
+check "ripristino ricevuto" "true" "$(q -T b.zip "$U/api/restore" | sed 's/.*"ok":\([a-z]*\).*/\1/')"
+wait_rst 1
+check "in attesa della console" "1" "$(RST)"
+check "nulla scritto prima della conferma" "cambiato" "$(cat sd/Saves/fbneo/gioco.srm)"
+touch si; wait_rst 3
+check "ripristino fatto" "3" "$(RST)"
+check "salvataggio ripristinato" "salvataggio" "$(cat sd/Saves/fbneo/gioco.srm)"
+check "zip del ripristino tolto" "no" "$([ -e sd/System/.ripristino.zip ] && echo si || echo no)"
+check "nessun .part dal ripristino" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"
+# annullato dalla console: nulla cambia
+echo cambiato > sd/Saves/fbneo/gioco.srm
+q -T b.zip "$U/api/restore" >/dev/null; wait_rst 1; touch no; wait_rst 0
+check "ripristino annullato" "cambiato" "$(cat sd/Saves/fbneo/gioco.srm)"
+# uno zip qualsiasi non è un backup
+check "zip qualsiasi rifiutato" '{"error":"notbackup"}' "$(q -T saves.zip "$U/api/restore")"
+# backup ricompresso (deflate) da un altro programma, con voci che non devono passare
+mkdir -p rz && cd rz && unzip -q ../b.zip && mkdir -p Cores && echo malevolo > Cores/core.so && echo vecchio > Saves/fbneo/gioco.srm && zip -qr -9 ../r.zip . && cd ..
+echo cambiato > sd/Saves/fbneo/gioco.srm
+q -T r.zip "$U/api/restore" >/dev/null; wait_rst 1; touch si; wait_rst 3
+check "backup compresso ripristinato" "vecchio" "$(cat sd/Saves/fbneo/gioco.srm)"
+check "core non toccato" "core" "$(cat sd/Cores/core.so)"
 check "file dei browser non elencato" "no" "$(q "$U/api/list?path=System" | grep -q browsers && echo si || echo no)"
 # mosaik.local: domanda mDNS da un'altra porta (come fanno i programmi semplici), risposta diretta
 cat > mdns.py <<'P'

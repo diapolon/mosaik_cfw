@@ -44,7 +44,7 @@
 
 ## Launcher
 
-- [ ] Backup and restore: Tools → Backup makes one zip on the card (saves, settings, favorites, collections, play time, Wi-Fi networks; optionally images and ROMs). Copy it to a computer, write the card again, put the zip back: at the first start the console finds it and offers to import it. Pairs with the reinstall notice (`m2/area-avvio.conf`)
+- [ ] Backup and restore over Wi-Fi (Transfer files page: **Download backup** with saves, settings, favorites, collections, play time and BIOS, optionally Wi-Fi networks and images; **Restore backup** uploads the zip, the console asks for confirmation, writes each file as `.part` and restarts; `m2/test-fileserver.sh`): to test on a console, also between the two models. Next step: offer an import at the first start of a rewritten card
 - [ ] File transfer over Wi-Fi (Settings → Tools → Transfer files, 0.9.19, `launcher/fileserver.c`, `m2/test-fileserver.sh`): tested on a console from a Mac and an Android phone (fast, mosaik.local opens). Still to test: power-off during an upload (the `.part` file is removed at the next opening), a PS disc, `mosaik.local` from Windows, "Remember this browser"
 - [ ] Console scraper, phase 2: ScreenScraper as a second source (needs developer credentials, requested on the screenscraper.fr forum)
 - [ ] Game list cache, for very large libraries

@@ -31,6 +31,12 @@ td.n a.dir { font-weight:600; }
 td.s, td.t { color:var(--dim); font-size:13px; white-space:nowrap; }
 td.a { text-align:right; white-space:nowrap; }
 .ro { color:var(--dim); font-size:13px; margin-bottom:10px; }
+#backup { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:14px; }
+#backup b { display:block; margin-bottom:2px; }
+#backup .note { color:var(--dim); font-size:13px; margin-bottom:8px; }
+#backup label { display:block; font-size:14px; margin:4px 0; cursor:pointer; }
+#backup .row { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+#backup a.btn { text-decoration:none; }
 .empty { padding:24px; text-align:center; color:var(--dim); }
 #queue { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:8px 16px; max-height:40vh; overflow:auto; display:none; }
 .q { display:flex; gap:10px; align-items:center; font-size:13px; padding:3px 0; }
@@ -73,6 +79,12 @@ td.a { text-align:right; white-space:nowrap; }
 </div>
 <main id="app" style="display:none">
   <div id="crumbs"></div>
+  <div id="backup" style="display:none">
+    <b id="bt"></b><div class="note" id="bn"></div>
+    <label><input type="checkbox" id="bw"> <span id="bwt"></span></label>
+    <label><input type="checkbox" id="bm"> <span id="bmt"></span></label>
+    <div class="row"><a class="btn primary" id="bdl"></a><button id="brs"></button></div>
+  </div>
   <div id="tools"></div>
   <div id="ro" class="ro"></div>
   <table id="list"></table>
@@ -82,6 +94,7 @@ td.a { text-align:right; white-space:nowrap; }
 <div id="closed"></div>
 <input type="file" id="fpick" multiple style="display:none">
 <input type="file" id="dpick" webkitdirectory multiple style="display:none">
+<input type="file" id="rpick" accept=".zip,application/zip" style="display:none">
 <script>
 const S = __STRINGS__;
 const $ = id => document.getElementById(id);
@@ -143,7 +156,34 @@ async function load(path) {
   render();
 }
 
+/* backup: si scarica con le scelte del momento; il ripristino si conferma sulla console */
+function backupLink() { $("bdl").href = "/api/backup?wifi=" + ($("bw").checked ? 1 : 0) + "&media=" + ($("bm").checked ? 1 : 0); }
+function setupBackup() {
+  $("bt").textContent = S.backup; $("bn").textContent = S.backup_note;
+  $("bwt").textContent = S.backup_wifi; $("bmt").textContent = S.backup_media;
+  $("bdl").textContent = S.backup_download; $("brs").textContent = S.backup_restore;
+  $("bw").onchange = $("bm").onchange = backupLink; backupLink();
+  $("brs").onclick = () => $("rpick").click();
+}
+$("rpick").onchange = e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  const it = { rel: f.name, st: S.uploading };
+  queue.push(it); drawQueue();
+  const x = new XMLHttpRequest();
+  x.open("PUT", "/api/restore");
+  x.upload.onprogress = ev => { if (ev.lengthComputable) { it.p = ev.loaded / ev.total; it.bar.value = it.p; it.label.textContent = Math.round(it.p * 100) + "%"; } };
+  x.onload = () => {
+    let j = {}; try { j = JSON.parse(x.responseText); } catch (er) {}
+    if (x.status === 401) { showLogin(); return; }
+    it.st = x.status === 200 ? S.done : errText(j.error || "io"); it.p = 1; it.bar.value = 1; it.label.textContent = it.st;
+    alert(x.status === 200 ? S.restore_console : errText(j.error || "io"));
+  };
+  x.onerror = () => { it.st = S.failed; it.label.textContent = it.st; closed(); };
+  x.send(f);
+};
+
 function render() {
+  $("backup").style.display = cur.path ? "none" : "block";
   const c = $("crumbs"); c.innerHTML = "";
   const home = document.createElement("a"); home.textContent = S.home; home.onclick = () => load(""); c.appendChild(home);
   let acc = "";
@@ -261,6 +301,7 @@ document.addEventListener("drop", async e => {
 /* all'apertura: se il PIN è già stato dato (cookie), si va subito ai file */
 (async () => {
   document.title = S.title;
+  setupBackup();
   let r;
   try { r = await fetch("/api/info"); } catch (e) { closed(); return; }
   if (r.status === 401) {

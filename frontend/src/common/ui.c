@@ -94,8 +94,10 @@ void ui_confirm_draw(const char *title, const char *body, const char *no, const 
     ui_rrect(x, y, w, h, r, t->surface);
     ui_text_fit(UI.f_title, title, w - M(0.06f), buf, sizeof buf);
     ui_text(UI.f_title, buf, x + w / 2, y + M(0.06f), t->text, ALIGN_CENTER);
-    ui_text_fit(UI.f_small, body, w - M(0.06f), buf, sizeof buf);
-    ui_text(UI.f_small, buf, x + w / 2, y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
+    /* testo su due righe al massimo, sopra i pulsanti */
+    char lines[2][160];
+    int n = ui_wrap(UI.f_small, body, w - M(0.06f), lines, 2), by = y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f);
+    for (int i = 0; i < n; i++) ui_text(UI.f_small, lines[i], x + w / 2, by + i * TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_CENTER);
     const char *labels[2] = { no, yes };
     ui_popup_buttons(x, y, w, h, labels, 2, sel, -1);
 }

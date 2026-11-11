@@ -20,7 +20,9 @@
 #include <stdbool.h>
 
 enum { FS_IDLE, FS_RECEIVING, FS_SENDING };
-enum { FS_EV_UPLOAD, FS_EV_DOWNLOAD, FS_EV_ZIP, FS_EV_DELETE, FS_EV_RENAME, FS_EV_MKDIR, FS_EV_LOGIN, FS_EV_FAIL };
+enum { FS_EV_UPLOAD, FS_EV_DOWNLOAD, FS_EV_ZIP, FS_EV_DELETE, FS_EV_RENAME, FS_EV_MKDIR, FS_EV_LOGIN, FS_EV_FAIL, FS_EV_BACKUP, FS_EV_RESTORE };
+/* ripristino di un backup: arrivato e in attesa della conferma, in corso, finito, non riuscito */
+enum { FS_RS_NONE, FS_RS_PENDING, FS_RS_RUNNING, FS_RS_DONE, FS_RS_FAILED };
 
 typedef struct {
     bool running;
@@ -31,6 +33,9 @@ typedef struct {
     int ev_kind[3];
     char ev_name[3][96];
     int uploads;             /* file caricati da quando è aperto */
+    int restore;             /* FS_RS_* */
+    char restore_date[32];   /* data del backup arrivato */
+    int restore_files;       /* file che si ripristinano */
 } fs_status_t;
 
 /* avvia il server sulla cartella root; restituisce falso se la porta non si apre */
@@ -48,3 +53,8 @@ int fs_browsers(void);
 void fs_forget_browsers(void);
 /* nome fisso sulla rete, per l'indirizzo da mostrare: "mosaik.local" */
 #define FS_HOSTNAME "mosaik.local"
+/* backup (salvataggi, impostazioni, preferiti, collezioni, tempo di gioco, BIOS): si scarica
+   dalla pagina; uno caricato per il ripristino aspetta la risposta della console. Dopo
+   FS_RS_DONE la console va riavviata (impostazioni nuove); fs_restore_clear dopo un errore. */
+void fs_restore_answer(bool yes);
+void fs_restore_clear(void);

@@ -2749,7 +2749,22 @@ static void fsrv_close(void) {
 /* pulsanti della finestra: Chiudi e, se ce ne sono, Dimentica i browser */
 static int fsrv_nbuttons(void) { return fs_browsers() > 0 ? 2 : 1; }
 
+static int fsrv_rsel;   /* scelta nella domanda del ripristino */
+
 static void fsrv_input(void) {
+    fs_status_t s;
+    fs_get_status(&s);
+    if (s.restore == FS_RS_PENDING) {   /* un backup arrivato dalla pagina: si ripristina? */
+        int r = ui_confirm_input(&fsrv_rsel);
+        if (r >= 0) { fs_restore_answer(r == 1); ui_log("trasferimento file: ripristino %s", r == 1 ? "confermato" : "annullato"); ui_sound(r == 1 ? SND_OK : SND_BACK); }
+        return;
+    }
+    if (s.restore == FS_RS_RUNNING) return;
+    if (s.restore == FS_RS_DONE) {   /* impostazioni nuove: si riparte da capo */
+        if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { ui_log("trasferimento file: backup ripristinato, riavvio"); fs_stop(); restart_system(); }
+        return;
+    }
+    if (s.restore == FS_RS_FAILED) { ui_toast(T("fileserver.restore_failed")); fs_restore_clear(); ui_sound(SND_ERROR); }
     int n = fsrv_nbuttons(), r = ui_popup_input(&fsrv_sel, n);
     if (r == 1) {
         fs_forget_browsers();
@@ -2827,7 +2842,11 @@ static void fsrv_draw(void) {
     ui_text(ft, line, lx, cy, t->text, ALIGN_LEFT);
     cy += fth + M(0.03f);
     /* cosa sta succedendo */
-    if (s.state == FS_IDLE) ui_text(fn, T("fileserver.waiting"), lx, cy, t->text_dim, ALIGN_LEFT);
+    if (s.restore == FS_RS_RUNNING) {
+        int pct = s.total > 0 ? (int)(s.done * 100 / s.total) : 0;
+        snprintf(line, sizeof line, T("fileserver.restoring"), pct);
+        ui_text(fn, line, lx, cy, t->accent, ALIGN_LEFT);
+    } else if (s.state == FS_IDLE) ui_text(fn, T("fileserver.waiting"), lx, cy, t->text_dim, ALIGN_LEFT);
     else {
         snprintf(line, sizeof line, T(s.state == FS_RECEIVING ? "fileserver.receiving" : "fileserver.sending"), s.current);
         int pw = s.total > 0 ? ui_text_w(fn, "100%") + M(0.02f) : 0;
@@ -2845,9 +2864,10 @@ static void fsrv_draw(void) {
     cy += fnh + M(0.03f);
     /* ultime operazioni */
     static const char *const ev_key[] = { "fileserver.ev_upload", "fileserver.ev_download", "fileserver.ev_zip", "fileserver.ev_delete",
-                                          "fileserver.ev_rename", "fileserver.ev_mkdir", "fileserver.ev_login", "fileserver.ev_fail" };
+                                          "fileserver.ev_rename", "fileserver.ev_mkdir", "fileserver.ev_login", "fileserver.ev_fail",
+                                          "fileserver.ev_backup", "fileserver.ev_restore" };
     for (int i = 0; i < s.nevents && cy + fsh <= foot; i++, cy += fsh) {
-        snprintf(line, sizeof line, T(ev_key[s.ev_kind[i] & 7]), s.ev_name[i]);
+        snprintf(line, sizeof line, T(ev_key[s.ev_kind[i] >= 0 && s.ev_kind[i] <= FS_EV_RESTORE ? s.ev_kind[i] : FS_EV_FAIL]), s.ev_name[i]);
         ui_text_fit(fs, line, bw, fit, sizeof fit);
         ui_text(fs, fit, lx, cy, i ? t->text_dim : t->text, ALIGN_LEFT);
     }
@@ -2855,6 +2875,21 @@ static void fsrv_draw(void) {
     int n = fsrv_nbuttons();
     if (fsrv_sel >= n) fsrv_sel = 0;
     ui_popup_buttons(x, y, w, h, labels, n, fsrv_sel, 1);
+    /* ripristino: la domanda, e alla fine il riavvio */
+    if (s.restore == FS_RS_PENDING) {
+        char body[300];
+        snprintf(body, sizeof body, T("fileserver.restore_body"), s.restore_date, s.restore_files);
+        ui_confirm_draw(T("fileserver.restore_title"), body, T("common.cancel"), T("fileserver.restore_go"), fsrv_rsel);
+    } else if (s.restore == FS_RS_DONE) {
+        int pw = M(0.8f), ph = M(0.34f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
+        ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+        ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
+        ui_rrect(px, py, pw, ph, r, t->surface);
+        ui_text(ft, T("fileserver.restore_done"), px + pw / 2, py + M(0.05f), t->text, ALIGN_CENTER);
+        ui_text(fs, T("fileserver.restore_done_body"), px + pw / 2, py + M(0.05f) + fth + M(0.01f), t->text_dim, ALIGN_CENTER);
+        const char *lb[] = { T("common.restart") };
+        ui_popup_buttons(px, py, pw, ph, lb, 1, 0, -1);
+    }
 }
 
 static void sdinfo_start(void) {
