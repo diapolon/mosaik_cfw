@@ -25,7 +25,7 @@ button.danger { color:var(--danger); }
 table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
 td { padding:9px 10px; border-top:1px solid var(--line); vertical-align:middle; }
 tr:first-child td { border-top:none; }
-td.n { word-break:break-all; }
+td.n { overflow-wrap:anywhere; }
 td.n a { color:var(--text); text-decoration:none; cursor:pointer; }
 td.n a.dir { font-weight:600; }
 td.s, td.t { color:var(--dim); font-size:13px; white-space:nowrap; }
@@ -43,7 +43,23 @@ td.a { text-align:right; white-space:nowrap; }
 .rem { display:block; margin:0 0 14px; font-size:14px; color:var(--dim); cursor:pointer; }
 #drop { position:fixed; inset:0; background:rgba(15,165,196,.18); border:4px dashed var(--accent); display:none; align-items:center; justify-content:center; font-size:22px; z-index:5; pointer-events:none; }
 #closed { position:fixed; inset:0; background:var(--bg); display:none; align-items:center; justify-content:center; text-align:center; padding:24px; z-index:9; }
-@media (max-width:600px) { td.t { display:none; } }
+/* telefono: ogni voce è un blocco, nome intero, sotto dimensione e data, poi i pulsanti */
+@media (max-width:600px) {
+  header { flex-wrap:wrap; gap:4px 10px; }
+  #model { font-size:13px; color:var(--dim); }
+  #space { flex-basis:100%; max-width:none; margin-left:0; }
+  main { padding:10px 10px 80px; }
+  table, tbody, tr, td { display:block; width:100%; }
+  tr { padding:10px 12px; border-top:1px solid var(--line); }
+  tr:first-child { border-top:none; }
+  td { border:none; padding:0; }
+  td.n { font-size:16px; }
+  td.s, td.t { display:inline; margin-right:12px; }
+  td.a { text-align:left; padding-top:8px; }
+  td.a:empty { display:none; }
+  td.s:empty { display:none; }
+  #tools button { flex:1 1 auto; }
+}
 </style>
 </head>
 <body>
