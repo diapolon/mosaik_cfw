@@ -29,20 +29,20 @@ ap.add_argument("--key", default=os.path.expanduser("~/.config/arcade-update/upd
 ap.add_argument("--labels", help="file 'cartella_sorgente commit' (altrimenti dal volume Docker)")
 args = ap.parse_args()
 
-# pacchetto -> (nome, cartella dei sorgenti in /build/src per il commit)
+# pacchetto -> (nome, cartella dei sorgenti in /build/src per il commit, categoria dello Store)
 PACKAGES = {
-    "fbneo": ("FinalBurn Neo", "fbneo"),
-    "mame2003p": ("MAME 2003-Plus", "mame2003-plus"),
-    "mame2010": ("MAME 2010", "mame2010"),
-    "fceumm": ("FCEUmm", "fceumm"),
-    "genesis_plus_gx": ("Genesis Plus GX", "genesis_plus_gx"),
-    "snes9x": ("Snes9x", "snes9x"),
-    "gambatte": ("Gambatte", "gambatte"),
-    "mgba": ("mGBA", "mgba"),
-    "pce_fast": ("Beetle PCE Fast", "pce_fast"),
-    "ngp": ("Beetle NeoPop", "ngp"),
-    "pcsx": ("PCSX ReARMed", "pcsx"),
-    "deadcast": ("Deadcast", None),
+    "fbneo": ("FinalBurn Neo", "fbneo", "arcade"),
+    "mame2003p": ("MAME 2003-Plus", "mame2003-plus", "arcade"),
+    "mame2010": ("MAME 2010", "mame2010", "arcade"),
+    "fceumm": ("FCEUmm", "fceumm", "nintendo"),
+    "genesis_plus_gx": ("Genesis Plus GX", "genesis_plus_gx", "sega"),
+    "snes9x": ("Snes9x", "snes9x", "nintendo"),
+    "gambatte": ("Gambatte", "gambatte", "nintendo"),
+    "mgba": ("mGBA", "mgba", "nintendo"),
+    "pce_fast": ("Beetle PCE Fast", "pce_fast", "other"),
+    "ngp": ("Beetle NeoPop", "ngp", "other"),
+    "pcsx": ("PCSX ReARMed", "pcsx", "sony"),
+    "deadcast": ("Deadcast", None, "sega"),
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")
@@ -80,7 +80,7 @@ for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
     if pid not in PACKAGES or not os.path.isdir(root):
         sys.exit(f"pacchetto sconosciuto: {pid}")
-    name, srcdir = PACKAGES[pid]
+    name, srcdir, category = PACKAGES[pid]
     files = []
     for d, _, names in os.walk(root):
         for n in names:
@@ -93,11 +93,22 @@ for pid in sorted(os.listdir(args.src)):
     for rel in files:
         h.update(rel.encode() + b"\0" + sha256(os.path.join(root, rel)).encode() + b"\n")
     version = h.hexdigest()[:12]
-    emulators, systems = [], []
+    emulators, systems, ems = [], [], []
     for rel in files:
         if rel.startswith("Emulators/") and rel.endswith(".json"):
             emulators.append(rel[10:-5])
-            systems.append(json.load(open(os.path.join(root, rel))).get("name", rel[10:-5]))
+            ems.append(json.load(open(os.path.join(root, rel))))
+            systems.append(ems[-1].get("name", rel[10:-5]))
+    # console nell'ordine delle piattaforme; titolo breve per il riquadro dello Store: il nome
+    # della console se è una sola, altrimenti le sigle
+    order_ix = sorted(range(len(ems)), key=lambda k: ems[k].get("order", 100))
+    systems = [systems[k] for k in order_ix]
+    title = systems[0] if len(ems) == 1 else " · ".join(ems[k].get("short") or ems[k].get("name", "") for k in order_ix)
+    title = {"genesis_plus_gx": "Mega Drive · SMS · GG"}.get(pid, title)   # le sigle intere non stanno nel riquadro
+    # l'immagine del pacchetto nello Store: quella della sua prima console (la più vecchia)
+    first = order_ix[0] if ems else None
+    art = {"emu": emulators[first], "art": ems[first].get("art", ""), "short": ems[first].get("short", ""),
+           "console": ems[first].get("kind") == "console"} if first is not None else {}
     if pid == "deadcast":
         dz = sorted(n for n in os.listdir(os.path.join(top, "deps", "deadcast")) if n.endswith(".pak.zip"))
         label = dz[-1][12:-8] if dz else "?"
@@ -118,7 +129,7 @@ for pid in sorted(os.listdir(args.src)):
             with open(os.path.join(root, rel), "rb") as f:
                 z.writestr(info, f.read(), compresslevel=9)
     catalog["packages"].append({
-        "id": pid, "name": name, "label": label, "version": version, "systems": systems, "emulators": emulators,
+        "id": pid, "name": name, "label": label, "version": version, "category": category, "title": title if ems else name, "systems": systems, "emulators": emulators, **art,
         "file": os.path.basename(zpath), "size": os.path.getsize(zpath), "installed": installed,
         "sha256": sha256(zpath), "files": files,
     })

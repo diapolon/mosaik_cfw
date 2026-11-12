@@ -18,11 +18,17 @@
 
 enum { ST_IDLE, ST_LOADING, ST_READY, ST_WORKING, ST_DONE, ST_FAILED };
 enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL };
-enum { PKG_ABSENT, PKG_INSTALLED, PKG_UPDATE, PKG_OLD };   /* PKG_OLD: arrivato col sistema, senza versione */
+/* PKG_OLD: arrivato col sistema, senza versione; PKG_ARCHIVED: archiviato (solo l'emulatore tolto,
+   giochi e salvataggi restano), come sulla Switch: si riscarica con un pulsante */
+enum { PKG_ABSENT, PKG_INSTALLED, PKG_UPDATE, PKG_OLD, PKG_ARCHIVED };
 
 typedef struct {
     char id[32], name[64], label[32], version[24], file[128], sha[65];
     char systems[200];           /* "Sega Mega Drive, Master System, Game Gear" */
+    char title[64];              /* breve, per il riquadro: "Super Nintendo", "Sega MD · SMS · Game Gear" */
+    char category[16];           /* arcade, nintendo, sega, sony, other (in futuro apps, themes) */
+    char emu[16], art[16], shortname[16];   /* immagine: quella della prima console del pacchetto */
+    bool console;
     long long size, installed;   /* byte dello zip e dei file installati */
     int state;                   /* PKG_* */
 } store_pkg_t;
@@ -42,7 +48,11 @@ const store_status_t *store_status(void);
 int store_count(void);
 const store_pkg_t *store_pkg(int i);   /* copia stabile finché non si richiama store_open/store_* */
 void store_install(int i);              /* in un thread: installa o aggiorna */
-void store_remove(int i);               /* in un thread: toglie i file del pacchetto */
+/* in un thread: toglie i file del pacchetto. Senza with_data è "Archivia": giochi, salvataggi e
+   immagini restano e il registro ricorda il pacchetto come archiviato. Con with_data è "Elimina":
+   via anche giochi, salvataggi e immagini delle sue console (cartelle dentro Roms,
+   Saves/<console>, Media/<tipo>/<console>) e il registro; i BIOS no */
+void store_remove(int i, bool with_data);
 void store_cancel(void);
 void store_join(void);
 /* dopo un'installazione o una rimozione: emulatori cambiati, la libreria va riletta */

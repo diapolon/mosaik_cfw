@@ -48,7 +48,7 @@ int main(int c, char **v) {
     }
     int i = find(v[3]);
     if (i < 0) { puts("manca"); return 0; }
-    if (!strcmp(cmd, "install")) store_install(i); else store_remove(i);
+    if (!strcmp(cmd, "install")) store_install(i); else store_remove(i, !strcmp(cmd, "delete"));
     store_join();
     printf("%d %d %d\n", s->phase, s->error, store_pkg(i)->state);
     return 0;
@@ -97,9 +97,20 @@ rm sd/System/pacchetti/fbneo.txt
 check "senza registro ma con l'emulatore: arrivato col sistema" "2 0 2 fbneo:3 mgba:0" "$(./t $R list 2>/dev/null)"
 check "pacchetto manomesso rifiutato" "5 5 3" "$(./t $R install fbneo 2>/dev/null)"
 cp orig.zip $Z
-# togliere uno arrivato col sistema: i file del catalogo
-check "togliere" "4 0 0" "$(./t $R remove fbneo 2>/dev/null)"
+# archiviare uno arrivato col sistema: i file del catalogo, giochi e salvataggi restano
+mkdir -p sd/Roms/FBNEO sd/Saves/fbneo; echo rom > sd/Roms/FBNEO/gioco.zip; echo sav > sd/Saves/fbneo/gioco.state
+check "archiviare" "4 0 4" "$(./t $R archive fbneo 2>/dev/null)"
+check "archiviato: i giochi restano" "rom" "$(cat sd/Roms/FBNEO/gioco.zip)"
+check "archiviato: i salvataggi restano" "sav" "$(cat sd/Saves/fbneo/gioco.state)"
 check "core tolto" "no" "$([ -e sd/Cores/fbneo_libretro.so ] && echo si || echo no)"
+check "riscaricare un archiviato" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
+# eliminare: via anche giochi e salvataggi, la cartella dei giochi resta vuota; i BIOS no
+mkdir -p sd/Bios; echo bios > sd/Bios/neogeo.zip
+check "eliminare" "4 0 0" "$(./t $R delete fbneo 2>/dev/null)"
+check "eliminato: giochi tolti, cartella vuota" "0" "$(ls sd/Roms/FBNEO | wc -l | tr -d ' ')"
+check "eliminato: salvataggi tolti" "no" "$([ -e sd/Saves/fbneo ] && echo si || echo no)"
+check "eliminato: BIOS restano" "bios" "$(cat sd/Bios/neogeo.zip)"
+check "eliminato: niente registro" "no" "$([ -e sd/System/pacchetti/fbneo.txt ] && echo si || echo no)"
 check "cartella vuota tolta" "no" "$([ -d sd/Cores/extra ] && echo si || echo no)"
 check "Cores resta" "si" "$([ -d sd/Cores ] && echo si || echo no)"
 # catalogo firmato con un'altra chiave: si resta con quello sulla scheda

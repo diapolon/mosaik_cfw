@@ -210,6 +210,13 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         snprintf(x->p.file, sizeof x->p.file, "%s", json_str(v, "file", ""));
         snprintf(x->p.sha, sizeof x->p.sha, "%s", json_str(v, "sha256", ""));
         x->p.size = (long long)json_num(v, "size", 0);
+        snprintf(x->p.category, sizeof x->p.category, "%s", json_str(v, "category", "other"));
+        snprintf(x->p.title, sizeof x->p.title, "%s", json_str(v, "title", x->p.name));
+        snprintf(x->p.emu, sizeof x->p.emu, "%s", json_str(v, "emu", ""));
+        snprintf(x->p.art, sizeof x->p.art, "%s", json_str(v, "art", ""));
+        snprintf(x->p.shortname, sizeof x->p.shortname, "%s", json_str(v, "short", ""));
+        jval *cv = json_get(v, "console");
+        x->p.console = cv && cv->t == J_BOOL && cv->n != 0;
         x->p.installed = (long long)json_num(v, "installed", 0);
         int ns = 0;
         char **sys = str_list(json_get(v, "systems"), &ns);
@@ -247,9 +254,20 @@ static void installed_version(const char *id, char *out, size_t n) {
     if (f) fclose(f);
 }
 
+static bool archived(const char *id) {
+    char p[1200], line[64];
+    record_path(id, p, sizeof p);
+    FILE *f = fopen(p, "r");
+    bool a = false;
+    while (f && !a && fgets(line, sizeof line, f)) a = !strncmp(line, "archived", 8);
+    if (f) fclose(f);
+    return a;
+}
+
 static void compute_states(entry_t *e, int n) {
     for (int i = 0; i < n; i++) {
         char v[64];
+        if (archived(e[i].p.id)) { e[i].p.state = PKG_ARCHIVED; continue; }
         installed_version(e[i].p.id, v, sizeof v);
         if (v[0]) { e[i].p.state = strcmp(v, e[i].p.version) ? PKG_UPDATE : PKG_INSTALLED; continue; }
         /* arrivato con il sistema, prima dello Store: ci sono tutti i suoi emulatori */
@@ -611,6 +629,54 @@ static void *install_worker(void *arg) {
     return NULL;
 }
 
+/* toglie una cartella e tutto quello che c'è dentro; un collegamento non si segue */
+static void rm_tree(const char *dir) {
+    struct stat ds;
+    if (lstat(dir, &ds) != 0) return;
+    if (!S_ISDIR(ds.st_mode)) { unlink(dir); return; }
+    DIR *d = opendir(dir);
+    struct dirent *e;
+    while (d && (e = readdir(d))) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        char p[1500];
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        rm_tree(p);
+    }
+    if (d) closedir(d);
+    rmdir(dir);
+}
+
+static bool remove_data;
+
+/* giochi, salvataggi e immagini di una console del pacchetto: prima di togliere il suo
+   Emulators/<id>.json, che dice dov'è la cartella dei giochi */
+static void remove_emu_data(const char *id) {
+    char p[1300], up[32];
+    snprintf(p, sizeof p, "%s/Emulators/%s.json", root_dir, id);
+    jval *j = json_load(p);
+    size_t k = 0;
+    for (; id[k] && k < sizeof up - 1; k++) up[k] = (char)(id[k] >= 'a' && id[k] <= 'z' ? id[k] - 32 : id[k]);
+    up[k] = 0;
+    char def[48], roms[300];
+    snprintf(def, sizeof def, "Roms/%s", up);
+    snprintf(roms, sizeof roms, "%s", json_str(j, "roms", def));
+    bool console = !strcmp(json_str(j, "kind", ""), "console");
+    json_free(j);
+    /* solo una cartella dentro Roms: un percorso assoluto scelto dall'utente non si tocca */
+    if (!strncmp(roms, "Roms/", 5) && roms[5] && !strstr(roms, "..") && !strchr(roms + 5, '/')) {
+        snprintf(p, sizeof p, "%s/%s", root_dir, roms);
+        rm_tree(p);
+        mkdir(p, 0755);   /* la cartella vuota resta, pronta per altri giochi */
+    }
+    snprintf(p, sizeof p, "%s/Saves/%s", root_dir, id);
+    rm_tree(p);
+    if (console) {   /* le immagini degli arcade sono per nome del gioco, comuni a più emulatori */
+        static const char *types[] = { "snap", "title", "marquee", "box" };
+        for (int t = 0; t < 4; t++) { snprintf(p, sizeof p, "%s/Media/%s/%s", root_dir, types[t], id); rm_tree(p); }
+    }
+    ui_log("store: tolti giochi, salvataggi e immagini di %s (%s)", id, roms);
+}
+
 static void *remove_worker(void *arg) {
     (void)arg;
     entry_t e;
@@ -620,6 +686,8 @@ static void *remove_worker(void *arg) {
     pthread_mutex_unlock(&lock);
     if (!have) { st.error = SE_CATALOG; st.phase = ST_FAILED; return NULL; }
     snprintf(st.working, sizeof st.working, "%s", e.p.name);
+    if (remove_data)
+        for (int k = 0; k < e.nemus; k++) remove_emu_data(e.emus[k]);
     int n = 0;
     char **files = record_files(e.p.id, &n);
     /* senza registro (arrivato con il sistema): i file del catalogo */
@@ -632,10 +700,17 @@ static void *remove_worker(void *arg) {
     }
     char rp[1200];
     record_path(e.p.id, rp, sizeof rp);
-    unlink(rp);
+    if (remove_data) unlink(rp);
+    else {   /* archiviato: lo Store lo ricorda, giochi e salvataggi restano */
+        char dir[1200], rec[200];
+        snprintf(dir, sizeof dir, "%s/System/pacchetti", root_dir);
+        mkdir(dir, 0755);
+        int len = snprintf(rec, sizeof rec, "archived\nlabel %s\n", e.p.label);
+        write_durable(rp, rec, (size_t)len);
+    }
     sync();
     free_list(files, n);
-    ui_log("store: tolto %s", e.p.id);
+    ui_log("store: %s %s", remove_data ? "eliminato" : "archiviato", e.p.id);
     atomic_store(&changed, true);
     store_refresh();
     st.phase = ST_DONE;
@@ -655,7 +730,7 @@ static void start(int i, void *(*fn)(void *)) {
 }
 
 void store_install(int i) { start(i, install_worker); }
-void store_remove(int i) { start(i, remove_worker); }
+void store_remove(int i, bool with_data) { remove_data = with_data; start(i, remove_worker); }
 
 /* ------------------------------------------------------- pacchetti copiati sulla scheda */
 static void seen_key(const char *path, char *out, size_t n) {
