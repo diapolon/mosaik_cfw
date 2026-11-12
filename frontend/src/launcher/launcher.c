@@ -1575,6 +1575,7 @@ static color_t emu_color(const char *id) {
     if (!strcmp(id, "pokemini")) return hexc(0x6E2F5E);
     if (!strcmp(id, "vb")) return hexc(0x9E1F1F);
     if (!strcmp(id, "scummvm")) return hexc(0x2E7D4F);
+    if (!strcmp(id, "psp")) return hexc(0x2B3F66);
     if (!strcmp(id, "ngp")) return hexc(0x2D6A4F);
     if (!strcmp(id, "gb")) return hexc(0x6F7F2C);
     if (!strcmp(id, "gbc")) return hexc(0x1E7F86);
@@ -2343,8 +2344,12 @@ static void vt_draw(void) {
             }
             ui_rect(x, y + h - lh, w, lh, hexc(0x151822));
             char fit[96];
-            ui_text_fit(UI.f_small, vt_label(&e[i]), w - M(0.012f), fit, sizeof fit);
-            ui_text(UI.f_small, fit, x + w / 2, y + h - lh + (lh - TTF_FontHeight(UI.f_small)) / 2, rgba(0xF2, 0xF2, 0xF2, 255), ALIGN_CENTER);
+            /* nome che non entra (le tessere della Brick Pro sono più strette): carattere più piccolo,
+               e i puntini solo se non basta */
+            TTF_Font *lf = UI.f_small;
+            if (ui_text_w(lf, vt_label(&e[i])) > w - M(0.012f)) { TTF_Font *sm = ui_font(UI.th.font_path, M(0.021f)); if (sm) lf = sm; }
+            ui_text_fit(lf, vt_label(&e[i]), w - M(0.012f), fit, sizeof fit);
+            ui_text(lf, fit, x + w / 2, y + h - lh + (lh - TTF_FontHeight(lf)) / 2, rgba(0xF2, 0xF2, 0xF2, 255), ALIGN_CENTER);
             int bt = M(0.006f) + 1, o = M(0.004f);
             if (sel) ui_rborder(x - o, y - o, w + 2 * o, h + 2 * o, bt + 2, bt, t->accent);
             else ui_rborder(x, y, w, h, 3, 2, with_alpha(rgba(255, 255, 255, 255), 70));

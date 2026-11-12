@@ -18,7 +18,7 @@ mkdir -p "$APP/bin" "$APP/lib" "$DATA"
 
 # programmi e core compilati, dal volume Docker
 docker run --rm -v trimui-build:/build -v "$DIST":/dist alpine:3.20 \
-    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; }'
+    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; } && rm -rf /dist/ppsspp && { [ ! -f /build/out/ppsspp/PPSSPPSDL ] || cp -a /build/out/ppsspp /dist/ppsspp; }'
 cp "$FE/package/trimui/launch.sh" "$FE/package/trimui/config.json" "$FE/package/trimui/icon.png" "$APP/"
 chmod +x "$APP/launch.sh" "$APP/bin/"*
 
@@ -56,6 +56,18 @@ pkg mgba mgba_libretro.so mgba_libretro.so gba
 pkg pce_fast mednafen_pce_fast_libretro.so mednafen_pce_fast_libretro.so pce pcecd
 pkg ngp mednafen_ngp_libretro.so mednafen_ngp_libretro.so ngp
 pkg pcsx pcsx_rearmed_libretro.so pcsx_rearmed_libretro.so ps
+# PSP: PPSSPP, programma a sé (toolchain/build-ppsspp.sh) con i suoi assets, avviato da
+# Cores/ppsspp/launch.sh; impostazioni iniziali per l'A133P in ppsspp.ini
+if [ -f "$DIST/ppsspp/PPSSPPSDL" ]; then
+    pkg ppsspp - - psp
+    mkdir -p "$PKG/ppsspp/Cores/ppsspp"
+    cp "$DIST/ppsspp/PPSSPPSDL" "$PKG/ppsspp/Cores/ppsspp/PPSSPPSDL"
+    cp -R "$DIST/ppsspp/assets" "$PKG/ppsspp/Cores/ppsspp/assets"
+    cp "$FE/package/ppsspp/launch.sh" "$FE/package/ppsspp/ppsspp.ini" "$PKG/ppsspp/Cores/ppsspp/"
+    chmod +x "$PKG/ppsspp/Cores/ppsspp/PPSSPPSDL" "$PKG/ppsspp/Cores/ppsspp/launch.sh"
+else
+    echo "attenzione: manca PPSSPP (toolchain/build-ppsspp.sh): niente pacchetto PSP" >&2
+fi
 # ScummVM: il core, i giochi uno per cartella, e i file di dati e i temi della sua interfaccia in
 # Cores/scummvm/scummvm (la sua cartella di sistema è Cores/scummvm: "system_dir" nel JSON)
 if [ -f "$DIST/scummvm/scummvm.zip" ]; then
@@ -150,6 +162,7 @@ LYNX: giochi Atari Lynx (.lnx); serve lynxboot.img in Bios/.
 WS, WSC: giochi WonderSwan (.ws) e WonderSwan Color (.wsc).
 POKEMINI: giochi Pokémon mini (.min); bios.min in Bios/ se c'è, altrimenti un BIOS libero.
 VB: giochi Virtual Boy (.vb, .vboy).
+PSP: giochi PlayStation Portable (.iso, .cso, .chd, .pbp).
 SCUMMVM: avventure grafiche per ScummVM, ogni gioco nella sua cartella con i suoi file
 (Roms/SCUMMVM/Monkey Island/...): il gioco si riconosce da solo.
 GB, GBC, GBA: giochi Game Boy (.gb), Game Boy Color (.gbc) e Game Boy Advance (.gba),

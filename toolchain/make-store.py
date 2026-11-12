@@ -54,6 +54,7 @@ PACKAGES = {
     "pokemini": ("PokeMini", "pokemini", "console"),
     "vb": ("Beetle VB", "vb", "console"),
     "scummvm": ("ScummVM", "scummvm", "console"),
+    "ppsspp": ("PPSSPP", "ppsspp", "console"),
     "files": ("Files", None, "apps"),   # app: nome, versione e traduzioni da Apps/<id>/app.json
     "viewer": ("Images and comics", None, "apps"),
     "music": ("Music player", None, "apps"),

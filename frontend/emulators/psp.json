@@ -1,0 +1,18 @@
+{
+  "name": "PlayStation Portable",
+  "kind": "console",
+  "core": "ppsspp",
+  "launch": "Cores/ppsspp/launch.sh",
+  "menu": false,
+  "roms": "Roms/PSP",
+  "extensions": [
+    "iso",
+    "cso",
+    "chd",
+    "pbp"
+  ],
+  "art": "handheld-wide",
+  "short": "PSP",
+  "thumbnails": "Sony - PlayStation Portable",
+  "order": 72
+}
