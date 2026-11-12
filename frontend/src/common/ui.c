@@ -1011,6 +1011,7 @@ static void load_variant_colors(theme_t *t, jval *c) {
     t->tile = parse_color(json_str(c, "tile", NULL), t->tile);
     t->shadow = parse_color(json_str(c, "shadow", NULL), t->shadow);
     t->line = parse_color(json_str(c, "line", NULL), t->line);
+    t->highlight = parse_color(json_str(c, "highlight", NULL), t->accent);
 }
 
 bool theme_load(theme_t *t, const char *root, const char *id, const char *variant) {
@@ -1026,6 +1027,7 @@ bool theme_load(theme_t *t, const char *root, const char *id, const char *varian
     t->text = rgba(45, 45, 45, 255);
     t->text_dim = rgba(120, 120, 120, 255);
     t->accent = rgba(0, 190, 220, 255);
+    t->highlight = t->accent;
     t->accent_text = rgba(255, 255, 255, 255);
     t->tile = rgba(255, 255, 255, 255);
     t->shadow = rgba(0, 0, 0, 40);
@@ -1094,8 +1096,15 @@ bool theme_load(theme_t *t, const char *root, const char *id, const char *varian
 
     jval *vars = json_get(j, "variants");
     if (vars && vars->t == J_OBJ) {
-        for (jval *v = vars->child; v && t->nvariants < 8; v = v->next)
+        for (jval *v = vars->child; v && t->nvariants < 8; v = v->next) {
+            /* "label": "Notte" oppure { "it": "Notte", "en": "Night" }: per i temi dello Store,
+               che non hanno le traduzioni nei file della lingua del sistema */
+            jval *lab = json_get(v, "label");
+            const char *l = lab && lab->t == J_STR ? lab->s
+                          : lab && lab->t == J_OBJ ? json_str(lab, UI.set.lang, json_str(lab, "en", "")) : "";
+            snprintf(t->variant_labels[t->nvariants], 32, "%s", l);
             snprintf(t->variants[t->nvariants++], 16, "%s", v->key);
+        }
         jval *chosen = json_get(vars, variant);
         load_variant_colors(t, chosen ? chosen : vars->child);
     } else {

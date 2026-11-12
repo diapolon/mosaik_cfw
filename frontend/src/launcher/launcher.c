@@ -120,6 +120,10 @@ static int dlg_sel;
 
 static bool is_list_layout(void) { return !strcmp(UI.th.layout, "list"); }
 static bool is_bar_layout(void) { return !strcmp(UI.th.layout, "bar"); }
+/* vetrina: illustrazione grande della voce scelta e striscia delle piattaforme in basso */
+static bool is_showcase_layout(void) { return !strcmp(UI.th.layout, "vetrina"); }
+static void vt_draw(void);
+static void vt_input(void);
 
 static void go(int scr) {
     if (scr == screen) return;
@@ -1266,6 +1270,7 @@ static int home_focus_game(void) {
 }
 
 static void home_input(void) {
+    if (is_showcase_layout()) { vt_input(); return; }
     input_t *in = &UI.in;
     bool cards = !is_list_layout() && !is_bar_layout();
     int old = hsel * 16 + hrow * 4 + hbtn;
@@ -1509,6 +1514,7 @@ static void home_draw_bar(int y, int bottom) {
 }
 
 static void home_draw(void) {
+    if (is_showcase_layout()) { vt_draw(); return; }
     theme_t *t = &UI.th;
     topbar_theme();
     int y = M(t->topbar_h) + M(0.025f), bottom = UI.h - ui_keybar_h() - M(0.03f);
@@ -2106,6 +2112,250 @@ static void plat_draw(void) {
     ui_keybar(plan ? h + 3 : h, plan ? 6 : 9);
 }
 
+/* ------------------------------------------------------ vetrina (layout "vetrina")
+   La home come la copertina di un fumetto: in alto l'illustrazione grande della voce scelta, su
+   una fascia obliqua del suo colore, con il nome in grande; in basso la striscia delle voci
+   (ultima partita, Tutti, Preferiti, piattaforme, collezioni, poi App, Store, Impostazioni,
+   Spegni) e il contatore. Le illustrazioni sono quelle disegnate per le Piattaforme. */
+enum { VK_GAME, VK_TAB, VK_MENU };
+typedef struct { int kind, v; } vt_entry_t;
+static int vt_sel;
+static float vt_off, vt_off_target;
+
+static int vt_entries(vt_entry_t *e, int max) {
+    int n = 0;
+    if (home_last_game() >= 0 && n < max) e[n++] = (vt_entry_t){ VK_GAME, 0 };
+    for (int i = 0; i < nptabs && n < max; i++) e[n++] = (vt_entry_t){ VK_TAB, i };
+    for (int i = 0; i < nhmenu && n < max; i++)
+        if (hmenu[i] == HM_APPS || hmenu[i] == HM_STORE || hmenu[i] == HM_SETTINGS || hmenu[i] == HM_POWER) e[n++] = (vt_entry_t){ VK_MENU, hmenu[i] };
+    return n;
+}
+
+/* la piattaforma dell'ultima partita (TAB_EMU + emulatore, TAB_LINUX) e se ha un'immagine */
+static int vt_game_tab(int gi) {
+    if (gi < 0) return -1;
+    if (!strcmp(games[gi].core, "linux")) return TAB_LINUX;
+    for (int i = 0; i < NEMUS; i++) if (!strcmp(EMUS[i].id, games[gi].core)) return TAB_EMU + i;
+    return -1;
+}
+static bool vt_game_image(int gi) {
+    return gi >= 0 && ((gi == resume_idx && ui_image(resume_png)) || media_image(&games[gi], UI.th.cover_types, UI.th.ncover));
+}
+
+static color_t vt_color(const vt_entry_t *e) {
+    if (e->kind == VK_TAB) return plat_color(ptabs[e->v]);
+    if (e->kind == VK_GAME) {
+        int tab = vt_game_tab(home_last_game());
+        return tab >= 0 ? plat_color(tab) : mix(UI.th.accent, rgba(0, 0, 0, 255), 0.45f);
+    }
+    switch (e->v) {
+    case HM_APPS: return hexc(0x4B3C86);
+    case HM_STORE: return hexc(0x1F6E8C);
+    case HM_SETTINGS: return hexc(0x4A525E);
+    default: return hexc(0x8E2A2A);
+    }
+}
+
+static const char *vt_label(const vt_entry_t *e) {
+    if (e->kind == VK_TAB) return tab_label(ptabs[e->v]);
+    return hm_label(e->kind == VK_GAME ? HM_GAME : e->v);
+}
+
+static int vt_icon(int m) { return m == HM_APPS ? IC_APPS : m == HM_STORE ? IC_STORE : m == HM_SETTINGS ? IC_SETTINGS : IC_POWER; }
+
+/* l'immagine di una voce dentro un riquadro: illustrazione, gioco o simbolo */
+static void vt_art(const vt_entry_t *e, int x, int y, int w, int h, int r) {
+    color_t c = vt_color(e);
+    if (e->kind == VK_TAB) draw_plat_art(ptabs[e->v], x, y, w, h);
+    else if (e->kind == VK_GAME) {   /* senza immagine: l'illustrazione della sua piattaforma */
+        int gi = home_last_game(), tab = vt_game_tab(gi);
+        if (vt_game_image(gi) || tab < 0) home_image(gi, x, y, w, h, r);
+        else draw_plat_art(tab, x, y, w, h);
+    }
+    else {
+        int sz = w < h ? w : h;
+        draw_icon_glyph(vt_icon(e->v), x + w / 2, y + h / 2, sz * 9 / 10, rgba(0xF2, 0xF2, 0xF2, 255), c);
+    }
+}
+
+/* righe oblique nel colore più scuro, dentro un rettangolo */
+static void vt_stripes(int x, int y, int w, int h, color_t c, int sp) {
+    ui_clip_push(x, y, w, h);
+    int lt = M(0.005f) + 1;
+    for (int s = -h; s < w; s += sp) plat_line(x + s, y, x + s + h, y + h, lt, mix(c, rgba(0, 0, 0, 255), 0.3f));
+    ui_clip_pop();
+}
+
+/* il nome in grande, come un titolo di fumetto: contorno scuro, ombra e riempimento */
+static void vt_title(const char *s, int x, int y, int maxw, color_t fill, color_t edge) {
+    TTF_Font *f = ui_font(UI.th.title_font_path, M(0.105f));
+    if (!f) f = UI.f_big;
+    char l1[96], l2[96] = "";
+    snprintf(l1, sizeof l1, "%s", s);
+    if (ui_text_w(f, l1) > maxw) {   /* due righe, spezzando allo spazio più vicino al centro */
+        size_t n = strlen(l1), best = 0;
+        for (size_t i = 1; i < n; i++)
+            if (l1[i] == ' ' && (best == 0 || (i > n / 2 ? i - n / 2 : n / 2 - i) < (best > n / 2 ? best - n / 2 : n / 2 - best))) best = i;
+        if (best) { snprintf(l2, sizeof l2, "%s", l1 + best + 1); l1[best] = 0; }
+        if (ui_text_w(f, l1) > maxw || ui_text_w(f, l2) > maxw) {
+            f = UI.f_big;
+            if (!best) { char fit[96]; ui_text_fit(f, s, maxw, fit, sizeof fit); snprintf(l1, sizeof l1, "%s", fit); }
+        }
+    }
+    int fh = TTF_FontHeight(f), o = M(0.004f) + 1, sh = M(0.009f) + 1;
+    const char *lines[2] = { l1, l2 };
+    for (int k = 0; k < 2 && lines[k][0]; k++) {
+        int yy = y + k * (fh * 88 / 100);
+        ui_text(f, lines[k], x + sh, yy + sh, with_alpha(edge, 120), ALIGN_LEFT);
+        for (int dx = -o; dx <= o; dx += o)
+            for (int dy = -o; dy <= o; dy += o)
+                if (dx || dy) ui_text(f, lines[k], x + dx, yy + dy, edge, ALIGN_LEFT);
+        ui_text(f, lines[k], x, yy, fill, ALIGN_LEFT);
+    }
+}
+
+static void vt_draw(void) {
+    theme_t *t = &UI.th;
+    vt_entry_t e[64];
+    int n = vt_entries(e, 64);
+    if (vt_sel >= n) vt_sel = n ? n - 1 : 0;
+    int mx = M(t->margin), kb = ui_keybar_h(), fsh = TTF_FontHeight(UI.f_small);
+    int th = M(0.17f), tw = th * 5 / 4, gap = M(0.016f), big = th * 118 / 100, bw = big * 5 / 4;
+    int cnt_y = UI.h - kb - fsh - M(0.012f), strip_b = cnt_y - M(0.01f), strip_t = strip_b - big;
+    int hero_b = strip_t - M(0.02f);
+    /* fascia obliqua del colore della voce, con le righe, sotto l'illustrazione */
+    if (n) {
+        const vt_entry_t *s = &e[vt_sel];
+        color_t c = vt_color(s), edge = mix(c, rgba(0, 0, 0, 255), 0.55f);
+        int xa = UI.w * 44 / 100, xb = UI.w * 34 / 100;   /* in alto e in basso */
+        plat_quad(xa, 0, UI.w, 0, UI.w, hero_b, xb, hero_b, c);
+        {   /* righe oblique solo dentro la fascia (lo sfondo può essere sfumato: niente coperture) */
+            int lt = M(0.005f) + 1, sp = M(0.04f);
+            float k = 1.0f - (float)(xb - xa) / (float)hero_b;   /* > 1: il bordo sinistro va verso sinistra */
+            color_t dark = mix(c, rgba(0, 0, 0, 255), 0.3f);
+            ui_clip_push(xb, 0, UI.w - xb, hero_b);
+            for (int x0 = xb - hero_b; x0 < UI.w; x0 += sp) {
+                float y0 = (xa - x0) / k;
+                if (y0 < 0) y0 = 0;
+                if (y0 >= hero_b) continue;
+                plat_line(x0 + (int)y0 + lt, (int)y0, x0 + hero_b, hero_b, lt, dark);
+            }
+            ui_clip_pop();
+        }
+        int bt = M(0.008f) + 1;
+        plat_line(xa - bt / 2, 0, xb - bt / 2, hero_b, bt, rgba(0xF2, 0xF2, 0xF2, 255));
+        ui_rect(xb, hero_b - bt / 2, UI.w - xb, bt, rgba(0xF2, 0xF2, 0xF2, 255));
+        /* l'illustrazione, grande, nella fascia */
+        int top = M(t->topbar_h), ah = hero_b - top - M(0.03f), aw = UI.w - xa - mx;
+        if (s->kind == VK_GAME && vt_game_image(home_last_game())) {
+            int gw = aw, gh = gw * 3 / 4;
+            if (gh > ah) { gh = ah; gw = gh * 4 / 3; }
+            int gx = xa + (UI.w - xa - mx - gw) / 2 + M(0.02f), gy = top + (ah - gh) / 2, b = M(0.008f) + 1;
+            ui_shadow(gx, gy + M(0.01f), gw, gh, M(0.008f), M(0.03f), t->shadow);
+            ui_rrect(gx - b, gy - b, gw + 2 * b, gh + 2 * b, M(0.01f), rgba(0xF2, 0xF2, 0xF2, 255));
+            vt_art(s, gx, gy, gw, gh, M(0.008f));
+        } else vt_art(s, xa + M(0.02f), top, aw, ah, 0);
+        /* il nome in grande e sotto quanti giochi o di che gioco si tratta */
+        int tx = mx, ty = top + M(0.05f), maxw = xb - mx - M(0.02f);
+        vt_title(vt_label(s), tx, ty, maxw, t->highlight, edge);
+        char sub[160] = "";
+        if (s->kind == VK_TAB) plat_count_text(ptabs[s->v], sub, sizeof sub);
+        else if (s->kind == VK_GAME) snprintf(sub, sizeof sub, "%s", games[home_last_game()].title);
+        if (sub[0]) {
+            char fit[160];
+            ui_text_fit(UI.f_normal, sub, maxw, fit, sizeof fit);
+            ui_text(UI.f_normal, fit, tx, hero_b - TTF_FontHeight(UI.f_normal) - M(0.04f), t->text, ALIGN_LEFT);
+        }
+    }
+    {   /* orologio, Wi-Fi e batteria sopra l'illustrazione, su una pillola del colore di fondo */
+        int ph = TTF_FontHeight(UI.f_normal) + M(0.02f), pw = M(0.31f) + ui_text_w(UI.f_normal, "100%");
+        ui_rrect(UI.w - mx - pw + M(0.015f), M(t->topbar_h) / 2 - ph / 2, pw, ph, ph / 2, with_alpha(t->bg, 220));
+    }
+    ui_topbar(NULL);
+    /* la striscia: la voce scelta più grande; scorre per restare in vista */
+    int xs = 0, sel_x = 0;
+    for (int i = 0; i < n; i++) { if (i == vt_sel) sel_x = xs; xs += (i == vt_sel ? bw : tw) + gap; }
+    int avail = UI.w - 2 * mx;
+    if (sel_x + bw - vt_off_target > avail) vt_off_target = (float)(sel_x + bw - avail);
+    if (sel_x < vt_off_target) vt_off_target = (float)sel_x;
+    if (vt_off_target < 0) vt_off_target = 0;
+    vt_off = ui_approach(vt_off, vt_off_target);
+    int x = mx - (int)vt_off;
+    for (int i = 0; i < n; i++) {
+        bool sel = i == vt_sel;
+        int w = sel ? bw : tw, h = sel ? big : th, y = strip_b - h;
+        if (x < UI.w && x + w > 0) {
+            color_t c = vt_color(&e[i]);
+            ui_shadow(x, y + M(0.006f), w, h, M(0.006f), M(0.016f), t->shadow);
+            int lh = TTF_FontHeight(UI.f_small) + M(0.012f);
+            if (e[i].kind == VK_GAME && vt_game_image(home_last_game())) vt_art(&e[i], x, y, w, h - lh, 0);
+            else {
+                ui_rect(x, y, w, h, c);
+                vt_stripes(x, y, w, h - lh, c, M(0.03f));
+                int pad = w / 10;
+                vt_art(&e[i], x + pad, y + pad / 2, w - 2 * pad, h - lh - pad, 0);
+                if (e[i].kind == VK_TAB && is_plan(ptabs[e[i].v])) ui_rect(x, y, w, h - lh, with_alpha(c, 120));
+            }
+            ui_rect(x, y + h - lh, w, lh, hexc(0x151822));
+            char fit[96];
+            ui_text_fit(UI.f_small, vt_label(&e[i]), w - M(0.012f), fit, sizeof fit);
+            ui_text(UI.f_small, fit, x + w / 2, y + h - lh + (lh - TTF_FontHeight(UI.f_small)) / 2, rgba(0xF2, 0xF2, 0xF2, 255), ALIGN_CENTER);
+            int bt = M(0.006f) + 1, o = M(0.004f);
+            if (sel) ui_rborder(x - o, y - o, w + 2 * o, h + 2 * o, bt + 2, bt, t->accent);
+            else ui_rborder(x, y, w, h, 3, 2, with_alpha(rgba(255, 255, 255, 255), 70));
+        }
+        x += w + gap;
+    }
+    char buf[32];
+    snprintf(buf, sizeof buf, "%02d/%02d", n ? vt_sel + 1 : 0, n);
+    ui_text(UI.f_small, buf, UI.w - mx, cnt_y, t->text_dim, ALIGN_RIGHT);
+    /* tasti: X e Y solo sull'ultima partita */
+    bool game = n && e[vt_sel].kind == VK_GAME;
+    int g = game ? home_last_game() : -1;
+    const char *act = T(game ? (g == resume_idx ? "home.resume" : "common.play") : n && e[vt_sel].kind == VK_TAB ? "plat.open" : "common.open");
+    const char *h1[] = { "A", act, NULL, "X", T("common.info"), "", "Y", T(g >= 0 && games[g].fav ? "common.unfavorite" : "common.favorite"), "",
+                         "START", T("common.settings"), NULL };
+    const char *h2[] = { "A", act, NULL, "START", T("common.settings"), NULL };
+    if (g >= 0) ui_keybar(h1, 12); else ui_keybar(h2, 6);
+}
+
+static void vt_input(void) {
+    input_t *in = &UI.in;
+    vt_entry_t e[64];
+    int n = vt_entries(e, 64), old = vt_sel;
+    if (in->pressed[BTN_LEFT] && vt_sel > 0) vt_sel--;
+    if (in->pressed[BTN_RIGHT] && vt_sel < n - 1) vt_sel++;
+    if (in->pressed[BTN_L]) vt_sel = vt_sel > 5 ? vt_sel - 5 : 0;
+    if (in->pressed[BTN_R]) vt_sel = vt_sel + 5 < n ? vt_sel + 5 : (n ? n - 1 : 0);
+    if (vt_sel != old) ui_sound(SND_MOVE);
+    if (!n) { if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); } return; }
+    const vt_entry_t *s = &e[vt_sel];
+    int g = s->kind == VK_GAME ? home_last_game() : -1;
+    if (in->pressed[BTN_A]) {
+        if (s->kind == VK_GAME) { if (g >= 0) home_play(g); }
+        else if (s->kind == VK_MENU) home_do(s->v);
+        else if (is_plan(ptabs[s->v])) ui_sound(SND_ERROR);
+        else if (s->v < ntabs) {
+            tab_sel = s->v;
+            lib_sel = 0;
+            lib_scroll = lib_scroll_target = 0;
+            build_view();
+            go(SCR_LIBRARY);
+            ui_sound(SND_OK);
+        }
+        return;
+    }
+    if (in->pressed[BTN_X] && g >= 0) { open_detail(g); return; }
+    if (in->pressed[BTN_Y] && g >= 0) {
+        games_toggle_fav(UI.root, &games[g]);
+        ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
+        build_tabs();
+        build_carousel();
+        ui_sound(SND_OK);
+    }
+    if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
+}
+
 static void plat_input(void) {
     input_t *in = &UI.in;
     int old = plat_sel;
@@ -2337,6 +2587,8 @@ static int variant_index(void) {
 }
 
 static const char *variant_label(const char *v) {
+    for (int i = 0; i < UI.th.nvariants; i++)   /* il nome che dà il tema stesso, se c'è */
+        if (!strcmp(UI.th.variants[i], v) && UI.th.variant_labels[i][0]) return UI.th.variant_labels[i];
     char k[48];
     snprintf(k, sizeof k, "variant.%s", v);
     const char *tr = T_opt(k);

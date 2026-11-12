@@ -1,0 +1,89 @@
+{
+  // Copertina: la home come la copertina di un fumetto. In alto l'illustrazione grande della
+  // piattaforma scelta su una fascia obliqua, con il nome a lettere piene; in basso la striscia
+  // delle piattaforme e il contatore. Tema dello Store: richiede il layout "vetrina" (sistema
+  // 0.9.30 o dopo); con un sistema più vecchio si vede con i riquadri di Tessera.
+  "name": "Copertina",
+  "author": "Mosaik",
+  "version": "1.0",
+  "title": "Mosaik",
+  "layout": "vetrina",
+  "sound_style": "soft",
+  "texts": {
+    "it": { "title": "Copertina", "description": "Illustrazione grande della piattaforma e striscia in basso, come una copertina a fumetti" },
+    "en": { "title": "Cover", "description": "Big platform artwork and a strip below, like a comic book cover" },
+    "es": { "title": "Portada", "description": "Ilustración grande de la plataforma y una franja abajo, como una portada de cómic" },
+    "fr": { "title": "Couverture", "description": "Grande illustration de la plateforme et un bandeau en bas, comme une couverture de BD" },
+    "de": { "title": "Titelbild", "description": "Großes Plattformbild und eine Leiste unten, wie ein Comic-Cover" },
+    "pt": { "title": "Capa", "description": "Ilustração grande da plataforma e uma faixa em baixo, como uma capa de banda desenhada" }
+  },
+  "fonts": {
+    "regular": "../_shared/fonts/Nunito.ttf:3",
+    "title": "../_shared/fonts/Nunito.ttf:8"
+  },
+  "media": {
+    "cover": ["title", "snap"],
+    "cover_style": "fill"
+  },
+  "metrics": {
+    "topbar_h": 0.105,
+    "hintbar_h": 0.10,
+    "margin": 0.05,
+    "tile_size": 0.32,
+    "tile_aspect": 1.333,
+    "grid_tile": 0.21,
+    "tile_gap": 0.022,
+    "tile_radius": 0.010,
+    "select_border": 0.008,
+    "icon_size": 0.095,
+    "font_small": 0.027,
+    "font_normal": 0.035,
+    "font_title": 0.046,
+    "font_big": 0.080,
+    "list_row_h": 0.075,
+    "panel_radius": 0.012
+  },
+  "animation": { "speed": 16, "pulse": true },
+  "variants": {
+    "fumetto": {
+      "label": { "it": "Fumetto", "en": "Comic", "es": "Cómic", "fr": "BD", "de": "Comic", "pt": "Banda desenhada" },
+      "background": "#F1F3F7",
+      "surface": "#FFFFFF",
+      "text": "#18203A",
+      "text_dim": "#5D6784",
+      "accent": "#1F5FD6",
+      "accent_text": "#FFFFFF",
+      "highlight": "#FFC21A",
+      "tile": "#FFFFFF",
+      "shadow": "#18203A40",
+      "line": "#18203A26"
+    },
+    "notte": {
+      "label": { "it": "Notte", "en": "Night", "es": "Noche", "fr": "Nuit", "de": "Nacht", "pt": "Noite" },
+      "background": "#151C34",
+      "background2": "#0A0F22",
+      "surface": "#FFFFFF17",
+      "text": "#F3F5FB",
+      "text_dim": "#A7B1CE",
+      "accent": "#FFC21A",
+      "accent_text": "#151C34",
+      "highlight": "#FFC21A",
+      "tile": "#FFFFFF17",
+      "shadow": "#00000066",
+      "line": "#FFFFFF26"
+    },
+    "rosso": {
+      "label": { "it": "Rosso", "en": "Red", "es": "Rojo", "fr": "Rouge", "de": "Rot", "pt": "Vermelho" },
+      "background": "#F7EFEA",
+      "surface": "#FFFFFF",
+      "text": "#2B1712",
+      "text_dim": "#7A5C52",
+      "accent": "#D63A25",
+      "accent_text": "#FFFFFF",
+      "highlight": "#FFC21A",
+      "tile": "#FFFFFF",
+      "shadow": "#2B171240",
+      "line": "#2B171226"
+    }
+  }
+}
