@@ -12,7 +12,7 @@
 
 /* ----------------------------------------------------------- emulatori */
 
-emulator_t EMUS[16];
+emulator_t EMUS[MAX_EMUS];
 int NEMUS;
 emulator_t PLANNED[16];
 int NPLANNED;
@@ -39,7 +39,7 @@ int emulators_load(const char *root) {
         jval *j = json_load(p);
         if (!j) continue;
         bool planned = json_bool(j, "planned", false);
-        if (planned ? NPLANNED >= 16 : NEMUS >= 16) { json_free(j); continue; }
+        if (planned ? NPLANNED >= 16 : NEMUS >= MAX_EMUS) { json_free(j); continue; }
         emulator_t *m = planned ? &PLANNED[NPLANNED++] : &EMUS[NEMUS++];
         memset(m, 0, sizeof *m);
         snprintf(m->id, sizeof m->id, "%.*s", (int)(len - 5), e->d_name);
@@ -61,6 +61,9 @@ int emulators_load(const char *root) {
         snprintf(m->launch, sizeof m->launch, "%s", json_str(j, "launch", ""));
         m->nomenu = !json_bool(j, "menu", true);
         m->planned = planned;
+        jval *bi = json_get(j, "bios");
+        for (jval *v = bi && bi->t == J_ARR ? bi->child : NULL; v && m->nbios < 4; v = v->next)
+            if (v->t == J_STR && !strchr(v->s, '/')) snprintf(m->bios[m->nbios++], sizeof m->bios[0], "%s", v->s);
         jval *ex = json_get(j, "extensions");
         for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v && m->nexts < 8; v = v->next)
             if (v->t == J_STR) snprintf(m->exts[m->nexts++], sizeof m->exts[0], ".%s", v->s);

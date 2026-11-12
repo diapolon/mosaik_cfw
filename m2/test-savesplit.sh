@@ -18,7 +18,7 @@ cat > src/t.c <<'C'
 #include <stdio.h>
 #include <string.h>
 void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
-emulator_t EMUS[16];
+emulator_t EMUS[MAX_EMUS];
 int NEMUS;
 static void emu(const char *id, const char *core, bool console) {
     emulator_t *e = &EMUS[NEMUS++];

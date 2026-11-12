@@ -1,0 +1,21 @@
+{
+  "name": "Sega CD",
+  "core": "genesis_plus_gx_libretro",
+  "roms": "Roms/SEGACD",
+  "extensions": [
+    "chd",
+    "cue",
+    "iso",
+    "m3u"
+  ],
+  "kind": "console",
+  "art": "disc",
+  "short": "Sega CD",
+  "thumbnails": "Sega - Mega-CD - Sega CD",
+  "bios": [
+    "bios_CD_U.bin",
+    "bios_CD_E.bin",
+    "bios_CD_J.bin"
+  ],
+  "order": 42
+}

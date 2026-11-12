@@ -62,10 +62,10 @@ static bool ring_init;
 /* libreria */
 /* schede: tutti, un emulatore ciascuno (TAB_EMU + indice), Linux, preferiti */
 enum { TAB_ALL, TAB_LINUX, TAB_FAV, TAB_EMU = 100, TAB_COLL = 200, TAB_PLAN = 300 };
-static int tabs[24], ntabs, tab_sel;
+static int tabs[MAX_EMUS + 24], ntabs, tab_sel;   /* Tutti, Preferiti, emulatori, Linux, collezioni */
 /* schermata Piattaforme: le stesse schede, poi le console in arrivo (TAB_PLAN + indice in
    PLANNED), in grigio e senza libreria. Le prime ntabs coincidono con tabs[]. */
-static int ptabs[40], nptabs;
+static int ptabs[MAX_EMUS + 40], nptabs;
 static bool is_plan(int t) { return t >= TAB_PLAN; }
 static int plat_sel;   /* categoria scelta nella schermata Piattaforme */
 static int *view, nview, lib_sel;
@@ -329,15 +329,15 @@ static void build_tabs(void) {
     ntabs = 0;
     tabs[ntabs++] = TAB_ALL;
     tabs[ntabs++] = TAB_FAV;   /* subito dopo "Tutti": in fondo, dopo le console, si perdeva */
-    int cand[18], nc = 0;
-    for (int e = 0; e < NEMUS && nc < 16; e++) cand[nc++] = TAB_EMU + e;
+    int cand[MAX_EMUS + 2], nc = 0;
+    for (int e = 0; e < NEMUS && nc < MAX_EMUS; e++) cand[nc++] = TAB_EMU + e;
     cand[nc++] = TAB_LINUX;
     for (int c = 0; c < nc; c++) {
         bool has = false;
         for (int i = 0; i < ngames && !has; i++) has = in_tab(&games[i], cand[c]);
         if (has) tabs[ntabs++] = cand[c];
     }
-    for (int c = 0; c < NCOLLS && ntabs < 24; c++) {
+    for (int c = 0; c < NCOLLS && ntabs < (int)(sizeof tabs / sizeof *tabs); c++) {
         bool has = false;
         for (int i = 0; i < ngames && !has; i++) has = in_tab(&games[i], TAB_COLL + c);
         if (has) tabs[ntabs++] = TAB_COLL + c;
@@ -345,7 +345,7 @@ static void build_tabs(void) {
     if (tab_sel >= ntabs) tab_sel = 0;
     nptabs = 0;
     for (int i = 0; i < ntabs; i++) ptabs[nptabs++] = tabs[i];
-    for (int i = 0; i < NPLANNED && nptabs < 40; i++) ptabs[nptabs++] = TAB_PLAN + i;
+    for (int i = 0; i < NPLANNED && nptabs < (int)(sizeof ptabs / sizeof *ptabs); i++) ptabs[nptabs++] = TAB_PLAN + i;
 }
 
 static bool rom_problem(const game_t *g) {
@@ -954,7 +954,7 @@ static int pills(int y) {
     TTF_Font *f = UI.f_normal;
     int mx = M(t->margin), fh = TTF_FontHeight(f), h = fh + M(0.022f), pad = M(0.022f), gap = M(0.016f);
     static float off, off_target;
-    int xs[24], ws[24], tot = 0;
+    int xs[MAX_EMUS + 24], ws[MAX_EMUS + 24], tot = 0;
     for (int i = 0; i < ntabs; i++) {
         ws[i] = ui_text_w(f, tab_label(tabs[i])) + 2 * pad;
         xs[i] = tot;
@@ -1557,6 +1557,8 @@ static color_t emu_color(const char *id) {
     if (!strcmp(id, "sms")) return hexc(0x8A2F3B);
     if (!strcmp(id, "gg")) return hexc(0x2F6F8F);
     if (!strcmp(id, "pce")) return hexc(0xA4471F);
+    if (!strcmp(id, "pcecd")) return hexc(0x8C3F6E);
+    if (!strcmp(id, "segacd")) return hexc(0x1F3F7A);
     if (!strcmp(id, "ngp")) return hexc(0x2D6A4F);
     if (!strcmp(id, "gb")) return hexc(0x6F7F2C);
     if (!strcmp(id, "gbc")) return hexc(0x1E7F86);
@@ -2016,7 +2018,7 @@ static void plat_draw_cards(int y, int bottom) {
     int avail = bottom - y, ch = avail * 94 / 100, cw = ch * 82 / 100;
     if (cw > UI.w * 30 / 100) { cw = UI.w * 30 / 100; ch = cw * 100 / 82; }
     int sw = cw * 64 / 100, gap = M(0.02f), cy = y + avail / 2;
-    int order[40], n = nptabs < 40 ? nptabs : 40;
+    int order[MAX_EMUS + 40], n = nptabs;
     for (int i = 0; i < n; i++) order[i] = i;
     for (int a = 0; a < n; a++)   /* prima i lontani, poi i vicini: la scelta sta sopra */
         for (int b = a + 1; b < n; b++)
@@ -2216,8 +2218,8 @@ static void vt_title(const char *s, int x, int y, int maxw, color_t fill, color_
 
 static void vt_draw(void) {
     theme_t *t = &UI.th;
-    vt_entry_t e[64];
-    int n = vt_entries(e, 64);
+    vt_entry_t e[MAX_EMUS + 48];
+    int n = vt_entries(e, MAX_EMUS + 48);
     if (vt_sel >= n) vt_sel = n ? n - 1 : 0;
     int mx = M(t->margin), kb = ui_keybar_h(), fsh = TTF_FontHeight(UI.f_small);
     int th = M(0.17f), tw = th * 5 / 4, gap = M(0.016f), big = th * 118 / 100, bw = big * 5 / 4;
@@ -2321,8 +2323,8 @@ static void vt_draw(void) {
 
 static void vt_input(void) {
     input_t *in = &UI.in;
-    vt_entry_t e[64];
-    int n = vt_entries(e, 64), old = vt_sel;
+    vt_entry_t e[MAX_EMUS + 48];
+    int n = vt_entries(e, MAX_EMUS + 48), old = vt_sel;
     if (in->pressed[BTN_LEFT] && vt_sel > 0) vt_sel--;
     if (in->pressed[BTN_RIGHT] && vt_sel < n - 1) vt_sel++;
     if (in->pressed[BTN_L]) vt_sel = vt_sel > 5 ? vt_sel - 5 : 0;
@@ -3633,7 +3635,7 @@ static void clock_draw(void) {
 /* Informazioni: spazio della scheda SD e cosa lo occupa. Si calcola all'apertura. */
 static bool sdinfo_open;
 typedef struct { char label[64]; int count; long long bytes; } sdrow_t;
-static sdrow_t sdrows[24];
+static sdrow_t sdrows[MAX_EMUS + 8];
 static int nsdrows;
 static long long sd_total, sd_free;
 
@@ -4091,9 +4093,9 @@ static void sdinfo_start(void) {
     }
     nsdrows = 0;
     /* giochi per emulatore: numero e misura dei file ROM (i giochi Linux: la loro cartella) */
-    const char *cores[18];
+    const char *cores[MAX_EMUS + 1];
     int ncores = 0;
-    for (int i = 0; i < NEMUS && ncores < 17; i++) cores[ncores++] = EMUS[i].id;
+    for (int i = 0; i < NEMUS && ncores < MAX_EMUS; i++) cores[ncores++] = EMUS[i].id;
     cores[ncores++] = "linux";
     for (int c = 0; c < ncores; c++) {
         int cnt = 0;

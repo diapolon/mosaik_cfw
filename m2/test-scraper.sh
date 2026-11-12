@@ -18,7 +18,7 @@ cat > src/launcher/t.c <<'C'
 #include <stdio.h>
 #include <string.h>
 void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
-emulator_t EMUS[16];
+emulator_t EMUS[MAX_EMUS];
 int NEMUS;
 const emulator_t *emulator_find(const char *id) {
     for (int i = 0; i < NEMUS; i++) if (!strcmp(EMUS[i].id, id)) return &EMUS[i];

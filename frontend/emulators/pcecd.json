@@ -1,0 +1,19 @@
+{
+  "name": "PC Engine CD",
+  "core": "mednafen_pce_fast_libretro",
+  "roms": "Roms/PCECD",
+  "extensions": [
+    "chd",
+    "cue",
+    "ccd",
+    "m3u"
+  ],
+  "kind": "console",
+  "art": "disc-white",
+  "short": "PCE CD",
+  "thumbnails": "NEC - PC Engine CD - TurboGrafx-CD",
+  "bios": [
+    "syscard3.pce"
+  ],
+  "order": 46
+}

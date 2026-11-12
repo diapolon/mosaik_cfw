@@ -52,11 +52,13 @@ typedef struct {
                            in ARCADE_ROM (Dreamcast: Cores/deadcast/launch.sh) */
     bool nomenu;        /* "menu": false, l'emulatore ha un suo menu: niente menu di Mosaik (gamewatch) */
     char exts[8][12];
-    int nexts, order;
+    char bios[4][32];   /* "bios": basta uno di questi file in Bios/ (Sega CD: uno per regione) */
+    int nexts, nbios, order;
     bool console, planned;
 } emulator_t;
 
-extern emulator_t EMUS[16];
+#define MAX_EMUS 48   /* emulatori installati; TAB_EMU..TAB_COLL ne lascia 100 */
+extern emulator_t EMUS[MAX_EMUS];
 extern int NEMUS;
 extern emulator_t PLANNED[16];
 extern int NPLANNED;

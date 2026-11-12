@@ -88,7 +88,8 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     mkdir -p pkgsrc/files/Apps/files
     cp good_libretro.so pkgsrc/files/Apps/files/files
     printf '#!/bin/sh\nexec ./files\n' > pkgsrc/files/Apps/files/launch.sh
-    echo '{"title":"Files","version":"1.0","texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
+    [ -n "$APPX" ] && echo ricompilata > pkgsrc/files/Apps/files/extra.txt
+    echo '{"title":"Files","version":"'"${APPV:-1.0}"'","texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
     # percorsi lunghi (audit BUG-002): il registro deve elencarli interi
     L1=Apps/files/$(printf 'cartella-con-un-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18)a.bin
     L2=Apps/files/$(printf 'altra-cartella-dal-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)b.bin
@@ -165,6 +166,12 @@ check "backup: da rimettere (non i già installati, niente doppi)" "3" "$(./t $R
 check "rimessi: uno non riesce (core rotto)" "5 7" "$(./t $R restore 2>/dev/null)"
 check "app del backup installata" "si" "$([ -x sd/Apps/files/files ] && [ -e sd/System/pacchetti/files.txt ] && echo si || echo no)"
 check "resta da rimettere solo quello non riuscito" "mgba" "$(cat sd/System/ripristino-pacchetti.txt)"
+# app ricompilata con la stessa versione: nessun aggiornamento; versione nuova: aggiornamento
+APPX=1 mk 2
+check "app con file diversi ma stessa versione: installata" "files:1" "$(./t $R list 2>/dev/null | grep -o 'files:[0-9]')"
+APPX=1 APPV=1.1 mk 2
+check "app con la versione nuova: aggiornamento" "files:2" "$(./t $R list 2>/dev/null | grep -o 'files:[0-9]')"
+mk 2
 rm sd/System/ripristino-pacchetti.txt
 check "niente da rimettere" "0" "$(./t $R pending 2>/dev/null)"
 check "app tolta di nuovo" "4 0 0" "$(./t $R delete files 2>/dev/null)"

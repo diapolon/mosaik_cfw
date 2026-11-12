@@ -294,13 +294,17 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
 static void record_path(const char *id, char *out, size_t n) { snprintf(out, n, "%s/System/pacchetti/%s.txt", root_dir, id); }
 
 /* versione installata secondo il registro (System/pacchetti/<id>.txt), "" se non c'è */
-static void installed_version(const char *id, char *out, size_t n) {
+static void installed_version(const char *id, char *out, size_t n, char *label, size_t ln) {
     char p[1200], line[600];
     out[0] = 0;
+    if (label) label[0] = 0;
     record_path(id, p, sizeof p);
     FILE *f = fopen(p, "r");
-    while (f && fgets(line, sizeof line, f))
-        if (!strncmp(line, "version ", 8)) { line[strcspn(line, "\r\n")] = 0; snprintf(out, n, "%s", line + 8); break; }
+    while (f && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (!strncmp(line, "version ", 8)) snprintf(out, n, "%s", line + 8);
+        else if (label && !strncmp(line, "label ", 6)) snprintf(label, ln, "%s", line + 6);
+    }
     if (f) fclose(f);
 }
 
@@ -318,8 +322,12 @@ static void compute_states(entry_t *e, int n) {
     for (int i = 0; i < n; i++) {
         char v[64];
         if (archived(e[i].p.id)) { e[i].p.state = PKG_ARCHIVED; continue; }
-        installed_version(e[i].p.id, v, sizeof v);
-        if (v[0]) { e[i].p.state = strcmp(v, e[i].p.version) ? PKG_UPDATE : PKG_INSTALLED; continue; }
+        char lab[32];
+        installed_version(e[i].p.id, v, sizeof v, lab, sizeof lab);
+        /* app e temi: conta il loro numero di versione (app.json, theme.json), non l'impronta dei
+           file, che cambia anche solo ricompilando con la libreria comune aggiornata */
+        bool by_label = (!strcmp(e[i].p.category, "apps") || !strcmp(e[i].p.category, "themes")) && lab[0] && e[i].p.label[0];
+        if (v[0]) { e[i].p.state = (by_label ? strcmp(lab, e[i].p.label) : strcmp(v, e[i].p.version)) ? PKG_UPDATE : PKG_INSTALLED; continue; }
         /* arrivato con il sistema, prima dello Store: ci sono tutti i suoi emulatori */
         bool all = e[i].nemus > 0;
         for (int k = 0; all && k < e[i].nemus; k++) {
@@ -1130,7 +1138,7 @@ bool store_offline_find(const char *root, char *path, int pn, char *name, int nn
             free(ze);
             if (z) fclose(z);
             char v[64];
-            installed_version(json_str(j, "id", ""), v, sizeof v);
+            installed_version(json_str(j, "id", ""), v, sizeof v, NULL, 0);
             bool fresh = j && json_str(j, "id", "")[0] && strcmp(v, json_str(j, "version", ""));
             if (fresh) {
                 snprintf(path, (size_t)pn, "%s", full);

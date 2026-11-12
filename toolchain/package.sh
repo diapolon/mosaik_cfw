@@ -49,11 +49,11 @@ pkg fbneo fbneo_libretro.so fbneo_libretro.so fbneo
 pkg mame2003p mame2003_plus_libretro.so mame2003p_libretro.so mame2003p
 pkg mame2010 mame2010_libretro.so mame2010_libretro.so mame2010
 pkg fceumm fceumm_libretro.so fceumm_libretro.so nes
-pkg genesis_plus_gx genesis_plus_gx_libretro.so genesis_plus_gx_libretro.so md sms gg
+pkg genesis_plus_gx genesis_plus_gx_libretro.so genesis_plus_gx_libretro.so md sms gg segacd
 pkg snes9x snes9x_libretro.so snes9x_libretro.so snes
 pkg gambatte gambatte_libretro.so gambatte_libretro.so gb gbc
 pkg mgba mgba_libretro.so mgba_libretro.so gba
-pkg pce_fast mednafen_pce_fast_libretro.so mednafen_pce_fast_libretro.so pce
+pkg pce_fast mednafen_pce_fast_libretro.so mednafen_pce_fast_libretro.so pce pcecd
 pkg ngp mednafen_ngp_libretro.so mednafen_ngp_libretro.so ngp
 pkg pcsx pcsx_rearmed_libretro.so pcsx_rearmed_libretro.so ps
 # Dreamcast: Deadcast, programma a sé (non un core libretro), dal pacchetto del suo autore
@@ -107,7 +107,11 @@ MAME2010: ROM per MAME 2010 (romset MAME 0.139), per i giochi che mancano agli a
 NES: giochi NES/Famicom (.nes, .fds, .unf), anche zippati, uno per zip.
 MD: giochi Mega Drive/Genesis (.md, .gen, .smd, .bin), anche zippati, uno per zip.
 SMS, GG: giochi Master System (.sms, .sg) e Game Gear (.gg), anche zippati, uno per zip.
-PCE: giochi PC Engine su HuCard (.pce), anche zippati; i CD-ROM non ancora.
+PCE: giochi PC Engine su HuCard (.pce), anche zippati.
+PCECD: giochi PC Engine CD (.chd, .cue con i .bin, .ccd, .m3u per più dischi); serve
+syscard3.pce in Bios/.
+SEGACD: giochi Sega CD / Mega-CD (.chd, .cue con i .bin, .iso, .m3u); serve in Bios/ il
+BIOS della regione del gioco: bios_CD_U.bin (USA), bios_CD_E.bin (Europa), bios_CD_J.bin.
 NGP: giochi Neo Geo Pocket e Pocket Color (.ngp, .ngc), anche zippati.
 SNES: giochi Super Nintendo/Super Famicom (.sfc, .smc), anche zippati, uno per zip.
 GB, GBC, GBA: giochi Game Boy (.gb), Game Boy Color (.gbc) e Game Boy Advance (.gba),

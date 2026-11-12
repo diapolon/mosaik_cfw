@@ -43,16 +43,19 @@ python3 make.py
 cat > t.c <<'C'
 #include "romcheck.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-emulator_t EMUS[16] = { { .id = "fbneo", .name = "FinalBurn Neo", .core = "fbneo_libretro", .roms = "Roms/FBNEO", .index = "Dats/fbneo.tsv" } };
-int NEMUS = 1;
-const emulator_t *emulator_find(const char *id) { return strcmp(id, "fbneo") ? NULL : &EMUS[0]; }
+emulator_t EMUS[MAX_EMUS] = { { .id = "fbneo", .name = "FinalBurn Neo", .core = "fbneo_libretro", .roms = "Roms/FBNEO", .index = "Dats/fbneo.tsv" },
+                              { .id = "segacd", .name = "Sega CD", .core = "fbneo_libretro", .roms = "Roms/SEGACD", .index = "Dats/segacd.tsv",
+                                .console = true, .bios = { "bios_CD_U.bin", "bios_CD_E.bin" }, .nbios = 2 } };
+int NEMUS = 2;
+const emulator_t *emulator_find(const char *id) { for (int i = 0; i < NEMUS; i++) if (!strcmp(id, EMUS[i].id)) return &EMUS[i]; return NULL; }
 int main(int argc, char **argv) {
     /* nome, percorso, core, 1 se il core non si è caricato */
     game_t g = { 0 };
     rdiag_t d;
     snprintf(g.name, sizeof g.name, "%s", argv[1]);
-    snprintf(g.core, sizeof g.core, "fbneo");
+    snprintf(g.core, sizeof g.core, "%s", getenv("CORE") ? getenv("CORE") : "fbneo");
     g.path = argv[2];
     romcheck_diagnose("sd", &g, argv[3], argc > 4, &d);
     printf("%d|%s|%s\n", d.kind, d.file, d.where);
@@ -73,6 +76,11 @@ expect "core assente"          "$(./t okgame sd/Roms/FBNEO/okgame.zip sd/Cores/m
 expect "core che non si carica" "$(./t okgame sd/Roms/FBNEO/okgame.zip $C 1)" "2|fbneo_libretro.so|$F"
 expect "file del gioco sparito" "$(r sparito zip)" "3|sparito.zip|$F"
 expect "zip illeggibile"       "$(r badzip zip)"  "4|badzip.zip|$F"
+mkdir -p sd/Roms/SEGACD; echo disco > sd/Roms/SEGACD/Prova.cue
+expect "console CD senza BIOS: i nomi da copiare" "$(CORE=segacd ./t Prova sd/Roms/SEGACD/Prova.cue $C)" "5|bios_CD_U.bin / bios_CD_E.bin|Arcade/Roms/SEGACD"
+mkdir -p sd/Bios; echo bios > sd/Bios/bios_CD_E.bin
+expect "console CD con un BIOS: niente da dire sul BIOS" "$(CORE=segacd ./t Prova sd/Roms/SEGACD/Prova.cue $C | cut -d'|' -f1)" "10"
+rm sd/Bios/bios_CD_E.bin
 expect "BIOS mancante"         "$(r nobios zip)"  "5|neogeo.zip|$F"
 expect "BIOS dentro lo zip del gioco" "$(r biosinzip zip)" "0||$F"
 expect "elenco senza i file del BIOS" "$(r oldstyle zip)" "5|neogeo.zip|$F"
@@ -106,7 +114,7 @@ cat > v.c <<'C'
 #include "romcheck.h"
 #include <stdio.h>
 #include <string.h>
-emulator_t EMUS[16];
+emulator_t EMUS[MAX_EMUS];
 int NEMUS = 0;
 const emulator_t *emulator_find(const char *id) { (void)id; return NULL; }
 int main(int argc, char **argv) {
@@ -138,7 +146,7 @@ cat > b.c <<'C'
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-emulator_t EMUS[16] = { { .id = "fbneo", .name = "FinalBurn Neo", .core = "fbneo_libretro", .roms = "Roms/FBNEO", .index = "Dats/fbneo.tsv" },
+emulator_t EMUS[MAX_EMUS] = { { .id = "fbneo", .name = "FinalBurn Neo", .core = "fbneo_libretro", .roms = "Roms/FBNEO", .index = "Dats/fbneo.tsv" },
                         { .id = "nes", .name = "NES", .core = "fceumm_libretro", .roms = "Roms/NES", .index = "Dats/nes.tsv" } };
 int NEMUS = 2;
 const emulator_t *emulator_find(const char *id) { return !strcmp(id, "nes") ? &EMUS[1] : !strcmp(id, "fbneo") ? &EMUS[0] : NULL; }

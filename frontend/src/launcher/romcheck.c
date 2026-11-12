@@ -486,6 +486,20 @@ void romcheck_diagnose(const char *root, const game_t *g, const char *core_path,
             return;
         }
     }
+    /* console con un BIOS obbligatorio (Sega CD, PC Engine CD): se non ce n'è nessuno in Bios/
+       è quasi certamente il motivo; si dicono i nomi da copiare */
+    if (emu && emu->nbios) {
+        bool have = false;
+        char names[200] = "";
+        for (int k = 0; k < emu->nbios; k++) {
+            char p[1400];
+            snprintf(p, sizeof p, "%s/Bios/%s", root, emu->bios[k]);
+            if (stat(p, &st) == 0 && st.st_size > 0) have = true;
+            size_t l = strlen(names);
+            snprintf(names + l, sizeof names - l, "%s%s", k ? " / " : "", emu->bios[k]);
+        }
+        if (!have) { out->kind = DG_NO_BIOS; snprintf(out->file, sizeof out->file, "%s", names); return; }
+    }
     emu_data_t d;
     if (!emu || !load_emu(&d, root, emu)) { out->kind = DG_UNKNOWN; return; }
     char detail[300];
