@@ -177,43 +177,102 @@ static game_t *push(list_t *l) {
    usano il nome della ROM senza estensione, quindi due ROM diverse con lo stesso nome (in due
    sottocartelle, o .zip e ROM nella stessa) li condividevano. La prima (meno annidata, poi in
    ordine di percorso) tiene il nome e i file che ha già; le altre ricevono "nome [sottocartella]"
-   o "nome [estensione]", anche nel titolo, così in libreria si distinguono. */
+   o "nome [estensione]", anche nel titolo, così in libreria si distinguono.
+   Verifica audit BUG-003: quel nome poteva ancora coincidere (Game.nes, Region/Game.nes e
+   Region/Game.zip davano due "Game [Region]"; A/B e A-B entrambi "A-B"; un file chiamato
+   letteralmente "Game [Region]"). Le chiavi uguali ora si separano: tiene la chiave chi l'ha
+   già (prima chi non è stato rinominato, poi il meno annidato e il percorso minore, quindi i
+   suoi file restano suoi), gli altri aggiungono l'estensione e poi un numero. Le chiavi senza
+   coincidenze non cambiano, così nessun salvataggio esistente va spostato.
+   BUG-009: gruppi trovati ordinando (n log n), non confrontando ogni coppia. */
 static int path_depth(const char *p) { int d = 0; for (; *p; p++) d += *p == '/'; return d; }
 
-static void assign_keys(game_t *g, int n, const char *dir) {
-    for (int i = 0; i < n; i++) snprintf(g[i].key, sizeof g[i].key, "%s", g[i].name);
-    size_t dl = strlen(dir);
-    for (int i = 0; i < n; i++) {
-        /* il primo del gruppo: quello meno annidato, poi il percorso minore */
-        int keep = i;
-        bool dup = false;
-        for (int k = 0; k < n; k++) {
-            if (k == i || strcmp(g[k].name, g[i].name)) continue;
-            dup = true;
-            int dk = path_depth(g[k].path), dkeep = path_depth(g[keep].path);
-            if (dk < dkeep || (dk == dkeep && strcmp(g[k].path, g[keep].path) < 0)) keep = k;
-        }
-        if (!dup || keep == i) continue;
-        /* sottocartella rispetto alla cartella dell'emulatore, "/" -> "-" */
-        char sub[160] = "";
-        const char *rel = !strncmp(g[i].path, dir, dl) && g[i].path[dl] == '/' ? g[i].path + dl + 1 : g[i].path;
-        const char *slash = strrchr(rel, '/');
-        if (slash) {
-            snprintf(sub, sizeof sub, "%.*s", (int)(slash - rel), rel);
-            for (char *c = sub; *c; c++) if (*c == '/') *c = '-';
-        }
-        /* stessa cartella del primo: si distingue con l'estensione */
-        const char *keep_slash = strrchr(g[keep].path, '/'), *my_slash = strrchr(g[i].path, '/');
-        size_t kd = keep_slash ? (size_t)(keep_slash - g[keep].path) : 0, md = my_slash ? (size_t)(my_slash - g[i].path) : 0;
-        if (kd == md && !strncmp(g[keep].path, g[i].path, kd)) {
-            const char *dot = strrchr(g[i].path, '.');
-            snprintf(sub, sizeof sub, "%s", dot ? dot + 1 : "2");
-        }
-        if (!sub[0]) snprintf(sub, sizeof sub, "2");
-        snprintf(g[i].key, sizeof g[i].key, "%s [%s]", g[i].name, sub);
-        size_t tl = strlen(g[i].title);
-        snprintf(g[i].title + tl, sizeof g[i].title - tl, " [%s]", sub);
+typedef struct { game_t *g; const game_t *keep; int depth, level; size_t tl; } keyref_t;
+
+static int ref_name_cmp(const void *a, const void *b) {
+    const keyref_t *x = a, *y = b;
+    int c = strcmp(x->g->name, y->g->name);
+    if (c) return c;
+    if (x->depth != y->depth) return x->depth - y->depth;
+    return strcmp(x->g->path, y->g->path);
+}
+
+static int ref_key_cmp(const void *a, const void *b) {
+    const keyref_t *x = a, *y = b;
+    int c = strcmp(x->g->key, y->g->key);
+    if (c) return c;
+    if ((x->level >= 0) != (y->level >= 0)) return x->level >= 0 ? 1 : -1;   /* chi tiene il nome vince */
+    if (x->level != y->level) return x->level - y->level;                      /* poi chi ha la chiave da prima */
+    if (x->depth != y->depth) return x->depth - y->depth;
+    return strcmp(x->g->path, y->g->path);
+}
+
+/* livello 0: la regola storica; 1: con l'estensione; da 2: anche un numero */
+static void key_make(keyref_t *r, const char *dir, size_t dl) {
+    game_t *g = r->g;
+    char sub[160] = "", ext[16];
+    const char *rel = !strncmp(g->path, dir, dl) && g->path[dl] == '/' ? g->path + dl + 1 : g->path;
+    const char *slash = strrchr(rel, '/');
+    if (slash) {   /* sottocartella rispetto alla cartella dell'emulatore, "/" -> "-" */
+        snprintf(sub, sizeof sub, "%.*s", (int)(slash - rel), rel);
+        for (char *c = sub; *c; c++) if (*c == '/') *c = '-';
     }
+    const char *dot = strrchr(g->path, '.'), *last = strrchr(g->path, '/');
+    snprintf(ext, sizeof ext, "%s", dot && (!last || dot > last) ? dot + 1 : "2");
+    /* stessa cartella del primo: si distingue con l'estensione */
+    const game_t *k = r->keep ? r->keep : g;
+    const char *keep_slash = strrchr(k->path, '/'), *my_slash = last;
+    size_t kd = keep_slash ? (size_t)(keep_slash - k->path) : 0, md = my_slash ? (size_t)(my_slash - g->path) : 0;
+    if (kd == md && !strncmp(k->path, g->path, kd)) snprintf(sub, sizeof sub, "%s", ext);
+    if (!sub[0]) snprintf(sub, sizeof sub, "2");
+    if (r->level == 0) {
+        snprintf(g->key, sizeof g->key, "%s [%s]", g->name, sub);
+    } else {
+        /* la parte che distingue sta in fondo e non va tagliata: si accorcia il resto */
+        char tail[200];
+        const char *s = strlen(sub) > 60 ? sub + strlen(sub) - 60 : sub;
+        bool same = !strcmp(s, ext);
+        if (r->level == 1) snprintf(tail, sizeof tail, same ? "%s 2" : "%s %s", s, ext);
+        else if (same) snprintf(tail, sizeof tail, "%s %d", s, r->level + 1);
+        else snprintf(tail, sizeof tail, "%s %s %d", s, ext, r->level + 1);
+        int room = (int)sizeof g->key - (int)strlen(tail) - 4;
+        snprintf(g->key, sizeof g->key, "%.*s [%s]", room > 0 ? room : 0, g->name, tail);
+        snprintf(sub, sizeof sub, "%s", tail);
+    }
+    g->title[r->tl] = 0;
+    snprintf(g->title + r->tl, sizeof g->title - r->tl, " [%s]", sub);
+}
+
+static void assign_keys(game_t *g, int n, const char *dir) {
+    if (n <= 0) return;
+    keyref_t *r = malloc(sizeof *r * (size_t)n);
+    for (int i = 0; i < n; i++) snprintf(g[i].key, sizeof g[i].key, "%s", g[i].name);
+    if (!r) return;   /* senza memoria: le chiavi di sempre */
+    size_t dl = strlen(dir);
+    for (int i = 0; i < n; i++)
+        r[i] = (keyref_t){ .g = &g[i], .depth = path_depth(g[i].path), .level = -1, .tl = strlen(g[i].title) };
+    qsort(r, (size_t)n, sizeof *r, ref_name_cmp);
+    for (int i = 0, j; i < n; i = j) {
+        for (j = i + 1; j < n && !strcmp(r[j].g->name, r[i].g->name); j++) {
+            r[j].keep = r[i].g;
+            r[j].level = 0;
+            key_make(&r[j], dir, dl);
+        }
+    }
+    for (int round = 0; round < 16; round++) {
+        qsort(r, (size_t)n, sizeof *r, ref_key_cmp);
+        bool again = false;
+        for (int i = 0, j; i < n; i = j) {
+            for (j = i + 1; j < n && !strcmp(r[j].g->key, r[i].g->key); j++) {
+                if (!r[j].keep) r[j].keep = r[i].g;
+                r[j].level = r[j].level < 0 ? 1 : r[j].level + 1;
+                key_make(&r[j], dir, dl);
+                again = true;
+            }
+        }
+        if (!again) break;
+    }
+    free(r);
 }
 
 static bool has_ext(const char *f, const char *ext) {

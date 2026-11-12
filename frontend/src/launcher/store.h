@@ -12,12 +12,13 @@
 
    Un emulatore arrivato prima dello Store (con il sistema) risulta installato senza versione:
    "Aggiorna" lo porta alla versione del catalogo. Un pacchetto store-<id>-<versione>.zip copiato
-   sulla scheda si installa senza rete (store_offline_*). */
+   sulla scheda si installa senza rete (store_offline_*), solo se un catalogo firmato lo elenca con
+   la stessa impronta: un pacchetto sconosciuto si rifiuta (un'app gira come root). */
 #pragma once
 #include <stdbool.h>
 
 enum { ST_IDLE, ST_LOADING, ST_READY, ST_WORKING, ST_DONE, ST_FAILED };
-enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL };
+enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL, SE_UNSIGNED };
 /* PKG_OLD: arrivato col sistema, senza versione; PKG_ARCHIVED: archiviato (solo l'emulatore tolto,
    giochi e salvataggi restano), come sulla Switch: si riscarica con un pulsante */
 enum { PKG_ABSENT, PKG_INSTALLED, PKG_UPDATE, PKG_OLD, PKG_ARCHIVED };
@@ -67,5 +68,9 @@ void store_refresh(void);
 
 /* pacchetti copiati sulla scheda (store-*.zip nella cartella principale o in Arcade): quello da
    proporre all'avvio, se c'è (nome e versione), e la sua installazione (bloccante) */
+/* rimette i file di un'installazione interrotta (o la conclude): una volta all'avvio */
+void store_recover(const char *root);
 bool store_offline_find(const char *root, char *path, int pn, char *name, int nn, char *label, int ln);
-bool store_offline_install(const char *root, const char *path);
+/* SE_NONE se installato; SE_UNSIGNED se il pacchetto non è in un catalogo firmato (quello sulla
+   scheda, o store.json e store.sig copiati accanto allo zip); SE_VERIFY se l'impronta non torna */
+int store_offline_install(const char *root, const char *path);

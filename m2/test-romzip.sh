@@ -30,6 +30,14 @@ d = bytearray(open('rovinato.zip', 'rb').read())
 i = d.find(rom[:64])                               # un byte dei dati, non delle intestazioni
 d[i + 100] ^= 0xFF
 open('rovinato.zip', 'wb').write(d)
+# nome che comincia con NUL nella directory centrale (audit: indice prima del buffer)
+with zipfile.ZipFile('nul.zip', 'w', zipfile.ZIP_STORED) as z:
+    z.writestr('Xvuoto.nes', b'N' * 2000)
+    z.writestr('Buono.nes', rom[:4096])
+d = bytearray(open('nul.zip', 'rb').read())
+for k in range(2):
+    d[d.index(b'Xvuoto.nes')] = 0               # intestazione locale e directory centrale
+open('nul.zip', 'wb').write(d)
 open('nonzip.zip', 'wb').write(b'questo non e uno zip' * 10)
 open('rom.bin', 'wb').write(rom)
 P
@@ -50,6 +58,7 @@ int main(int argc, char **argv) {
 }
 C
 gcc -O2 -Wall -Wextra -I/trimui/frontend/src/runner -o t t.c /trimui/frontend/src/runner/romzip.c -lz
+gcc -O1 -g -fsanitize=undefined,bounds -fsanitize-undefined-trap-on-error -I/trimui/frontend/src/runner -o tu t.c /trimui/frontend/src/runner/romzip.c -lz
 
 r() { ./t "$@"; }
 [ "$(r deflate.zip 'md|gen|bin' out.md)" = "0 131072 Gioco (Europe).md" ] && cmp -s out.md rom.bin && ok "voce compressa: la ROM giusta, byte per byte" || ko "deflate: $(r deflate.zip 'md|gen|bin')"
@@ -60,6 +69,7 @@ r() { ./t "$@"; }
 [ "$(r rovinato.zip 'nes')" = "4 0 " ] && ok "dati rovinati: il CRC lo scopre" || ko "rovinato: $(r rovinato.zip nes)"
 [ "$(r nonzip.zip 'nes')" = "2 0 " ] && ok "file che non è uno zip" || ko "nonzip: $(r nonzip.zip nes)"
 [ "$(r manca.zip 'nes')" = "1 0 " ] && ok "file che non c'è" || ko "manca: $(r manca.zip nes)"
+[ "$(./tu nul.zip 'nes' 2>&1)" = "0 4096 Buono.nes" ] && [ "$(./tu -n nul.zip nes 2>&1)" = 1 ] && ok "nome che comincia con NUL: saltato, sotto UBSan" || ko "nul: $(./tu nul.zip nes 2>&1 | head -3)"
 
 echo "--- quante ROM nello zip (romzip_candidates, R08)"
 [ "$(r -n due.zip md)" = 2 ] && ok "due ROM adatte: 2 (il runner lo scrive nel log, lo scraper non cerca dati)" || ko "due: $(r -n due.zip md)"

@@ -1957,7 +1957,15 @@ int main(int argc, char **argv) {
         if (suspend_ask) {
             int r = ui_confirm_input(&ask_sel);
             if (r >= 0) suspend_ask = false;
-            if (r == 1) { sram_save(); ui_suspend(); next = SDL_GetPerformanceCounter(); continue; }
+            if (r == 1) {
+                sram_save();
+                ui_suspend();
+                /* SD guasta al risveglio: niente salvataggi né chiusura (scriverebbero sulla scheda e
+                   non tornerebbero); system-init vede il segno e riavvia (audit BUG-006) */
+                if (UI.sd_failed) _exit(0);
+                next = SDL_GetPerformanceCounter();
+                continue;
+            }
         } else if (UI.in.power) {
             suspend_ask = true;
             ask_sel = 1;

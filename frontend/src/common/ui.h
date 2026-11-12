@@ -72,6 +72,7 @@ typedef struct {
     bool automation;
     bool vol_bar;        /* chi disegna una barra del volume sua (runner): niente avviso a schermo */
     bool gray;           /* forme e testi in toni di grigio (Store: pacchetti non installati) */
+    bool sd_failed;      /* SD che non risponde dopo un risveglio: niente più scritture (audit BUG-006) */
 } ui_t;
 
 extern ui_t UI;

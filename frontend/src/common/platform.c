@@ -22,11 +22,11 @@ const char *plat_model(void) {
     return strstr(m, "Brick") ? "brickpro" : "smartpro";
 }
 
-static void put_str(const char *path, const char *v) {
+static bool put_str(const char *path, const char *v) {
     FILE *f = fopen(path, "w");
-    if (!f) return;
-    fputs(v, f);
-    fclose(f);
+    if (!f) return false;
+    bool ok = fputs(v, f) >= 0;
+    return fclose(f) == 0 && ok;   /* sysfs riporta l'errore del driver alla chiusura */
 }
 
 static int get_int(const char *path) {
@@ -70,11 +70,39 @@ static void set_volume(int level) {
     if (system(pct ? "amixer sset 'DAC volume' 160 >/dev/null 2>&1" : "amixer sset 'DAC volume' 0 >/dev/null 2>&1")) {}
 }
 
-static void set_cpu(int khz) {
-    char b[16];
-    snprintf(b, sizeof b, "%d", khz);
-    put_str("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "userspace");
-    put_str("/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed", b);
+/* Frequenza della CPU (verifica audit BUG-011): solo valori che il kernel dichiara, governor
+   userspace e rilettura di quanto il driver ha accettato. Il limite termico del kernel resta suo:
+   scaling_cur_freq può essere più bassa e non è un errore. */
+#define CPUFREQ "/sys/devices/system/cpu/cpu0/cpufreq/"
+static int cpu_supported(int khz) {
+    FILE *f = fopen(CPUFREQ "scaling_available_frequencies", "r");
+    if (!f) return khz;
+    int v, below = 0, lowest = 0;
+    while (fscanf(f, "%d", &v) == 1) {
+        if (v <= khz && v > below) below = v;
+        if (v > 0 && (!lowest || v < lowest)) lowest = v;
+    }
+    fclose(f);
+    return below ? below : lowest ? lowest : khz;
+}
+
+static bool set_cpu(int khz) {
+    static int logged;
+    int target = cpu_supported(khz);
+    char b[16], gov[32] = "";
+    snprintf(b, sizeof b, "%d", target);
+    FILE *f = fopen(CPUFREQ "scaling_governor", "r");
+    if (f) { if (!fgets(gov, sizeof gov, f)) gov[0] = 0; fclose(f); }
+    bool ok = strncmp(gov, "userspace", 9) == 0 || put_str(CPUFREQ "scaling_governor", "userspace");
+    ok = put_str(CPUFREQ "scaling_setspeed", b) && ok;
+    int now = get_int(CPUFREQ "scaling_setspeed");
+    if (now != target) ok = false;
+    if (!ok || logged < 3 || target != khz) {
+        logged++;
+        ui_log("CPU: chiesti %d kHz, valore del kernel %d, impostato %d, ora %d%s", khz, target, now,
+               get_int(CPUFREQ "scaling_cur_freq"), ok ? "" : " (non applicato)");
+    }
+    return ok;
 }
 
 static int cpu_fixed;   /* kHz chiesti dal launcher; 0 = profilo scelto nelle impostazioni */
@@ -187,7 +215,16 @@ void plat_apply(const settings_t *s) {
     /* FN attivo: prestazioni massime, qualunque sia il profilo scelto */
     /* l'interruttore FN (prestazioni massime) vale più della scelta per il gioco */
     int want = cpu_fixed ? cpu_fixed : cpu_game && fn_state != 1 ? cpu_game : profile_khz(s);
-    if (want != cpu) { cpu = want; set_cpu(cpu); }
+    /* se il driver rifiuta, si riprova qualche volta a distanza (plat_apply gira a ogni
+       fotogramma); poi si lascia com'è fino al prossimo cambio o alla ripresa dalla sospensione */
+    static int fails, wait, tried = -1;
+    if (want != tried) { tried = want; fails = wait = 0; }
+    if (want != cpu) {
+        if (wait > 0) wait--;
+        else if (set_cpu(want)) { cpu = want; fails = 0; }
+        else if (++fails >= 3) { cpu = want; fails = 0; }
+        else wait = 120;
+    }
 }
 
 void plat_cpu_fixed(int khz) { cpu_fixed = khz; }
@@ -197,7 +234,7 @@ void plat_cpu_game(int khz) { cpu_game = khz; }
 void plat_cpu_release(const settings_t *s) {
     if (!cpu_fixed) return;
     cpu_fixed = 0;
-    set_cpu(profile_khz(s));
+    (void)set_cpu(profile_khz(s));
 }
 
 void plat_cpu_status(int *mhz, int *temp) {

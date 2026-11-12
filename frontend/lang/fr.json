@@ -895,7 +895,7 @@
     "err_space": "Pas assez de place sur la carte",
     "err_verify": "Paquet abîmé : réessayez",
     "err_write": "Erreur d'écriture sur la carte",
-    "err_core": "L'émulateur ne démarre pas : retiré",
+    "err_core": "L'émulateur ne démarre pas : non installé",
     "err_cancel": "Interrompu",
     "ask_title": "Aucun émulateur",
     "ask_body": "Téléchargez dans la Boutique les émulateurs qu'il vous faut.",
@@ -939,7 +939,8 @@
     "pv_yourfiles": "Vos fichiers",
     "app_note": "Retéléchargez-la depuis le Store quand vous voulez.",
     "count_apps": "%d apps",
-    "count1_apps": "1 app"
+    "count1_apps": "1 app",
+    "err_unsigned": "Paquet non vérifié : copiez aussi store.json et store.sig à côté"
   },
   "support": {
     "title": "Soutenir Mosaik",

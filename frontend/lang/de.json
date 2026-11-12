@@ -895,7 +895,7 @@
     "err_space": "Nicht genug Platz auf der Karte",
     "err_verify": "Paket beschädigt: erneut versuchen",
     "err_write": "Fehler beim Schreiben auf die Karte",
-    "err_core": "Der Emulator startet nicht: entfernt",
+    "err_core": "Der Emulator startet nicht: nicht installiert",
     "err_cancel": "Abgebrochen",
     "ask_title": "Keine Emulatoren",
     "ask_body": "Lade die benötigten Emulatoren aus dem Store.",
@@ -939,7 +939,8 @@
     "pv_yourfiles": "Deine Dateien",
     "app_note": "Jederzeit im Store wieder herunterladen.",
     "count_apps": "%d Apps",
-    "count1_apps": "1 App"
+    "count1_apps": "1 App",
+    "err_unsigned": "Paket nicht geprüft: store.json und store.sig daneben kopieren"
   },
   "support": {
     "title": "Mosaik unterstützen",

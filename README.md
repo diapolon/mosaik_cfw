@@ -105,11 +105,11 @@
 
 You need a good-quality microSD card (4 GB to 256 GB) and [balenaEtcher](https://etcher.balena.io/).
 
-1. **Download the image** for your model from the [latest release](https://github.com/diapolon/mosaik_cfw/releases/latest), under **Assets**: `mosaik-<version>-smartpro.img.gz` for the Smart Pro, `mosaik-<version>-brickpro.img.gz` for the Brick Pro. There's no need to decompress it. **Check the file name: with the image of the other model the console won't start.** Nothing gets damaged: just write the right one. **Ignore all the other files** (`file-0`, `file-1`…, `update.txt`, `update.sig`, `store.json`, `store.sig`, source archives): the console's Wi-Fi updater and Store use them by themselves. The `store-….zip` files are the emulators, for a console without Wi-Fi (step 5).
+1. **Download the image** for your model from the [latest release](https://github.com/diapolon/mosaik_cfw/releases/latest), under **Assets**: `mosaik-<version>-smartpro.img.gz` for the Smart Pro, `mosaik-<version>-brickpro.img.gz` for the Brick Pro. There's no need to decompress it. **Check the file name: with the image of the other model the console won't start.** Nothing gets damaged: just write the right one. **Ignore all the other files** (`file-0`, `file-1`…, `update.txt`, `update.sig`, source archives): the console's Wi-Fi updater uses them by itself. The `store-….zip` files are the emulators, with `store.json` and `store.sig`, for a console without Wi-Fi (step 5).
 2. **Write it to the microSD** with balenaEtcher. Everything on the card is erased. If your computer then asks to format part of the card, say no.
 3. **Put the card in the console and turn it on.** On first boot the partition grows to fill the card, so startup takes a little longer.
 4. **Open the settings with Start** to set the language (Appearance), the date and time and the Wi-Fi (System).
-5. **Install the emulators**: open the **Store** from the home screen (the console offers it on a new card) and choose the ones you need. Without Wi-Fi, copy the `store-….zip` files of the emulators you want from the release to the main folder of the card: at the next start the console offers to install them.
+5. **Install the emulators**: open the **Store** from the home screen (the console offers it on a new card) and choose the ones you need. Without Wi-Fi, copy the `store-….zip` files of the emulators you want from the release to the main folder of the card, together with `store.json` and `store.sig` from the same release (they prove the packages are genuine): at the next start the console offers to install them.
 
 To go back to the original system, turn the console off and remove the card.
 

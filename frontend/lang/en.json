@@ -895,7 +895,7 @@
     "err_space": "Not enough space on the card",
     "err_verify": "Damaged package: try again",
     "err_write": "Error writing to the card",
-    "err_core": "The emulator does not start: removed",
+    "err_core": "The emulator won't start: not installed",
     "err_cancel": "Stopped",
     "ask_title": "No emulators",
     "ask_body": "Download the emulators you need from the Store.",
@@ -939,7 +939,8 @@
     "pv_yourfiles": "Your files",
     "app_note": "Download it again from the Store whenever you like.",
     "count_apps": "%d apps",
-    "count1_apps": "1 app"
+    "count1_apps": "1 app",
+    "err_unsigned": "Unverified package: also copy store.json and store.sig next to it"
   },
   "support": {
     "title": "Support Mosaik",

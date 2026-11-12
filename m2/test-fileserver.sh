@@ -198,6 +198,23 @@ check "nessun .part dall'importazione" "0" "$(find sd -name '*.part' | wc -l | t
 echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiato > sd/Saves/nuovo/a.srm
 check "importazione dei soli BIOS" "importato" "$(./imp $W/sd r2.zip 4 2>&1 | cut -d' ' -f2)"
 check "salvataggi non toccati dall'importazione parziale" "cambiato" "$(cat sd/Saves/fbneo/gioco.srm)"
+# backup con un file successivo rovinato (CRC sbagliato): niente sostituito (verifica audit BUG-007)
+echo cambiato > sd/Saves/fbneo/gioco.srm
+rm -rf rz3; cp -R rz rz3; mkdir -p rz3/Saves/zz && echo b > rz3/Saves/zz/b.srm && rm -f r3.zip && (cd rz3 && zip -qr -9 ../r3.zip .)
+python3 - r3.zip <<'P'
+import sys, struct
+p = sys.argv[1]; b = bytearray(open(p, "rb").read())
+i = b.find(b"PK\x01\x02")
+while i >= 0:
+    nl = struct.unpack("<H", b[i + 28:i + 30])[0]
+    if b[i + 46:i + 46 + nl] == b"Saves/zz/b.srm": b[i + 16:i + 20] = struct.pack("<I", 12345)
+    i = b.find(b"PK\x01\x02", i + 4)
+open(p, "wb").write(bytes(b))
+P
+check "backup con un file rovinato: rifiutato" "errore" "$(./imp $W/sd r3.zip 2>&1 | cut -d' ' -f2)"
+check "file rovinato: nessun salvataggio sostituito" "cambiato" "$(cat sd/Saves/fbneo/gioco.srm)"
+check "file rovinato: nessun temporaneo rimasto" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"
+check "file rovinato: niente scritto del file guasto" "no" "$([ -e sd/Saves/zz/b.srm ] && echo si || echo no)"
 head -c 300 r2.zip > tronco.zip
 check "zip tronco: non un backup" "non un backup" "$(./imp $W/sd tronco.zip 2>&1)"
 # codice QR: testi di varie lunghezze, letti da zbarimg

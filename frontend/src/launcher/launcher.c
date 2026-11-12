@@ -2820,9 +2820,9 @@ static void sto_input(void) {
         store_join();
         sto_job = false;
         static const char *errk[] = { "", "store.err_network", "store.err_signature", "store.err_catalog", "store.err_space",
-                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel" };
+                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned" };
         if (s->phase == ST_DONE) { ui_toast(T("store.done")); ui_sound(SND_OK); }
-        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_CANCEL ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
+        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_UNSIGNED ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
         if (store_changed()) reload_games();
         return;
     }
@@ -2882,6 +2882,8 @@ static void sto_input(void) {
     if (in->pressed[BTN_RIGHT] && *sel < n - 1) (*sel)++;
     if (in->pressed[BTN_UP] && *sel >= cols) *sel -= cols;
     if (in->pressed[BTN_DOWN] && *sel + cols < n) *sel += cols;
+    /* niente proprio sotto ma una riga più in basso: all'ultima voce, come nella libreria */
+    else if (in->pressed[BTN_DOWN] && n && *sel / cols < (n - 1) / cols) *sel = n - 1;
     if (*sel != old) ui_sound(SND_MOVE);
     if (in->pressed[BTN_B]) {
         ui_sound(SND_BACK);
@@ -4502,7 +4504,8 @@ static void settings_input(void) {
     if (grid) {
         int old = set_row;
         if (in->pressed[BTN_UP]) set_row = set_row >= 2 ? set_row - 2 : set_row + ((n - 1 - set_row) / 2) * 2;
-        if (in->pressed[BTN_DOWN]) set_row = set_row + 2 < n ? set_row + 2 : set_row % 2;
+        if (in->pressed[BTN_DOWN])   /* niente sotto ma una riga più in basso: l'ultima voce */
+            set_row = set_row + 2 < n ? set_row + 2 : set_row / 2 < (n - 1) / 2 ? n - 1 : set_row % 2;
         if (in->pressed[BTN_LEFT] && set_row % 2) set_row--;
         if (in->pressed[BTN_RIGHT] && set_row % 2 == 0 && set_row + 1 < n) set_row++;
         if (set_row != old) ui_sound(SND_MOVE);
@@ -5701,8 +5704,8 @@ static void cfm_input(void) {
         char msg[160];
         snprintf(msg, sizeof msg, T("store.working"), pkg_name);
         ui_busy(msg, 0);
-        bool ok = store_offline_install(UI.root, pkg_path);
-        ui_toast(T(ok ? "store.done" : "store.err_verify"));
+        int r = store_offline_install(UI.root, pkg_path);
+        ui_toast(T(r == SE_NONE ? "store.done" : r == SE_UNSIGNED ? "store.err_unsigned" : "store.err_verify"));
         reload_games();
         pkg_checked = false;   /* ce ne può essere un altro */
     } else if (k == CFM_RESETSET2) {
@@ -6701,6 +6704,7 @@ int main(int argc, char **argv) {
     nthemes = theme_list(UI.root, theme_ids, theme_names, 16);
     nlangs = lang_list(UI.root, lang_codes, lang_names, 16);
     nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
+    store_recover(UI.root);   /* un'installazione dello Store interrotta: prima di leggere i giochi */
     reload_games();
     ui_mark("giochi pronti");
     music_init(UI.root);

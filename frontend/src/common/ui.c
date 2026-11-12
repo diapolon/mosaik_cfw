@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "wifi.h"
 #include <unistd.h>
+#include <fcntl.h>
 #include "platform.h"
 #include "json.h"
 #include "lang.h"
@@ -26,30 +27,44 @@ static char log_path[1200];
 #if defined(__linux__) && defined(__GLIBC__)
 #include <execinfo.h>
 #include <signal.h>
-/* crash: scrive nel log la pila delle chiamate (indirizzi da tradurre con addr2line sul
-   programma non ridotto), poi esce col codice del segnale */
+/* Crash: scrive la pila delle chiamate (indirizzi da tradurre con addr2line sul programma non
+   ridotto) ed esce col codice del segnale. Solo funzioni sicure dentro un segnale (verifica audit
+   BUG-012): write e backtrace_symbols_fd su un descrittore aperto prima, niente stdio né memoria
+   allocata; backtrace si chiama una volta all'avvio (carica la sua libreria fuori dal segnale);
+   alarm garantisce l'uscita anche se la scrittura si blocca, così system-init torna al menu. */
+static int crash_fd = -1;
+static void crash_write(const char *s) { if (crash_fd >= 0) { ssize_t r = write(crash_fd, s, strlen(s)); (void)r; } }
 static void on_crash(int sig) {
+    alarm(3);
     void *frames[48];
     int n = backtrace(frames, 48);
-    if (logf_) {
-        fprintf(logf_, "CRASH: segnale %d, pila:\n", sig);
-        fflush(logf_);
-        backtrace_symbols_fd(frames, n, fileno(logf_));
-        fsync(fileno(logf_));
-    }
+    const char *name = sig == SIGSEGV ? "SIGSEGV" : sig == SIGBUS ? "SIGBUS" : sig == SIGFPE ? "SIGFPE" : sig == SIGILL ? "SIGILL" : "SIGABRT";
+    crash_write("CRASH: ");
+    crash_write(name);
+    crash_write(", pila:\n");
+    if (crash_fd >= 0) { backtrace_symbols_fd(frames, n, crash_fd); fsync(crash_fd); }
     backtrace_symbols_fd(frames, n, 2);
-    signal(sig, SIG_DFL);
-    raise(sig);
+    raise(sig);   /* SA_RESETHAND: ora vale l'azione predefinita */
 }
 static void crash_handlers(void) {
-    signal(SIGSEGV, on_crash);
-    signal(SIGBUS, on_crash);
-    signal(SIGFPE, on_crash);
-    signal(SIGILL, on_crash);
-    signal(SIGABRT, on_crash);
+    void *warm[2];
+    backtrace(warm, 2);
+    struct sigaction sa;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_handler = on_crash;
+    sa.sa_flags = SA_RESETHAND | SA_NODEFER;
+    sigemptyset(&sa.sa_mask);
+    int sigs[] = { SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT };
+    for (size_t k = 0; k < sizeof sigs / sizeof *sigs; k++) sigaction(sigs[k], &sa, NULL);
+}
+/* il descrittore del crash, col registro acceso: dopo aver letto le impostazioni */
+static void crash_fd_open(void) {
+    if (crash_fd < 0 && log_path[0] && (UI.set.log_level > 0 || !plat_is_device() || getenv("ARCADE_LOG")))
+        crash_fd = open(log_path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
 }
 #else
 static void crash_handlers(void) {}
+static void crash_fd_open(void) {}
 #endif
 static Uint32 frame_no;
 
@@ -146,6 +161,7 @@ int ui_confirm_input(int *sel) {
 
 /* riga del log scritta subito sulla SD: dopo un riavvio forzato quelle ancora in memoria si perdono */
 static void log_durable(const char *msg) {
+    if (UI.sd_failed) return;
     ui_log("%s", msg);
     if (logf_) fsync(fileno(logf_));
 }
@@ -188,6 +204,9 @@ void ui_suspend(void) {
     plat_screen_off(true);
     plat_apply(&UI.set);
     plat_suspend();
+    /* arcade-suspend ha visto la SD non rispondere: da qui nessun programma scrive sulla scheda
+       (il runner esce subito, il launcher mostra il riavvio) */
+    if (plat_standalone() && access("/run/sd-guasta", F_OK) == 0) UI.sd_failed = true;
     plat_screen_off(false);
     /* l'amplificatore si riattiva solo con l'uscita già aperta e assestata: riaprirla ad
        amplificatore acceso fa gracchiare l'altoparlante */
@@ -227,7 +246,7 @@ void ui_mark(const char *what) {
 }
 
 void ui_log(const char *fmt, ...) {
-    if (!log_on()) return;
+    if (!log_on() || UI.sd_failed) return;   /* SD guasta: una scrittura non tornerebbe più */
     if (!logf_ && log_path[0]) logf_ = fopen(log_path, "a");
     char msg[1024];
     va_list ap;
@@ -1792,6 +1811,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     snprintf(log_path, sizeof log_path, "%s", p);
     crash_handlers();
     settings_load(&UI.set, root);
+    crash_fd_open();
     ui_log("---- avvio %s", app);
     ui_mark("inizio");
     settings_apply_tz(&UI.set);

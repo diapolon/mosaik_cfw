@@ -97,7 +97,7 @@ static int zip_verify(const char *path, char *bad, int bn, bool stop) {
         char name[256];
         snprintf(name, sizeof name, "%.*s", (int)(nlen < 255 ? nlen : 255), (const char *)cd + pos + 46);
         pos += 46 + nlen + xlen + clen;
-        if (nlen && name[strlen(name) - 1] == '/') continue;   /* cartella */
+        if (name[0] && name[strlen(name) - 1] == '/') continue;   /* cartella (un nome che comincia con NUL è vuoto) */
         if (method != 0 && method != 8) continue;              /* compressione non controllabile */
         unsigned char lh[30];
         bool good = fseek(f, (long)loff, SEEK_SET) == 0 && fread(lh, 1, 30, f) == 30 && rd32(lh) == 0x04034b50

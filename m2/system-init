@@ -390,6 +390,16 @@ finish() {
 # codice di uscita in System/exit.txt prima di chiudere SDL: se poi la chiusura si blocca
 # (driver grafico o audio), dopo 6 secondi si termina il processo e vale quel codice (dopo
 # una sospensione la chiusura della grafica può durare 3 secondi).
+# SD bloccata dopo un risveglio (arcade-suspend scrive /run/sd-guasta): niente scritture, che non
+# tornerebbero più. Riavvio subito dal kernel; col caricatore si spegne (U-Boot resterebbe nella
+# carica). Dopo il launcher, il runner e i giochi Linux (verifica audit BUG-006).
+sd_check() {
+    [ -f /run/sd-guasta ] || return 0
+    echo "arcade: riavvio senza SD" > /dev/kmsg
+    if charger_online; then axpctl poweroff 2> /dev/null; fi
+    echo b > /proc/sysrq-trigger
+    reboot -f
+}
 run_app() {
     rm -f "$ROOT/System/exit.txt"
     "$@" >> "$LOG" 2>&1 &
@@ -525,14 +535,7 @@ fails=0
 while :; do
     step "10 AVVIO DEL LAUNCHER"
     run_app "$BIN/launcher" --root "$ROOT"
-    # SD bloccata dopo un risveglio (arcade-suspend): niente scritture, che non tornerebbero
-    # più. Riavvio subito dal kernel; col caricatore si spegne (U-Boot resterebbe nella carica)
-    if [ -f /run/sd-guasta ]; then
-        echo "arcade: riavvio senza SD" > /dev/kmsg
-        if charger_online; then axpctl poweroff 2> /dev/null; fi
-        echo b > /proc/sysrq-trigger
-        reboot -f
-    fi
+    sd_check
     step "launcher: uscita $rc"
     case $rc in
     10) fails=0 ;;
@@ -561,6 +564,7 @@ while :; do
             exec "$BIN/gamewatch" -- sh "./$(basename "$rom")"
         ) >> "$LINUXLOG" 2>&1
         grc=$?
+        sd_check
         rm -f "$ROOT/System/next.env"
         # 120: tasto di accensione tenuto premuto durante il gioco (gamewatch)
         [ $grc -eq 120 ] && finish
@@ -574,6 +578,7 @@ while :; do
     case "$key" in ""|-) ;; *) set -- "$@" --key "$key" ;; esac
     step "gioco: $title"
     run_app "$BIN/runner" "$@"
+    sd_check
     step "runner: uscita $rc"
     [ $rc -eq 20 ] && finish
 done

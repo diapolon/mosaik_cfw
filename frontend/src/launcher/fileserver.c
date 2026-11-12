@@ -1020,32 +1020,60 @@ static void do_restore_upload(req_t *r) {
    solo se è completo e con il CRC giusto */
 /* scrive i file permessi dello zip sotto root: ognuno passa da ".nome.part" e prende il suo
    nome solo se è completo e con il CRC giusto */
+/* Ripristino in due fasi (verifica audit BUG-007): prima tutti i file scelti si scrivono come
+   temporanei, con il CRC controllato e dopo aver visto che lo spazio basta; se uno non va, i
+   temporanei si tolgono e i file attuali restano com'erano. Solo quando sono arrivati tutti
+   prendono il posto dei vecchi (rinomine, veloci). */
+static void backup_part_name(const char *rel, char *part, size_t n) {
+    char dst[2400];
+    full_path(dst, sizeof dst, rel);
+    const char *bn = base_name(rel);
+    snprintf(part, n, "%.*s.%s.part", (int)(strlen(dst) - strlen(bn)), dst, bn);
+}
+
 static bool backup_extract(const char *zipfull, int parts, int total) {
     FILE *f = fopen(zipfull, "rb");
     zent_t *z = NULL;
-    int n = f ? zip_dir(f, &z) : -1, done = 0;
+    int n = f ? zip_dir(f, &z) : -1, done = 0, staged = 0;
     bool ok = n >= 0;
+    int *idx = ok ? malloc(sizeof(int) * (size_t)(n ? n : 1)) : NULL;
+    if (!idx) ok = false;
+    long long need = 0;
+    for (int i = 0; ok && i < n; i++)
+        if (backup_path_ok(z[i].name, true) && (parts & (1 << backup_part(z[i].name)))) need += z[i].usize;
+    struct statvfs vs;   /* temporanei e vecchi file insieme: deve starci tutto, più un margine */
+    if (ok && (statvfs(root, &vs) != 0 || need + (32LL << 20) > (long long)vs.f_bavail * (long long)vs.f_frsize)) {
+        fprintf(stderr, "ripristino: spazio insufficiente (%lld MB da scrivere)\n", need >> 20);
+        ok = false;
+    }
     for (int i = 0; ok && i < n; i++) {
         const char *rel = z[i].name;
         if (!backup_path_ok(rel, true) || !(parts & (1 << backup_part(rel)))) continue;   /* altro o non scelto: si ignora */
         set_state(FS_RECEIVING, base_name(rel), done, total);
-        char dst[2400], part[2500];
-        full_path(dst, sizeof dst, rel);
-        const char *bn = base_name(rel);
-        snprintf(part, sizeof part, "%.*s.%s.part", (int)(strlen(dst) - strlen(bn)), dst, bn);
+        char part[2500];
+        backup_part_name(rel, part, sizeof part);
         if (!make_parents(rel)) { ok = false; break; }
         FILE *o = fopen(part, "wb");
         if (!o) { ok = false; break; }
         bool w = zip_entry(f, &z[i], o, NULL, 0);
         w = w && fflush(o) == 0 && fsync(fileno(o)) == 0;
         if (fclose(o) != 0) w = false;
-        if (!w || rename(part, dst) != 0) { remove(part); ok = false; break; }
+        idx[staged++] = i;
+        if (!w) { ok = false; break; }
         done++;
     }
+    for (int k = 0; k < staged; k++) {   /* tutto arrivato: al loro posto; altrimenti via i temporanei */
+        char part[2500], dst[2400];
+        backup_part_name(z[idx[k]].name, part, sizeof part);
+        full_path(dst, sizeof dst, z[idx[k]].name);
+        if (!ok) remove(part);
+        else if (rename(part, dst) != 0) { remove(part); ok = false; }
+    }
+    free(idx);
     free(z);
     if (f) fclose(f);
     sync();
-    atomic_store(&any_change, true);
+    if (staged) atomic_store(&any_change, true);
     set_state(FS_IDLE, "", 0, 0);
     return ok;
 }

@@ -266,6 +266,13 @@ int main(int argc, char **argv) {
                             if (ask == 30) {
                                 fprintf(stderr, "gamewatch: sospensione\n");
                                 int rc = system("arcade-suspend");
+                                /* SD guasta al risveglio: il gioco si chiude senza fargli salvare (le sue
+                                   scritture non tornerebbero), niente registro; system-init riavvia */
+                                if (access("/run/sd-guasta", F_OK) == 0) {
+                                    kill(-pid, SIGKILL);
+                                    if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+                                    _exit(0);
+                                }
                                 fprintf(stderr, "gamewatch: risveglio (%s)\n", rc == 0 ? "riuscita" : "non riuscita");
                                 power_block_until = now() + 1.5;
                             }

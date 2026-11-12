@@ -105,11 +105,11 @@
 
 Servono una microSD di buona qualità (da 4 GB a 256 GB) e [balenaEtcher](https://etcher.balena.io/).
 
-1. **Scarica l'immagine** del tuo modello dall'[ultima versione](https://github.com/diapolon/mosaik_cfw/releases/latest), sotto **Assets**: `mosaik-<versione>-smartpro.img.gz` per la Smart Pro, `mosaik-<versione>-brickpro.img.gz` per la Brick Pro. Non serve decomprimerla. **Controlla il nome del file: con l'immagine dell'altro modello la console non parte.** Non si rovina nulla: basta scrivere quella giusta. **Ignora tutti gli altri file** (`file-0`, `file-1`…, `update.txt`, `update.sig`, `store.json`, `store.sig`, archivi dei sorgenti): li usano da soli l'aggiornamento Wi-Fi e lo Store della console. I file `store-….zip` sono gli emulatori, per una console senza Wi-Fi (passo 5).
+1. **Scarica l'immagine** del tuo modello dall'[ultima versione](https://github.com/diapolon/mosaik_cfw/releases/latest), sotto **Assets**: `mosaik-<versione>-smartpro.img.gz` per la Smart Pro, `mosaik-<versione>-brickpro.img.gz` per la Brick Pro. Non serve decomprimerla. **Controlla il nome del file: con l'immagine dell'altro modello la console non parte.** Non si rovina nulla: basta scrivere quella giusta. **Ignora tutti gli altri file** (`file-0`, `file-1`…, `update.txt`, `update.sig`, archivi dei sorgenti): li usa da solo l'aggiornamento Wi-Fi della console. I file `store-….zip` sono gli emulatori, con `store.json` e `store.sig`, per una console senza Wi-Fi (passo 5).
 2. **Scrivila sulla microSD** con balenaEtcher. Tutto ciò che c'è sulla scheda viene cancellato. Se poi il computer chiede di formattare una parte della scheda, rispondi di no.
 3. **Metti la scheda nella console e accendi.** Alla prima accensione la partizione si allarga a tutta la scheda, quindi l'avvio dura un po' di più.
 4. **Apri le impostazioni con Start** per scegliere la lingua (Aspetto) e impostare data, ora e Wi-Fi (Sistema).
-5. **Installa gli emulatori**: apri lo **Store** dalla home (su una scheda nuova te lo propone la console) e scegli quelli che ti servono. Senza Wi-Fi, copia nella cartella principale della scheda i file `store-….zip` degli emulatori che vuoi, presi dalla release: al prossimo avvio la console propone di installarli.
+5. **Installa gli emulatori**: apri lo **Store** dalla home (su una scheda nuova te lo propone la console) e scegli quelli che ti servono. Senza Wi-Fi, copia nella cartella principale della scheda i file `store-….zip` degli emulatori che vuoi, presi dalla release, insieme a `store.json` e `store.sig` della stessa release (dimostrano che i pacchetti sono originali): al prossimo avvio la console propone di installarli.
 
 Per tornare al sistema originale, spegni la console e togli la scheda.
 

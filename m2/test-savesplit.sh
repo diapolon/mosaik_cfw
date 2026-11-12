@@ -111,10 +111,12 @@ echo "--- identità dei giochi omonimi nello stesso emulatore (R04)"
 awk '/^static int path_depth/,/^static bool has_ext/' $F/launcher/games.c | sed '$d' > src/keys.inc
 cat > src/k.c <<'C'
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "games.h"
 #include "keys.inc"
-static game_t G[8];
+static game_t G[20000];
 static int n;
 static void add(const char *name, const char *path, const char *title) {
     memset(&G[n], 0, sizeof G[n]);
@@ -130,17 +132,50 @@ int main(void) {
     add("Sonic", "/sd/Roms/MD/USA/Hack/Sonic.md", "Sonic");
     add("Golf", "/sd/Roms/MD/Golf.md", "Golf");
     add("Golf", "/sd/Roms/MD/Golf.zip", "Golf");
+    /* audit BUG-003: chiavi che coincidevano */
+    add("Game", "/sd/Roms/MD/Game.md", "Game");
+    add("Game", "/sd/Roms/MD/Region/Game.zip", "Game");
+    add("Game", "/sd/Roms/MD/Region/Game.md", "Game");
+    add("X", "/sd/Roms/MD/A/B/X.md", "X");
+    add("X", "/sd/Roms/MD/A-B/X.md", "X");
+    add("X", "/sd/Roms/MD/X.md", "X");
+    add("Pac [EU]", "/sd/Roms/MD/Pac [EU].md", "Pac [EU]");
+    add("Pac", "/sd/Roms/MD/EU/Pac.md", "Pac");
+    add("Pac", "/sd/Roms/MD/Pac.md", "Pac");
     assign_keys(G, n, "/sd/Roms/MD");
     for (int i = 0; i < n; i++) printf("%s|%s\n", G[i].key, G[i].title);
+    /* BUG-009: 20000 ROM, molte omonime in cartelle diverse; chiavi tutte diverse */
+    static char paths[20000][64];
+    n = 0;
+    for (int i = 0; i < 20000; i++) {
+        snprintf(paths[i], sizeof paths[i], "/sd/Roms/MD/%s%d/G%d.md", i % 3 ? "D" : "D-", i % 7, i % 9000);
+        char nm[16]; snprintf(nm, sizeof nm, "G%d", i % 9000);
+        add(nm, paths[i], nm);
+    }
+    clock_t t0 = clock();
+    assign_keys(G, n, "/sd/Roms/MD");
+    double secs = (double)(clock() - t0) / CLOCKS_PER_SEC;
+    int same = 0;
+    char (*k)[sizeof G[0].key] = malloc(sizeof G[0].key * 20000);
+    for (int i = 0; i < n; i++) memcpy(k[i], G[i].key, sizeof G[0].key);
+    qsort(k, 20000, sizeof G[0].key, (int (*)(const void *, const void *))strcmp);
+    for (int i = 1; i < n; i++) same += !strcmp(k[i], k[i - 1]);
+    fprintf(stderr, "grande: %d chiavi uguali, %.2f s\n", same, secs);
     return 0;
 }
 C
-gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -o k src/k.c && ./k > $W/keys.txt
+gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -o k src/k.c && ./k > $W/keys.txt 2>$W/keys.err
 line() { sed -n "${1}p" $W/keys.txt; }
 [ "$(line 2)" = "Sonic|Sonic" ] && ok "il gioco nella cartella principale tiene il nome" || ko "principale: $(line 2)"
 [ "$(line 1)" = "Sonic [EU]|Sonic [EU]" ] && ok "omonimo in sottocartella: nome [sottocartella], anche nel titolo" || ko "EU: $(line 1)"
 [ "$(line 4)" = "Sonic [USA-Hack]|Sonic [USA-Hack]" ] && ok "sottocartella annidata con il trattino" || ko "USA/Hack: $(line 4)"
 [ "$(line 3)" = "Tetris|Tetris" ] && ok "nome unico: nulla cambia" || ko "Tetris: $(line 3)"
 { [ "$(line 5)" = "Golf|Golf" ] && [ "$(line 6)" = "Golf [zip]|Golf [zip]" ]; } || { [ "$(line 6)" = "Golf|Golf" ] && [ "$(line 5)" = "Golf [md]|Golf [md]" ]; } && ok "zip e ROM nella stessa cartella: distinti dall'estensione" || ko "Golf: $(line 5) / $(line 6)"
+
+[ "$(line 7)" = "Game|Game" ] && [ "$(line 9)" = "Game [Region]|Game [Region]" ] && [ "$(line 8)" = "Game [Region zip]|Game [Region zip]" ] && ok "Game, Region/Game.md e Region/Game.zip: tre chiavi, la .md tiene la sua" || ko "Region: $(line 7) / $(line 8) / $(line 9)"
+[ "$(line 12)" = "X|X" ] && [ "$(line 11)" = "X [A-B]|X [A-B]" ] && [ "$(line 10)" = "X [A-B md]|X [A-B md]" ] && ok "A/B e A-B: chiavi diverse, la meno annidata tiene la sua" || ko "A/B: $(line 10) / $(line 11) / $(line 12)"
+[ "$(line 13)" = "Pac [EU]|Pac [EU]" ] && [ "$(line 15)" = "Pac|Pac" ] && [ "$(line 14)" = "Pac [EU md]|Pac [EU md]" ] && ok "un file chiamato davvero \"Pac [EU]\" tiene la chiave" || ko "Pac: $(line 13) / $(line 14) / $(line 15)"
+[ "$(cut -d'|' -f1 $W/keys.txt | sort | uniq -d)" = "" ] && ok "nessuna chiave doppia" || ko "doppie: $(cut -d'|' -f1 $W/keys.txt | sort | uniq -d)"
+grep -q "^grande: 0 chiavi uguali" $W/keys.err && ok "$(cat $W/keys.err)" || ko "grande: $(cat $W/keys.err)"
 
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors errori"; exit 1; }

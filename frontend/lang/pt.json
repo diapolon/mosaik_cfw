@@ -895,7 +895,7 @@
     "err_space": "Espaço insuficiente no cartão",
     "err_verify": "Pacote danificado: tente de novo",
     "err_write": "Erro ao escrever no cartão",
-    "err_core": "O emulador não arranca: removido",
+    "err_core": "O emulador não arranca: não instalado",
     "err_cancel": "Interrompido",
     "ask_title": "Nenhum emulador",
     "ask_body": "Descarregue da Loja os emuladores de que precisa.",
@@ -939,7 +939,8 @@
     "pv_yourfiles": "Os seus ficheiros",
     "app_note": "Volte a transferi-la da Store quando quiser.",
     "count_apps": "%d apps",
-    "count1_apps": "1 app"
+    "count1_apps": "1 app",
+    "err_unsigned": "Pacote não verificado: copie também store.json e store.sig ao lado"
   },
   "support": {
     "title": "Apoiar o Mosaik",

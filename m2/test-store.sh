@@ -31,10 +31,12 @@ void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr
 static int find(const char *id) { for (int i = 0; i < store_count(); i++) if (!strcmp(store_pkg(i)->id, id)) return i; return -1; }
 int main(int c, char **v) {
     const char *root = v[1], *cmd = v[2];
+    if (!strcmp(cmd, "recover")) { store_recover(root); return 0; }
     if (!strcmp(cmd, "offline")) {
         char p[1200], n[64], l[32];
         if (!store_offline_find(root, p, sizeof p, n, sizeof n, l, sizeof l)) { puts("niente"); return 0; }
-        printf("%s %s\n", n, store_offline_install(root, p) ? "installato" : "errore");
+        int r = store_offline_install(root, p);
+        printf("%s %s\n", n, r == SE_NONE ? "installato" : r == SE_UNSIGNED ? "non verificato" : "errore");
         return 0;
     }
     store_lang(getenv("LINGUA") ? getenv("LINGUA") : "en");
@@ -62,12 +64,12 @@ int main(int c, char **v) {
     return 0;
 }
 C
-gcc -O1 -g -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DUPDATE_DEFAULT_URL='""' -Isrc -o t src/t.c src/store.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl
+gcc -O1 -g -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DSTORE_TEST -DUPDATE_DEFAULT_URL='""' -Isrc -o t src/t.c src/store.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl
 
 # pacchetti: "alfa" con un core e due emulatori, "beta" con un core rotto
 mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     rm -rf pkgsrc; mkdir -p pkgsrc/fbneo/Cores pkgsrc/fbneo/Emulators pkgsrc/fbneo/Dats pkgsrc/mgba/Cores pkgsrc/mgba/Emulators
-    cp good_libretro.so pkgsrc/fbneo/Cores/fbneo_libretro.so
+    if [ -n "$BADCORE" ]; then cp bad_libretro.so pkgsrc/fbneo/Cores/fbneo_libretro.so; else cp good_libretro.so pkgsrc/fbneo/Cores/fbneo_libretro.so; fi
     echo '{"name":"FinalBurn Neo"}' > pkgsrc/fbneo/Emulators/fbneo.json
     echo "indice $1" > pkgsrc/fbneo/Dats/fbneo.tsv
     [ "$1" = 1 ] && echo vecchio > pkgsrc/fbneo/Dats/solo-v1.roms
@@ -115,6 +117,35 @@ check "aggiornamento" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
 check "file nuovo" "nuovo" "$(cat sd/Cores/extra/dati.bin)"
 check "file che non c'è più tolto" "no" "$([ -e sd/Dats/solo-v1.roms ] && echo si || echo no)"
 check "indice aggiornato" "indice 2" "$(cat sd/Dats/fbneo.tsv)"
+# transazione (audit BUG-004): v2 installata; la v3 toglie Cores/extra/dati.bin
+snap() { (cd sd && find . -type f ! -path './System/.store/*' ! -name 'store.json' ! -name 'store.sig' -exec md5sum {} + | sort | md5sum); }
+V2=$(snap)
+cp -R sd sd-v2
+mk 3
+pass=0; tot=0
+for n in 1 2 3 4 5 6 7 8; do   # ogni spostamento che fallisce: si torna alla v2, subito
+    tot=$((tot+1))
+    r=$(STORE_FAIL_AT=$n ./t $R install fbneo 2>/dev/null)
+    [ "$r" = "5 6 2" ] && [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && pass=$((pass+1)) || echo "    spostamento $n fallito: [$r] $(cd sd && find . -name '*.annulla' -o -name '*.part' -o -name 'store-giornale.txt' | head -3)"
+done
+check "rename fallito a ogni passo: v2 intatta, nessun avanzo" "$tot" "$pass"
+pass=0; tot=0
+for n in 1 2 3 4 5 6 7 8; do   # corrente che manca a ogni passo: al riavvio si torna alla v2
+    tot=$((tot+1))
+    STORE_STOP_AT=$n ./t $R install fbneo >/dev/null 2>&1 || true
+    ./t $R recover 2>/dev/null
+    [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && pass=$((pass+1)) || echo "    interruzione $n: $(cd sd && find . -name '*.annulla' -o -name '*.part' -o -name 'store-giornale.txt' | head -3)"
+done
+check "interruzione a ogni passo e riavvio: v2 intatta" "$tot" "$pass"
+check "giornale troncato (scritto a metà): ignorato" "si" "$(: > sd/System/store-giornale.txt; ./t $R recover 2>/dev/null; [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && echo si || echo no)"
+BADCORE=1 mk 5
+check "aggiornamento con un core che non parte: errore" "5 7 2" "$(./t $R install fbneo 2>/dev/null)"
+check "… e resta la versione di prima, che funziona" "si" "$([ "$(snap)" = "$V2" ] && cmp -s sd/Cores/fbneo_libretro.so good_libretro.so && echo si || echo no)"
+mk 3
+check "la v3 poi si installa" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
+check "v3: file tolto, indice nuovo, niente avanzi" "no indice 3 0" "$([ -e sd/Cores/extra/dati.bin ] && echo si || echo no) $(cat sd/Dats/fbneo.tsv) $(find sd -name '*.annulla' -o -name 'store-giornale.txt' | wc -l | tr -d ' ')"
+rm -rf sd && mv sd-v2 sd
+mk 2
 # pacchetto manomesso: l'impronta del catalogo non torna
 Z=$(ls www/store-fbneo-*.zip); cp $Z orig.zip; printf 'x' >> $Z
 rm sd/System/pacchetti/fbneo.txt
@@ -158,6 +189,18 @@ cp www/store-fbneo-*.zip sd/
 check "pacchetto copiato: installato" "FinalBurn Neo installato" "$(./t $R offline 2>off.log)"; cat off.log
 check "e c'è il core" "si" "$([ -e sd/Cores/fbneo_libretro.so ] && echo si || echo no)"
 check "non lo propone due volte" "niente" "$(./t $R offline 2>/dev/null)"
+# pacchetto che nessun catalogo firmato conosce: rifiutato (verifica audit), poi accettato con
+# store.json e store.sig copiati accanto
+rm -f sd/store-*.zip; mk 3; cp www/store-fbneo-*.zip sd/
+check "pacchetto sconosciuto: rifiutato" "FinalBurn Neo non verificato" "$(./t $R offline 2>/dev/null)"
+check "rifiutato: niente installato" "indice 2" "$(cat sd/Dats/fbneo.tsv)"
+check "rifiutato: si ripropone" "FinalBurn Neo non verificato" "$(./t $R offline 2>/dev/null)"
+cp www/store.json www/store.sig sd/
+check "con il catalogo firmato accanto: installato" "FinalBurn Neo installato" "$(./t $R offline 2>/dev/null)"
+check "versione nuova sulla scheda" "indice 3" "$(cat sd/Dats/fbneo.tsv)"
+echo manomesso >> sd/store.json
+rm -f sd/store-*.zip; mk 4; cp www/store-fbneo-*.zip sd/
+check "catalogo accanto manomesso: rifiutato" "FinalBurn Neo non verificato" "$(./t $R offline 2>/dev/null)"
 kill $SRV
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

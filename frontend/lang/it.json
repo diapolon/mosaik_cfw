@@ -895,7 +895,7 @@
     "err_space": "Spazio insufficiente sulla scheda",
     "err_verify": "Pacchetto rovinato: riprova",
     "err_write": "Errore di scrittura sulla scheda",
-    "err_core": "L'emulatore non si avvia: tolto",
+    "err_core": "L'emulatore non si avvia: non installato",
     "err_cancel": "Interrotto",
     "ask_title": "Nessun emulatore",
     "ask_body": "Scarica dallo Store gli emulatori che ti servono.",
@@ -939,7 +939,8 @@
     "pv_yourfiles": "I tuoi file",
     "app_note": "La riscarichi dallo Store quando vuoi.",
     "count_apps": "%d app",
-    "count1_apps": "1 app"
+    "count1_apps": "1 app",
+    "err_unsigned": "Pacchetto non verificato: copia accanto anche store.json e store.sig"
   },
   "support": {
     "title": "Sostieni Mosaik",

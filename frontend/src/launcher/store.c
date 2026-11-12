@@ -504,10 +504,109 @@ oom:   /* un registro letto a metà non vale come inventario dei file */
 
 static void free_list(char **l, int n) { for (int i = 0; i < n; i++) free(l[i]); free(l); }
 
+/* ---------------------------------------------- giornale dell'installazione
+   Verifica audit BUG-004: la sostituzione dei file è una transazione, sul modello degli
+   aggiornamenti. Prima di toccare qualcosa si scrive System/store-giornale.txt con ogni file
+   ("sostituito", "nuovo", "tolto") e se c'era il registro; i file di prima diventano
+   ".nome.annulla" accanto, i nuovi prendono il loro posto. Se qualcosa fallisce (un rename,
+   il core che non si carica, il registro) o la corrente manca, si rimette tutto com'era:
+   subito, o al prossimo avvio del launcher (store_recover). La riga "fatto" è il punto di non
+   ritorno: dopo, si tolgono soltanto gli .annulla. */
+#ifdef STORE_TEST
+/* prove: STORE_FAIL_AT=N fa fallire l'N-esimo spostamento, STORE_STOP_AT=N esce lì (corrente) */
+static int tx_step;
+static int tx_rename(const char *a, const char *b) {
+    tx_step++;
+    const char *e = getenv("STORE_STOP_AT");
+    if (e && atoi(e) == tx_step) _exit(3);
+    e = getenv("STORE_FAIL_AT");
+    if (e && atoi(e) == tx_step) { errno = EIO; return -1; }
+    return rename(a, b);
+}
+#else
+#define tx_rename rename
+#endif
+
+static void journal_path(char *out, size_t n) { snprintf(out, n, "%s/System/store-giornale.txt", root_dir); }
+
+static void annulla_name(const char *full, char *out, size_t n) {
+    const char *b = strrchr(full, '/');
+    snprintf(out, n, "%.*s/.%s.annulla", (int)(b - full), full, b + 1);
+}
+
+static bool exists(const char *p) { struct stat sb; return lstat(p, &sb) == 0; }
+
+/* rimette com'era (done = false) o chiude la transazione (done = true); si può ripetere */
+static bool journal_apply(const char *text, bool done) {
+    char id[40] = "", rp[1200] = "", rpa[1300] = "";
+    bool ok = true, had_record = false, record_line = false;
+    const char *l = text;
+    while (*l) {
+        const char *e = strchr(l, '\n');
+        size_t len = e ? (size_t)(e - l) : strlen(l);
+        char line[800];
+        snprintf(line, sizeof line, "%.*s", (int)(len < sizeof line - 1 ? len : sizeof line - 1), l);
+        l += len + (e ? 1 : 0);
+        char *sp = strchr(line, ' ');
+        if (!sp) continue;
+        *sp = 0;
+        const char *what = line, *arg = sp + 1;
+        if (!strcmp(what, "pacchetto")) {
+            if (!arg[0] || strchr(arg, '/') || strlen(arg) >= sizeof id) return false;
+            snprintf(id, sizeof id, "%s", arg);
+            record_path(id, rp, sizeof rp);
+            snprintf(rpa, sizeof rpa, "%s.annulla", rp);
+            continue;
+        }
+        if (!strcmp(what, "registro")) { record_line = true; had_record = !strcmp(arg, "si"); continue; }
+        if (!path_ok(arg)) continue;
+        char full[1300], part[1400], ann[1400];
+        snprintf(full, sizeof full, "%s/%s", root_dir, arg);
+        part_name(full, part, sizeof part);
+        annulla_name(full, ann, sizeof ann);
+        bool repl = !strcmp(what, "sostituito"), gone = !strcmp(what, "tolto"), fresh = !strcmp(what, "nuovo");
+        if (!repl && !gone && !fresh) continue;
+        unlink(part);
+        if (done) {
+            if (repl || gone) unlink(ann);
+            if (gone) prune_dirs(arg);
+        } else if (fresh) {
+            if (unlink(full) != 0 && errno != ENOENT) ok = false;
+            prune_dirs(arg);
+        } else if (exists(ann) && rename(ann, full) != 0) {
+            ui_log("store: non riesco a rimettere %s", arg);
+            ok = false;
+        }
+    }
+    if (!id[0] || !record_line) return false;
+    if (done) unlink(rpa);
+    else if (exists(rpa)) { if (rename(rpa, rp) != 0) ok = false; }
+    else if (!had_record) unlink(rp);
+    return ok;
+}
+
+/* al primo avvio dopo un'installazione interrotta (launcher, prima di leggere i giochi) */
+void store_recover(const char *root) {
+    snprintf(root_dir, sizeof root_dir, "%s", root);
+    char jp[1200];
+    journal_path(jp, sizeof jp);
+    char *t = read_file(jp, 1 << 20, NULL);
+    if (!t) { unlink(jp); return; }   /* vuoto o illeggibile: scritto a metà, nulla era cambiato */
+    bool done = strstr(t, "\nfatto\n") != NULL;
+    if (journal_apply(t, done)) {
+        sync();
+        unlink(jp);
+        sync();
+        ui_log("store: installazione interrotta %s", done ? "conclusa" : "annullata, rimessi i file di prima");
+    } else ui_log("store: giornale dell'installazione non risolto, si riprova al prossimo avvio");
+    free(t);
+    atomic_store(&changed, true);
+}
+
 /* Installa lo zip di un pacchetto: pacchetto.json dice id, versione e file. Prima si scrivono
-   tutti i file come .part (e si controlla il CRC di ognuno), poi prendono il posto dei vecchi; i
-   file della versione di prima che non ci sono più si tolgono. Un core che non si carica fa
-   togliere il pacchetto. Il registro si scrive per ultimo. */
+   tutti i file come .part (e si controlla il CRC di ognuno), poi prendono il posto dei vecchi con
+   il giornale qui sopra; i file della versione di prima che non ci sono più si tolgono. Un core
+   che non si carica fa rimettere la versione di prima (o niente, se non c'era). */
 static int install_zip(const char *zpath, const char *want_id, char *name_out, size_t nn) {
     FILE *z = fopen(zpath, "rb");
     if (!z) return SE_WRITE;
@@ -532,6 +631,8 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
     if (oom) err = SE_WRITE;
     if (n < 0 || !id[0] || strchr(id, '/') || (want_id && strcmp(id, want_id)) || nf == 0) err = SE_CATALOG;
     for (int k = 0; !err && k < nf; k++) if (!path_ok(files[k])) err = SE_CATALOG;
+    for (int k = 0; !err && k < nf; k++)   /* lo stesso file due volte rovinerebbe la copia di prima */
+        for (int m = k + 1; !err && m < nf; m++) if (!strcmp(files[k], files[m])) err = SE_CATALOG;
     /* misura totale, per l'avanzamento */
     long long total = 0;
     int *idx = calloc(nf > 0 ? (size_t)nf : 1u, sizeof(int));
@@ -575,24 +676,56 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
         free_list(old, no);
         return err;
     }
-    for (int k = 0; k < nf; k++) {
-        char full[1300], part[1400];
+    char rp[1200], rpa[1300], jp[1200];
+    record_path(id, rp, sizeof rp);
+    snprintf(rpa, sizeof rpa, "%s.annulla", rp);
+    journal_path(jp, sizeof jp);
+    char sysd[1200];
+    snprintf(sysd, sizeof sysd, "%s/System/pacchetti", root_dir);
+    mkdir(sysd, 0755);
+    /* il giornale: tutto quello che si farà, prima di farlo */
+    size_t jcap = 64 + strlen(id), jlen = 0;
+    for (int k = 0; k < nf; k++) jcap += strlen(files[k]) + 16;
+    for (int i = 0; i < no; i++) jcap += strlen(old[i]) + 16;
+    char *jt = malloc(jcap);
+    bool *drop = calloc(no > 0 ? (size_t)no : 1u, sizeof(bool));
+    if (!jt || !drop) err = SE_WRITE;
+    bool had_record = exists(rp);
+    if (!err) {
+        jlen += (size_t)snprintf(jt + jlen, jcap - jlen, "pacchetto %s\n", id);
+        for (int k = 0; k < nf; k++) {
+            char full[1300];
+            snprintf(full, sizeof full, "%s/%s", root_dir, files[k]);
+            jlen += (size_t)snprintf(jt + jlen, jcap - jlen, "%s %s\n", exists(full) ? "sostituito" : "nuovo", files[k]);
+        }
+        for (int i = 0; i < no; i++) {   /* file della versione di prima che non ci sono più */
+            bool keep = false;
+            for (int k = 0; k < nf && !keep; k++) keep = !strcmp(old[i], files[k]);
+            if (keep) continue;
+            drop[i] = true;
+            jlen += (size_t)snprintf(jt + jlen, jcap - jlen, "tolto %s\n", old[i]);
+        }
+        jlen += (size_t)snprintf(jt + jlen, jcap - jlen, "registro %s\n", had_record ? "si" : "no");
+        if (!write_durable(jp, jt, jlen)) err = SE_WRITE;
+    }
+    bool journaled = !err;
+    /* i file di prima diventano .annulla, i nuovi prendono il loro posto */
+    for (int k = 0; !err && k < nf; k++) {
+        char full[1300], part[1400], ann[1400];
         snprintf(full, sizeof full, "%s/%s", root_dir, files[k]);
         part_name(full, part, sizeof part);
-        if (rename(part, full) != 0) err = SE_WRITE;
+        annulla_name(full, ann, sizeof ann);
+        if (exists(full) && tx_rename(full, ann) != 0) err = SE_WRITE;
+        else if (tx_rename(part, full) != 0) err = SE_WRITE;
     }
-    sync();
-    /* file della versione di prima che non ci sono più (elenco letto all'inizio) */
-    for (int i = 0; i < no; i++) {
-        bool keep = false;
-        for (int k = 0; k < nf && !keep; k++) keep = !strcmp(old[i], files[k]);
-        if (keep) continue;
-        char full[1300];
+    for (int i = 0; !err && i < no; i++) {
+        if (!drop[i]) continue;
+        char full[1300], ann[1400];
         snprintf(full, sizeof full, "%s/%s", root_dir, old[i]);
-        unlink(full);
-        prune_dirs(old[i]);
+        annulla_name(full, ann, sizeof ann);
+        if (exists(full) && tx_rename(full, ann) != 0) err = SE_WRITE;
     }
-    free_list(old, no);
+    if (!err) sync();
 #ifdef __linux__
     for (int k = 0; !err && k < nf; k++) {
         size_t l = strlen(files[k]);
@@ -602,17 +735,7 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
         if (!core_loads(full)) err = SE_CORE;
     }
 #endif
-    char rp[1200];
-    record_path(id, rp, sizeof rp);
-    if (err == SE_CORE) {   /* il core non parte: via tutto, meglio niente che un emulatore rotto */
-        for (int k = 0; k < nf; k++) {
-            char full[1300];
-            snprintf(full, sizeof full, "%s/%s", root_dir, files[k]);
-            unlink(full);
-            prune_dirs(files[k]);
-        }
-        unlink(rp);
-    } else if (!err) {
+    if (!err) {
         /* misura vera del registro: ogni percorso intero (audit BUG-002: 140 byte a riga non
            bastavano e il conto andava oltre il buffer) */
         size_t cap = strlen(version) + strlen(label) + 32, len = 0;
@@ -625,13 +748,33 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
             w = snprintf(rec + len, cap - len, "file %s\n", files[k]);
             if (w < 0 || (size_t)w >= cap - len) err = SE_WRITE; else len += (size_t)w;
         }
-        char dir[1200];
-        snprintf(dir, sizeof dir, "%s/System/pacchetti", root_dir);
-        mkdir(dir, 0755);
+        if (!err && had_record && tx_rename(rp, rpa) != 0) err = SE_WRITE;
         if (!err && !write_durable(rp, rec, len)) err = SE_WRITE;
         free(rec);
-        ui_log("store: installato %s %s (%s, %d file)", id, label, version, nf);
     }
+    /* il punto di non ritorno: "fatto" nel giornale */
+    if (!err) {
+        char *jd = realloc(jt, jlen + 8);
+        if (jd) { jt = jd; memcpy(jt + jlen, "fatto\n", 7); }
+        if (!jd || !write_durable(jp, jt, jlen + 6)) err = SE_WRITE;
+    }
+    if (journaled) {
+        jt[jlen] = 0;
+        if (journal_apply(jt, !err)) { sync(); unlink(jp); sync(); }
+        else ui_log("store: %s non rimesso del tutto, si riprova al prossimo avvio", id);
+    } else {   /* niente giornale: niente è stato toccato, si tolgono i .part */
+        for (int k = 0; k < nf; k++) {
+            char full[1300], part[1400];
+            snprintf(full, sizeof full, "%s/%s", root_dir, files[k]);
+            part_name(full, part, sizeof part);
+            unlink(part);
+        }
+    }
+    if (err) ui_log("store: %s non installato (errore %d), file di prima rimessi", id, err);
+    else ui_log("store: installato %s %s (%s, %d file)", id, label, version, nf);
+    free(jt);
+    free(drop);
+    free_list(old, no);
     atomic_store(&changed, true);
     free(idx);
     free_list(files, nf);
@@ -914,23 +1057,51 @@ bool store_offline_find(const char *root, char *path, int pn, char *name, int nn
     return false;
 }
 
-/* Senza rete: se il catalogo sulla scheda conosce questa versione, lo zip deve avere la sua
-   impronta (una copia rovinata non si installa); altrimenti vale la scelta di chi l'ha copiato. */
-bool store_offline_install(const char *root, const char *path) {
+/* impronta di un pacchetto in un catalogo firmato: quello tenuto sulla scheda, oppure
+   store.json e store.sig copiati nella stessa cartella dello zip (scheda nuova senza rete).
+   Falso se nessun catalogo firmato elenca quel file. */
+static bool signed_sha(const char *zip_path, char *sha_out) {
+    const char *b = strrchr(zip_path, '/');
+    char dir[1100];
+    snprintf(dir, sizeof dir, "%.*s", b ? (int)(b - zip_path) : 1, b ? zip_path : ".");
+    b = b ? b + 1 : zip_path;
+    char cands[2][2][1300];
+    snprintf(cands[0][0], sizeof cands[0][0], "%s/System/store.json", root_dir);
+    snprintf(cands[0][1], sizeof cands[0][1], "%s/System/store.sig", root_dir);
+    snprintf(cands[1][0], sizeof cands[1][0], "%s/store.json", dir);
+    snprintf(cands[1][1], sizeof cands[1][1], "%s/store.sig", dir);
+    for (int c = 0; c < 2; c++) {
+        size_t tl = 0, sl = 0;
+        char *text = read_file(cands[c][0], 1 << 20, &tl), *sig = read_file(cands[c][1], 512, &sl);
+        entry_t *e = NULL;
+        int n = 0;
+        bool ok = text && sig && signature_ok(text, tl, (unsigned char *)sig, sl) && parse_catalog(text, &e, &n);
+        bool found = false;
+        for (int i = 0; ok && i < n && !found; i++)
+            if (!strcmp(e[i].p.file, b)) { snprintf(sha_out, 65, "%s", e[i].p.sha); found = true; }
+        if (ok) free_entries(e, n);
+        free(text);
+        free(sig);
+        if (found) return true;
+    }
+    return false;
+}
+
+/* Senza rete: si installa solo un pacchetto elencato da un catalogo firmato e con la stessa
+   impronta (verifica audit: prima uno sconosciuto si installava senza controlli, e un'app o un
+   core girano come root) */
+int store_offline_install(const char *root, const char *path) {
     snprintf(root_dir, sizeof root_dir, "%s", root);
-    mark_seen(path);
-    load_cache();
-    char sha[65];
-    bool known_bad = false;
+    char want[65], sha[65];
     const char *b = strrchr(path, '/');
     b = b ? b + 1 : path;
-    pthread_mutex_lock(&lock);
-    for (int i = 0; i < ncat; i++)
-        if (!strcmp(cat[i].p.file, b)) { known_bad = !sha256_file(path, sha) || strcmp(sha, cat[i].p.sha); break; }
-    pthread_mutex_unlock(&lock);
-    if (known_bad) { ui_log("store: %s non corrisponde al catalogo: non installato", b); return false; }
+    /* rifiutato per mancanza del catalogo: non segnato come visto, così copiando accanto
+       store.json e store.sig all'avvio dopo si propone di nuovo */
+    if (!signed_sha(path, want)) { ui_log("store: %s non è in un catalogo firmato: rifiutato", b); return SE_UNSIGNED; }
+    mark_seen(path);
+    if (!sha256_file(path, sha) || strcmp(sha, want)) { ui_log("store: %s non corrisponde al catalogo: non installato", b); return SE_VERIFY; }
     st.cancel = false;
     int err = install_zip(path, NULL, NULL, 0);
     ui_log("store: %s dalla scheda: %s", b, err ? "non installato" : "installato");
-    return err == SE_NONE;
+    return err;
 }

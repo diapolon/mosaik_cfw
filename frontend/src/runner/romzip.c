@@ -66,7 +66,8 @@ int romzip_extract(const char *zip, const char *exts, void **out, size_t *out_si
         char ename[256];
         snprintf(ename, sizeof ename, "%.*s", (int)(nlen < 255 ? nlen : 255), (const char *)z + p + 46);
         p += 46 + nlen + xlen + clen;
-        if (!nlen || ename[strlen(ename) - 1] == '/' || !romzip_ext_ok(ename, exts)) continue;
+        /* un nome che comincia con NUL è vuoto: strlen 0, niente indice prima del buffer */
+        if (!ename[0] || ename[strlen(ename) - 1] == '/' || !romzip_ext_ok(ename, exts)) continue;
         /* la voce scelta: dati dopo l'intestazione locale */
         if ((long)lho + 30 > fs || le32(z + lho) != 0x04034b50) { rc = ROMZIP_FORMAT; goto done; }
         long data = (long)lho + 30 + le16(z + lho + 26) + le16(z + lho + 28);
@@ -126,7 +127,7 @@ int romzip_candidates(const char *zip, const char *exts) {
         char ename[256];
         snprintf(ename, sizeof ename, "%.*s", (int)(nlen < 255 ? nlen : 255), (const char *)c + p + 46);
         p += 46 + nlen + xlen + clen;
-        if (nlen && ename[strlen(ename) - 1] != '/' && romzip_ext_ok(ename, exts)) n++;
+        if (ename[0] && ename[strlen(ename) - 1] != '/' && romzip_ext_ok(ename, exts)) n++;
     }
     free(c);
 done:

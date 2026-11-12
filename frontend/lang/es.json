@@ -895,7 +895,7 @@
     "err_space": "No hay espacio en la tarjeta",
     "err_verify": "Paquete dañado: inténtalo de nuevo",
     "err_write": "Error al escribir en la tarjeta",
-    "err_core": "El emulador no arranca: quitado",
+    "err_core": "El emulador no arranca: no instalado",
     "err_cancel": "Interrumpido",
     "ask_title": "Ningún emulador",
     "ask_body": "Descarga de la Tienda los emuladores que necesites.",
@@ -939,7 +939,8 @@
     "pv_yourfiles": "Tus archivos",
     "app_note": "Vuelve a descargarla de la Store cuando quieras.",
     "count_apps": "%d apps",
-    "count1_apps": "1 app"
+    "count1_apps": "1 app",
+    "err_unsigned": "Paquete no verificado: copia también store.json y store.sig a su lado"
   },
   "support": {
     "title": "Apoya Mosaik",
