@@ -257,8 +257,11 @@ static void page_load(void) {
         size_t n = (size_t)e->usize + 1;
         char *buf = e->usize < (64u << 20) ? malloc(n) : NULL;   /* una pagina oltre 64 MB non è un fumetto */
         long w = 0, h = 0;
-        if (buf && zip_entry(pg.zf, e, NULL, buf, n) && size_ok(img_dims((unsigned char *)buf, e->usize, &w, &h), w, h))
-            s = IMG_Load_RW(SDL_RWFromConstMem(buf, (int)e->usize), 1);
+        /* misure prima, controllo dopo: in una sola chiamata l'ordine degli argomenti non è
+           garantito dal C e w, h potrebbero arrivare ancora a zero (verifica audit 0.9.27) */
+        bool got = buf && zip_entry(pg.zf, e, NULL, buf, n);
+        bool known = got && img_dims((unsigned char *)buf, e->usize, &w, &h);
+        if (got && size_ok(known, w, h)) s = IMG_Load_RW(SDL_RWFromConstMem(buf, (int)e->usize), 1);
         free(buf);
     } else {
         char p[1600];
