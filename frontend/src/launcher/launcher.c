@@ -42,6 +42,7 @@ enum { SCR_HOME, SCR_LIBRARY, SCR_SETTINGS, SCR_DETAIL, SCR_PLATFORMS, SCR_APPS,
 static int detail_idx = -1;   /* gioco mostrato nella scheda */
 static void open_detail(int idx);
 static void panel_box(int w, int h, int *x, int *y);
+static void spk_show(int only_emu);
 
 static game_t *games;
 static int ngames;
@@ -2154,8 +2155,13 @@ static void plat_draw(void) {
     }
     /* console in arrivo: niente da aprire */
     bool plan = nptabs && is_plan(ptabs[plat_sel]);
-    const char *h[] = { "A", T("plat.open"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
-    ui_keybar(plan ? h + 3 : h, plan ? 6 : 9);
+    bool emu = nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL;
+    const char *h[] = { "A", T("plat.open"), NULL, "X", T("scrape.pick_hint"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
+    const char *hp[] = { "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
+    const char *ho[] = { "A", T("plat.open"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
+    if (plan) ui_keybar(hp, 6);
+    else if (emu) ui_keybar(h, 12);
+    else ui_keybar(ho, 9);
 }
 
 /* ------------------------------------------------------ vetrina (layout "vetrina")
@@ -2616,6 +2622,7 @@ static void plat_input(void) {
         ui_sound(SND_OK);
     } else if (in->pressed[BTN_B]) { go(SCR_HOME); ui_sound(SND_BACK); }
     else if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
+    else if (in->pressed[BTN_X] && nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL) spk_show(ptabs[plat_sel] - TAB_EMU);
 }
 
 static void library_draw(void) {
@@ -5194,8 +5201,7 @@ static void settings_input(void) {
             rcq_open = true; rcq_sel = 0; ui_sound(SND_OK);
         }
         else if (set_sel == S_SCRAPE) {
-            if (!UI.set.wifi) { ui_toast(T("scrape.no_wifi")); ui_sound(SND_ERROR); }
-            else if ((quiet_begin(), scraper_start(UI.root, games, ngames))) { scrape_open = true; ui_sound(SND_OK); }
+            spk_show(-1);
         }
         else if (set_sel == S_MUSIC && UI.set.music_vol && music_count()) {
             music_next();
@@ -6137,7 +6143,7 @@ static bool rst_all;
 static const char *const RST_SYSTEM[] = { "settings.json", "favorites.txt", "recent.txt", "hidden.txt", "core-options.txt",
                                           "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "wifi.conf",
                                           "fileserver-browsers.txt", "resume.txt", "next.txt", "next.env", "backup-visti.txt",
-                                          "menu-rotazione", NULL };
+                                          "menu-rotazione", "scrape-scelta.txt", NULL };
 static const char *const RST_SYSTEM_ALL[] = { "stats.tsv", "romcheck.tsv", NULL };
 /* cartelle svuotate da "Cancella tutto"; in Roms restano le cartelle degli emulatori e LEGGIMI.txt */
 static const char *const RST_DIRS[] = { "Bios", "Saves", "Media", "Music", "Linux", "Apps", NULL };
@@ -7143,6 +7149,133 @@ static void scrape_draw(void) {
     ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
 }
 
+/* Scelta degli emulatori da completare: con migliaia di ROM un giro su tutta la libreria non
+   finisce più. Una riga "Tutti", una per emulatore con i suoi giochi, e il pulsante Scarica.
+   Da Impostazioni la scelta si ricorda in System/scrape-scelta.txt (id separati da spazi);
+   dalle Piattaforme (X) si apre con il solo emulatore di quella scheda. */
+static bool spk_open, spk_remember;
+static int spk_sel, spk_n, spk_first;
+static int spk_emu[MAX_EMUS], spk_cnt[MAX_EMUS];
+static bool spk_pick[MAX_EMUS];
+
+static void spk_show(int only_emu) {
+    if (!UI.set.wifi) { ui_toast(T("scrape.no_wifi")); ui_sound(SND_ERROR); return; }
+    spk_n = 0;
+    for (int e = 0; e < NEMUS; e++) {
+        int c = 0;
+        for (int i = 0; i < ngames; i++) c += !games[i].missing && !strcmp(games[i].core, EMUS[e].id);
+        if (!c) continue;
+        spk_emu[spk_n] = e;
+        spk_cnt[spk_n] = c;
+        spk_n++;
+    }
+    if (!spk_n) { ui_toast(T("library.empty")); ui_sound(SND_ERROR); return; }
+    char saved[1024] = "", p[1100];
+    snprintf(p, sizeof p, "%s/System/scrape-scelta.txt", UI.root);
+    FILE *f = only_emu < 0 ? fopen(p, "r") : NULL;
+    bool have = f && fgets(saved + 1, sizeof saved - 2, f);
+    if (f) fclose(f);
+    if (have) { saved[0] = ' '; saved[strcspn(saved, "\r\n")] = 0; strcat(saved, " "); }
+    for (int k = 0; k < spk_n; k++) {
+        char w[40];
+        snprintf(w, sizeof w, " %s ", EMUS[spk_emu[k]].id);
+        spk_pick[k] = only_emu >= 0 ? spk_emu[k] == only_emu : !have || strstr(saved, w) != NULL;
+    }
+    spk_remember = only_emu < 0;
+    spk_sel = spk_n + 1;   /* sul pulsante: chi vuole tutto preme subito A */
+    spk_first = 0;
+    for (int k = 0; only_emu >= 0 && k < spk_n; k++) if (spk_pick[k]) spk_first = k + 1;   /* l'emulatore scelto in vista */
+    spk_open = true;
+    ui_sound(SND_OK);
+}
+
+static bool spk_all(void) {
+    for (int k = 0; k < spk_n; k++) if (!spk_pick[k]) return false;
+    return true;
+}
+
+static void spk_go(void) {
+    char only[1024] = "";
+    int chosen = 0;
+    for (int k = 0; k < spk_n; k++) {
+        if (!spk_pick[k]) continue;
+        size_t l = strlen(only);
+        snprintf(only + l, sizeof only - l, "%s%s", l ? " " : "", EMUS[spk_emu[k]].id);
+        chosen++;
+    }
+    if (!chosen) { ui_toast(T("scrape.pick_none")); ui_sound(SND_ERROR); return; }
+    if (spk_remember) {   /* tutti: nessun file, così valgono anche gli emulatori installati dopo */
+        char p[1100];
+        snprintf(p, sizeof p, "%s/System/scrape-scelta.txt", UI.root);
+        FILE *f = spk_all() ? NULL : fopen(p, "w");
+        if (f) { fprintf(f, "%s\n", only); fclose(f); }
+        else if (spk_all()) remove(p);
+    }
+    spk_open = false;
+    ui_log("immagini: %s", spk_all() ? "tutti gli emulatori" : only);
+    quiet_begin();
+    if (scraper_start(UI.root, games, ngames, spk_all() ? NULL : only)) { scrape_open = true; ui_sound(SND_OK); }
+    else ui_sound(SND_ERROR);
+}
+
+static void spk_input(void) {
+    input_t *in = &UI.in;
+    int rows = spk_n + 2;   /* Tutti, gli emulatori, il pulsante */
+    if (in->pressed[BTN_UP]) { spk_sel = (spk_sel + rows - 1) % rows; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN]) { spk_sel = (spk_sel + 1) % rows; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { spk_open = false; ui_sound(SND_BACK); return; }
+    if (!in->pressed[BTN_A]) return;
+    if (spk_sel == rows - 1) { spk_go(); return; }
+    if (spk_sel == 0) {
+        bool all = !spk_all();
+        for (int k = 0; k < spk_n; k++) spk_pick[k] = all;
+    } else spk_pick[spk_sel - 1] = !spk_pick[spk_sel - 1];
+    ui_sound(SND_MOVE);
+}
+
+static void spk_draw(void) {
+    theme_t *t = &UI.th;
+    int rows = spk_n + 1, rh = M(t->list_row_h), pad = M(0.04f);
+    int maxrows = (UI.h - M(0.16f) - TTF_FontHeight(UI.f_title) - ui_popup_buttons_h()) / rh;
+    int vis = rows < maxrows ? rows : maxrows;
+    int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
+    int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.02f) + rh * vis + ui_popup_buttons_h() - pad, x, y;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    panel_box(w, h, &x, &y);
+    ui_text(UI.f_title, T("settings.scrape"), x + pad, y + pad, t->text, ALIGN_LEFT);
+    int ry = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    if (spk_sel < rows) {   /* sul pulsante l'elenco resta dov'è */
+        if (spk_sel < spk_first) spk_first = spk_sel;
+        if (spk_sel >= spk_first + vis) spk_first = spk_sel - vis + 1;
+    }
+    if (spk_first > rows - vis) spk_first = rows - vis;
+    if (spk_first < 0) spk_first = 0;
+    TTF_Font *f = UI.f_normal;
+    int fh = TTF_FontHeight(f), total = 0;
+    for (int k = 0; k < spk_n; k++) total += spk_cnt[k];
+    for (int i = spk_first; i < spk_first + vis && i < rows; i++, ry += rh) {
+        bool sel = i == spk_sel, on = i == 0 ? spk_all() : spk_pick[i - 1];
+        if (sel) ui_rrect(x + M(0.02f), ry, w - M(0.04f), rh - M(0.008f), M(t->panel_radius), t->accent);
+        color_t c = sel ? t->accent_text : t->text;
+        int ty = ry + (rh - M(0.008f) - fh) / 2, bx = x + M(0.05f), box = fh * 3 / 4, by = ty + (fh - box) / 2;
+        if (on) {
+            ui_rrect(bx, by, box, box, box / 4, sel ? t->accent_text : t->accent);
+            color_t tick = sel ? t->accent : t->accent_text;
+            int th = box / 7 + 1;
+            thick_line(bx + box * 22 / 100, by + box * 52 / 100, bx + box * 42 / 100, by + box * 72 / 100, th, tick);
+            thick_line(bx + box * 42 / 100, by + box * 72 / 100, bx + box * 80 / 100, by + box * 30 / 100, th, tick);
+        } else ui_rborder(bx, by, box, box, box / 4, M(0.004f) + 1, sel ? c : t->text_dim);
+        char fit[160], num[16];
+        snprintf(num, sizeof num, "%d", i == 0 ? total : spk_cnt[i - 1]);
+        int nw = ui_text_w(UI.f_small, num) + M(0.06f);
+        ui_text_fit(f, i == 0 ? T("scrape.pick_all") : EMUS[spk_emu[i - 1]].name, w - (bx - x) - box - M(0.025f) - nw, fit, sizeof fit);
+        ui_text(f, fit, bx + box + M(0.025f), ty, c, ALIGN_LEFT);
+        ui_text(UI.f_small, num, x + w - M(0.05f), ty + (fh - TTF_FontHeight(UI.f_small)) / 2, sel ? c : t->text_dim, ALIGN_RIGHT);
+    }
+    const char *label[1] = { T("scrape.pick_go") };
+    ui_popup_buttons(x, y, w, h, label, 1, spk_sel == rows ? 0 : -1, -1);
+}
+
 /* ---------------------------------------------- salvaschermo, batteria */
 /* Dopo il tempo scelto senza toccare i tasti: presentazione delle schermate dei giochi
    (zoom lento e dissolvenza) oppure schermo nero. Il primo tasto lo chiude e non fa
@@ -7382,7 +7515,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -7418,6 +7551,7 @@ int main(int argc, char **argv) {
         else if (reset_step) reset_input();
         else if (diag_open) diag_input();
         else if (rcq_open) rcq_input();
+        else if (spk_open) spk_input();
         else if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
         else if (upd_open) upd_input();
@@ -7498,6 +7632,7 @@ int main(int argc, char **argv) {
         if (upd_open) upd_draw();
         if (romcheck_open) romcheck_draw();
         if (rcq_open) rcq_draw();
+        if (spk_open) spk_draw();
         if (diag_open) diag_draw();
         if (reset_step) reset_draw();
         if (sc_state) sc_draw();

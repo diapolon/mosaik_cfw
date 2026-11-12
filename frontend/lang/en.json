@@ -437,7 +437,11 @@
     "failed": "The service does not respond.",
     "progress": "%d of %d games · %d images, %d not found",
     "stop": "Stop",
-    "no_wifi": "Connect to Wi-Fi to download images"
+    "no_wifi": "Connect to Wi-Fi to download images",
+    "pick_all": "All emulators",
+    "pick_go": "Download",
+    "pick_none": "Choose at least one emulator",
+    "pick_hint": "Images"
   },
   "filters": {
     "title": "Filters and sorting",

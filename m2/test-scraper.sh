@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
         snprintf(G[n].title, sizeof G[n].title, "%s", name);
         G[n].path = strdup(path);
     }
-    if (!scraper_start(argv[1], G, n)) return 2;
+    if (!scraper_start(argv[1], G, n, getenv("SOLO"))) return 2;
     const scrape_status_t *s = scraper_status();
     while (s->phase != SCRAPE_DONE && s->phase != SCRAPE_FAILED) SDL_Delay(20);
     printf("%s %d %d\n", s->phase == SCRAPE_DONE ? "DONE" : "FAILED", s->saved, s->missing);
@@ -141,6 +141,13 @@ cmp -s "$R/Dats/libretro/genre/Nintendo - Game Boy.dat" gb-genre.dat && ok "pagi
 grep -q "non è un file del database" $W/log1 && ok "… e il log lo dice" || ko "pagina d'errore non nel log"
 grep -q "^Tetris	Tetris (World)	" $R/Dats/gb.tsv && ok "… e i dati vengono dalla copia sulla scheda" || ko "Tetris: $(cat $R/Dats/gb.tsv 2>&1)"
 [ "${out%% *}" = DONE ] && ok "primo giro completato" || ko "primo giro: $out"
+
+echo "--- giro di un emulatore solo"
+printf 'solo md' > $W/sd/Roms/MD/Solo.md; printf 'solo gb' > $W/sd/Roms/GB/Solo.gb
+out=$(SOLO=gb ./t $R "md|Solo|$W/sd/Roms/MD/Solo.md" "gb|Solo|$W/sd/Roms/GB/Solo.gb" 2>$W/log-solo)
+[ "${out%% *}" = DONE ] && ok "un emulatore solo: giro completato" || ko "un emulatore solo: $out"
+grep -q "^box/gb/Solo$" $NF && ok "… il gioco dell'emulatore scelto si cerca" || ko "Solo (gb) non cercato: $(cat $NF)"
+grep -q "/md/Solo$" $NF && ko "… cercato anche il gioco di un altro emulatore" || ok "… quello degli altri emulatori no"
 
 echo "--- secondo giro: rete che non risponde"
 cp $NF nf-prima.txt

@@ -13,7 +13,8 @@ typedef struct {
     _Atomic bool cancel;
 } scrape_status_t;
 
-bool scraper_start(const char *root, const game_t *games, int n);
+/* only: gli emulatori da completare, id separati da spazi ("fbneo snes"); NULL o "" = tutti */
+bool scraper_start(const char *root, const game_t *games, int n, const char *only);
 void scraper_cancel(void);
 const scrape_status_t *scraper_status(void);
 /* attende la fine del thread (dopo DONE o FAILED) */

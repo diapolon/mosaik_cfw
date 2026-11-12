@@ -437,7 +437,11 @@
     "failed": "O serviço não responde.",
     "progress": "%d de %d jogos · %d imagens, %d não encontradas",
     "stop": "Parar",
-    "no_wifi": "Liga-te ao Wi-Fi para transferir as imagens"
+    "no_wifi": "Liga-te ao Wi-Fi para transferir as imagens",
+    "pick_all": "Todos os emuladores",
+    "pick_go": "Descarregar",
+    "pick_none": "Escolhe pelo menos um emulador",
+    "pick_hint": "Imagens"
   },
   "filters": {
     "title": "Filtros e ordenação",

@@ -437,7 +437,11 @@
     "failed": "Der Dienst antwortet nicht.",
     "progress": "%d von %d Spielen · %d Bilder, %d nicht gefunden",
     "stop": "Stoppen",
-    "no_wifi": "Verbinde dich mit dem WLAN, um Bilder zu laden"
+    "no_wifi": "Verbinde dich mit dem WLAN, um Bilder zu laden",
+    "pick_all": "Alle Emulatoren",
+    "pick_go": "Laden",
+    "pick_none": "Wähle mindestens einen Emulator",
+    "pick_hint": "Bilder"
   },
   "filters": {
     "title": "Filter und Sortierung",

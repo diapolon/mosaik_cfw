@@ -715,7 +715,15 @@ out:
     return 0;
 }
 
-bool scraper_start(const char *root, const game_t *games, int n) {
+/* id nell'elenco separato da spazi */
+static bool in_list(const char *list, const char *id) {
+    size_t l = strlen(id);
+    for (const char *p = list; (p = strstr(p, id)) != NULL; p += l)
+        if ((p == list || p[-1] == ' ') && (p[l] == 0 || p[l] == ' ')) return true;
+    return false;
+}
+
+bool scraper_start(const char *root, const game_t *games, int n, const char *only) {
     if (thread) return false;
     memset(&st, 0, sizeof st);
     snprintf(root_dir, sizeof root_dir, "%s", root);
@@ -725,6 +733,7 @@ bool scraper_start(const char *root, const game_t *games, int n) {
     nitems = 0;
     for (int i = 0; i < n; i++) {
         if (!strcmp(games[i].core, "linux") || games[i].missing) continue;
+        if (only && *only && !in_list(only, games[i].core)) continue;
         const emulator_t *ge = emulator_find(games[i].core);
         char key[ROM_NAME + 20];
         if (ge && ge->console) snprintf(key, sizeof key, "%s/%s", games[i].core, games[i].name);

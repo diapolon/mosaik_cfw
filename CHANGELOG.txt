@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.38
+it Scarica immagini: scegli gli emulatori, o X su una piattaforma
+en Download images: choose the emulators, or X on a platform
+
 0.9.37
 it Store: nuova cartella Cornici, con portatili, televisore e sala giochi
 en Store: new Bezels folder, with handhelds, television and arcade
