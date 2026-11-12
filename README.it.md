@@ -88,6 +88,14 @@
     <td align="center">Trasferisci file via Wi-Fi: inquadra il QR o apri mosaik.local</td>
     <td align="center">La pagina del trasferimento, in qualsiasi browser</td>
   </tr>
+  <tr>
+    <td><img src="docs/images/it/store.png" alt="Store"></td>
+    <td><img src="docs/images/it/store-delete.png" alt="Anteprima di Elimina nello Store"></td>
+  </tr>
+  <tr>
+    <td align="center">Lo Store: emulatori installati a colori, gli altri in grigio</td>
+    <td align="center">Prima di eliminare, cosa si toglie e cosa resta</td>
+  </tr>
 </table>
 
 <sub>I giochi e le copertine in queste immagini sono inventati, solo per mostrare l'interfaccia.</sub>

@@ -88,6 +88,14 @@
     <td align="center">Transfer files over Wi-Fi: scan the QR code or open mosaik.local</td>
     <td align="center">The transfer page, in any browser</td>
   </tr>
+  <tr>
+    <td><img src="docs/images/store.png" alt="Store"></td>
+    <td><img src="docs/images/store-delete.png" alt="Delete preview in the Store"></td>
+  </tr>
+  <tr>
+    <td align="center">The Store: installed emulators in colour, the others in grey</td>
+    <td align="center">Before deleting, what is removed and what is kept</td>
+  </tr>
 </table>
 
 <sub>The games and covers in these pictures are made up, just to show the interface.</sub>
