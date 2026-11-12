@@ -54,6 +54,9 @@ bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n) {
     if (fseek(f, (long)e->off, SEEK_SET) != 0 || fread(h, 1, 30, f) != 30 || get32(h) != 0x04034b50) return false;
     if (fseek(f, (long)(e->off + 30 + get16(h + 26) + get16(h + 28)), SEEK_SET) != 0) return false;
     if (e->method != 0 && e->method != 8) return false;
+    /* voce salvata: dentro e fuori hanno la stessa misura (audit BUG-001: con csize > usize la
+       copia andava oltre lo spazio) */
+    if (e->method == 0 && e->csize != e->usize) return false;
     if (mem && e->usize >= n) return false;
     /* buffer propri: trasferimento file e Store possono leggere zip insieme */
     unsigned char *in = malloc(65536), *outb = malloc(65536);
@@ -70,6 +73,7 @@ bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n) {
         if (got == 0) { ok = false; break; }
         left -= (uint32_t)got;
         if (e->method == 0) {
+            if (done + got > e->usize) { ok = false; break; }   /* mai oltre la misura dichiarata */
             crc = crc32(crc, in, (uInt)got);
             if (mem) memcpy(mem + done, in, got);
             else ok = fwrite(in, 1, got, to) == got;

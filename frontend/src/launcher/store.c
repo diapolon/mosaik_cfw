@@ -186,8 +186,14 @@ static char **str_list(jval *arr, int *n) {
     char **out = NULL;
     for (jval *v = arr && arr->t == J_ARR ? arr->child : NULL; v; v = v->next) {
         if (v->t != J_STR) continue;
-        if (*n == cap) out = realloc(out, sizeof(char *) * (size_t)(cap = cap ? cap * 2 : 8));
-        out[(*n)++] = strdup(v->s);
+        if (*n == cap) {
+            char **no = realloc(out, sizeof(char *) * (size_t)(cap ? cap * 2 : 8));
+            if (!no) break;   /* memoria esaurita: elenco più corto, il controllo dopo lo rifiuta */
+            out = no;
+            cap = cap ? cap * 2 : 8;
+        }
+        if (!(out[*n] = strdup(v->s))) break;
+        (*n)++;
     }
     return out;
 }
@@ -212,7 +218,12 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
     entry_t *e = NULL;
     bool ok = true;
     for (jval *v = arr && arr->t == J_ARR ? arr->child : NULL; v && ok; v = v->next) {
-        if (n == cap) e = realloc(e, sizeof(entry_t) * (size_t)(cap = cap ? cap * 2 : 16));
+        if (n == cap) {
+            entry_t *ne = realloc(e, sizeof(entry_t) * (size_t)(cap ? cap * 2 : 16));
+            if (!ne) { ok = false; break; }
+            e = ne;
+            cap = cap ? cap * 2 : 16;
+        }
         entry_t *x = &e[n];
         memset(x, 0, sizeof *x);
         snprintf(x->p.id, sizeof x->p.id, "%s", json_str(v, "id", ""));
@@ -461,8 +472,14 @@ static char **record_files(const char *id, int *n) {
     while (f && fgets(line, sizeof line, f)) {
         line[strcspn(line, "\r\n")] = 0;
         if (strncmp(line, "file ", 5) || !path_ok(line + 5)) continue;
-        if (*n == cap) out = realloc(out, sizeof(char *) * (size_t)(cap = cap ? cap * 2 : 16));
-        out[(*n)++] = strdup(line + 5);
+        if (*n == cap) {
+            char **no = realloc(out, sizeof(char *) * (size_t)(cap ? cap * 2 : 16));
+            if (!no) break;
+            out = no;
+            cap = cap ? cap * 2 : 16;
+        }
+        if (!(out[*n] = strdup(line + 5))) break;
+        (*n)++;
     }
     if (f) fclose(f);
     return out;
@@ -574,14 +591,22 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
         }
         unlink(rp);
     } else if (!err) {
-        size_t cap = 256 + (nf > 0 ? (size_t)nf : 0u) * 140, len = 0;
+        /* misura vera del registro: ogni percorso intero (audit BUG-002: 140 byte a riga non
+           bastavano e il conto andava oltre il buffer) */
+        size_t cap = strlen(version) + strlen(label) + 32, len = 0;
+        for (int k = 0; k < nf; k++) cap += strlen(files[k]) + 8;
         char *rec = malloc(cap);
-        len += (size_t)snprintf(rec + len, cap - len, "version %s\nlabel %s\n", version, label);
-        for (int k = 0; k < nf; k++) len += (size_t)snprintf(rec + len, cap - len, "file %s\n", files[k]);
+        if (!rec) err = SE_WRITE;
+        int w = rec ? snprintf(rec, cap, "version %s\nlabel %s\n", version, label) : -1;
+        if (w < 0 || (size_t)w >= cap) err = SE_WRITE; else len = (size_t)w;
+        for (int k = 0; !err && k < nf; k++) {
+            w = snprintf(rec + len, cap - len, "file %s\n", files[k]);
+            if (w < 0 || (size_t)w >= cap - len) err = SE_WRITE; else len += (size_t)w;
+        }
         char dir[1200];
         snprintf(dir, sizeof dir, "%s/System/pacchetti", root_dir);
         mkdir(dir, 0755);
-        if (!write_durable(rp, rec, len)) err = SE_WRITE;
+        if (!err && !write_durable(rp, rec, len)) err = SE_WRITE;
         free(rec);
         ui_log("store: installato %s %s (%s, %d file)", id, label, version, nf);
     }

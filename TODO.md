@@ -24,6 +24,9 @@
 - [x] Replace `volatile` status fields with atomics or a mutex in the worker threads
 - [x] Do not grow the card or mount it for writing after a failed disk check, and recover the partition table from its backup copy (new images since 0.9.15)
 
+- [x] Audit 12 Nov (Codex, local report): BUG-001 ZIP reader wrote past the buffer on STORED entries with mismatched sizes (fixed, `m2/test-zipread.sh` with a guard page: the old reader crashes); BUG-002 Store record sized at 140 bytes per path (fixed, long paths in `test-store.sh`); BUG-005 journal removed even when a file could not be put back (kept now, retried at the next boot, `test-journal.sh`); BUG-010 VERSION/UPDATE_URL are Makefile prerequisites; BUG-008 unchecked realloc in the library and Store
+- [ ] Audit 12 Nov, still open: BUG-003 same-name ROMs can share saves (needs a migration plan); BUG-004 Store install not transactional (journal like system updates); BUG-006 runner keeps writing after the SD fails at wake; BUG-007 backup restore not checked as a whole before writing; BUG-009 quadratic duplicate check; BUG-011 CPU frequency not verified; BUG-012 crash handler not signal-safe; offline `store-*.zip` not in the signed catalogue installed unverified (decide: refuse or warn); romzip.c with a NUL file name to check
+
 ## Hardware
 
 - [ ] RAM use, for the whole system and above all the base system (measured by `m2/consumi` into `Logs/consumi.tsv` with the Performance diagnostic log, analysed by `toolchain/consumi.py`; `m2/test-consumi.sh`): after boot at the home screen (kernel, `system-init` and its services: `trimui_inputd`, `udevd`, `wpa_supplicant`, the launcher with its themes, images and music), then in each kind of game (runner with every core, Linux games, Deadcast) and back in the menu after many game starts, to find leaks in the launcher and runner over a long session; both models, with the numbers in `Logs` so each version can be compared

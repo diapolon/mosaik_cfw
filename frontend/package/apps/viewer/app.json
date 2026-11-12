@@ -2,7 +2,7 @@
  "title": "Images and comics",
  "description": "View images, .cbz comics and game manuals, with zoom and page turning.",
  "author": "Mosaik",
- "version": "1.0",
+ "version": "1.1",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

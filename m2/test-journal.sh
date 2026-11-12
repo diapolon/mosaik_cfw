@@ -47,6 +47,23 @@ restored && grep -q rollback /tmp/j/log && ok "sistema nuovo già al suo posto: 
 card applico "1.0 B"; mv $SYSF $SYSF.prec; run "1.0 A"
 [ -f $SYSF ] && [ ! -e $SYSF.prec ] && restored && ok "sistema principale mancante: rimesso dal precedente" || ko "sistema non rimesso"
 
+echo "--- un file non si riesce a rimettere (scheda in errore): giornale tenuto, si riprova"
+card applico "1.0 B"
+(
+    RUNVER="1.0 A"; LOG=/tmp/j/log
+    step() { echo "$*" >> $LOG; }
+    rollback() { echo rollback >> $LOG; }
+    sync() { :; }
+    mv() { case "$*" in *a.so.annulla*) return 1 ;; *) command mv "$@" ;; esac; }
+    . /tmp/giornale.sh
+    journal_check
+)
+[ -f $J ] && [ -f $ROOT/Cores/a.so.annulla ] && ok "giornale e copia tenuti dopo l'errore" || ko "giornale dimenticato nonostante l'errore"
+grep -q "non rimesso Cores/a.so" /tmp/j/log && grep -q "si riprova" /tmp/j/log && ok "errore scritto nei passi" || ko "errore non registrato: $(cat /tmp/j/log)"
+[ "$(cat $ROOT/Lang/y.json)" = vecchio ] && [ ! -e $ROOT/Lang/x.json ] && ok "gli altri file rimessi comunque" || ko "altri file non ripristinati"
+run "1.0 A"
+restored && ok "all'avvio dopo il ripristino si completa" || ko "secondo tentativo non riuscito: $(ls -R $ROOT)"
+
 echo "--- tornati al sistema precedente dopo tre prove (versione in uso diversa)"
 card installato "1.0 B"; run "1.0 A"
 restored && ok "file della versione precedente rimessi" || ko "ritorno indietro senza file di prima"

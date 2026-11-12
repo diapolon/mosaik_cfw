@@ -436,19 +436,26 @@ journal_paths() {   # "file|nuovo PERCORSO" del giornale, senza percorsi fuori d
 journal_restore() {
     [ -f "$JOURNAL" ] || return 0
     step "aggiornamento: rimetto i file della versione precedente"
+    jfail=0
     while IFS= read -r l; do
         kind=${l%% *}; rel=${l#* }
         case "$kind" in file|nuovo) ;; *) continue ;; esac
         case "$rel" in ""|/*|*..*) continue ;; esac
         p="$ROOT/$rel"
         if [ "$kind" = file ]; then
-            [ -f "$p.annulla" ] && mv -f "$p.annulla" "$p"
-        else
-            rm -f "$p"
+            if [ -f "$p.annulla" ] && ! mv -f "$p.annulla" "$p"; then jfail=$((jfail + 1)); step "aggiornamento: non rimesso $rel"; fi
+        elif ! rm -f "$p"; then
+            jfail=$((jfail + 1)); step "aggiornamento: non tolto $rel"
         fi
         rm -f "$p.nuovo"
     done < "$JOURNAL"
-    rm -f "$JOURNAL" "$SYSF.nuovo"   # anche il sistema scaricato e mai messo al suo posto
+    # un file non rimesso (scheda in errore): il giornale e le copie restano, al prossimo avvio si
+    # riprova (ogni passo si può ripetere); dimenticarlo lascerebbe file di due versioni (audit BUG-005)
+    if [ "$jfail" -eq 0 ]; then
+        rm -f "$JOURNAL" "$SYSF.nuovo"   # anche il sistema scaricato e mai messo al suo posto
+    else
+        step "aggiornamento: $jfail file non rimessi, si riprova al prossimo avvio"
+    fi
     sync
 }
 journal_finish() {   # sistema nuovo confermato, corrente saltata prima di togliere le copie

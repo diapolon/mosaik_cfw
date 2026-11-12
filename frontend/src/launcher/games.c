@@ -157,10 +157,14 @@ static entry_t *index_find(index_t *ix, const char *name) {
 
 typedef struct { game_t *g; int n, cap; } list_t;
 
+/* NULL se la memoria non basta: chi chiama smette di aggiungere (audit BUG-008) */
 static game_t *push(list_t *l) {
     if (l->n == l->cap) {
-        l->cap = l->cap ? l->cap * 2 : 256;
-        l->g = realloc(l->g, sizeof(game_t) * (size_t)l->cap);
+        int nc = l->cap ? l->cap * 2 : 256;
+        game_t *ng = realloc(l->g, sizeof(game_t) * (size_t)nc);
+        if (!ng) { ui_log("libreria: memoria esaurita a %d giochi", l->n); return NULL; }
+        l->g = ng;
+        l->cap = nc;
     }
     game_t *g = &l->g[l->n++];
     memset(g, 0, sizeof *g);
@@ -278,9 +282,11 @@ static void scan_dir(list_t *l, index_t *ix, const emulator_t *emu, const char *
         if (en && en->bios) continue;   /* i BIOS servono ai giochi, non si avviano */
         if (en) en->present = true;
         game_t *g = push(l);
+        if (!g) break;
         snprintf(g->name, sizeof g->name, "%s", name);
         snprintf(g->core, sizeof g->core, "%s", emu->id);
         g->path = strdup(p);
+        if (!g->path) { l->n--; break; }
         if (en) fill_from_entry(g, en);
         else {
             snprintf(g->title, sizeof g->title, "%s", name);
@@ -318,9 +324,11 @@ static void scan_linux(list_t *l, const char *root) {
         struct stat st;
         if (stat(sh, &st) != 0) continue;
         game_t *g = push(l);
+        if (!g) break;
         snprintf(g->name, sizeof g->name, "%s", e->d_name);
         snprintf(g->core, sizeof g->core, "linux");
         g->path = strdup(sh);
+        if (!g->path) { l->n--; break; }
         snprintf(g->system, sizeof g->system, "Linux");
         snprintf(meta, sizeof meta, "%s/%s/game.json", dir, e->d_name);
         jval *j = json_load(meta);
@@ -353,7 +361,12 @@ static void load_genres(const char *root, game_t *g, int n) {
         *g1++ = 0;
         char *g2 = strchr(g1, '\t');
         if (g2) *g2++ = 0;
-        if (m == cap) meta = realloc(meta, sizeof(meta_t) * (size_t)(cap *= 2));
+        if (m == cap) {
+            meta_t *nm = realloc(meta, sizeof(meta_t) * (size_t)(cap * 2));
+            if (!nm) break;
+            meta = nm;
+            cap *= 2;
+        }
         snprintf(meta[m].name, sizeof meta[m].name, "%s", line);
         snprintf(meta[m].genre, sizeof meta[m].genre, "%s", g1);
         meta[m].players = g2 ? atoi(g2) : 0;
@@ -391,7 +404,12 @@ static int kv_load(const char *path, kv_t **out) {
         char *v = strchr(line, '\t');
         if (!v || !line[0] || !v[1]) continue;
         *v++ = 0;
-        if (n == cap) a = realloc(a, sizeof(kv_t) * (size_t)(cap *= 2));
+        if (n == cap) {
+            kv_t *na = realloc(a, sizeof(kv_t) * (size_t)(cap * 2));
+            if (!na) break;
+            a = na;
+            cap *= 2;
+        }
         snprintf(a[n].key, sizeof a[n].key, "%s", line);
         snprintf(a[n].val, sizeof a[n].val, "%s", v);
         n++;
@@ -428,7 +446,13 @@ void games_set_genre(const char *root, const char *rom, const char *genre) {
     kv_t *a;
     int n = kv_load(p, &a), i;
     for (i = 0; i < n; i++) if (!strcmp(a[i].key, rom)) break;
-    if (i == n && genre) { a = realloc(a, sizeof(kv_t) * (size_t)(n + 1)); snprintf(a[n].key, sizeof a[n].key, "%s", rom); n++; }
+    if (i == n && genre) {
+        kv_t *na = realloc(a, sizeof(kv_t) * (size_t)(n + 1));
+        if (!na) { free(a); return; }
+        a = na;
+        snprintf(a[n].key, sizeof a[n].key, "%s", rom);
+        n++;
+    }
     if (i < n) {
         if (genre) snprintf(a[i].val, sizeof a[i].val, "%s", genre);
         else a[i].key[0] = 0;
@@ -450,7 +474,9 @@ void games_group_genre(const char *root, const char *from, const char *to) {
         if (!strcmp(a[i].key, a[i].val)) a[i].key[0] = 0;
     }
     if (!found) {
-        a = realloc(a, sizeof(kv_t) * (size_t)(n + 1));
+        kv_t *na = realloc(a, sizeof(kv_t) * (size_t)(n + 1));
+        if (!na) { free(a); return; }
+        a = na;
         snprintf(a[n].key, sizeof a[n].key, "%s", from);
         snprintf(a[n].val, sizeof a[n].val, "%s", to);
         n++;
@@ -514,9 +540,11 @@ int games_scan(const char *root, game_t **out, bool include_missing) {
             entry_t *en = &ix.e[k];
             if (en->present || en->bios || en->parent[0]) continue;
             game_t *g = push(&l);
+            if (!g) break;
             snprintf(g->name, sizeof g->name, "%s", en->name);
             snprintf(g->core, sizeof g->core, "%s", EMUS[i].id);
             g->path = strdup("");
+            if (!g->path) { l.n--; break; }
             g->missing = true;
             fill_from_entry(g, en);
         }

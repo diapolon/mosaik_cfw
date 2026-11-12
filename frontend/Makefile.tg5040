@@ -26,7 +26,8 @@ RUNNER   := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
 all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu $(OUT)/apps/files $(OUT)/apps/viewer $(OUT)/apps/music $(OUT)/apps/sdtest
 
-$(OUT)/bin/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h | $(OUT)/bin
+# VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010)
+$(OUT)/bin/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h ../VERSION $(wildcard ../UPDATE_URL) | $(OUT)/bin
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
 
 $(OUT)/bin/runner: $(COMMON) $(RUNNER) src/common/*.h src/runner/*.h | $(OUT)/bin

@@ -78,6 +78,10 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     cp good_libretro.so pkgsrc/files/Apps/files/files
     printf '#!/bin/sh\nexec ./files\n' > pkgsrc/files/Apps/files/launch.sh
     echo '{"title":"Files","version":"1.0","texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
+    # percorsi lunghi (audit BUG-002): il registro deve elencarli interi
+    L1=Apps/files/$(printf 'cartella-con-un-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18)a.bin
+    L2=Apps/files/$(printf 'altra-cartella-dal-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)b.bin
+    mkdir -p "pkgsrc/files/$(dirname $L1)" "pkgsrc/files/$(dirname $L2)"; echo uno > "pkgsrc/files/$L1"; echo due > "pkgsrc/files/$L2"
     printf 'fbneo d15071a\nmgba 7a12d6d\n' > labels.txt
     rm -rf www; python3 /trimui/toolchain/make-store.py --src pkgsrc --out www --key ${2:-key.pem} --labels labels.txt > /dev/null
 }
@@ -91,6 +95,8 @@ check "app: nome e descrizione nella lingua" "Esplora file|Sfoglia la scheda|app
 check "app: lingua mancante, inglese" "Files|Browse the card|apps" "$(LINGUA=de ./t $R title files 2>/dev/null)"
 check "app installata" "4 0 1" "$(./t $R install files 2>/dev/null)"
 check "programma dell'app eseguibile" "si" "$([ -x sd/Apps/files/files ] && echo si || echo no)"
+check "registro con i percorsi lunghi interi" "2" "$(grep -c -e "^file $L1\$" -e "^file $L2\$" sd/System/pacchetti/files.txt)"
+check "registro: una riga per file" "$(find pkgsrc/files -type f | wc -l | tr -d ' ')" "$(grep -c '^file ' sd/System/pacchetti/files.txt)"
 check "app eliminata" "4 0 0" "$(./t $R delete files 2>/dev/null)"
 check "cartella dell'app tolta" "no" "$([ -d sd/Apps/files ] && echo si || echo no)"
 check "installazione" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
