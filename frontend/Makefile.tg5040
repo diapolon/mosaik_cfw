@@ -24,7 +24,7 @@ COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/l
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 RUNNER   := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
-all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu
+all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu $(OUT)/apps/files
 
 $(OUT)/bin/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h | $(OUT)/bin
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
@@ -34,6 +34,13 @@ $(OUT)/bin/runner: $(COMMON) $(RUNNER) src/common/*.h src/runner/*.h | $(OUT)/bi
 
 $(OUT)/bin/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(OUT)/bin
 	$(CC) $(CFLAGS) -o $@ $(COMMON) src/tools/gamemenu.c $(LDFLAGS) $(SDLLIBS)
+
+# app dello Store: fuori da bin (non vanno nel sistema), le impacchetta toolchain/package.sh
+$(OUT)/apps/files: $(COMMON) src/apps/files.c src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(COMMON) src/apps/files.c $(LDFLAGS) $(SDLLIBS)
+
+$(OUT)/apps:
+	mkdir -p $@
 
 $(OUT)/bin/gamewatch: src/tools/gamewatch.c | $(OUT)/bin
 	$(CC) -std=c11 -O2 -Wall -Wextra -D_DEFAULT_SOURCE -o $@ $< -Wl,-rpath-link,$(TCLIBC)/lib

@@ -934,7 +934,12 @@
     "pv_bios": "BIOS",
     "archive_note": "Jederzeit im Store wieder herunterladen.",
     "delete_note": "Kann nicht rückgängig gemacht werden.",
-    "delete2_title": "Letzte Bestätigung"
+    "delete2_title": "Letzte Bestätigung",
+    "pv_app": "App",
+    "pv_yourfiles": "Deine Dateien",
+    "app_note": "Jederzeit im Store wieder herunterladen.",
+    "count_apps": "%d Apps",
+    "count1_apps": "1 App"
   },
   "support": {
     "title": "Mosaik unterstützen",

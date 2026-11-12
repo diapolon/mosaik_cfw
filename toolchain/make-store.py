@@ -44,6 +44,7 @@ PACKAGES = {
     "ngp": ("Beetle NeoPop", "ngp", "console"),
     "pcsx": ("PCSX ReARMed", "pcsx", "console"),
     "deadcast": ("Deadcast", None, "console"),
+    "files": ("Files", None, "apps"),   # app: nome, versione e traduzioni da Apps/<id>/app.json
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")
@@ -110,7 +111,15 @@ for pid in sorted(os.listdir(args.src)):
     first = order_ix[0] if ems else None
     art = {"emu": emulators[first], "art": ems[first].get("art", ""), "short": ems[first].get("short", ""),
            "console": ems[first].get("kind") == "console"} if first is not None else {}
-    if pid == "deadcast":
+    texts = None
+    appj = os.path.join(root, "Apps", pid, "app.json")
+    if category == "apps" and os.path.exists(appj):
+        aj = json.load(open(appj))
+        name = aj.get("title", name)
+        texts = aj.get("texts")
+    if category == "apps":
+        label = json.load(open(appj)).get("version", "?") if os.path.exists(appj) else "?"
+    elif pid == "deadcast":
         dz = sorted(n for n in os.listdir(os.path.join(top, "deps", "deadcast")) if n.endswith(".pak.zip"))
         label = dz[-1][12:-8] if dz else "?"
     else:
@@ -129,11 +138,14 @@ for pid in sorted(os.listdir(args.src)):
             info.compress_type = zipfile.ZIP_DEFLATED
             with open(os.path.join(root, rel), "rb") as f:
                 z.writestr(info, f.read(), compresslevel=9)
-    catalog["packages"].append({
+    entry = {
         "id": pid, "name": name, "label": label, "version": version, "category": category, "title": title if ems else name, "systems": systems, "emulators": emulators, **art,
         "file": os.path.basename(zpath), "size": os.path.getsize(zpath), "installed": installed,
         "sha256": sha256(zpath), "files": files,
-    })
+    }
+    if texts:   # nomi e descrizioni delle app nelle lingue della console
+        entry["texts"] = texts
+    catalog["packages"].append(entry)
     print(f"  {pid:16} {label:10} {os.path.getsize(zpath) / 1e6:6.1f} MB  {', '.join(systems)}")
 
 # ordine delle piattaforme (campo "order" degli emulatori): prima gli arcade, poi le console

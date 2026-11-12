@@ -934,7 +934,12 @@
     "pv_bios": "BIOS",
     "archive_note": "Volte a transferi-lo da Store quando quiser.",
     "delete_note": "Não poderá ser recuperado.",
-    "delete2_title": "Última confirmação"
+    "delete2_title": "Última confirmação",
+    "pv_app": "App",
+    "pv_yourfiles": "Os seus ficheiros",
+    "app_note": "Volte a transferi-la da Store quando quiser.",
+    "count_apps": "%d apps",
+    "count1_apps": "1 app"
   },
   "support": {
     "title": "Apoiar o Mosaik",

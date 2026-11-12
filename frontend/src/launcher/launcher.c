@@ -429,8 +429,12 @@ static void apps_scan(void) {
         snprintf(a->path, sizeof a->path, "%s", sh);
         snprintf(meta, sizeof meta, "%s/%s/app.json", dir, e->d_name);
         jval *j = json_load(meta);
-        snprintf(a->title, sizeof a->title, "%s", json_str(j, "title", e->d_name));
-        snprintf(a->desc, sizeof a->desc, "%s", json_str(j, "description", ""));
+        /* nome e descrizione nella lingua della console, se l'app li ha ("texts": {"it": {...}}) */
+        char k[64];
+        snprintf(k, sizeof k, "texts.%s.title", UI.set.lang);
+        snprintf(a->title, sizeof a->title, "%s", json_str(j, k, json_str(j, "texts.en.title", json_str(j, "title", e->d_name))));
+        snprintf(k, sizeof k, "texts.%s.description", UI.set.lang);
+        snprintf(a->desc, sizeof a->desc, "%s", json_str(j, k, json_str(j, "texts.en.description", json_str(j, "description", ""))));
         snprintf(a->author, sizeof a->author, "%s", json_str(j, "author", ""));
         json_free(j);
         snprintf(a->icon, sizeof a->icon, "%s/%s/icon.png", dir, e->d_name);
@@ -2762,6 +2766,7 @@ static void sto_build(void) {
 
 static void sto_start(void) {
     sto_was_offline = !sto_online();
+    store_lang(UI.set.lang);
     store_open(UI.root, UI.set.update_channel, !sto_was_offline);
     sto_level = SL_CATS;
     sto_cat = sto_sel = 0;
@@ -2777,10 +2782,17 @@ static void sto_leave(void) {
     go(back_screen == SCR_STORE ? SCR_HOME : back_screen);
 }
 
+static bool sto_is_app(const store_pkg_t *p) { return !strcmp(p->category, "apps"); }
+
 /* pulsanti della scheda secondo lo stato del pacchetto */
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_ARCHIVE, SB_DELETE };
 static int sto_buttons(const store_pkg_t *p, int *b) {
     int n = 0;
+    if (sto_is_app(p)) {   /* niente da archiviare: un'app non ha giochi né salvataggi */
+        if (p->state == PKG_ABSENT || p->state == PKG_ARCHIVED) b[n++] = SB_INSTALL;
+        else { if (p->state == PKG_UPDATE || p->state == PKG_OLD) b[n++] = SB_UPDATE; b[n++] = SB_DELETE; }
+        return n;
+    }
     if (p->state == PKG_ABSENT) b[n++] = SB_INSTALL;
     else if (p->state == PKG_ARCHIVED) { b[n++] = SB_REDOWNLOAD; b[n++] = SB_DELETE; }
     else {
@@ -2832,7 +2844,8 @@ static void sto_input(void) {
             int r = ui_confirm_input(&sto_ask_sel);
             if (r < 0) return;
             if (r != 1 || idx < 0) { sto_ask = SA_NONE; return; }
-            if (a == SA_DELETE) { sto_ask = SA_DELETE2; sto_ask_sel = 0; sto_hold = 0; return; }
+            if (a == SA_DELETE && !sto_is_app(store_pkg(idx))) { sto_ask = SA_DELETE2; sto_ask_sel = 0; sto_hold = 0; return; }
+            if (a == SA_DELETE) a = SA_DELETE2;   /* app: si toglie subito, si può riscaricare */
         }
         sto_ask = SA_NONE;
         if (idx < 0) return;
@@ -2900,11 +2913,36 @@ static void sto_cat_art(int c, color_t *col, emulator_t *em) {
 
 static void sto_pkg_art(const store_pkg_t *p, color_t *col, emulator_t *em) {
     memset(em, 0, sizeof *em);
+    if (sto_is_app(p)) {   /* app: il suo simbolo, disegnato qui (l'icona arriva solo installandola) */
+        snprintf(em->art, sizeof em->art, "@app:%s", p->id);
+        *col = !strcmp(p->id, "files") ? hexc(0x1F6E8C) : hexc(0x4B3C86);
+        return;
+    }
     snprintf(em->id, sizeof em->id, "%s", p->emu);
     snprintf(em->art, sizeof em->art, "%s", p->art);
     snprintf(em->shortname, sizeof em->shortname, "%s", p->shortname);
     em->console = p->console;
     *col = emu_color(p->emu);
+}
+
+/* immagine di un riquadro dello Store: cartelle (@apps, @linux), app (@app:<id>) o console */
+static void sto_art(const emulator_t *em, color_t c, const char *label, int ax, int ay, int aw, int ah) {
+    int s = aw < ah ? aw : ah;
+    color_t white = rgba(0xF2, 0xF2, 0xF2, 255);
+    if (!strcmp(em->art, "@apps")) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, s * 2 / 3, white, c);
+    else if (!strcmp(em->art, "@linux")) {
+        int lw = aw, lh = aw * 80 / 100;
+        if (lh > ah * 80 / 100) { lh = ah * 80 / 100; lw = lh * 100 / 80; }
+        draw_laptop(ax + (aw - lw) / 2, ay + (ah - lh) / 2, lw, lh);
+    } else if (!strcmp(em->art, "@app:files")) {   /* cartella con i fogli, come l'icona dell'app */
+        int fw = s * 80 / 100, fh = fw * 70 / 100, fx = ax + (aw - fw) / 2, fy = ay + (ah - fh) / 2, r = fw / 14;
+        color_t light = mix(c, white, 0.55f);
+        ui_rrect(fx, fy, fw * 45 / 100, fh / 4, r, light);
+        ui_rrect(fx, fy + fh / 8, fw, fh * 7 / 8, r, light);
+        ui_rrect(fx + fw / 16, fy + fh / 16, fw * 7 / 8, fh / 2, r / 2, white);
+        ui_rrect(fx, fy + fh * 3 / 8, fw, fh * 5 / 8, r, mix(c, white, 0.2f));
+    } else if (!strncmp(em->art, "@app:", 5)) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, s * 2 / 3, white, c);
+    else draw_emu_art(em, c, label, ax, ay, aw, ah);
 }
 
 /* riquadro a righe come quelli delle Piattaforme, con l'immagine e il nome sotto */
@@ -2921,12 +2959,7 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
     TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
     int fh = TTF_FontHeight(fn) + TTF_FontHeight(fs) + M(0.02f), pad = w * 9 / 100;
     int ax = x + pad, ay = y + pad, aw = w - 2 * pad, ah = h - fh - pad - pad / 2;
-    if (!strcmp(em->art, "@apps")) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, (aw < ah ? aw : ah) * 2 / 3, rgba(0xF2, 0xF2, 0xF2, 255), c);
-    else if (!strcmp(em->art, "@linux")) {
-        int lw = aw, lh = aw * 80 / 100;
-        if (lh > ah * 80 / 100) { lh = ah * 80 / 100; lw = lh * 100 / 80; }
-        draw_laptop(ax + (aw - lw) / 2, ay + (ah - lh) / 2, lw, lh);
-    } else draw_emu_art(em, c, label, ax, ay, aw, ah);
+    sto_art(em, c, label, ax, ay, aw, ah);
     ui_rect(x, y + h - fh, w, fh, hexc(0x151822));
     char fit[120];
     TTF_Font *fname = ui_text_w(fn, name) > w - M(0.02f) ? fs : fn;   /* un nome lungo col carattere piccolo */
@@ -2965,11 +2998,20 @@ static void sto_preview_draw(const store_pkg_t *pp, bool del) {
     struct { const char *k; char v[48]; bool gone; } row[5];
     int nr = 0;
     char a[32];
-    if (p.state != PKG_ARCHIVED) {
+    bool app = sto_is_app(&p);
+    if (app) {   /* un'app: si toglie solo lei, i file della scheda restano */
+        row[nr].k = T("store.pv_app");
+        sto_size(p.installed, row[nr].v, sizeof row[nr].v);
+        row[nr++].gone = true;
+        row[nr].k = T("store.pv_yourfiles");
+        row[nr].v[0] = 0;
+        row[nr++].gone = false;
+    } else if (p.state != PKG_ARCHIVED) {
         row[nr].k = T("store.pv_emu");
         sto_size(p.installed, row[nr].v, sizeof row[nr].v);
         row[nr++].gone = true;
     }
+    if (!app) {
     row[nr].k = T("store.pv_games");
     sto_size(sto_use.games_bytes, a, sizeof a);
     if (sto_use.games) snprintf(row[nr].v, sizeof row[nr].v, "%d · %s", sto_use.games, a);
@@ -2978,14 +3020,17 @@ static void sto_preview_draw(const store_pkg_t *pp, bool del) {
     row[nr].k = T("store.pv_saves");
     snprintf(row[nr].v, sizeof row[nr].v, "%d", sto_use.saves);
     row[nr++].gone = del;
-    if (p.console) {   /* le immagini degli arcade sono per nome del gioco, comuni agli altri emulatori: restano */
+    }
+    if (!app && p.console) {   /* le immagini degli arcade sono per nome del gioco, comuni agli altri emulatori: restano */
         row[nr].k = T("store.pv_media");
         snprintf(row[nr].v, sizeof row[nr].v, "%d", sto_use.media);
         row[nr++].gone = del;
     }
-    row[nr].k = T("store.pv_bios");
-    row[nr].v[0] = 0;
-    row[nr++].gone = false;
+    if (!app) {
+        row[nr].k = T("store.pv_bios");
+        row[nr].v[0] = 0;
+        row[nr++].gone = false;
+    }
     int ngone = 0;
     for (int k = 0; k < nr; k++) ngone += row[k].gone;
     int most = ngone > nr - ngone ? ngone : nr - ngone, step = fnh + M(0.008f);
@@ -3023,8 +3068,8 @@ static void sto_preview_draw(const store_pkg_t *pp, bool del) {
         }
     }
     int ny = y + cols_h + M(0.012f);
-    ui_text_fit(fs, T(del ? "store.delete_note" : "store.archive_note"), pw - M(0.08f), fit, sizeof fit);
-    ui_text(fs, fit, px + pw / 2, ny, del ? red : t->text_dim, ALIGN_CENTER);
+    ui_text_fit(fs, T(app ? "store.app_note" : del ? "store.delete_note" : "store.archive_note"), pw - M(0.08f), fit, sizeof fit);
+    ui_text(fs, fit, px + pw / 2, ny, del && !app ? red : t->text_dim, ALIGN_CENTER);
     const char *labels[2] = { T("common.cancel"), T(del ? "store.delete" : "store.archive") };
     ui_popup_buttons(px, py, pw, ph, labels, 2, sto_ask_sel, del ? 1 : -1);
 }
@@ -3070,7 +3115,8 @@ static void sto_draw(void) {
                 }
                 sto_cat_art(ci, &c, &em);
                 snprintf(title, sizeof title, "store.cat_%s", STO_CATS[ci]);
-                if (cnt) snprintf(sub, sizeof sub, T(cnt == 1 ? "store.count1" : "store.count"), cnt);
+                bool apps_cat = !strcmp(STO_CATS[ci], "apps") || !strcmp(STO_CATS[ci], "linux");
+                if (cnt) snprintf(sub, sizeof sub, T(cnt == 1 ? (apps_cat ? "store.count1_apps" : "store.count1") : (apps_cat ? "store.count_apps" : "store.count")), cnt);
                 else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
                 char badge[48] = "";
                 if (upd) snprintf(badge, sizeof badge, "%d", upd);
@@ -3081,7 +3127,8 @@ static void sto_draw(void) {
                 /* in grande la console (dice di più a chi gioca), sotto l'emulatore e la misura */
                 char size[32];
                 sto_size(p.size, size, sizeof size);
-                snprintf(sub, sizeof sub, "%s · %s", p.name, size);
+                if (sto_is_app(&p)) snprintf(sub, sizeof sub, "%s", size);
+                else snprintf(sub, sizeof sub, "%s · %s", p.name, size);
                 sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_badge(&p), i == sto_sel, sto_gray(&p));
             }
         }
@@ -3105,7 +3152,7 @@ static void sto_draw(void) {
         sto_pkg_art(&p, &c, &em);
         UI.gray = sto_gray(&p);
         ui_rrect(px + pad, py + pad, aw, ah - pad, r, c);
-        draw_emu_art(&em, c, p.name, px + pad + aw / 10, py + pad + aw / 10, aw - aw / 5, ah - pad - aw / 5);
+        sto_art(&em, c, p.name, px + pad + aw / 10, py + pad + aw / 10, aw - aw / 5, ah - pad - aw / 5);
         UI.gray = false;
         int tx = px + pad + aw + M(0.03f), tw = px + pw - pad - tx, ty = py + pad;
         char fit[200], line[240], a[32], b2[32];
@@ -5489,7 +5536,26 @@ static void *rst_thread(void *arg) {
     ok = rst_tree(p, true) && ok;
     if (rst_all) {
         for (int i = 0; RST_SYSTEM_ALL[i]; i++) { snprintf(p, sizeof p, "System/%s", RST_SYSTEM_ALL[i]); ok = rst_file(p) && ok; }
-        for (int i = 0; RST_DIRS[i]; i++) { snprintf(p, sizeof p, "%s/%s", UI.root, RST_DIRS[i]); ok = rst_tree(p, false) && ok; }
+        for (int i = 0; RST_DIRS[i]; i++) {
+            snprintf(p, sizeof p, "%s/%s", UI.root, RST_DIRS[i]);
+            if (strcmp(RST_DIRS[i], "Apps")) { ok = rst_tree(p, false) && ok; continue; }
+            /* Apps: restano le app installate dallo Store (System/pacchetti/<nome>.txt), come gli emulatori */
+            DIR *ad = opendir(p);
+            struct dirent *ae;
+            while (ad && (ae = readdir(ad))) {
+                if (!strcmp(ae->d_name, ".") || !strcmp(ae->d_name, "..")) continue;
+                char q[1600], rec[1600];
+                snprintf(q, sizeof q, "%s/%s", p, ae->d_name);
+                snprintf(rec, sizeof rec, "%s/System/pacchetti/%s.txt", UI.root, ae->d_name);
+                if (access(rec, F_OK) == 0) continue;
+                struct stat sb;
+                if (lstat(q, &sb) != 0) continue;
+                if (S_ISDIR(sb.st_mode)) ok = rst_tree(q, true) && ok;
+                else if (unlink(q) == 0) atomic_fetch_add(&rst_count, 1);
+                else ok = false;
+            }
+            if (ad) closedir(ad);
+        }
         /* Roms: il contenuto delle cartelle, non le cartelle né LEGGIMI.txt */
         snprintf(p, sizeof p, "%s/Roms", UI.root);
         DIR *d = opendir(p);

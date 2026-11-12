@@ -192,6 +192,18 @@ static char **str_list(jval *arr, int *n) {
     return out;
 }
 
+static char lang_code[16] = "en";
+void store_lang(const char *lang) { snprintf(lang_code, sizeof lang_code, "%s", lang && lang[0] ? lang : "en"); }
+
+/* testo di un pacchetto nella lingua della console ("texts": {"it": {"title": ...}}), altrimenti inglese */
+static const char *pkg_text(jval *v, const char *field) {
+    char k[64];
+    snprintf(k, sizeof k, "texts.%s.%s", lang_code, field);
+    const char *s = json_str(v, k, NULL);
+    if (!s) { snprintf(k, sizeof k, "texts.en.%s", field); s = json_str(v, k, NULL); }
+    return s;
+}
+
 static bool parse_catalog(const char *text, entry_t **out, int *nout) {
     jval *j = json_parse(text);
     if (!j || json_int(j, "format", 0) != 1) { json_free(j); return false; }
@@ -228,6 +240,10 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
             free(sys[k]);
         }
         free(sys);
+        /* app: nome e descrizione tradotti (la descrizione prende il posto delle console) */
+        const char *lt = pkg_text(v, "title"), *ld = pkg_text(v, "description");
+        if (lt) { snprintf(x->p.title, sizeof x->p.title, "%s", lt); snprintf(x->p.name, sizeof x->p.name, "%s", lt); }
+        if (ld) snprintf(x->p.systems, sizeof x->p.systems, "%s", ld);
         x->files = str_list(json_get(v, "files"), &x->nfiles);
         x->emus = str_list(json_get(v, "emulators"), &x->nemus);
         /* un nome di file o un percorso strani rendono falso tutto il catalogo */

@@ -24,7 +24,7 @@ enum { PKG_ABSENT, PKG_INSTALLED, PKG_UPDATE, PKG_OLD, PKG_ARCHIVED };
 
 typedef struct {
     char id[32], name[64], label[32], version[24], file[128], sha[65];
-    char systems[200];           /* "Sega Mega Drive, Master System, Game Gear" */
+    char systems[200];           /* "Sega Mega Drive, Master System, Game Gear"; per le app la descrizione */
     char title[64];              /* breve, per il riquadro: "Super Nintendo", "Sega MD · SMS · Game Gear" */
     char category[16];           /* arcade, console (in futuro apps, linux) */
     char emu[16], art[16], shortname[16];   /* immagine: quella della prima console del pacchetto */
@@ -42,6 +42,8 @@ typedef struct {
     char working[64];            /* nome del pacchetto in lavorazione */
 } store_status_t;
 
+/* lingua dei nomi e delle descrizioni delle app nel catalogo ("texts": {"it": {...}}), prima di store_open */
+void store_lang(const char *lang);
 /* carica subito il catalogo tenuto sulla scheda e, in un thread, quello in rete (se online) */
 void store_open(const char *root, int development, bool online);
 const store_status_t *store_status(void);

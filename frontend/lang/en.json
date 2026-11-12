@@ -934,7 +934,12 @@
     "pv_bios": "BIOS",
     "archive_note": "Download it again from the Store whenever you like.",
     "delete_note": "This can't be undone.",
-    "delete2_title": "Last confirmation"
+    "delete2_title": "Last confirmation",
+    "pv_app": "App",
+    "pv_yourfiles": "Your files",
+    "app_note": "Download it again from the Store whenever you like.",
+    "count_apps": "%d apps",
+    "count1_apps": "1 app"
   },
   "support": {
     "title": "Support Mosaik",

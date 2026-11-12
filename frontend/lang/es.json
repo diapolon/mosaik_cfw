@@ -934,7 +934,12 @@
     "pv_bios": "BIOS",
     "archive_note": "Vuelve a descargarlo de la Store cuando quieras.",
     "delete_note": "No se podrá recuperar.",
-    "delete2_title": "Última confirmación"
+    "delete2_title": "Última confirmación",
+    "pv_app": "App",
+    "pv_yourfiles": "Tus archivos",
+    "app_note": "Vuelve a descargarla de la Store cuando quieras.",
+    "count_apps": "%d apps",
+    "count1_apps": "1 app"
   },
   "support": {
     "title": "Apoya Mosaik",

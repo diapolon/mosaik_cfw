@@ -934,7 +934,12 @@
     "pv_bios": "BIOS",
     "archive_note": "Retéléchargez-le depuis le Store quand vous voulez.",
     "delete_note": "Impossible de revenir en arrière.",
-    "delete2_title": "Dernière confirmation"
+    "delete2_title": "Dernière confirmation",
+    "pv_app": "App",
+    "pv_yourfiles": "Vos fichiers",
+    "app_note": "Retéléchargez-la depuis le Store quand vous voulez.",
+    "count_apps": "%d apps",
+    "count1_apps": "1 app"
   },
   "support": {
     "title": "Soutenir Mosaik",

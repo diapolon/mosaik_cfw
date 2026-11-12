@@ -37,6 +37,7 @@ int main(int c, char **v) {
         printf("%s %s\n", n, store_offline_install(root, p) ? "installato" : "errore");
         return 0;
     }
+    store_lang(getenv("LINGUA") ? getenv("LINGUA") : "en");
     store_open(root, 0, strcmp(cmd, "cache") != 0);
     store_join();
     const store_status_t *s = store_status();
@@ -48,6 +49,7 @@ int main(int c, char **v) {
     }
     int i = find(v[3]);
     if (i < 0) { puts("manca"); return 0; }
+    if (!strcmp(cmd, "title")) { printf("%s|%s|%s\n", store_pkg(i)->title, store_pkg(i)->systems, store_pkg(i)->category); return 0; }
     if (!strcmp(cmd, "usage")) {
         store_usage_t u;
         store_usage(i, &u);
@@ -72,6 +74,10 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     [ "$1" = 2 ] && { mkdir -p pkgsrc/fbneo/Cores/extra; echo nuovo > pkgsrc/fbneo/Cores/extra/dati.bin; }
     cp bad_libretro.so pkgsrc/mgba/Cores/mgba_libretro.so
     echo '{"name":"Game Boy Advance"}' > pkgsrc/mgba/Emulators/gba.json
+    mkdir -p pkgsrc/files/Apps/files
+    cp good_libretro.so pkgsrc/files/Apps/files/files
+    printf '#!/bin/sh\nexec ./files\n' > pkgsrc/files/Apps/files/launch.sh
+    echo '{"title":"Files","version":"1.0","texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
     printf 'fbneo d15071a\nmgba 7a12d6d\n' > labels.txt
     rm -rf www; python3 /trimui/toolchain/make-store.py --src pkgsrc --out www --key ${2:-key.pem} --labels labels.txt > /dev/null
 }
@@ -80,7 +86,13 @@ cd www; python3 -m http.server 8099 --bind 127.0.0.1 >/dev/null 2>&1 & SRV=$!; c
 sleep 1
 echo "http://127.0.0.1:8099" > sd/System/update-url.txt
 R=$W/sd
-check "catalogo: due pacchetti assenti" "2 0 2 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
+check "catalogo: tre pacchetti assenti" "2 0 3 files:0 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
+check "app: nome e descrizione nella lingua" "Esplora file|Sfoglia la scheda|apps" "$(LINGUA=it ./t $R title files 2>/dev/null)"
+check "app: lingua mancante, inglese" "Files|Browse the card|apps" "$(LINGUA=de ./t $R title files 2>/dev/null)"
+check "app installata" "4 0 1" "$(./t $R install files 2>/dev/null)"
+check "programma dell'app eseguibile" "si" "$([ -x sd/Apps/files/files ] && echo si || echo no)"
+check "app eliminata" "4 0 0" "$(./t $R delete files 2>/dev/null)"
+check "cartella dell'app tolta" "no" "$([ -d sd/Apps/files ] && echo si || echo no)"
 check "installazione" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
 check "file del pacchetto sulla scheda" "indice 1" "$(cat sd/Dats/fbneo.tsv)"
 check "registro con la versione" "si" "$(grep -q '^version ' sd/System/pacchetti/fbneo.txt && echo si || echo no)"
@@ -89,10 +101,10 @@ check "zip scaricato tolto" "0" "$(ls sd/System/.store | wc -l | tr -d ' ')"
 check "core che non si carica: errore" "5 7 0" "$(./t $R install mgba 2>/dev/null)"
 check "core rotto tolto" "no" "$([ -e sd/Cores/mgba_libretro.so ] && echo si || echo no)"
 check "e il suo emulatore" "no" "$([ -e sd/Emulators/gba.json ] && echo si || echo no)"
-check "catalogo tenuto sulla scheda, senza rete" "2 0 2 fbneo:1 mgba:0" "$(./t $R cache 2>/dev/null)"
+check "catalogo tenuto sulla scheda, senza rete" "2 0 3 files:0 fbneo:1 mgba:0" "$(./t $R cache 2>/dev/null)"
 # versione nuova: un file in meno, una cartella in più
 mk 2
-check "aggiornamento disponibile" "2 0 2 fbneo:2 mgba:0" "$(./t $R list 2>/dev/null)"
+check "aggiornamento disponibile" "2 0 3 files:0 fbneo:2 mgba:0" "$(./t $R list 2>/dev/null)"
 check "aggiornamento" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
 check "file nuovo" "nuovo" "$(cat sd/Cores/extra/dati.bin)"
 check "file che non c'è più tolto" "no" "$([ -e sd/Dats/solo-v1.roms ] && echo si || echo no)"
@@ -100,7 +112,7 @@ check "indice aggiornato" "indice 2" "$(cat sd/Dats/fbneo.tsv)"
 # pacchetto manomesso: l'impronta del catalogo non torna
 Z=$(ls www/store-fbneo-*.zip); cp $Z orig.zip; printf 'x' >> $Z
 rm sd/System/pacchetti/fbneo.txt
-check "senza registro ma con l'emulatore: arrivato col sistema" "2 0 2 fbneo:3 mgba:0" "$(./t $R list 2>/dev/null)"
+check "senza registro ma con l'emulatore: arrivato col sistema" "2 0 3 files:0 fbneo:3 mgba:0" "$(./t $R list 2>/dev/null)"
 check "pacchetto manomesso rifiutato" "5 5 3" "$(./t $R install fbneo 2>/dev/null)"
 cp orig.zip $Z
 # archiviare uno arrivato col sistema: i file del catalogo, giochi e salvataggi restano
@@ -124,7 +136,7 @@ check "cartella vuota tolta" "no" "$([ -d sd/Cores/extra ] && echo si || echo no
 check "Cores resta" "si" "$([ -d sd/Cores ] && echo si || echo no)"
 # catalogo firmato con un'altra chiave: si resta con quello sulla scheda
 mk 2 altra.pem
-check "firma sbagliata: errore, catalogo di prima" "2 2 2 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
+check "firma sbagliata: errore, catalogo di prima" "2 2 3 files:0 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
 # percorso fuori dalle cartelle permesse: il catalogo intero non vale
 mk 2
 python3 - <<'P'

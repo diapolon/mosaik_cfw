@@ -11,7 +11,7 @@ LDLIBS  += $(shell pkg-config --libs $(PKGS)) -lm
 BUILD   := build
 COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 
-all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu
+all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files
 
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 
@@ -25,6 +25,10 @@ $(BUILD)/runner: $(COMMON) $(RUNNER) src/runner/*.h src/common/*.h | $(BUILD)
 
 $(BUILD)/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) src/tools/gamemenu.c $(LDLIBS)
+
+# app dello Store (pacchetti in Arcade/Apps): Esplora file
+$(BUILD)/files: $(COMMON) src/apps/files.c src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) src/apps/files.c $(LDLIBS) -lpthread
 
 $(BUILD)/gamewatch: src/tools/gamewatch.c | $(BUILD)
 	$(CC) -std=c11 -O2 -Wall -Wextra -D_DEFAULT_SOURCE -o $@ $<

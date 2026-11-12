@@ -18,7 +18,7 @@ mkdir -p "$APP/bin" "$APP/lib" "$DATA"
 
 # programmi e core compilati, dal volume Docker
 docker run --rm -v trimui-build:/build -v "$DIST":/dist alpine:3.20 \
-    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores && cp /build/out/cores/*.so /dist/cores/'
+    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/'
 cp "$FE/package/trimui/launch.sh" "$FE/package/trimui/config.json" "$FE/package/trimui/icon.png" "$APP/"
 chmod +x "$APP/launch.sh" "$APP/bin/"*
 
@@ -68,6 +68,14 @@ if [ -n "$DZ" ]; then
 else
     echo "attenzione: manca Deadcast (sh toolchain/fetch-deadcast.sh): niente pacchetto Dreamcast" >&2
 fi
+# App (cartella App dello Store): Apps/<app> con il programma, launch.sh, app.json, icona e lingue
+app() {   # app NOME: frontend/package/apps/NOME più il programma compilato dist/apps/NOME
+    mkdir -p "$PKG/$1/Apps"
+    cp -R "$FE/package/apps/$1" "$PKG/$1/Apps/$1"
+    cp "$DIST/apps/$1" "$PKG/$1/Apps/$1/$1"
+    chmod +x "$PKG/$1/Apps/$1/$1" "$PKG/$1/Apps/$1/launch.sh"
+}
+app files
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"
