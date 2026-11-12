@@ -5,6 +5,7 @@
   "quit": "Esci",
   "open": "Apri",
   "bad_comic": "Fumetto non leggibile",
-  "load_failed": "Immagine non leggibile"
+  "load_failed": "Immagine non leggibile",
+  "too_big": "Immagine troppo grande"
  }
 }

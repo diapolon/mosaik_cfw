@@ -5,6 +5,7 @@
   "quit": "Sair",
   "open": "Abrir",
   "bad_comic": "BD ilegível",
-  "load_failed": "Imagem ilegível"
+  "load_failed": "Imagem ilegível",
+  "too_big": "Imagem demasiado grande"
  }
 }

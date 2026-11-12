@@ -3,7 +3,7 @@
   "title": "Teste do cartão SD",
   "card": "Cartão de %s, %s livres",
   "quick": "Teste rápido",
-  "quick_desc": "Escreve e relê 256 MB: a velocidade em meio minuto.",
+  "quick_desc": "Escreve e relê 256 MB para medir a velocidade.",
   "full": "Teste completo",
   "full_desc": "Enche o espaço livre e relê tudo: deteta cartões falsos ou avariados. Pode durar horas.",
   "last": "Último teste",
@@ -22,6 +22,10 @@
   "great": "Cartão rápido.",
   "good": "Cartão bom.",
   "slow": "Cartão lento: os jogos em disco podem carregar devagar.",
-  "bad": "Dados danificados: o cartão é falso ou está avariado, copie os seus ficheiros para outro lado."
+  "bad": "Dados danificados: o cartão é falso ou está avariado, copie os seus ficheiros para outro lado.",
+  "full_confirm": "O teste completo escreve em todo o espaço livre do cartão que contém o sistema e os seus ficheiros. Um cartão saudável não perde nada, mas um cartão falso ou avariado pode danificar também os ficheiros que já tem: faça antes uma cópia das suas gravações. Para verificar um cartão novo, teste-o vazio.",
+  "no_space": "Espaço livre insuficiente para o teste",
+  "read_errors": "Erros de leitura: o cartão pode estar avariado.",
+  "cached": "Leitura a partir da memória: a velocidade de leitura não é a do cartão."
  }
 }

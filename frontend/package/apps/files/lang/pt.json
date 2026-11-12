@@ -37,6 +37,9 @@
   "done": "Concluído",
   "delete_n": "Eliminar %d itens?",
   "delete_one": "Eliminar %s?",
-  "delete_body": "%d ficheiros, %s. Não poderão ser recuperados."
+  "delete_body": "%d ficheiros, %s. Não poderão ser recuperados.",
+  "extract": "Extrair aqui",
+  "extracting": "A extrair",
+  "no_space": "Espaço insuficiente no cartão"
  }
 }

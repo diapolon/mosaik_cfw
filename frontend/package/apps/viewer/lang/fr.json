@@ -5,6 +5,7 @@
   "quit": "Quitter",
   "open": "Ouvrir",
   "bad_comic": "BD illisible",
-  "load_failed": "Image illisible"
+  "load_failed": "Image illisible",
+  "too_big": "Image trop grande"
  }
 }

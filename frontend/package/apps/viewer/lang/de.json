@@ -5,6 +5,7 @@
   "quit": "Beenden",
   "open": "Öffnen",
   "bad_comic": "Comic nicht lesbar",
-  "load_failed": "Bild nicht lesbar"
+  "load_failed": "Bild nicht lesbar",
+  "too_big": "Bild zu groß"
  }
 }

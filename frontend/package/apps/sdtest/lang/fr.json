@@ -3,7 +3,7 @@
   "title": "Test de la carte SD",
   "card": "Carte de %s, %s libres",
   "quick": "Test rapide",
-  "quick_desc": "Écrit et relit 256 Mo : la vitesse en une demi-minute.",
+  "quick_desc": "Écrit et relit 256 Mo pour mesurer la vitesse.",
   "full": "Test complet",
   "full_desc": "Remplit l'espace libre et relit tout : détecte les cartes fausses ou défectueuses. Peut durer des heures.",
   "last": "Dernier test",
@@ -22,6 +22,10 @@
   "great": "Carte rapide.",
   "good": "Bonne carte.",
   "slow": "Carte lente : les jeux sur disque peuvent charger lentement.",
-  "bad": "Données abîmées : la carte est fausse ou défectueuse, copiez vos fichiers ailleurs."
+  "bad": "Données abîmées : la carte est fausse ou défectueuse, copiez vos fichiers ailleurs.",
+  "full_confirm": "Le test complet écrit sur tout l'espace libre de la carte qui contient le système et vos fichiers. Une carte saine ne perd rien, mais une carte fausse ou défectueuse peut aussi abîmer les fichiers déjà présents : sauvegardez d'abord vos parties. Pour vérifier une carte neuve, testez-la vide.",
+  "no_space": "Pas assez d'espace libre pour le test",
+  "read_errors": "Erreurs de lecture : la carte est peut-être défectueuse.",
+  "cached": "Lecture depuis la mémoire : la vitesse de lecture n'est pas celle de la carte."
  }
 }

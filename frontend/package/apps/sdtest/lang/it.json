@@ -3,7 +3,7 @@
   "title": "Test della SD",
   "card": "Scheda da %s, liberi %s",
   "quick": "Prova veloce",
-  "quick_desc": "Scrive e rilegge 256 MB: la velocità in mezzo minuto.",
+  "quick_desc": "Scrive e rilegge 256 MB per misurare la velocità.",
   "full": "Prova completa",
   "full_desc": "Riempie lo spazio libero e rilegge tutto: trova le schede false o guaste. Può durare ore.",
   "last": "Ultima prova",
@@ -22,6 +22,10 @@
   "great": "Scheda veloce.",
   "good": "Scheda buona.",
   "slow": "Scheda lenta: i giochi su disco possono caricare piano.",
-  "bad": "Dati rovinati: la scheda è falsa o guasta, copia altrove i tuoi file."
+  "bad": "Dati rovinati: la scheda è falsa o guasta, copia altrove i tuoi file.",
+  "full_confirm": "La prova completa scrive su tutto lo spazio libero della scheda che contiene il sistema e i tuoi file. Una scheda sana non perde nulla, ma una scheda falsa o guasta può rovinare anche i file che ci sono già: prima fai un backup dei salvataggi. Per controllare una scheda nuova, meglio provarla vuota.",
+  "no_space": "Spazio libero insufficiente per la prova",
+  "read_errors": "Errori di lettura: la scheda potrebbe essere guasta.",
+  "cached": "Lettura dalla memoria: la velocità di lettura non è quella della scheda."
  }
 }

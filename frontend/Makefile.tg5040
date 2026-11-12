@@ -39,8 +39,8 @@ $(OUT)/bin/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(OUT)/bin
 # app dello Store: fuori da bin (non vanno nel sistema), le impacchetta toolchain/package.sh
 APPKIT   := src/apps/appkit.c
 
-$(OUT)/apps/files: $(COMMON) $(APPKIT) src/apps/files.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
-	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/files.c $(LDFLAGS) $(SDLLIBS)
+$(OUT)/apps/files: $(COMMON) $(APPKIT) src/apps/files.c src/launcher/zipread.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/files.c src/launcher/zipread.c $(LDFLAGS) $(SDLLIBS) -lz
 
 $(OUT)/apps/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c $(LDFLAGS) $(SDLLIBS) -lz
@@ -62,6 +62,6 @@ $(OUT)/bin:
 
 # simboli glibc richiesti: la console ha la 2.23
 check: all
-	@for f in $(OUT)/bin/*; do printf '%s: ' $$f; aarch64-linux-gnu-objdump -T $$f | grep -oE 'GLIBC_2\.[0-9]+' | sort -Vu | tail -1; done
+	@for f in $(OUT)/bin/* $(OUT)/apps/*; do printf '%s: ' $$f; aarch64-linux-gnu-objdump -T $$f | grep -oE 'GLIBC_2\.[0-9]+' | sort -Vu | tail -1; done
 
 .PHONY: all check

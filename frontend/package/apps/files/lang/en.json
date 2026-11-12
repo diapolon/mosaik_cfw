@@ -37,6 +37,9 @@
   "done": "Done",
   "delete_n": "Delete %d items?",
   "delete_one": "Delete %s?",
-  "delete_body": "%d files, %s. They can't be recovered."
+  "delete_body": "%d files, %s. They can't be recovered.",
+  "extract": "Extract here",
+  "extracting": "Extracting",
+  "no_space": "Not enough space on the card"
  }
 }

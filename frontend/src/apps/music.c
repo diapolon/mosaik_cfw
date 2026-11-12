@@ -148,7 +148,13 @@ static bool play(int i) {
     paused = false;
     duration = Mix_MusicDuration(mus);
     volume_apply();
-    Mix_PlayMusic(mus, 0);
+    if (Mix_PlayMusic(mus, 0) < 0) {   /* codec o uscita che rifiutano: non è in riproduzione */
+        ui_log("musica: %s non parte (%s)", tracks[i].rel, Mix_GetError());
+        Mix_FreeMusic(mus);
+        mus = NULL;
+        cur = -1;
+        return false;
+    }
     ui_log("musica: %s", tracks[i].rel);
     return true;
 }
@@ -269,7 +275,7 @@ static void input(void) {
     if (screen_off) {   /* un tasto qualsiasi riaccende, senza fare altro */
         bool any = false;
         for (int b = 0; b < BTN_COUNT; b++) any |= in->pressed[b];
-        if (any) { screen_off = false; plat_screen_off(false); }
+        if (any) { screen_off = false; plat_screen_off(false); plat_apply(&UI.set); }
         return;
     }
     int old = sel;
@@ -293,7 +299,7 @@ static void input(void) {
     else if (d && UI.t > hold_t) { seek(d * 10.0); hold_t = UI.t + 0.4; }
     if (in->pressed[BTN_X]) { repeat = (repeat + 1) % 3; ui_sound(SND_OK); }
     if (in->pressed[BTN_Y]) { shuffle = !shuffle; ui_sound(SND_OK); }
-    if (in->pressed[BTN_SELECT] && cur >= 0 && !paused) { screen_off = true; plat_screen_off(true); }
+    if (in->pressed[BTN_SELECT] && cur >= 0 && !paused) { screen_off = true; plat_screen_off(true); plat_apply(&UI.set); }
 }
 
 int main(int argc, char **argv) {
@@ -311,7 +317,9 @@ int main(int argc, char **argv) {
         input();
         if (mixer_on) volume_apply();
         if (finished) { finished = false; skip(+1, false); }
-        if (screen_off) { SDL_Delay(50); continue; }   /* schermo spento: niente disegno, poco processore */
+        /* schermo spento: niente disegno, poco processore; la retroilluminazione e il volume dei
+           tasti si applicano qui, perché di solito lo fa la fine del disegno (audit APP-001) */
+        if (screen_off) { plat_apply(&UI.set); SDL_Delay(50); continue; }
         ui_begin();
         draw();
         ui_end();
@@ -323,6 +331,6 @@ int main(int argc, char **argv) {
         if (mus) Mix_FreeMusic(mus);
         Mix_CloseAudio();
     }
-    ui_shutdown();
+    app_quit();
     return 0;
 }

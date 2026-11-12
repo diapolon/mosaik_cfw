@@ -115,13 +115,15 @@ static void index_load(index_t *ix, const char *path) {
     fseek(f, 0, SEEK_END);
     long len = ftell(f);
     fseek(f, 0, SEEK_SET);
-    ix->buf = malloc((size_t)len + 1);
+    ix->buf = len >= 0 ? malloc((size_t)len + 1) : NULL;
+    if (!ix->buf) { fclose(f); ui_log("indice %s: memoria esaurita", path); return; }
     len = (long)fread(ix->buf, 1, (size_t)len, f);
     ix->buf[len] = 0;
     fclose(f);
     int cap = 0;
     for (long i = 0; i < len; i++) cap += ix->buf[i] == '\n';
     ix->e = calloc((size_t)cap + 1, sizeof(entry_t));
+    if (!ix->e) { free(ix->buf); ix->buf = NULL; ui_log("indice %s: memoria esaurita", path); return; }
     char *line = ix->buf;
     while (line && *line) {
         char *nl = strchr(line, '\n');
@@ -354,6 +356,7 @@ static void load_genres(const char *root, game_t *g, int n) {
     if (!f) return;
     int cap = 1024, m = 0;
     meta_t *meta = malloc(sizeof(meta_t) * (size_t)cap);
+    if (!meta) { fclose(f); return; }
     while (fgets(line, sizeof line, f)) {
         line[strcspn(line, "\r\n")] = 0;
         char *g1 = strchr(line, '\t');
@@ -394,9 +397,12 @@ static void load_genres(const char *root, game_t *g, int n) {
 /* ------------------------------------------------- generi modificati dall'utente */
 typedef struct { char key[64], val[32]; } kv_t;
 
+/* -1 con la memoria esaurita: un file letto a metà non va riscritto (perderebbe le altre righe) */
 static int kv_load(const char *path, kv_t **out) {
     int n = 0, cap = 64;
     kv_t *a = malloc(sizeof(kv_t) * (size_t)cap);
+    *out = NULL;
+    if (!a) return -1;
     FILE *f = fopen(path, "r");
     char line[256];
     while (f && fgets(line, sizeof line, f)) {
@@ -406,7 +412,7 @@ static int kv_load(const char *path, kv_t **out) {
         *v++ = 0;
         if (n == cap) {
             kv_t *na = realloc(a, sizeof(kv_t) * (size_t)(cap * 2));
-            if (!na) break;
+            if (!na) { fclose(f); free(a); return -1; }
             a = na;
             cap *= 2;
         }
@@ -445,6 +451,7 @@ void games_set_genre(const char *root, const char *rom, const char *genre) {
     genre_file(root, "genre-custom.tsv", p, sizeof p);
     kv_t *a;
     int n = kv_load(p, &a), i;
+    if (n < 0) return;
     for (i = 0; i < n; i++) if (!strcmp(a[i].key, rom)) break;
     if (i == n && genre) {
         kv_t *na = realloc(a, sizeof(kv_t) * (size_t)(n + 1));
@@ -467,6 +474,7 @@ void games_group_genre(const char *root, const char *from, const char *to) {
     genre_file(root, "genre-groups.tsv", p, sizeof p);
     kv_t *a;
     int n = kv_load(p, &a), found = 0;
+    if (n < 0) return;
     /* chi puntava a "from" ora punta a "to"; un genere non punta mai a sé stesso */
     for (int i = 0; i < n; i++) {
         if (!strcmp(a[i].val, from)) snprintf(a[i].val, sizeof a[i].val, "%s", to);

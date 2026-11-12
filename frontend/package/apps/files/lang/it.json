@@ -37,6 +37,9 @@
   "done": "Fatto",
   "delete_n": "Eliminare %d voci?",
   "delete_one": "Eliminare %s?",
-  "delete_body": "%d file, %s. Non si potranno recuperare."
+  "delete_body": "%d file, %s. Non si potranno recuperare.",
+  "extract": "Estrai qui",
+  "extracting": "Estraggo",
+  "no_space": "Spazio insufficiente sulla scheda"
  }
 }

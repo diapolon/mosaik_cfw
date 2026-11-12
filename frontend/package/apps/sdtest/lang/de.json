@@ -3,7 +3,7 @@
   "title": "SD-Kartentest",
   "card": "%s-Karte, %s frei",
   "quick": "Schnelltest",
-  "quick_desc": "Schreibt und liest 256 MB: die Geschwindigkeit in einer halben Minute.",
+  "quick_desc": "Schreibt und liest 256 MB, um die Geschwindigkeit zu messen.",
   "full": "Vollständiger Test",
   "full_desc": "Füllt den freien Speicher und liest alles zurück: erkennt gefälschte oder defekte Karten. Kann Stunden dauern.",
   "last": "Letzter Test",
@@ -22,6 +22,10 @@
   "great": "Schnelle Karte.",
   "good": "Gute Karte.",
   "slow": "Langsame Karte: Disc-Spiele laden eventuell langsam.",
-  "bad": "Beschädigte Daten: die Karte ist gefälscht oder defekt, sichere deine Dateien."
+  "bad": "Beschädigte Daten: die Karte ist gefälscht oder defekt, sichere deine Dateien.",
+  "full_confirm": "Der vollständige Test beschreibt den ganzen freien Speicher der Karte, auf der das System und deine Dateien liegen. Eine gesunde Karte verliert nichts, aber eine gefälschte oder defekte Karte kann auch vorhandene Dateien beschädigen: sichere zuerst deine Spielstände. Eine neue Karte am besten leer testen.",
+  "no_space": "Nicht genug freier Speicher für den Test",
+  "read_errors": "Lesefehler: die Karte könnte defekt sein.",
+  "cached": "Aus dem Speicher gelesen: die Lesegeschwindigkeit ist nicht die der Karte."
  }
 }

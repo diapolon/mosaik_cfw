@@ -37,6 +37,9 @@
   "done": "Fertig",
   "delete_n": "%d Einträge löschen?",
   "delete_one": "%s löschen?",
-  "delete_body": "%d Dateien, %s. Nicht wiederherstellbar."
+  "delete_body": "%d Dateien, %s. Nicht wiederherstellbar.",
+  "extract": "Hier entpacken",
+  "extracting": "Entpacke",
+  "no_space": "Nicht genug Platz auf der Karte"
  }
 }

@@ -25,6 +25,7 @@ run() {  # RUNVER
         RUNVER=$1; LOG=/tmp/j/log
         step() { echo "$*" >> $LOG; }
         rollback() { echo rollback >> $LOG; }
+        halt_with() { echo "fermo: $*" >> $LOG; }
         sync() { :; }
         . /tmp/giornale.sh
         journal_check
@@ -53,6 +54,7 @@ card applico "1.0 B"
     RUNVER="1.0 A"; LOG=/tmp/j/log
     step() { echo "$*" >> $LOG; }
     rollback() { echo rollback >> $LOG; }
+    halt_with() { echo "fermo: $*" >> $LOG; }
     sync() { :; }
     mv() { case "$*" in *a.so.annulla*) return 1 ;; *) command mv "$@" ;; esac; }
     . /tmp/giornale.sh
@@ -61,8 +63,11 @@ card applico "1.0 B"
 [ -f $J ] && [ -f $ROOT/Cores/a.so.annulla ] && ok "giornale e copia tenuti dopo l'errore" || ko "giornale dimenticato nonostante l'errore"
 grep -q "non rimesso Cores/a.so" /tmp/j/log && grep -q "si riprova" /tmp/j/log && ok "errore scritto nei passi" || ko "errore non registrato: $(cat /tmp/j/log)"
 [ "$(cat $ROOT/Lang/y.json)" = vecchio ] && [ ! -e $ROOT/Lang/x.json ] && ok "gli altri file rimessi comunque" || ko "altri file non ripristinati"
+grep -q "fermo: AGGIORNAMENTO DA RIPRISTINARE" /tmp/j/log && ok "avvio fermato con il messaggio, niente launcher con file misti" || ko "avvio non fermato: $(cat /tmp/j/log)"
+rm -f /tmp/j/log
 run "1.0 A"
 restored && ok "all'avvio dopo il ripristino si completa" || ko "secondo tentativo non riuscito: $(ls -R $ROOT)"
+grep -q "fermo" /tmp/j/log && ko "fermato anche quando il ripristino è riuscito" || ok "ripristino riuscito: l'avvio prosegue"
 
 echo "--- tornati al sistema precedente dopo tre prove (versione in uso diversa)"
 card installato "1.0 B"; run "1.0 A"

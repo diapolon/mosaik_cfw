@@ -2,7 +2,7 @@
  "title": "SD card test",
  "description": "Measures the card's speed and finds fake or failing cards.",
  "author": "Mosaik",
- "version": "1.0",
+ "version": "1.1",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

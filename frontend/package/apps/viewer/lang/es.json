@@ -5,6 +5,7 @@
   "quit": "Salir",
   "open": "Abrir",
   "bad_comic": "Cómic ilegible",
-  "load_failed": "Imagen ilegible"
+  "load_failed": "Imagen ilegible",
+  "too_big": "Imagen demasiado grande"
  }
 }

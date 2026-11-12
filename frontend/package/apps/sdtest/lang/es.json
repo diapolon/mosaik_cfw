@@ -3,7 +3,7 @@
   "title": "Prueba de la SD",
   "card": "Tarjeta de %s, %s libres",
   "quick": "Prueba rápida",
-  "quick_desc": "Escribe y relee 256 MB: la velocidad en medio minuto.",
+  "quick_desc": "Escribe y relee 256 MB para medir la velocidad.",
   "full": "Prueba completa",
   "full_desc": "Llena el espacio libre y lo relee todo: detecta tarjetas falsas o averiadas. Puede durar horas.",
   "last": "Última prueba",
@@ -22,6 +22,10 @@
   "great": "Tarjeta rápida.",
   "good": "Tarjeta buena.",
   "slow": "Tarjeta lenta: los juegos en disco pueden cargar despacio.",
-  "bad": "Datos dañados: la tarjeta es falsa o está averiada, copia tus archivos en otro lugar."
+  "bad": "Datos dañados: la tarjeta es falsa o está averiada, copia tus archivos en otro lugar.",
+  "full_confirm": "La prueba completa escribe en todo el espacio libre de la tarjeta que contiene el sistema y tus archivos. Una tarjeta sana no pierde nada, pero una falsa o averiada puede dañar también los archivos que ya tiene: haz antes una copia de tus partidas. Para comprobar una tarjeta nueva, mejor probarla vacía.",
+  "no_space": "No hay espacio libre suficiente para la prueba",
+  "read_errors": "Errores de lectura: la tarjeta podría estar averiada.",
+  "cached": "Lectura desde la memoria: la velocidad de lectura no es la de la tarjeta."
  }
 }

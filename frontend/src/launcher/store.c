@@ -180,7 +180,12 @@ static bool path_ok(const char *p) {
     return false;
 }
 
-static char **str_list(jval *arr, int *n) {
+static void free_list(char **l, int n);
+
+/* elenco di stringhe del catalogo, tutto o niente: con la memoria esaurita *fail diventa vero e
+   non si restituisce un elenco parziale (che aggiornando farebbe togliere file ancora del
+   pacchetto: verifica dell'audit, FIX-R01) */
+static char **str_list(jval *arr, int *n, bool *fail) {
     *n = 0;
     int cap = 0;
     char **out = NULL;
@@ -188,14 +193,19 @@ static char **str_list(jval *arr, int *n) {
         if (v->t != J_STR) continue;
         if (*n == cap) {
             char **no = realloc(out, sizeof(char *) * (size_t)(cap ? cap * 2 : 8));
-            if (!no) break;   /* memoria esaurita: elenco più corto, il controllo dopo lo rifiuta */
+            if (!no) goto oom;
             out = no;
             cap = cap ? cap * 2 : 8;
         }
-        if (!(out[*n] = strdup(v->s))) break;
+        if (!(out[*n] = strdup(v->s))) goto oom;
         (*n)++;
     }
     return out;
+oom:
+    free_list(out, *n);
+    *n = 0;
+    if (fail) *fail = true;
+    return NULL;
 }
 
 static char lang_code[16] = "en";
@@ -244,7 +254,8 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         x->p.console = cv && cv->t == J_BOOL && cv->n != 0;
         x->p.installed = (long long)json_num(v, "installed", 0);
         int ns = 0;
-        char **sys = str_list(json_get(v, "systems"), &ns);
+        bool oom = false;
+        char **sys = str_list(json_get(v, "systems"), &ns, &oom);
         for (int k = 0; k < ns; k++) {
             size_t l = strlen(x->p.systems);
             snprintf(x->p.systems + l, sizeof x->p.systems - l, "%s%s", k ? ", " : "", sys[k]);
@@ -255,10 +266,10 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         const char *lt = pkg_text(v, "title"), *ld = pkg_text(v, "description");
         if (lt) { snprintf(x->p.title, sizeof x->p.title, "%s", lt); snprintf(x->p.name, sizeof x->p.name, "%s", lt); }
         if (ld) snprintf(x->p.systems, sizeof x->p.systems, "%s", ld);
-        x->files = str_list(json_get(v, "files"), &x->nfiles);
-        x->emus = str_list(json_get(v, "emulators"), &x->nemus);
-        /* un nome di file o un percorso strani rendono falso tutto il catalogo */
-        ok = x->p.id[0] && !strchr(x->p.id, '/') && strlen(x->p.sha) == 64 && x->p.size > 0 && x->nfiles > 0 &&
+        x->files = str_list(json_get(v, "files"), &x->nfiles, &oom);
+        x->emus = str_list(json_get(v, "emulators"), &x->nemus, &oom);
+        /* un nome di file o un percorso strani (o la memoria esaurita) rendono falso tutto il catalogo */
+        ok = !oom && x->p.id[0] && !strchr(x->p.id, '/') && strlen(x->p.sha) == 64 && x->p.size > 0 && x->nfiles > 0 &&
              !strncmp(x->p.file, "store-", 6) && !strchr(x->p.file, '/');
         for (int k = 0; ok && k < x->nfiles; k++) ok = path_ok(x->files[k]);
         n++;
@@ -462,7 +473,7 @@ static bool core_loads(const char *full) {
 #endif
 
 /* file elencati nel registro di un pacchetto installato */
-static char **record_files(const char *id, int *n) {
+static char **record_files(const char *id, int *n, bool *fail) {
     char p[1200], line[700];
     record_path(id, p, sizeof p);
     *n = 0;
@@ -474,15 +485,21 @@ static char **record_files(const char *id, int *n) {
         if (strncmp(line, "file ", 5) || !path_ok(line + 5)) continue;
         if (*n == cap) {
             char **no = realloc(out, sizeof(char *) * (size_t)(cap ? cap * 2 : 16));
-            if (!no) break;
+            if (!no) goto oom;
             out = no;
             cap = cap ? cap * 2 : 16;
         }
-        if (!(out[*n] = strdup(line + 5))) break;
+        if (!(out[*n] = strdup(line + 5))) goto oom;
         (*n)++;
     }
     if (f) fclose(f);
     return out;
+oom:   /* un registro letto a metà non vale come inventario dei file */
+    if (f) fclose(f);
+    free_list(out, *n);
+    *n = 0;
+    if (fail) *fail = true;
+    return NULL;
 }
 
 static void free_list(char **l, int n) { for (int i = 0; i < n; i++) free(l[i]); free(l); }
@@ -506,13 +523,19 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
     snprintf(label, sizeof label, "%s", json_str(j, "label", ""));
     if (name_out) snprintf(name_out, nn, "%s", json_str(j, "name", id));
     int nf = 0;
-    char **files = str_list(json_get(j, "files"), &nf);
+    bool oom = false;
+    char **files = str_list(json_get(j, "files"), &nf, &oom);
     json_free(j);
+    /* l'elenco dei file della versione installata, prima di toccare qualcosa */
+    int no = 0;
+    char **old = oom ? NULL : record_files(id, &no, &oom);
+    if (oom) err = SE_WRITE;
     if (n < 0 || !id[0] || strchr(id, '/') || (want_id && strcmp(id, want_id)) || nf == 0) err = SE_CATALOG;
     for (int k = 0; !err && k < nf; k++) if (!path_ok(files[k])) err = SE_CATALOG;
     /* misura totale, per l'avanzamento */
     long long total = 0;
     int *idx = calloc(nf > 0 ? (size_t)nf : 1u, sizeof(int));
+    if (!idx) err = SE_WRITE;
     for (int k = 0; !err && k < nf; k++) {
         idx[k] = -1;
         for (int i = 0; i < n; i++) if (!strcmp(ze[i].name, files[k])) { idx[k] = i; break; }
@@ -549,6 +572,7 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
         }
         free(idx);
         free_list(files, nf);
+        free_list(old, no);
         return err;
     }
     for (int k = 0; k < nf; k++) {
@@ -558,9 +582,7 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
         if (rename(part, full) != 0) err = SE_WRITE;
     }
     sync();
-    /* file della versione di prima che non ci sono più */
-    int no = 0;
-    char **old = record_files(id, &no);
+    /* file della versione di prima che non ci sono più (elenco letto all'inizio) */
     for (int i = 0; i < no; i++) {
         bool keep = false;
         for (int k = 0; k < nf && !keep; k++) keep = !strcmp(old[i], files[k]);
@@ -772,10 +794,16 @@ static void *remove_worker(void *arg) {
     pthread_mutex_unlock(&lock);
     if (!have) { st.error = SE_CATALOG; st.phase = ST_FAILED; return NULL; }
     snprintf(st.working, sizeof st.working, "%s", e.p.name);
+    int n = 0;
+    bool oom = false;
+    char **files = record_files(e.p.id, &n, &oom);
+    if (oom) {   /* senza l'elenco intero non si toglie niente, nemmeno i dati */
+        st.error = SE_WRITE;
+        st.phase = ST_FAILED;
+        return NULL;
+    }
     if (remove_data)
         for (int k = 0; k < e.nemus; k++) remove_emu_data(e.emus[k]);
-    int n = 0;
-    char **files = record_files(e.p.id, &n);
     /* senza registro (arrivato con il sistema): i file del catalogo */
     char **list = n ? files : e.files;
     int ln = n ? n : e.nfiles;

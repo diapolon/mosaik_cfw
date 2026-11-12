@@ -37,6 +37,9 @@
   "done": "Terminé",
   "delete_n": "Supprimer %d éléments ?",
   "delete_one": "Supprimer %s ?",
-  "delete_body": "%d fichiers, %s. Impossible de les récupérer."
+  "delete_body": "%d fichiers, %s. Impossible de les récupérer.",
+  "extract": "Extraire ici",
+  "extracting": "Extraction",
+  "no_space": "Pas assez d'espace sur la carte"
  }
 }

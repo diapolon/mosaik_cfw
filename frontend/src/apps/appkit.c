@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 char app_root[1024], app_dir[1024];
 static jval *texts, *texts_en;
@@ -15,7 +16,10 @@ bool app_start(int argc, char **argv, const char *id) {
         else if (!strcmp(argv[i], "--app") && i + 1 < argc) snprintf(app_dir, sizeof app_dir, "%s", argv[++i]);
     }
     if (!r) r = "sdcard";
-    if (!realpath(r, app_root)) snprintf(app_root, sizeof app_root, "%s", r);
+    char *rp = realpath(r, NULL);   /* senza buffer fisso: realpath non conosce la sua misura */
+    snprintf(app_root, sizeof app_root, "%s", rp ? rp : r);
+    if (rp && strlen(rp) >= sizeof app_root) { free(rp); return false; }
+    free(rp);
     if (!app_dir[0]) snprintf(app_dir, sizeof app_dir, "%s/Apps/%s", app_root, id);
     if (!ui_init(id, app_root, auto_script, 48000, true)) return false;
     char p[1200];
@@ -24,6 +28,13 @@ bool app_start(int argc, char **argv, const char *id) {
     snprintf(p, sizeof p, "%s/lang/en.json", app_dir);
     texts_en = json_load(p);
     return true;
+}
+
+void app_quit(void) {
+    /* se la chiusura di SDL si blocca (succede sulla console), il segnale chiude l'app e
+       gamewatch torna al launcher (audit APP-011) */
+    alarm(5);
+    ui_shutdown();
 }
 
 const char *FT(const char *key) {

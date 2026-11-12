@@ -145,7 +145,7 @@ static int tw, th;                  /* misure dell'immagine */
 static int zoom, rot;               /* 0 pagina intera, 1 larghezza, 2 doppio; rotazione in quarti */
 static float panx, pany;            /* centro della vista, in frazioni dell'immagine */
 static double info_until;
-static bool load_failed;
+static bool load_failed, load_big;
 
 static void page_free(void) {
     if (tex) SDL_DestroyTexture(tex);
@@ -154,6 +154,7 @@ static void page_free(void) {
 
 static void pages_close(void) {
     page_free();
+    tw = th = 0;
     free(pg.names);
     pg.names = NULL;
     if (pg.zf) fclose(pg.zf);
@@ -184,26 +185,70 @@ static SDL_Texture *make_texture(SDL_Surface *s) {
     return t;
 }
 
+/* misure dall'intestazione (PNG, GIF, BMP, JPEG), prima di decodificare: un'immagine enorme in
+   pixel, anche se piccola su disco, finirebbe la memoria (audit APP-003). Falso se ignote. */
+static uint32_t be32(const unsigned char *p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
+static bool img_dims(const unsigned char *b, size_t n, long *w, long *h) {
+    if (n >= 24 && !memcmp(b, "\x89PNG", 4)) { *w = be32(b + 16); *h = be32(b + 20); return true; }
+    if (n >= 10 && !memcmp(b, "GIF8", 4)) { *w = b[6] | b[7] << 8; *h = b[8] | b[9] << 8; return true; }
+    if (n >= 26 && b[0] == 'B' && b[1] == 'M') {
+        int32_t x = (int32_t)(b[18] | b[19] << 8 | b[20] << 16 | (uint32_t)b[21] << 24), y = (int32_t)(b[22] | b[23] << 8 | b[24] << 16 | (uint32_t)b[25] << 24);
+        *w = labs((long)x); *h = labs((long)y); return true;
+    }
+    if (n >= 4 && b[0] == 0xFF && b[1] == 0xD8) {   /* JPEG: si cerca il segmento SOF */
+        size_t i = 2;
+        while (i + 9 < n) {
+            if (b[i] != 0xFF) { i++; continue; }
+            unsigned m = b[i + 1];
+            if (m == 0xFF) { i++; continue; }
+            if (m == 0xD8 || (m >= 0xD0 && m <= 0xD7) || m == 0x01) { i += 2; continue; }
+            size_t len = (size_t)b[i + 2] << 8 | b[i + 3];
+            if (m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) { *h = b[i + 5] << 8 | b[i + 6]; *w = b[i + 7] << 8 | b[i + 8]; return true; }
+            i += 2 + len;
+        }
+    }
+    return false;
+}
+#define MAX_PIXELS 40000000L   /* 40 milioni di pixel: circa 160 MB decodificati */
+static bool too_big(const unsigned char *b, size_t n) {
+    long w, h;
+    load_big = img_dims(b, n, &w, &h) && (w <= 0 || h <= 0 || w > 30000 || h > 30000 || w * h > MAX_PIXELS);
+    return load_big;
+}
+
 static void page_load(void) {
     page_free();
-    load_failed = false;
+    load_failed = load_big = false;
+    tw = th = 0;
     SDL_Surface *s = NULL;
     if (pg.comic) {
         zent_t *e = &pg.zents[pg.zpages[pg.cur]];
         size_t n = (size_t)e->usize + 1;
         char *buf = e->usize < (64u << 20) ? malloc(n) : NULL;   /* una pagina oltre 64 MB non è un fumetto */
-        if (buf && zip_entry(pg.zf, e, NULL, buf, n)) s = IMG_Load_RW(SDL_RWFromConstMem(buf, (int)e->usize), 1);
+        if (buf && zip_entry(pg.zf, e, NULL, buf, n) && !too_big((unsigned char *)buf, e->usize))
+            s = IMG_Load_RW(SDL_RWFromConstMem(buf, (int)e->usize), 1);
         free(buf);
     } else {
         char p[1600];
+        unsigned char head[65536];
+        struct stat sb;
         snprintf(p, sizeof p, "%s/%s", pg.dir, pg.names[pg.cur]);
-        s = IMG_Load(p);
+        FILE *f = fopen(p, "rb");
+        size_t hn = f ? fread(head, 1, sizeof head, f) : 0;
+        if (f) fclose(f);
+        if (stat(p, &sb) == 0 && sb.st_size < (64 << 20) && hn && !too_big(head, hn)) s = IMG_Load(p);
     }
     if (s) tex = make_texture(s);
-    if (!tex) { load_failed = true; ui_log("immagini: pagina %d non leggibile (%s)", pg.cur + 1, IMG_GetError()); }
+    if (!tex || tw <= 0 || th <= 0) { page_free(); tw = th = 0; load_failed = true; ui_log("immagini: pagina %d non leggibile o troppo grande (%s)", pg.cur + 1, IMG_GetError()); }
     panx = 0.5f;
     pany = 0.0f;   /* dall'alto: le pagine si leggono così */
     info_until = UI.t + 2.0;
+}
+
+static const zent_t *sort_z;
+static int page_cmp(const void *a, const void *b) {
+    int x = *(const int *)a, y = *(const int *)b, c = natcmp(sort_z[x].name, sort_z[y].name);
+    return c ? c : x - y;
 }
 
 static bool comic_open(const char *path) {
@@ -219,11 +264,10 @@ static bool comic_open(const char *path) {
         b = b ? b + 1 : pg.zents[i].name;
         if (b[0] != '.' && is_image(pg.zents[i].name)) pg.zpages[pg.nz++] = i;
     }
-    /* ordine naturale del percorso nello zip */
-    for (int i = 1; i < pg.nz; i++)
-        for (int k = i; k > 0 && natcmp(pg.zents[pg.zpages[k - 1]].name, pg.zents[pg.zpages[k]].name) > 0; k--) {
-            int t = pg.zpages[k]; pg.zpages[k] = pg.zpages[k - 1]; pg.zpages[k - 1] = t;
-        }
+    /* ordine naturale del percorso nello zip, a parità l'ordine nello zip (audit APP-004: prima
+       era quadratico) */
+    sort_z = pg.zents;
+    qsort(pg.zpages, (size_t)pg.nz, sizeof *pg.zpages, page_cmp);
     pg.n = pg.nz;
     return pg.n > 0;
 }
@@ -286,14 +330,19 @@ static void page_go(int d) {
 static void view_input(void) {
     input_t *in = &UI.in;
     SDL_Rect r;
-    int vw, vh;
-    view_rect(&r, &vw, &vh);
+    int vw = 0, vh = 0;
+    if (tex) view_rect(&r, &vw, &vh);   /* senza immagine valida niente misure (audit APP-002) */
     bool pan_x = vw > UI.w, pan_y = vh > UI.h;
     if (in->pressed[BTN_B] || in->pressed[BTN_MENU]) { pages_close(); ui_sound(SND_BACK); return; }
     if (in->pressed[BTN_L]) page_go(-1);
     if (in->pressed[BTN_R]) page_go(+1);
     if (!pan_x && in->pressed[BTN_LEFT]) page_go(-1);
     if (!pan_x && in->pressed[BTN_RIGHT]) page_go(+1);
+    if (!tex) {   /* pagina illeggibile: solo cambio pagina (sinistra/destra già sopra) e uscita */
+        if (in->pressed[BTN_UP]) page_go(-1);
+        if (in->pressed[BTN_DOWN]) page_go(+1);
+        return;
+    }
     if (in->pressed[BTN_A]) { zoom = (zoom + 1) % 3; panx = 0.5f; pany = 0; ui_sound(SND_OK); info_until = UI.t + 1.5; }
     if (in->pressed[BTN_X]) { rot = (rot + 1) % 4; ui_sound(SND_OK); }
     /* spostamento: croce tenuta o levetta sinistra, più veloce sulle immagini piccole */
@@ -322,7 +371,7 @@ static void view_draw(void) {
         int vw, vh;
         view_rect(&r, &vw, &vh);
         SDL_RenderCopyEx(UI.ren, tex, NULL, &r, rot * 90.0, NULL, SDL_FLIP_NONE);
-    } else if (load_failed) ui_text(UI.f_normal, FT("viewer.load_failed"), UI.w / 2, UI.h / 2, rgba(220, 220, 220, 255), ALIGN_CENTER);
+    } else if (load_failed) ui_text(UI.f_normal, FT(load_big ? "viewer.too_big" : "viewer.load_failed"), UI.w / 2, UI.h / 2, rgba(220, 220, 220, 255), ALIGN_CENTER);
     if (UI.t < info_until) {   /* pagina e nome, per qualche istante dopo ogni cambio */
         char line[400], name[300];
         const char *nm = pg.comic ? pg.zents[pg.zpages[pg.cur]].name : pg.names[pg.cur];
@@ -464,6 +513,6 @@ int main(int argc, char **argv) {
         ui_end();
     }
     pages_close();
-    ui_shutdown();
+    app_quit();
     return 0;
 }

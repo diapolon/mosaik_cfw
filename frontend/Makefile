@@ -30,8 +30,8 @@ $(BUILD)/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(BUILD)
 # app dello Store (pacchetti in Arcade/Apps): Esplora file
 APPKIT := src/apps/appkit.c
 
-$(BUILD)/files: $(COMMON) $(APPKIT) src/apps/files.c src/apps/appkit.h src/common/*.h | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/files.c $(LDLIBS) -lpthread
+$(BUILD)/files: $(COMMON) $(APPKIT) src/apps/files.c src/launcher/zipread.c src/apps/appkit.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/files.c src/launcher/zipread.c $(LDLIBS) -lpthread -lz
 
 $(BUILD)/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c src/apps/appkit.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c $(LDLIBS) -lz

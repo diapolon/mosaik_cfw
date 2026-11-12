@@ -457,6 +457,12 @@ journal_restore() {
         step "aggiornamento: $jfail file non rimessi, si riprova al prossimo avvio"
     fi
     sync
+    [ "$jfail" -eq 0 ]
+}
+# file della versione precedente non rimessi (scheda in errore): niente launcher con file di due
+# versioni; il giornale e le copie restano e alla riaccensione si riprova (verifica audit, FIX-R03)
+journal_stuck() {
+    halt_with "AGGIORNAMENTO DA RIPRISTINARE" "RIACCENDI: SI RIPROVA"
 }
 journal_finish() {   # sistema nuovo confermato, corrente saltata prima di togliere le copie
     journal_paths | while IFS= read -r rel; do rm -f "$ROOT/$rel.annulla"; done
@@ -469,11 +475,11 @@ journal_check() {
     jver=$(sed -n 's/^version //p' "$JOURNAL" | head -n 1)
     if [ "$jst" != installato ]; then
         step "aggiornamento interrotto durante l'installazione"
-        journal_restore
+        journal_restore || journal_stuck
         [ -f "$PENDING" ] && rollback   # il sistema nuovo era già al suo posto: si riparte dal precedente
         if [ ! -f "$SYSF" ] && [ -f "$SYSF.prec" ]; then mv -f "$SYSF.prec" "$SYSF"; sync; fi
     elif [ "$jver" != "$RUNVER" ]; then
-        journal_restore                 # l'avvio è tornato al sistema precedente
+        journal_restore || journal_stuck   # l'avvio è tornato al sistema precedente
     elif [ ! -f "$PENDING" ]; then
         journal_finish
     fi

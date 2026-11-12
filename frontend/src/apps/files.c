@@ -3,7 +3,7 @@
    Sfoglia la cartella Arcade della scheda, come la pagina del trasferimento file: si scrive solo
    in Roms, Bios, Saves, Media, Music, Linux, Apps e Bezels (le cartelle stesse non si tolgono né
    si rinominano), il resto si guarda soltanto; System/wifi.conf e i file nascosti non compaiono.
-   Copia, sposta, rinomina, elimina e nuova cartella; X segna più voci. Copie e cancellazioni
+   Copia, sposta, rinomina, elimina, nuova cartella ed estrai gli zip; X segna più voci. Copie e cancellazioni
    lavorano in un thread con l'avanzamento a schermo (B interrompe); un file copiato si scrive
    come ".nome.part" e prende il suo nome solo quando è completo.
 
@@ -13,6 +13,7 @@
 
    Sul Mac: build/files --root sdcard [--auto "wait:30,shot:/tmp/f.png,quit"] */
 #include "appkit.h"
+#include "../launcher/zipread.h"
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -148,7 +149,7 @@ static int marked_count(void) {
 
 /* ------------------------------------------------------------ lavori: copia, sposta, elimina */
 
-enum { JOB_NONE, JOB_COPY, JOB_MOVE, JOB_DELETE };
+enum { JOB_NONE, JOB_COPY, JOB_MOVE, JOB_DELETE, JOB_EXTRACT };
 static struct {
     int kind;
     char src_dir[1024];          /* relativa a root */
@@ -158,9 +159,17 @@ static struct {
     _Atomic long long done, total;
     _Atomic int files_done, failed;
     _Atomic bool running, cancel;
-    char current[256];
+    char current[256];           /* letto dalla finestra: sotto cur_lock */
     char first[256];             /* nome della prima voce arrivata (copia e spostamento) */
+    _Atomic bool nospace;        /* estrazione: lo spazio non basta, niente scritto */
 } job;
+static pthread_mutex_t cur_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void set_current(const char *name) {
+    pthread_mutex_lock(&cur_lock);
+    snprintf(job.current, sizeof job.current, "%s", name);
+    pthread_mutex_unlock(&cur_lock);
+}
 static pthread_t job_thread;
 static bool job_joinable;
 
@@ -182,18 +191,31 @@ static void tree_size(const char *p, long long *bytes, int *files, int depth) {
     if (d) closedir(d);
 }
 
-/* nome libero nella cartella: "nome (2).ext", "nome (3).ext"... */
-static void unique_name(const char *dir_full, const char *name, char *out, size_t n) {
+/* nome libero nella cartella: "nome (2).ext", "nome (3).ext"...; falso se non ce n'è uno (mai
+   restituire un nome occupato: copiando lo si sovrascriverebbe, audit APP-005) */
+static bool unique_name(const char *dir_full, const char *name, char *out, size_t n) {
     char p[1600];
     snprintf(p, sizeof p, "%s/%s", dir_full, name);
-    if (access(p, F_OK) != 0) { snprintf(out, n, "%s", name); return; }
+    if (access(p, F_OK) != 0) { snprintf(out, n, "%s", name); return strlen(name) < n; }
     const char *dot = strrchr(name, '.');
     int stem = dot && dot != name ? (int)(dot - name) : (int)strlen(name);
     for (int k = 2; k < 1000; k++) {
-        snprintf(out, n, "%.*s (%d)%s", stem, name, k, dot && dot != name ? dot : "");
+        int w = snprintf(out, n, "%.*s (%d)%s", stem, name, k, dot && dot != name ? dot : "");
+        if (w < 0 || (size_t)w >= n) return false;
         snprintf(p, sizeof p, "%s/%s", dir_full, out);
-        if (access(p, F_OK) != 0) return;
+        if (access(p, F_OK) != 0) return true;
     }
+    return false;
+}
+
+/* password Wi-Fi e browser ricordati: non escono da System nemmeno copiando la cartella (APP-007) */
+static bool secret_file(const char *path) {
+    const char *b = strrchr(path, '/');
+    if (!b) return false;
+    const char *pd = b;
+    while (pd > path && pd[-1] != '/') pd--;
+    return (size_t)(b - pd) == 6 && !strncasecmp(pd, "System", 6) &&
+           (!strcasecmp(b + 1, "wifi.conf") || !strcasecmp(b + 1, "fileserver-browsers.txt"));
 }
 
 static bool copy_file(const char *src, const char *dst_dir, const char *name) {
@@ -230,7 +252,8 @@ static bool copy_file(const char *src, const char *dst_dir, const char *name) {
 static bool copy_tree(const char *src, const char *dst_dir, const char *name, int depth) {
     struct stat sb;
     if (job.cancel || lstat(src, &sb) != 0) return false;
-    snprintf(job.current, sizeof job.current, "%s", name);
+    set_current(name);
+    if (secret_file(src)) return true;   /* saltato apposta, non è un errore */
     if (!S_ISDIR(sb.st_mode)) {
         bool ok = copy_file(src, dst_dir, name);
         if (ok) job.files_done++;
@@ -273,6 +296,78 @@ static bool remove_tree(const char *p, int depth) {
     return ok && !job.cancel && rmdir(p) == 0;
 }
 
+/* cartelle di un percorso relativo (dentro dst) */
+static bool make_dirs(const char *dst, const char *rel) {
+    char p[1600];
+    snprintf(p, sizeof p, "%s/%s", dst, rel);
+    for (char *c = p + strlen(dst) + 1; (c = strchr(c, '/')); c++) {
+        *c = 0;
+        if (mkdir(p, 0755) != 0 && errno != EEXIST) return false;
+        *c = '/';
+    }
+    return true;
+}
+
+/* Estrai qui: tutte le voci dello zip nella cartella dst. Nomi con "..", assoluti o vuoti si
+   saltano; i caratteri che il FAT non accetta diventano "_"; un file che c'è già non si tocca
+   (la copia prende "nome (2)"); prima si controlla che lo spazio basti. */
+static bool extract_zip(const char *zpath, const char *dst) {
+    FILE *z = fopen(zpath, "rb");
+    zent_t *ze = NULL;
+    int n = z ? zip_dir(z, &ze) : -1;
+    if (n < 0) { if (z) fclose(z); return false; }
+    long long total = 0;
+    for (int i = 0; i < n; i++) total += ze[i].usize;
+    struct statvfs v;
+    if (statvfs(dst, &v) == 0 && total + (64LL << 20) > (long long)v.f_bavail * (long long)v.f_frsize) {
+        job.nospace = true;
+        free(ze);
+        fclose(z);
+        return false;
+    }
+    job.total = total;
+    bool ok = true;
+    for (int i = 0; i < n && !job.cancel; i++) {
+        char rel[512];
+        snprintf(rel, sizeof rel, "%s", ze[i].name);
+        for (char *c = rel; *c; c++) {
+            if (*c == '\\') *c = '/';
+            else if (strchr(":*?\"<>|", *c) || (unsigned char)*c < 32) *c = '_';
+        }
+        bool dir = rel[0] && rel[strlen(rel) - 1] == '/';
+        if (dir) rel[strlen(rel) - 1] = 0;
+        if (!rel[0] || rel[0] == '/' || !strcmp(rel, "..") || !strncmp(rel, "../", 3) || strstr(rel, "/../") ||
+            (strlen(rel) >= 3 && !strcmp(rel + strlen(rel) - 3, "/.."))) continue;   /* fuori dalla cartella: mai */
+        set_current(rel);
+        if (dir) {
+            char d[1600];
+            snprintf(d, sizeof d, "%s/%s/", dst, rel);
+            ok &= make_dirs(dst, d + strlen(dst) + 1);
+            continue;
+        }
+        if (!make_dirs(dst, rel)) { ok = false; continue; }
+        char dir_full[1600], name[256], out[256];
+        const char *slash = strrchr(rel, '/');
+        snprintf(dir_full, sizeof dir_full, "%s/%.*s", dst, slash ? (int)(slash - rel) : 0, rel);
+        if (!slash) snprintf(dir_full, sizeof dir_full, "%s", dst);
+        snprintf(name, sizeof name, "%s", slash ? slash + 1 : rel);
+        if (!unique_name(dir_full, name, out, sizeof out)) { ok = false; continue; }
+        char part[1700], fin[1700];
+        snprintf(part, sizeof part, "%s/.%s.part", dir_full, out);
+        snprintf(fin, sizeof fin, "%s/%s", dir_full, out);
+        FILE *o = fopen(part, "wb");
+        bool fok = o && zip_entry(z, &ze[i], o, NULL, 0) && fflush(o) == 0 && fsync(fileno(o)) == 0;
+        if (o && fclose(o) != 0) fok = false;
+        if (fok && rename(part, fin) != 0) fok = false;
+        if (!fok) { unlink(part); ok = false; continue; }
+        job.done += ze[i].usize;
+        job.files_done++;
+    }
+    free(ze);
+    fclose(z);
+    return ok && !job.cancel;
+}
+
 static void *job_worker(void *arg) {
     (void)arg;
     char sd[1300], dd[1300];
@@ -283,17 +378,23 @@ static void *job_worker(void *arg) {
     for (int i = 0; i < job.n; i++) {
         char p[1600];
         snprintf(p, sizeof p, "%s/%s", sd, job.names[i]);
-        if (job.kind != JOB_MOVE) tree_size(p, &total, &files, 0);
+        if (job.kind != JOB_MOVE && job.kind != JOB_EXTRACT) tree_size(p, &total, &files, 0);
     }
     job.total = total;
     for (int i = 0; i < job.n && !job.cancel; i++) {
         char p[1600], name[256];
         snprintf(p, sizeof p, "%s/%s", sd, job.names[i]);
-        snprintf(job.current, sizeof job.current, "%s", job.names[i]);
+        set_current(job.names[i]);
         bool ok;
         if (job.kind == JOB_DELETE) ok = remove_tree(p, 0);
         else {
-            unique_name(dd, job.names[i], name, sizeof name);
+            if (job.kind == JOB_EXTRACT) {
+                ok = extract_zip(p, dd);
+                if (!ok) job.failed++;
+                ui_log("file: estraggo %s/%s: %s", job.src_dir, job.names[i], ok ? "fatto" : job.nospace ? "spazio insufficiente" : "errore");
+                continue;
+            }
+            if (!unique_name(dd, job.names[i], name, sizeof name)) { job.failed++; continue; }
             if (i == 0) snprintf(job.first, sizeof job.first, "%s", name);
             if (job.kind == JOB_MOVE) {   /* stessa scheda: basta cambiare nome */
                 char q[1600];
@@ -324,6 +425,7 @@ static void job_start(int kind, const char *src_dir, char (*names)[256], int n, 
     job.files_done = job.failed = 0;
     job.cancel = false;
     job.current[0] = job.first[0] = 0;
+    job.nospace = false;
     job.running = true;
     if (pthread_create(&job_thread, NULL, job_worker, NULL) == 0) job_joinable = true;
     else job.running = false;
@@ -345,7 +447,7 @@ static int selection(char (**out)[256]) {
 
 enum { W_NONE, W_MENU, W_DELETE, W_KB, W_JOB };
 static int win, menu_sel, ask_sel;
-enum { A_COPY, A_CUT, A_PASTE, A_RENAME, A_DELETE, A_NEWDIR, A_MARKALL, A_COUNT };
+enum { A_COPY, A_CUT, A_PASTE, A_RENAME, A_DELETE, A_NEWDIR, A_MARKALL, A_EXTRACT, A_COUNT };
 static int menu_items[A_COUNT], nmenu;
 static long long del_bytes;
 static int del_files;
@@ -364,6 +466,10 @@ static void menu_open(void) {
     if (mod) menu_items[nmenu++] = A_CUT;
     if (clip.n && in_writable(cwd)) menu_items[nmenu++] = A_PASTE;
     if (mod && marked_count() <= 1) menu_items[nmenu++] = A_RENAME;
+    if (any && !marked_count() && !ents[sel].dir && in_writable(cwd)) {   /* Estrai qui: solo sugli zip */
+        size_t l = strlen(ents[sel].name);
+        if (l > 4 && !strcasecmp(ents[sel].name + l - 4, ".zip")) menu_items[nmenu++] = A_EXTRACT;
+    }
     if (mod) menu_items[nmenu++] = A_DELETE;
     if (in_writable(cwd)) menu_items[nmenu++] = A_NEWDIR;
     if (any) menu_items[nmenu++] = A_MARKALL;
@@ -437,6 +543,13 @@ static void action(int a) {
         win = W_DELETE;
         break;
     }
+    case A_EXTRACT: {
+        char one[1][256];
+        snprintf(one[0], 256, "%s", ents[sel].name);
+        job_start(JOB_EXTRACT, cwd, one, 1, cwd);
+        win = W_JOB;
+        break;
+    }
     case A_MARKALL: {
         bool all = marked_count() == nents;
         for (int i = 0; i < nents; i++) ents[i].mark = !all;
@@ -466,9 +579,17 @@ static void kb_done(void) {
         if (!strcmp(old, kb_text)) { win = W_NONE; return; }
         /* stesso nome con maiuscole diverse: sul FAT serve un passaggio intermedio */
         if (!strcasecmp(old, kb_text)) {
+            /* temporaneo che non esiste già; se il secondo passo fallisce si rimette il nome di
+               prima (audit APP-006) */
             char t[1600];
-            snprintf(t, sizeof t, "%s/.rinomina.tmp", base);
-            ok = rename(p, t) == 0 && rename(t, q) == 0;
+            ok = false;
+            for (int k = 0; k < 100; k++) {
+                snprintf(t, sizeof t, "%s/.rinomina-%d-%d.tmp", base, (int)getpid(), k);
+                if (access(t, F_OK) != 0) { ok = true; break; }
+            }
+            if (ok && rename(p, t) == 0) {
+                if (rename(t, q) != 0) { rename(t, p); ok = false; }
+            } else ok = false;
         } else ok = access(q, F_OK) != 0 && rename(p, q) == 0;
     }
     ui_log("file: %s %s/%s: %s", kb_new ? "nuova cartella" : "rinomino in", cwd, kb_text, ok ? "fatto" : "errore");
@@ -552,7 +673,7 @@ static void kb_draw(void) {
 }
 
 static const char *action_key(int a) {
-    static const char *k[A_COUNT] = { "files.copy", "files.move", "files.paste", "files.rename", "files.delete", "files.new_folder", "files.mark_all" };
+    static const char *k[A_COUNT] = { "files.copy", "files.move", "files.paste", "files.rename", "files.delete", "files.new_folder", "files.mark_all", "files.extract" };
     return k[a];
 }
 
@@ -586,9 +707,13 @@ static void job_draw(void) {
     int w = M(0.8f), h = M(0.3f), x, y;
     app_panel(w, h, &x, &y);
     char line[300], a[32], b[32];
-    snprintf(line, sizeof line, "%s", FT(job.kind == JOB_DELETE ? "files.deleting" : job.kind == JOB_MOVE ? "files.moving" : "files.copying"));
+    snprintf(line, sizeof line, "%s", FT(job.kind == JOB_DELETE ? "files.deleting" : job.kind == JOB_MOVE ? "files.moving" : job.kind == JOB_EXTRACT ? "files.extracting" : "files.copying"));
     ui_text(UI.f_title, line, x + w / 2, y + M(0.04f), t->text, ALIGN_CENTER);
-    ui_text_fit(UI.f_small, job.current, w - M(0.1f), line, sizeof line);
+    char cur[256];
+    pthread_mutex_lock(&cur_lock);
+    snprintf(cur, sizeof cur, "%s", job.current);
+    pthread_mutex_unlock(&cur_lock);
+    ui_text_fit(UI.f_small, cur, w - M(0.1f), line, sizeof line);
     int ty = y + M(0.04f) + TTF_FontHeight(UI.f_title) + M(0.01f);
     ui_text(UI.f_small, line, x + w / 2, ty, t->text_dim, ALIGN_CENTER);
     int bw = w - M(0.12f), bh = M(0.012f), bx = x + M(0.06f), by = ty + TTF_FontHeight(UI.f_small) + M(0.03f);
@@ -745,6 +870,7 @@ int main(int argc, char **argv) {
                 if (job_joinable) { pthread_join(job_thread, NULL); job_joinable = false; }
                 win = W_NONE;
                 if (job.cancel) toast("files.cancelled");
+                else if (job.nospace) toast("files.no_space");
                 else if (job.failed) toast("files.failed");
                 else toast("files.done");
                 ui_sound(job.failed || job.cancel ? SND_ERROR : SND_OK);
@@ -788,6 +914,6 @@ int main(int argc, char **argv) {
         ui_end();
     }
     if (job_joinable) { job.cancel = true; pthread_join(job_thread, NULL); }
-    ui_shutdown();   /* senza exit.txt: quel file è del launcher e del runner */
+    app_quit();   /* senza exit.txt: quel file è del launcher e del runner */
     return 0;
 }
