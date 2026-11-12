@@ -241,7 +241,8 @@
     "box_covers": "Verpackung als Cover",
     "speaker_rest": "Lautsprecher in Ruhe",
     "reset_settings": "Einstellungen zurücksetzen",
-    "erase_all": "Alles löschen"
+    "erase_all": "Alles löschen",
+    "store": "Store"
   },
   "settings_desc": {
     "file_server": "Dateien der Karte von einem Computer oder Telefon im selben WLAN verwalten.",
@@ -294,7 +295,8 @@
     "box_covers": "Bei Konsolenspielen wird die Verpackung angezeigt, falls heruntergeladen, statt des Screenshots.",
     "speaker_rest": "Das Rauschen kommt vom Verstärker: aus nach 4 s ohne Ton, beim nächsten Ton wieder an. A und B: zwei Arten, ihn auszuschalten, zum Vergleich.",
     "reset_settings": "Einstellungen, Listen und WLAN-Netze werden wie neu. Spiele und Spielstände bleiben.",
-    "erase_all": "Löscht Spiele, Spielstände, BIOS, Bilder und Einstellungen: die Karte ist wie frisch beschrieben."
+    "erase_all": "Löscht Spiele, Spielstände, BIOS, Bilder und Einstellungen: die Karte ist wie frisch beschrieben.",
+    "store": "Emulatoren laden, aktualisieren und entfernen."
   },
   "aspect": {
     "original": "Original",
@@ -646,7 +648,7 @@
     "system": "WLAN, Datum und Uhrzeit, Ausschalten",
     "tools": "ROMs prüfen, Bilder laden und aufräumen",
     "updates": "Update, Kanal, Protokoll, Infos",
-    "card": "Dateien übertragen, Sicherung, zurücksetzen"
+    "card": "Store, Dateien übertragen, Sicherung, zurücksetzen"
   },
   "settings_cat_desc": {
     "power": "Konsole in den Ruhezustand versetzen, neu starten oder ausschalten.",
@@ -657,7 +659,7 @@
     "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
     "tools": "ROMs prüfen, Spielbilder herunterladen und nicht mehr benötigte entfernen.",
     "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte.",
-    "card": "Dateien und Sicherungen per WLAN übertragen, Einstellungen oder die ganze Karte zurücksetzen."
+    "card": "Emulator-Store, Dateien und Sicherungen per WLAN übertragen, Einstellungen oder die ganze Karte zurücksetzen."
   },
   "loglvl": {
     "off": "Aus",
@@ -869,5 +871,39 @@
     "count": "%d Apps",
     "empty_title": "Keine Apps",
     "empty_text": "Apps nach Arcade/Apps kopieren: ein Ordner pro App, mit launch.sh darin."
+  },
+  "store": {
+    "title": "Store",
+    "loading": "Katalog wird geladen…",
+    "online": "Katalog aktuell",
+    "offline": "Offline: auf der Karte gespeicherter Katalog",
+    "none": "Kein Katalog",
+    "empty": "WLAN verbinden, um die Emulatoren zu sehen, oder die Pakete store-….zip auf die Karte kopieren.",
+    "installed": "Installiert",
+    "update": "Update",
+    "install": "Installieren",
+    "do_update": "Aktualisieren",
+    "remove": "Entfernen",
+    "remove_title": "%s entfernen?",
+    "remove_body": "ROMs, BIOS und Spielstände bleiben.",
+    "working": "%s wird installiert",
+    "removing": "%s wird entfernt",
+    "done": "Fertig",
+    "already": "Bereits installiert",
+    "stop": "Stopp",
+    "err_network": "Netzwerk nicht verfügbar",
+    "err_signature": "Katalogsignatur ungültig",
+    "err_catalog": "Katalog ungültig",
+    "err_space": "Nicht genug Platz auf der Karte",
+    "err_verify": "Paket beschädigt: erneut versuchen",
+    "err_write": "Fehler beim Schreiben auf die Karte",
+    "err_core": "Der Emulator startet nicht: entfernt",
+    "err_cancel": "Abgebrochen",
+    "ask_title": "Keine Emulatoren",
+    "ask_body": "Lade die benötigten Emulatoren aus dem Store.",
+    "later": "Später",
+    "open": "Store öffnen",
+    "pkg_title": "%s installieren?",
+    "pkg_body": "Auf die Karte kopiertes Paket (%s)."
   }
 }

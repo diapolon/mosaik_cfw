@@ -27,30 +27,52 @@ chmod +x "$APP/launch.sh" "$APP/bin/"*
 mkdir -p "$DATA/Cores" "$DATA/Roms/FBNEO" "$DATA/Roms/MAME2003P" "$DATA/Roms/MAME2010" "$DATA/Roms/NES" "$DATA/Roms/MD" "$DATA/Roms/SMS" "$DATA/Roms/GG" "$DATA/Roms/PCE" "$DATA/Roms/SNES" \
          "$DATA/Roms/GB" "$DATA/Roms/GBC" "$DATA/Roms/GBA" "$DATA/Roms/NGP" "$DATA/Roms/PS" "$DATA/Roms/DC" "$DATA/Bios" "$DATA/Saves" "$DATA/System" \
          "$DATA/Logs" "$DATA/Music" "$DATA/Linux" "$DATA/Apps" "$DATA/Media"
-cp "$DIST/cores/fbneo_libretro.so" "$DATA/Cores/fbneo_libretro.so"
-cp "$DIST/cores/mame2003_plus_libretro.so" "$DATA/Cores/mame2003p_libretro.so"
+# Emulatori: non sono nella base, sono pacchetti dello Store (un pacchetto per core, con i suoi
+# Emulators/<id>.json e gli indici arcade). Qui si preparano in dist/store-src/<pacchetto>/ con i
+# percorsi della scheda; toolchain/make-store.py li impacchetta e firma il catalogo.
+PKG="$DIST/store-src"
+rm -rf "$PKG"
+pkg() {   # pkg PACCHETTO FILE_DEL_CORE NOME_SULLA_SCHEDA EMULATORE...
+    id=$1 so=$2 dst=$3; shift 3
+    mkdir -p "$PKG/$id/Cores" "$PKG/$id/Emulators"
+    [ "$so" = - ] || cp "$DIST/cores/$so" "$PKG/$id/Cores/$dst"
+    for e in "$@"; do
+        cp "$FE/emulators/$e.json" "$PKG/$id/Emulators/"
+        # indice arcade fatto dai DAT (build_index.py: <id>.tsv con accanto <id>.roms)
+        if [ -f "$FE/sdcard/Dats/$e.roms" ]; then
+            mkdir -p "$PKG/$id/Dats"
+            cp -L "$FE/sdcard/Dats/$e.roms" "$FE/sdcard/Dats/$e.tsv" "$PKG/$id/Dats/"
+        fi
+    done
+}
+pkg fbneo fbneo_libretro.so fbneo_libretro.so fbneo
+pkg mame2003p mame2003_plus_libretro.so mame2003p_libretro.so mame2003p
+pkg mame2010 mame2010_libretro.so mame2010_libretro.so mame2010
+pkg fceumm fceumm_libretro.so fceumm_libretro.so nes
+pkg genesis_plus_gx genesis_plus_gx_libretro.so genesis_plus_gx_libretro.so md sms gg
+pkg snes9x snes9x_libretro.so snes9x_libretro.so snes
+pkg gambatte gambatte_libretro.so gambatte_libretro.so gb gbc
+pkg mgba mgba_libretro.so mgba_libretro.so gba
+pkg pce_fast mednafen_pce_fast_libretro.so mednafen_pce_fast_libretro.so pce
+pkg ngp mednafen_ngp_libretro.so mednafen_ngp_libretro.so ngp
+pkg pcsx pcsx_rearmed_libretro.so pcsx_rearmed_libretro.so ps
 # Dreamcast: Deadcast, programma a sé (non un core libretro), dal pacchetto del suo autore
 # scaricato a versione fissa da toolchain/fetch-deadcast.sh; lo avvia Cores/deadcast/launch.sh
 DZ=$(ls "$TOP"/deps/deadcast/DC-DEADCAST-*.pak.zip 2>/dev/null | tail -1)
 if [ -n "$DZ" ]; then
-    mkdir -p "$DATA/Cores/deadcast"
-    unzip -q -o "$DZ" deadcast 'config/*' 'licenses/*' -d "$DATA/Cores/deadcast"
-    cp "$FE/package/deadcast/launch.sh" "$DATA/Cores/deadcast/launch.sh"
-    chmod +x "$DATA/Cores/deadcast/deadcast" "$DATA/Cores/deadcast/launch.sh"
+    pkg deadcast - - dc
+    mkdir -p "$PKG/deadcast/Cores/deadcast"
+    unzip -q -o "$DZ" deadcast 'config/*' 'licenses/*' -d "$PKG/deadcast/Cores/deadcast"
+    cp "$FE/package/deadcast/launch.sh" "$PKG/deadcast/Cores/deadcast/launch.sh"
+    chmod +x "$PKG/deadcast/Cores/deadcast/deadcast" "$PKG/deadcast/Cores/deadcast/launch.sh"
 else
-    echo "attenzione: manca Deadcast (sh toolchain/fetch-deadcast.sh): Dreamcast senza emulatore" >&2
+    echo "attenzione: manca Deadcast (sh toolchain/fetch-deadcast.sh): niente pacchetto Dreamcast" >&2
 fi
-for c in mame2010 fceumm genesis_plus_gx snes9x gambatte mgba mednafen_pce_fast mednafen_ngp pcsx_rearmed; do cp "$DIST/cores/${c}_libretro.so" "$DATA/Cores/"; done
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"
-cp "$FE/emulators/"*.json "$DATA/Emulators/"
-# solo gli indici arcade fatti dai DAT (build_index.py: <id>.tsv con accanto <id>.roms). Il resto
-# lo scrive lo scraper sulla console: generi e storie (arcadedb.tsv, history), indici delle
-# console e dati libretro (dati di terzi, nell'immagine no; quelli della SD del Mac sono di prova)
-for r in "$FE/sdcard/Dats/"*.roms; do
-    cp -L "$r" "${r%.roms}.tsv" "$DATA/Dats/"
-done
+# Emulators e Dats restano vuoti: li riempiono i pacchetti dello Store. Gli altri indici li
+# scrive lo scraper sulla console (generi e storie, indici delle console, dati libretro).
 mkdir -p "$DATA/Licenses"
 cp "$TOP/licenses/"* "$DATA/Licenses/"
 [ "$1" = "--media" ] && cp -RL "$FE/sdcard/Media/." "$DATA/Media/"

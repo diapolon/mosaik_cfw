@@ -241,7 +241,8 @@
     "box_covers": "Boîte comme couverture",
     "speaker_rest": "Haut-parleur au repos",
     "reset_settings": "Réinitialiser les réglages",
-    "erase_all": "Tout effacer"
+    "erase_all": "Tout effacer",
+    "store": "Boutique"
   },
   "settings_desc": {
     "file_server": "Gère les fichiers de la carte depuis un ordinateur ou un téléphone sur le même réseau Wi-Fi.",
@@ -294,7 +295,8 @@
     "box_covers": "Pour les jeux de console, affiche la boîte, si elle a été téléchargée, au lieu de la capture.",
     "speaker_rest": "Le souffle vient de l'amplificateur : éteint après 4 s sans son, rallumé au son suivant. A et B : deux façons de l'éteindre, à comparer.",
     "reset_settings": "Réglages, listes et réseaux Wi-Fi reviennent à neuf. Jeux et sauvegardes restent.",
-    "erase_all": "Efface jeux, sauvegardes, BIOS, images et réglages : la carte redevient comme juste écrite."
+    "erase_all": "Efface jeux, sauvegardes, BIOS, images et réglages : la carte redevient comme juste écrite.",
+    "store": "Télécharger, mettre à jour et retirer des émulateurs."
   },
   "aspect": {
     "original": "Original",
@@ -646,7 +648,7 @@
     "system": "Wi-Fi, date et heure, extinction",
     "tools": "Vérifier les ROM, télécharger et nettoyer les images",
     "updates": "Mise à jour, canal, journal, infos",
-    "card": "Transférer des fichiers, sauvegarde, réinitialiser"
+    "card": "Boutique, transfert, sauvegarde, réinitialiser"
   },
   "settings_cat_desc": {
     "power": "Mettre la console en veille, la redémarrer ou l’éteindre.",
@@ -657,7 +659,7 @@
     "system": "Wi-Fi, date, heure et fuseau horaire, extinction automatique.",
     "tools": "Vérifier les ROM, télécharger les images des jeux et supprimer celles qui ne servent plus.",
     "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte.",
-    "card": "Transférer des fichiers et sauvegarder par Wi-Fi, réinitialiser les réglages ou toute la carte."
+    "card": "Boutique d'émulateurs, transfert de fichiers et sauvegarde par Wi-Fi, réinitialiser les réglages ou toute la carte."
   },
   "loglvl": {
     "off": "Désactivé",
@@ -869,5 +871,39 @@
     "count": "%d apps",
     "empty_title": "Aucune app",
     "empty_text": "Copiez les apps dans Arcade/Apps : un dossier par app, avec launch.sh dedans."
+  },
+  "store": {
+    "title": "Boutique",
+    "loading": "Chargement du catalogue…",
+    "online": "Catalogue à jour",
+    "offline": "Hors ligne : catalogue enregistré sur la carte",
+    "none": "Aucun catalogue",
+    "empty": "Connectez le Wi-Fi pour voir les émulateurs, ou copiez sur la carte les paquets store-….zip.",
+    "installed": "Installé",
+    "update": "Mise à jour",
+    "install": "Installer",
+    "do_update": "Mettre à jour",
+    "remove": "Retirer",
+    "remove_title": "Retirer %s ?",
+    "remove_body": "ROM, BIOS et sauvegardes restent.",
+    "working": "Installation de %s",
+    "removing": "Retrait de %s",
+    "done": "Terminé",
+    "already": "Déjà installé",
+    "stop": "Arrêter",
+    "err_network": "Réseau indisponible",
+    "err_signature": "Signature du catalogue non valide",
+    "err_catalog": "Catalogue non valide",
+    "err_space": "Pas assez de place sur la carte",
+    "err_verify": "Paquet abîmé : réessayez",
+    "err_write": "Erreur d'écriture sur la carte",
+    "err_core": "L'émulateur ne démarre pas : retiré",
+    "err_cancel": "Interrompu",
+    "ask_title": "Aucun émulateur",
+    "ask_body": "Téléchargez dans la Boutique les émulateurs qu'il vous faut.",
+    "later": "Plus tard",
+    "open": "Ouvrir la Boutique",
+    "pkg_title": "Installer %s ?",
+    "pkg_body": "Paquet copié sur la carte (%s)."
   }
 }

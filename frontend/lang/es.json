@@ -241,7 +241,8 @@
     "box_covers": "Caja como portada",
     "speaker_rest": "Altavoz en reposo",
     "reset_settings": "Restablecer ajustes",
-    "erase_all": "Borrar todo"
+    "erase_all": "Borrar todo",
+    "store": "Tienda"
   },
   "settings_desc": {
     "file_server": "Gestiona los archivos de la tarjeta desde un ordenador o un teléfono en la misma red Wi-Fi.",
@@ -294,7 +295,8 @@
     "box_covers": "En los juegos de consola muestra la caja, si se ha descargado, en lugar de la captura.",
     "speaker_rest": "El siseo viene del amplificador: se apaga tras 4 s sin sonido y vuelve con el siguiente. A y B: dos formas de apagarlo, para comparar.",
     "reset_settings": "Ajustes, listas y redes Wi-Fi vuelven a estar como nuevos. Juegos y partidas se quedan.",
-    "erase_all": "Borra juegos, partidas, BIOS, imágenes y ajustes: la tarjeta queda como recién grabada."
+    "erase_all": "Borra juegos, partidas, BIOS, imágenes y ajustes: la tarjeta queda como recién grabada.",
+    "store": "Descarga, actualiza y quita emuladores."
   },
   "aspect": {
     "original": "Original",
@@ -646,7 +648,7 @@
     "system": "Wi-Fi, fecha y hora, apagado",
     "tools": "Verificar ROM, descargar y limpiar imágenes",
     "updates": "Actualizar, canal, registro, información",
-    "card": "Transferir archivos, copia, restablecer"
+    "card": "Tienda, transferir archivos, copia, restablecer"
   },
   "settings_cat_desc": {
     "power": "Suspende la consola, reiníciala o apágala.",
@@ -657,7 +659,7 @@
     "system": "Wi-Fi, fecha, hora y zona horaria, apagado automático.",
     "tools": "Verificar las ROM, descargar imágenes de los juegos y borrar las que ya no sirven.",
     "updates": "Actualización del sistema, canal, aviso, registro de diagnóstico y espacio de la tarjeta.",
-    "card": "Transferir archivos y hacer copias por Wi-Fi, restablecer los ajustes o toda la tarjeta."
+    "card": "Tienda de emuladores, transferencia de archivos y copias por Wi-Fi, restablecer los ajustes o toda la tarjeta."
   },
   "loglvl": {
     "off": "Apagado",
@@ -869,5 +871,39 @@
     "count": "%d apps",
     "empty_title": "Ninguna app",
     "empty_text": "Copia las apps en Arcade/Apps: una carpeta por app, con launch.sh dentro."
+  },
+  "store": {
+    "title": "Tienda",
+    "loading": "Cargando el catálogo…",
+    "online": "Catálogo actualizado",
+    "offline": "Sin red: catálogo guardado en la tarjeta",
+    "none": "Sin catálogo",
+    "empty": "Conecta el Wi-Fi para ver los emuladores, o copia en la tarjeta los paquetes store-….zip.",
+    "installed": "Instalado",
+    "update": "Actualización",
+    "install": "Instalar",
+    "do_update": "Actualizar",
+    "remove": "Quitar",
+    "remove_title": "¿Quitar %s?",
+    "remove_body": "Las ROM, BIOS y partidas se quedan.",
+    "working": "Instalando %s",
+    "removing": "Quitando %s",
+    "done": "Hecho",
+    "already": "Ya instalado",
+    "stop": "Parar",
+    "err_network": "Red no disponible",
+    "err_signature": "Firma del catálogo no válida",
+    "err_catalog": "Catálogo no válido",
+    "err_space": "No hay espacio en la tarjeta",
+    "err_verify": "Paquete dañado: inténtalo de nuevo",
+    "err_write": "Error al escribir en la tarjeta",
+    "err_core": "El emulador no arranca: quitado",
+    "err_cancel": "Interrumpido",
+    "ask_title": "Ningún emulador",
+    "ask_body": "Descarga de la Tienda los emuladores que necesites.",
+    "later": "Más tarde",
+    "open": "Abrir la Tienda",
+    "pkg_title": "¿Instalar %s?",
+    "pkg_body": "Paquete copiado en la tarjeta (%s)."
   }
 }

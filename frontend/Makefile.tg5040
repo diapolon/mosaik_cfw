@@ -21,7 +21,7 @@ LDFLAGS := -L$(PREFIX)/lib -L$(SDK)/lib -Wl,-rpath-link,$(TCLIBC)/lib -Wl,-rpath
 SDLLIBS := -Wl,-Bstatic -lSDL2_ttf -lSDL2_image -Wl,-Bdynamic -lSDL2 -lm -lpthread -ldl
 
 COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
-LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/qrcode.c src/runner/romzip.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 RUNNER   := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
 all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu

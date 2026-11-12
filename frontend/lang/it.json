@@ -241,7 +241,8 @@
     "box_covers": "Scatola come copertina",
     "speaker_rest": "Altoparlante a riposo",
     "reset_settings": "Reimposta impostazioni",
-    "erase_all": "Cancella tutto"
+    "erase_all": "Cancella tutto",
+    "store": "Store"
   },
   "settings_desc": {
     "file_server": "Gestisci i file della scheda da un computer o da un telefono sulla stessa rete Wi-Fi.",
@@ -294,7 +295,8 @@
     "box_covers": "Per i giochi per console mostra la scatola, se è stata scaricata, invece della schermata.",
     "speaker_rest": "Il fruscio viene dall'amplificatore: spento dopo 4 s senza suoni, si riaccende al primo suono. A e B: due modi di spegnerlo, da confrontare.",
     "reset_settings": "Impostazioni, liste e reti Wi-Fi tornano come nuove. Giochi e salvataggi restano.",
-    "erase_all": "Cancella giochi, salvataggi, BIOS, immagini e impostazioni: la scheda torna come appena scritta."
+    "erase_all": "Cancella giochi, salvataggi, BIOS, immagini e impostazioni: la scheda torna come appena scritta.",
+    "store": "Scarica, aggiorna e togli gli emulatori."
   },
   "aspect": {
     "original": "Originale",
@@ -646,7 +648,7 @@
     "system": "Wi-Fi, data e ora, spegnimento",
     "tools": "Verifica ROM, scarica e pulisci immagini",
     "updates": "Aggiorna, canale, registro, informazioni",
-    "card": "Trasferisci file, backup, reimposta"
+    "card": "Store, trasferisci file, backup, reimposta"
   },
   "settings_cat_desc": {
     "power": "Sospendi la console, riavviala o spegnila.",
@@ -657,7 +659,7 @@
     "system": "Wi-Fi, data, ora e fuso orario, spegnimento automatico.",
     "tools": "Verifica delle ROM, scaricamento delle immagini dei giochi e pulizia di quelle che non servono più.",
     "updates": "Aggiornamento del sistema, canale, avviso, registro diagnostico e spazio sulla scheda.",
-    "card": "Trasferimento di file e backup via Wi-Fi, reimpostazione delle impostazioni o di tutta la scheda."
+    "card": "Store degli emulatori, trasferimento di file e backup via Wi-Fi, reimpostazione delle impostazioni o di tutta la scheda."
   },
   "loglvl": {
     "off": "Spento",
@@ -869,5 +871,39 @@
     "count": "%d app",
     "empty_title": "Nessuna app",
     "empty_text": "Copia le app in Arcade/Apps: una cartella per app, con dentro launch.sh."
+  },
+  "store": {
+    "title": "Store",
+    "loading": "Carico il catalogo…",
+    "online": "Catalogo aggiornato",
+    "offline": "Senza rete: catalogo salvato sulla scheda",
+    "none": "Nessun catalogo",
+    "empty": "Collega il Wi-Fi per vedere gli emulatori, oppure copia sulla scheda i pacchetti store-….zip.",
+    "installed": "Installato",
+    "update": "Aggiornamento",
+    "install": "Installa",
+    "do_update": "Aggiorna",
+    "remove": "Togli",
+    "remove_title": "Togliere %s?",
+    "remove_body": "ROM, BIOS e salvataggi restano.",
+    "working": "Installo %s",
+    "removing": "Tolgo %s",
+    "done": "Fatto",
+    "already": "Già installato",
+    "stop": "Ferma",
+    "err_network": "Rete non disponibile",
+    "err_signature": "Firma del catalogo non valida",
+    "err_catalog": "Catalogo non valido",
+    "err_space": "Spazio insufficiente sulla scheda",
+    "err_verify": "Pacchetto rovinato: riprova",
+    "err_write": "Errore di scrittura sulla scheda",
+    "err_core": "L'emulatore non si avvia: tolto",
+    "err_cancel": "Interrotto",
+    "ask_title": "Nessun emulatore",
+    "ask_body": "Scarica dallo Store gli emulatori che ti servono.",
+    "later": "Più tardi",
+    "open": "Apri lo Store",
+    "pkg_title": "Installare %s?",
+    "pkg_body": "Pacchetto copiato sulla scheda (%s)."
   }
 }

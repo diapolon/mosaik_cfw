@@ -13,6 +13,7 @@
 #include "update.h"
 #include "stickcal.h"
 #include "fileserver.h"
+#include "store.h"
 #include "qrcode.h"
 #include <ctype.h>
 #include <pthread.h>
@@ -521,8 +522,11 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3 };
-static double cfm_hold;   /* ultima conferma di "Cancella tutto": A tenuto premuto da quando */
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3, CFM_STORE, CFM_PKG };
+static double cfm_hold;
+/* pacchetti dello Store copiati sulla scheda (domanda all'avvio), e invito allo Store senza emulatori */
+static bool pkg_checked, store_asked;
+static char pkg_path[1300], pkg_name[64], pkg_label[32];   /* ultima conferma di "Cancella tutto": A tenuto premuto da quando */
 #define CFM_HOLD_S 3.0
 static int cfm_kind, cfm_sel;
 static char cfm_ssid[33];
@@ -1339,7 +1343,8 @@ static void home_draw_cards(int y, int bottom) {
     if (th > avail) { th = avail; tw = th * 4 / 3; }
     int ty = y + lab_h + (avail - th) / 2;
     if (!nhgames) {
-        if (!have_games()) empty_panel(mx, y, W, iy - is / 2 - M(0.05f) - y, T("lib.empty_title"), T("lib.empty_text"), NULL, NULL);
+        if (!NEMUS) empty_panel(mx, y, W, iy - is / 2 - M(0.05f) - y, T("store.ask_title"), T("store.ask_body"), NULL, NULL);
+        else if (!have_games()) empty_panel(mx, y, W, iy - is / 2 - M(0.05f) - y, T("lib.empty_title"), T("lib.empty_text"), NULL, NULL);
         else empty_panel(mx, y, W, iy - is / 2 - M(0.05f) - y, T("home.no_game_title"), T("home.no_game_text"), NULL, NULL);
     } else {
         /* il gioco scelto è più grande degli altri; le misure cambiano con un'animazione */
@@ -1414,7 +1419,7 @@ static void home_draw_menu(int y, int bottom) {
     ui_rborder(px, y, pw, ph, r, 2, t->line);
     int gi = home_last_game();
     if (gi < 0) {
-        ui_text(fn, T(have_games() ? "home.no_game_title" : "lib.empty_title"), px + pad, y + pad, t->text, ALIGN_LEFT);
+        ui_text(fn, T(!NEMUS ? "store.ask_title" : have_games() ? "home.no_game_title" : "lib.empty_title"), px + pad, y + pad, t->text, ALIGN_LEFT);
         return;
     }
     small_caps(T(gi == resume_idx ? "home.in_progress" : "home.last"), px + pad, y + pad, t->accent);
@@ -2161,12 +2166,12 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
@@ -2178,7 +2183,7 @@ static const int cat_items[SC_COUNT][12] = {
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },          /* ROM e immagini */
-    { S_FILESERVER, S_RESETSET, S_ERASE, -1 },          /* scheda e dati */
+    { S_STORE, S_FILESERVER, S_RESETSET, S_ERASE, -1 },  /* scheda e dati */
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
@@ -2689,6 +2694,165 @@ static void wpanel_draw(void) {
     const char *hint[] = { "B", T("common.back"), "Y", T("wifi.refresh"), "X", T("wifi.forget"), "A", T("wifi.connect") };
     if (can_forget) ui_hints(hint, 8);
     else { const char *h2[] = { "B", T("common.back"), "Y", T("wifi.refresh"), "A", T("wifi.connect") }; ui_hints(h2, 6); }
+}
+
+/* ------------------------------------------------------------ Store */
+/* Emulatori come pacchetti (store.c): elenco del catalogo con lo stato di ognuno; A installa o
+   aggiorna, X toglie (con conferma), B chiude. Senza rete si vede il catalogo tenuto sulla scheda. */
+static bool sto_open, sto_job, sto_ask, sto_removing;
+static int sto_sel, sto_ask_sel;
+static float sto_scroll;
+
+static bool sto_online(void) { return wifi_supported() ? wifi_status(false)->state == WIFI_CONNECTED : true; }
+
+static void sto_start(void) {
+    store_open(UI.root, UI.set.update_channel, sto_online());
+    sto_open = true;
+    sto_sel = 0;
+    sto_scroll = 0;
+    sto_job = sto_ask = false;
+}
+
+static void sto_close(void) {
+    store_join();
+    sto_open = false;
+    if (store_changed()) reload_games();
+}
+
+static void sto_input(void) {
+    const store_status_t *s = store_status();
+    input_t *in = &UI.in;
+    last_input = UI.t;
+    if (s->phase == ST_WORKING) {
+        if (in->pressed[BTN_B]) { store_cancel(); ui_sound(SND_BACK); }
+        return;
+    }
+    if (sto_job) {   /* lavoro finito: com'è andata */
+        store_join();
+        sto_job = false;
+        static const char *errk[] = { "", "store.err_network", "store.err_signature", "store.err_catalog", "store.err_space",
+                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel" };
+        if (s->phase == ST_DONE) { ui_toast(T("store.done")); ui_sound(SND_OK); }
+        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_CANCEL ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
+        if (store_changed()) reload_games();
+        return;
+    }
+    int n = store_count();
+    if (sto_ask) {
+        int r = ui_confirm_input(&sto_ask_sel);
+        if (r < 0) return;
+        sto_ask = false;
+        if (r == 1 && sto_sel < n) { store_remove(sto_sel); sto_job = sto_removing = true; }
+        return;
+    }
+    if (in->pressed[BTN_UP] && sto_sel > 0) { sto_sel--; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN] && sto_sel < n - 1) { sto_sel++; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { sto_close(); ui_sound(SND_BACK); return; }
+    if (!n || s->phase == ST_LOADING) return;
+    const store_pkg_t *p = store_pkg(sto_sel);
+    if (in->pressed[BTN_A]) {
+        if (p->state == PKG_INSTALLED) { ui_toast(T("store.already")); ui_sound(SND_ERROR); }
+        else if (!sto_online()) { ui_toast(T("store.err_network")); ui_sound(SND_ERROR); }
+        else { ui_log("store: installo %s", p->id); store_install(sto_sel); sto_job = true; sto_removing = false; ui_sound(SND_OK); }
+    }
+    if (in->pressed[BTN_X] && p->state != PKG_ABSENT) { sto_ask = true; sto_ask_sel = 0; ui_sound(SND_OK); }
+}
+
+static void sto_size(long long b, char *out, size_t n) {
+    if (b >= 1 << 20) snprintf(out, n, "%.1f MB", (double)b / (1 << 20));
+    else snprintf(out, n, "%lld KB", (b + 1023) / 1024);
+}
+
+static void sto_draw(void) {
+    theme_t *t = &UI.th;
+    const store_status_t *s = store_status();
+    TTF_Font *f = UI.f_normal, *fs = UI.f_small;
+    int fh = TTF_FontHeight(f), sh = TTF_FontHeight(fs);
+    int pad = M(0.04f), rh = fh + sh + M(0.03f), rows = 5;
+    int head = pad + TTF_FontHeight(UI.f_title) + M(0.01f) + sh + M(0.03f);
+    int w = M(0.95f), h = head + rows * rh + pad, x, y;
+    if (h > UI.h - M(t->hintbar_h) - M(0.02f)) { rows = (UI.h - M(t->hintbar_h) - M(0.02f) - head - pad) / rh; h = head + rows * rh + pad; }
+    panel_box(w, h, &x, &y);
+    int lx = x + pad, rx = x + w - pad, cy = y + pad;
+    ui_text(UI.f_title, T("store.title"), lx, cy, t->text, ALIGN_LEFT);
+    cy += TTF_FontHeight(UI.f_title) + M(0.01f);
+    int n = store_count();
+    const char *status = s->phase == ST_LOADING ? T("store.loading") : s->online ? T("store.online")
+                       : n ? T("store.offline") : T("store.none");
+    ui_text(fs, status, lx, cy, s->online ? t->accent : t->text_dim, ALIGN_LEFT);
+    cy += sh + M(0.03f);
+    int top = cy, area = rows * rh;
+    if (!n) {
+        char lines[3][160];
+        int k = ui_wrap(f, T(s->phase == ST_LOADING ? "store.loading" : "store.empty"), w - 2 * pad, lines, 3);
+        for (int i = 0; i < k; i++) ui_text(f, lines[i], x + w / 2, top + area / 2 - k * fh / 2 + i * fh, t->text_dim, ALIGN_CENTER);
+    } else {
+        if (sto_sel >= n) sto_sel = n - 1;
+        float target = sto_scroll;
+        if (sto_sel * rh - target > area - rh) target = (float)(sto_sel * rh - (area - rh));
+        if (sto_sel * rh < target) target = (float)(sto_sel * rh);
+        sto_scroll = ui_approach(sto_scroll, target);
+        ui_clip_push(x, top, w, area);
+        for (int i = 0; i < n; i++) {
+            int ry = top + (int)(i * rh - sto_scroll);
+            if (ry + rh < top || ry > top + area) continue;
+            store_pkg_t p = *store_pkg(i);
+            bool sel = i == sto_sel;
+            if (sel) {
+                ui_rrect(lx - M(0.015f), ry, rx - lx + M(0.03f), rh - M(0.008f), M(t->panel_radius), t->accent);
+                selection_ring(lx - M(0.015f), ry, rx - lx + M(0.03f), rh - M(0.008f), M(t->panel_radius));
+            }
+            color_t tc = sel ? t->accent_text : t->text, dc = sel ? with_alpha(t->accent_text, 200) : t->text_dim;
+            char right[64], fit[200];
+            if (p.state == PKG_INSTALLED) snprintf(right, sizeof right, "%s", T("store.installed"));
+            else if (p.state == PKG_UPDATE || p.state == PKG_OLD) snprintf(right, sizeof right, "%s", T("store.update"));
+            else sto_size(p.size, right, sizeof right);
+            int ty = ry + M(0.012f), rw = ui_text_w(fs, right) + M(0.02f);
+            ui_text_fit(f, p.name, rx - lx - rw - M(0.02f), fit, sizeof fit);
+            ui_text(f, fit, lx + M(0.01f), ty, tc, ALIGN_LEFT);
+            ui_text(fs, right, rx - M(0.01f), ty + (fh - sh) / 2, p.state == PKG_ABSENT ? dc : (sel ? tc : t->accent), ALIGN_RIGHT);
+            ui_text_fit(fs, p.systems, rx - lx - M(0.12f), fit, sizeof fit);
+            ui_text(fs, fit, lx + M(0.01f), ty + fh, dc, ALIGN_LEFT);
+            ui_text(fs, p.label, rx - M(0.01f), ty + fh, dc, ALIGN_RIGHT);
+        }
+        ui_clip_pop();
+    }
+    const store_pkg_t *p = n ? store_pkg(sto_sel) : NULL;
+    const char *act = !p ? NULL : p->state == PKG_ABSENT ? T("store.install") : p->state == PKG_INSTALLED ? NULL : T("store.do_update");
+    const char *hint[8];
+    int k = 0;
+    hint[k++] = "B"; hint[k++] = T("common.back");
+    if (p && p->state != PKG_ABSENT) { hint[k++] = "X"; hint[k++] = T("store.remove"); }
+    if (act) { hint[k++] = "A"; hint[k++] = act; }
+    ui_hints(hint, k);
+    /* lavoro in corso: avanzamento sopra l'elenco */
+    if (s->phase == ST_WORKING) {
+        int pw = M(0.8f), ph = M(0.26f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2, r = M(t->panel_radius);
+        ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+        ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
+        ui_rrect(px, py, pw, ph, r, t->surface);
+        char line[160];
+        snprintf(line, sizeof line, T(sto_removing ? "store.removing" : "store.working"), s->working);
+        ui_text_fit(UI.f_title, line, pw - M(0.08f), line, sizeof line);
+        ui_text(UI.f_title, line, px + pw / 2, py + M(0.05f), t->text, ALIGN_CENTER);
+        int bw = pw - M(0.12f), bh = M(0.012f), bx = px + M(0.06f), by = py + M(0.05f) + TTF_FontHeight(UI.f_title) + M(0.035f);
+        long long tot = s->total, done = s->done;
+        int pct = tot > 0 ? (int)(done * 100 / tot) : 0;
+        ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 60));
+        ui_rrect(bx, by, (int)((long long)bw * pct / 100), bh, bh / 2, t->accent);
+        char a[32], b[32];
+        sto_size(done, a, sizeof a);
+        sto_size(tot, b, sizeof b);
+        snprintf(line, sizeof line, "%s / %s", a, b);
+        ui_text(fs, tot > 0 ? line : "", px + pw / 2, by + bh + M(0.02f), t->text_dim, ALIGN_CENTER);
+        const char *hb[] = { "B", T("store.stop") };
+        ui_hints(hb, 2);
+    }
+    if (sto_ask && p) {
+        char title[160];
+        snprintf(title, sizeof title, T("store.remove_title"), p->name);
+        ui_confirm_draw(title, T("store.remove_body"), T("common.cancel"), T("store.remove"), sto_ask_sel);
+    }
 }
 
 /* Data e ora: giorno, mese, anno, ore, minuti. Su/giù cambiano il campo scelto con
@@ -3492,6 +3656,7 @@ static void upd_audio(void) {
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
                 || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open || fsrv_open
+                || (sto_open && store_status()->phase == ST_WORKING)
                 || atomic_load(&imp_state) == IMP_RUN || atomic_load(&imp_state) == IMP_DONE || atomic_load(&rst_state);
     if (want == audio_quiet) return;
     if (want) { quiet_begin(); return; }
@@ -3993,6 +4158,7 @@ static void settings_input(void) {
         }
         else if (set_sel == S_INFO) { sdinfo_start(); ui_sound(SND_OK); }
         else if (set_sel == S_FILESERVER) fsrv_start();
+        else if (set_sel == S_STORE) { sto_start(); ui_sound(SND_OK); }
         else if (set_sel == S_RESETSET || set_sel == S_ERASE) { cfm_kind = set_sel == S_ERASE ? CFM_ERASE : CFM_RESETSET; cfm_sel = 0; ui_sound(SND_OK); }
         else set_change(set_sel, +1);
     }
@@ -4016,7 +4182,7 @@ static const char *set_cat_sub(int row) {
     snprintf(k, sizeof k, "settings_cat_sum.%s", cat_key[row - ROW_CAT]);
     return T(k);
 }
-static bool set_has_value(int i) { return i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
+static bool set_has_value(int i) { return i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
 static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER; }
 
@@ -4238,7 +4404,7 @@ static void settings_draw(void) {
         for (int k = 0; k < n; k++) ui_text(fs, lines[k], mx, bottom - desc_h + M(0.012f) + k * fsh, t->text_dim, ALIGN_LEFT);
     }
     /* con una finestra aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || wpanel_open || clean_open || fsrv_open) return;
+    if (clock_open || sdinfo_open || wpanel_open || clean_open || fsrv_open || sto_open) return;
     int end;
     if (set_page < 0) {
         const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
@@ -4247,7 +4413,7 @@ static void settings_draw(void) {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
                    set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
                    set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER ||
-                   set_sel == S_RESETSET || set_sel == S_ERASE;
+                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
                             "L/R", T("common.section"), "" };
         end = ui_keybar(h, onda ? 9 : 6);
@@ -5077,6 +5243,16 @@ static void cfm_input(void) {
         cfm_kind = k == CFM_RESETSET ? CFM_RESETSET2 : k == CFM_ERASE ? CFM_ERASE2 : CFM_ERASE3;
         cfm_sel = 0;
         cfm_hold = 0;
+    } else if (k == CFM_STORE) {
+        sto_start();
+    } else if (k == CFM_PKG) {   /* pacchetto copiato sulla scheda */
+        char msg[160];
+        snprintf(msg, sizeof msg, T("store.working"), pkg_name);
+        ui_busy(msg, 0);
+        bool ok = store_offline_install(UI.root, pkg_path);
+        ui_toast(T(ok ? "store.done" : "store.err_verify"));
+        reload_games();
+        pkg_checked = false;   /* ce ne può essere un altro */
     } else if (k == CFM_RESETSET2) {
         rst_start(false);
     } else if (k == CFM_FORGET) {
@@ -5096,6 +5272,13 @@ static void cfm_draw(void) {
     if (cfm_kind == CFM_RESTART) ui_confirm_draw(T("dialog.restart_title"), T("dialog.power_body"), T("common.cancel"), T("common.restart"), cfm_sel);
     else if (cfm_kind == CFM_RESETSET) ui_confirm_draw(T("reset_all.settings_title"), T("reset_all.settings_body"), T("common.cancel"), T("reset_all.settings_go"), cfm_sel);
     else if (cfm_kind == CFM_ERASE) ui_confirm_draw(T("reset_all.erase_title"), T("reset_all.erase_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
+    else if (cfm_kind == CFM_STORE) ui_confirm_draw(T("store.ask_title"), T("store.ask_body"), T("store.later"), T("store.open"), cfm_sel);
+    else if (cfm_kind == CFM_PKG) {
+        char title[160], body[200];
+        snprintf(title, sizeof title, T("store.pkg_title"), pkg_name);
+        snprintf(body, sizeof body, T("store.pkg_body"), pkg_label);
+        ui_confirm_draw(title, body, T("store.later"), T("store.install"), cfm_sel);
+    }
     else if (cfm_kind == CFM_RESETSET2) ui_confirm_draw(T("reset_all.sure_title"), T("reset_all.settings2_body"), T("common.cancel"), T("reset_all.settings_go"), cfm_sel);
     else if (cfm_kind == CFM_ERASE2) ui_confirm_draw(T("reset_all.sure_title"), T("reset_all.erase2_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
     else if (cfm_kind == CFM_ERASE3) {
@@ -6111,6 +6294,7 @@ int main(int argc, char **argv) {
             cfm_kind = CFM_NONE;
             cp_open = false;
             diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = rcq_open = false;
+            if (sto_open && store_status()->phase != ST_WORKING) sto_close();
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
             ui_sound(SND_BACK);
@@ -6156,6 +6340,7 @@ int main(int argc, char **argv) {
         else if (dlg_open) dialog_input();
         else if (clock_open) clock_input();
         else if (wpanel_open) wpanel_input();
+        else if (sto_open) sto_input();
         else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
         else if (fsrv_open) fsrv_input();
@@ -6174,7 +6359,7 @@ int main(int argc, char **argv) {
         upd_audio();
         /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
         if (UI.t > 0.4) plat_audio_release();
-        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open;
+        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open || sto_open;
         /* nei primi 30 s il Wi-Fi carica il driver e si collega: niente cambi di frequenza della CPU */
         bool idle = !working && !UI.automation && UI.t > 30 && UI.t - last_input > IDLE_AFTER_S;
         plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);
@@ -6209,6 +6394,7 @@ int main(int argc, char **argv) {
         if (dlg_open && !dlg_suspend) dialog_draw();
         if (clock_open) clock_draw();
         if (wpanel_open) wpanel_draw();
+        if (sto_open) sto_draw();
         if (clean_open) clean_draw();
         if (sdinfo_open) sdinfo_draw();
         if (fsrv_open) fsrv_draw();
@@ -6245,6 +6431,22 @@ int main(int argc, char **argv) {
         if (!imp_checked && setup_step != 1 && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open) {
             imp_checked = true;
             if (imp_find()) { atomic_store(&imp_state, IMP_ASK); pp_reset(&imp_pp, &imp_bk); }
+        }
+        /* poi i pacchetti dello Store copiati sulla scheda, uno alla volta */
+        if (imp_checked && !atomic_load(&imp_state) && !pkg_checked && !setup_step && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open) {
+            pkg_checked = true;
+            if (store_offline_find(UI.root, pkg_path, sizeof pkg_path, pkg_name, sizeof pkg_name, pkg_label, sizeof pkg_label)) {
+                ui_log("store: pacchetto sulla scheda: %s (%s)", pkg_name, pkg_path);
+                cfm_kind = CFM_PKG;
+                cfm_sel = 1;
+            }
+        }
+        /* nessun emulatore (scheda nuova): una volta per avvio, l'invito ad aprire lo Store */
+        if (pkg_checked && !store_asked && NEMUS == 0 && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
+            !rdy_open && !sdbad_open && !sto_open && !fsrv_open) {
+            store_asked = true;
+            cfm_kind = CFM_STORE;
+            cfm_sel = 1;
         }
         if (!rdy_asked && update_resume_ready() && !upd_open && !dlg_open && !cfm_kind && !setup_step && !atomic_load(&imp_state)) {
             rdy_asked = rdy_open = true;

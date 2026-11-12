@@ -241,7 +241,8 @@
     "box_covers": "Box art as cover",
     "speaker_rest": "Speaker at rest",
     "reset_settings": "Reset settings",
-    "erase_all": "Erase everything"
+    "erase_all": "Erase everything",
+    "store": "Store"
   },
   "settings_desc": {
     "file_server": "Manage the card's files from a computer or phone on the same Wi-Fi network.",
@@ -294,7 +295,8 @@
     "box_covers": "For console games, show the box, if it was downloaded, instead of the screenshot.",
     "speaker_rest": "The hiss comes from the amplifier: off after 4 s without sound, back on at the next sound. A and B: two ways of switching it off, to compare.",
     "reset_settings": "Settings, lists and Wi-Fi networks go back to new. Games and saves stay.",
-    "erase_all": "Erases games, saves, BIOS files, images and settings: the card goes back to freshly written."
+    "erase_all": "Erases games, saves, BIOS files, images and settings: the card goes back to freshly written.",
+    "store": "Download, update and remove emulators."
   },
   "aspect": {
     "original": "Original",
@@ -646,7 +648,7 @@
     "system": "Wi-Fi, date and time, power",
     "tools": "Verify ROMs, download and clean images",
     "updates": "Update, channel, log, information",
-    "card": "Transfer files, backup, reset"
+    "card": "Store, transfer files, backup, reset"
   },
   "settings_cat_desc": {
     "power": "Put the console to sleep, restart it or turn it off.",
@@ -657,7 +659,7 @@
     "system": "Wi-Fi, date, time and time zone, automatic power off.",
     "tools": "Verify ROMs, download game images and remove the ones no longer needed.",
     "updates": "System updates, channel, notice, diagnostic log and card space.",
-    "card": "Transfer files and back up over Wi-Fi, reset the settings or the whole card."
+    "card": "Emulator store, file transfer and backup over Wi-Fi, reset the settings or the whole card."
   },
   "loglvl": {
     "off": "Off",
@@ -869,5 +871,39 @@
     "count": "%d apps",
     "empty_title": "No apps",
     "empty_text": "Copy apps to Arcade/Apps: one folder per app, with launch.sh inside."
+  },
+  "store": {
+    "title": "Store",
+    "loading": "Loading the catalogue…",
+    "online": "Catalogue up to date",
+    "offline": "Offline: catalogue saved on the card",
+    "none": "No catalogue",
+    "empty": "Connect to Wi-Fi to see the emulators, or copy the store-….zip packages to the card.",
+    "installed": "Installed",
+    "update": "Update",
+    "install": "Install",
+    "do_update": "Update",
+    "remove": "Remove",
+    "remove_title": "Remove %s?",
+    "remove_body": "ROMs, BIOS files and saves stay.",
+    "working": "Installing %s",
+    "removing": "Removing %s",
+    "done": "Done",
+    "already": "Already installed",
+    "stop": "Stop",
+    "err_network": "Network not available",
+    "err_signature": "Catalogue signature not valid",
+    "err_catalog": "Catalogue not valid",
+    "err_space": "Not enough space on the card",
+    "err_verify": "Damaged package: try again",
+    "err_write": "Error writing to the card",
+    "err_core": "The emulator does not start: removed",
+    "err_cancel": "Stopped",
+    "ask_title": "No emulators",
+    "ask_body": "Download the emulators you need from the Store.",
+    "later": "Later",
+    "open": "Open the Store",
+    "pkg_title": "Install %s?",
+    "pkg_body": "Package copied to the card (%s)."
   }
 }

@@ -272,6 +272,10 @@ irq_cpu() {   # nome in /proc/interrupts, maschera dei processori
 # e il chip lo ricorda; senza quel bit un riavvio diventa uno spegnimento. Si rimette a ogni avvio.
 axp=$(axpctl restore 2>/dev/null)
 case "$axp" in *"->"*) step "chip di alimentazione: $axp (riavvio rimesso a posto)" ;; esac
+# registri del chip (solo lettura), per sapere se gli spegnimenti diretti (axpctl poweroff, e
+# quello di NextUI per chi viene da lì) lasciano azzerate le interruzioni 0x40-0x44: sulle console
+# mai passate da NextUI valgono "10 f3 01 0f 60" (Smart Pro S, LoveRetro/NextUI#837)
+[ "$DEBUG" -ge 1 ] && step "chip di alimentazione: $(axpctl dump 2>/dev/null | tr '\n' ' ')"
 
 if grep -q ' twi3$' /proc/interrupts; then
     step "interruzioni separate: $(irq_cpu twi3 8) · $(irq_cpu sunxi-mmc1 2) · $(irq_cpu ledcirq 4)"

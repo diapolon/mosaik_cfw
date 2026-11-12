@@ -69,7 +69,7 @@ models | while IFS="|" read -r id fw name file; do
     F=/build/fw/$fw/root; L=$R/fw/$id
     mkdir -p $L/bin $L/modules
     # Deadcast (Dreamcast) non lo compiliamo noi: si controlla che il firmware gli basti
-    DC=; [ -f $T/dist/SD/Arcade/Cores/deadcast/deadcast ] && DC=$T/dist/SD/Arcade/Cores/deadcast/deadcast
+    DC=; [ -f $T/dist/store-src/deadcast/Cores/deadcast/deadcast ] && DC=$T/dist/store-src/deadcast/Cores/deadcast/deadcast
     python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/cores/*.so $DC \
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
         $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw \

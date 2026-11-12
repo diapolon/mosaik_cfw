@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 C
 S=/trimui/frontend/src
 gcc -std=c11 -O1 -g -Wall -Wextra -Werror -D_DEFAULT_SOURCE -D_GNU_SOURCE -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -I$S/launcher -I$S/common \
-    -o srv main.c $S/launcher/fileserver.c -lz -lpthread
+    -o srv main.c $S/launcher/fileserver.c $S/launcher/zipread.c -lz -lpthread
 ARCADE_FS_PORT=8099 ARCADE_FS_PIN=123456 ./srv $W/sd > srv.log 2>&1 &
 PID=$!
 sleep 1
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
 }
 C
 gcc -std=c11 -O1 -g -Wall -Wextra -Werror -D_DEFAULT_SOURCE -D_GNU_SOURCE -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -I$S/launcher -I$S/common \
-    -o imp imp.c $S/launcher/fileserver.c -lz -lpthread
+    -o imp imp.c $S/launcher/fileserver.c $S/launcher/zipread.c -lz -lpthread
 check "zip qualsiasi: non un backup" "non un backup" "$(./imp $W/sd saves.zip 2>&1)"
 echo cambiato > sd/Saves/fbneo/gioco.srm
 rm -rf sd/Saves/nuovo

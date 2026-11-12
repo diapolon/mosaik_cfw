@@ -13,10 +13,10 @@ COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/la
 
 all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu
 
-LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/qrcode.c src/runner/romzip.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 
 $(BUILD)/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDLIBS) $(shell pkg-config --libs SDL2_mixer) -lcurl -lz
+	$(CC) $(CFLAGS) $(shell pkg-config --cflags openssl) -o $@ $(COMMON) $(LAUNCHER) $(LDLIBS) $(shell pkg-config --libs SDL2_mixer) -lcurl -lz $(shell pkg-config --libs openssl)
 
 RUNNER := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
