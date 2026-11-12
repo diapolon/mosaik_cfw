@@ -6,7 +6,7 @@
   // sistema più vecchio si vede con i riquadri di Tessera.
   "name": "Stellato",
   "author": "Mosaik",
-  "version": "1.0",
+  "version": "1.1",
   "title": "Mosaik",
   "title_uppercase": true,
   "layout": "galleria",
@@ -55,9 +55,9 @@
       "surface": "#151B3AE6",
       "text": "#F4F6FB",
       "text_dim": "#9EA7C4",
-      "accent": "#E8382D",
-      "accent_text": "#FFFFFF",
-      "highlight": "#FF4A3D",
+      "accent": "#FFC94D",
+      "accent_text": "#0B1030",
+      "highlight": "#FFD36E",
       "tile": "#151B3AE6",
       "shadow": "#00000088",
       "line": "#FFFFFF2E"

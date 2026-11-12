@@ -60,6 +60,7 @@ int emulators_load(const char *root) {
         snprintf(m->art, sizeof m->art, "%s", json_str(j, "art", ""));
         snprintf(m->launch, sizeof m->launch, "%s", json_str(j, "launch", ""));
         m->nomenu = !json_bool(j, "menu", true);
+        m->folders = json_bool(j, "folders", false);
         m->planned = planned;
         /* produttore e anno (layout galleria): dal JSON, altrimenti dalla tabella qui sotto, così
            gli emulatori già pubblicati non cambiano pacchetto solo per questo */
@@ -72,7 +73,7 @@ int emulators_load(const char *root) {
             { "ngp", "SNK", "1998" }, { "ps", "Sony", "1994" }, { "a2600", "Atari", "1977" },
             { "a7800", "Atari", "1986" }, { "lynx", "Atari", "1989" }, { "coleco", "Coleco", "1982" },
             { "intv", "Mattel", "1979" }, { "ws", "Bandai", "1999" }, { "wsc", "Bandai", "2000" },
-            { "pokemini", "Nintendo", "2001" }, { "vb", "Nintendo", "1995" } };
+            { "pokemini", "Nintendo", "2001" }, { "vb", "Nintendo", "1995" }, { "scummvm", "ScummVM", "2001" } };
         for (size_t k = 0; k < sizeof known / sizeof *known; k++)
             if (!strcmp(m->id, known[k].id)) { snprintf(m->maker, sizeof m->maker, "%s", known[k].maker); snprintf(m->year, sizeof m->year, "%s", known[k].year); }
         if (json_get(j, "maker")) snprintf(m->maker, sizeof m->maker, "%s", json_str(j, "maker", ""));
@@ -336,6 +337,39 @@ static int m3u_listed(const char *dir, const emulator_t *emu, char out[][256]) {
     return n;
 }
 
+/* Un gioco per cartella (ScummVM): il core riconosce il gioco dalla cartella del file che riceve.
+   Si passa il file .scummvm della cartella se c'è (scelto dall'utente), altrimenti il primo file in
+   ordine di nome; il titolo è il nome della cartella. Una cartella vuota non è un gioco. */
+static void folder_game(list_t *l, const emulator_t *emu, const char *dir, const char *fname) {
+    DIR *d = opendir(dir);
+    if (!d) return;
+    char pick[256] = "", hook[256] = "";
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        if (e->d_name[0] == '.') continue;
+        char p[2300];
+        struct stat st;
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        if (stat(p, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+        if (has_ext(e->d_name, ".scummvm") && (!hook[0] || strcmp(e->d_name, hook) < 0)) snprintf(hook, sizeof hook, "%s", e->d_name);
+        /* uno zip lo estrarrebbe il runner (il core non li legge): solo se non c'è altro */
+        bool zip = has_ext(e->d_name, ".zip"), pzip = pick[0] && has_ext(pick, ".zip");
+        if (!pick[0] || (pzip && !zip) || (zip == pzip && strcmp(e->d_name, pick) < 0)) snprintf(pick, sizeof pick, "%s", e->d_name);
+    }
+    closedir(d);
+    if (!pick[0]) return;
+    game_t *g = push(l);
+    if (!g) return;
+    char p[2600];
+    snprintf(p, sizeof p, "%s/%s", dir, hook[0] ? hook : pick);
+    snprintf(g->name, sizeof g->name, "%s", fname);
+    snprintf(g->title, sizeof g->title, "%s", fname);
+    snprintf(g->core, sizeof g->core, "%s", emu->id);
+    snprintf(g->system, sizeof g->system, "%s", emu->name);
+    g->path = strdup(p);
+    if (!g->path) l->n--;
+}
+
 static void scan_dir(list_t *l, index_t *ix, const emulator_t *emu, const char *dir, int depth) {
     DIR *d = opendir(dir);
     if (!d) return;
@@ -349,6 +383,7 @@ static void scan_dir(list_t *l, index_t *ix, const emulator_t *emu, const char *
         struct stat st;
         if (stat(p, &st) != 0) continue;
         if (S_ISDIR(st.st_mode)) {
+            if (emu->folders && depth == 0) { folder_game(l, emu, p, e->d_name); continue; }
             if (depth < 3) scan_dir(l, ix, emu, p, depth + 1);
             continue;
         }

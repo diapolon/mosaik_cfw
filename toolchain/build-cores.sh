@@ -5,14 +5,14 @@
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
 #       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [mame2010] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp] [pcsx]
-#       [stella2014] [prosystem] [handy] [wswan] [vb] [gearcoleco] [pokemini] [freeintv]
+#       [stella2014] [prosystem] [handy] [wswan] [vb] [gearcoleco] [pokemini] [freeintv] [scummvm]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx stella2014 prosystem handy wswan vb gearcoleco pokemini freeintv}
+WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx stella2014 prosystem handy wswan vb gearcoleco pokemini freeintv scummvm}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -164,6 +164,29 @@ for core in $WHICH; do
     gearcoleco) echo "== Gearcoleco (ColecoVision)"; simple gearcoleco Gearcoleco platforms/libretro Makefile gearcoleco_libretro.so ;;
     pokemini) echo "== PokeMini (Pokemon Mini)"; simple pokemini PokeMini . Makefile.libretro pokemini_libretro.so ;;
     freeintv) echo "== FreeIntv (Intellivision)"; simple freeintv FreeIntv . Makefile freeintv_libretro.so ;;
+    scummvm)
+        # ScummVM: i due sottomoduli (libretro-deps, libretro-common) sono già in deps/scummvm, alle
+        # versioni che chiede dependencies.mk, così non si scarica niente qui. Motori "lite" (l'elenco
+        # che ScummVM stesso usa per le console poco potenti) e niente OpenGL: il runner disegna
+        # senza GPU. Poi scummvm.zip con i file dei dati e i temi della sua interfaccia.
+        # copia nuova solo se la versione è cambiata: i file già compilati restano (ci vuole molto)
+        want=$(git -C /trimui/deps/scummvm rev-parse HEAD)
+        if [ "$(git -C "$SRC/scummvm" rev-parse HEAD 2>/dev/null)" != "$want" ]; then
+            rm -rf "$SRC/scummvm"
+            cp -a /trimui/deps/scummvm "$SRC/scummvm"
+        fi
+        echo "== ScummVM (ci vuole molto)"
+        make -C "$SRC/scummvm/backends/platform/libretro" -j"$JOBS" platform=unix LITE=1 HAVE_OPENGL=0 \
+            DEBUG_ALLOW_DIRTY_SUBMODULES=1 CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR cr" \
+            RANLIB=aarch64-linux-gnu-ranlib > "$SRC/scummvm.log" 2>&1 \
+            || { tail -30 "$SRC/scummvm.log"; exit 1; }
+        make -C "$SRC/scummvm/backends/platform/libretro" platform=unix LITE=1 HAVE_OPENGL=0 \
+            DEBUG_ALLOW_DIRTY_SUBMODULES=1 datafiles >> "$SRC/scummvm.log" 2>&1 \
+            || { tail -30 "$SRC/scummvm.log"; exit 1; }
+        cp "$SRC/scummvm/backends/platform/libretro/scummvm_libretro.so" "$OUT/"
+        mkdir -p /build/out/scummvm
+        cp "$SRC/scummvm/backends/platform/libretro/scummvm.zip" /build/out/scummvm/
+        ;;
     esac
 done
 aarch64-linux-gnu-strip "$OUT"/*.so

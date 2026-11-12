@@ -287,6 +287,29 @@ static void gamecfg_load(void) {
 
 /* profilo predefinito dell'emulatore: voce "cpu" in Emulators/<id>.json (0-4, come gcfg.cpu) */
 static int emu_cpu;
+/* cartella di sistema dell'emulatore ("system_dir" nel suo JSON, relativa alla scheda): ScummVM
+   tiene dati e temi nel suo pacchetto (Cores/scummvm), dove lo Store può scriverli; gli altri Bios */
+static void emulator_sysdir(char *out, size_t n) {
+    char base[256], dir[1200], p[1600];
+    const char *s = strrchr(core_path, '/');
+    snprintf(base, sizeof base, "%s", s ? s + 1 : core_path);
+    char *dot = strrchr(base, '.');
+    if (dot) *dot = 0;
+    snprintf(dir, sizeof dir, "%s/Emulators", root);
+    DIR *d = opendir(dir);
+    struct dirent *e;
+    while (d && (e = readdir(d))) {
+        size_t len = strlen(e->d_name);
+        if (len < 6 || strcmp(e->d_name + len - 5, ".json") || e->d_name[0] == '.') continue;
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        jval *j = json_load(p);
+        const char *sd = j && !strcmp(json_str(j, "core", ""), base) ? json_str(j, "system_dir", "") : "";
+        if (sd[0] && sd[0] != '/' && !strstr(sd, "..")) snprintf(out, n, "%s/%s", root, sd);
+        json_free(j);
+    }
+    if (d) closedir(d);
+}
+
 static int emulator_cpu(void) {
     char base[256], dir[1200], p[1600];
     const char *s = strrchr(core_path, '/');
@@ -1901,6 +1924,7 @@ int main(int argc, char **argv) {
     snprintf(sys_dir, sizeof sys_dir, "%s/Bios", root);
     snprintf(save_dir, sizeof save_dir, "%s/Saves", root);
     mkdir(sys_dir, 0755);
+    emulator_sysdir(sys_dir, sizeof sys_dir);
     mkdir(save_dir, 0755);
     snprintf(save_dir, sizeof save_dir, "%s/Saves/%s", root, system_id[0] ? system_id : core_id);
     mkdir(save_dir, 0755);

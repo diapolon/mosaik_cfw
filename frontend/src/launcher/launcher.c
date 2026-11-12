@@ -1574,6 +1574,7 @@ static color_t emu_color(const char *id) {
     if (!strcmp(id, "wsc")) return hexc(0x2F5E8C);
     if (!strcmp(id, "pokemini")) return hexc(0x6E2F5E);
     if (!strcmp(id, "vb")) return hexc(0x9E1F1F);
+    if (!strcmp(id, "scummvm")) return hexc(0x2E7D4F);
     if (!strcmp(id, "ngp")) return hexc(0x2D6A4F);
     if (!strcmp(id, "gb")) return hexc(0x6F7F2C);
     if (!strcmp(id, "gbc")) return hexc(0x1E7F86);
@@ -1938,6 +1939,29 @@ static void draw_disc_console(int x, int y, int w, int h, color_t c, const char 
 }
 
 /* portatile per i giochi Linux */
+/* PC da scrivania con un'avventura punta e clicca (ScummVM): monitor a tubo, scena con un
+   personaggio e il cursore a freccia, tastiera */
+static void draw_pc(int x, int y, int w, int h, color_t c) {
+    color_t shell = hexc(0xD8D0BE), shell_d = hexc(0xA89F8C), scr = hexc(0x1C2A4A);
+    int r = w / 28 + 1, mw = w * 72 / 100, mh = h * 62 / 100, mx = x + (w - mw) / 2;
+    ui_rrect(mx, y, mw, mh, r, shell);
+    int sx = mx + mw * 9 / 100, sy = y + mh * 9 / 100, sw = mw * 82 / 100, sh = mh * 70 / 100;
+    ui_rrect(sx, sy, sw, sh, r, scr);
+    ui_rect(sx, sy + sh * 62 / 100, sw, sh * 38 / 100, mix(c, scr, 0.35f));   /* terreno */
+    ui_circle(sx + sw * 78 / 100, sy + sh * 24 / 100, sh / 10 + 1, hexc(0xF2E6A8));   /* luna */
+    ui_rect(sx + sw * 30 / 100, sy + sh * 34 / 100, sw / 14 + 1, sh * 30 / 100, hexc(0xE9C9A0));   /* personaggio */
+    ui_circle(sx + sw * 30 / 100 + sw / 28, sy + sh * 30 / 100, sw / 22 + 1, hexc(0xE9C9A0));
+    int ax = sx + sw * 58 / 100, ay = sy + sh * 48 / 100, as = sh / 4;
+    ui_triangle(ax, ay, ax, ay + as, ax + as * 7 / 10, ay + as * 7 / 10, hexc(0xFFFFFF));   /* cursore */
+    ui_rect(mx + mw * 8 / 100, y + mh * 86 / 100, mw * 12 / 100, mh / 20 + 1, shell_d);
+    int stand_w = mw * 30 / 100;
+    ui_rect(x + (w - stand_w) / 2, y + mh, stand_w, h * 5 / 100, shell_d);
+    int kw = w * 86 / 100, kh = h * 20 / 100, kx = x + (w - kw) / 2, ky = y + h - kh;
+    ui_rrect(kx, ky, kw, kh, r / 2 + 1, shell);
+    for (int row = 0; row < 3; row++)
+        for (int k = 0; k < 14; k++) ui_rect(kx + kw * 4 / 100 + k * kw * 92 / 100 / 14, ky + kh * (18 + row * 26) / 100, kw * 92 / 100 / 14 - 2, kh / 6 + 1, shell_d);
+}
+
 static void draw_laptop(int x, int y, int w, int h) {
     color_t shell = hexc(0xB9AE9C), shell_d = hexc(0x8E8474), scr = hexc(0x1C1A28);
     int r = w / 30 + 1, lx = x + w * 9 / 100, lw = w * 82 / 100, lh = h * 64 / 100;
@@ -1996,6 +2020,10 @@ static void draw_emu_art(const emulator_t *em, color_t c, const char *label, int
         int aw = w, ah = w * 46 / 100;
         if (ah > h * 70 / 100) { ah = h * 70 / 100; aw = ah * 100 / 46; }
         draw_handheld(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname, true);
+    } else if (!strcmp(art, "pc")) {
+        int aw = w, ah = w * 84 / 100;
+        if (ah > h * 86 / 100) { ah = h * 86 / 100; aw = ah * 100 / 84; }
+        draw_pc(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c);
     } else if (!strcmp(art, "disc") || !strcmp(art, "disc-white")) {
         int aw = w, ah = w * 80 / 100;
         if (ah > h * 80 / 100) { ah = h * 80 / 100; aw = ah * 100 / 80; }

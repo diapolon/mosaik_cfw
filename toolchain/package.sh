@@ -18,7 +18,7 @@ mkdir -p "$APP/bin" "$APP/lib" "$DATA"
 
 # programmi e core compilati, dal volume Docker
 docker run --rm -v trimui-build:/build -v "$DIST":/dist alpine:3.20 \
-    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/'
+    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; }'
 cp "$FE/package/trimui/launch.sh" "$FE/package/trimui/config.json" "$FE/package/trimui/icon.png" "$APP/"
 chmod +x "$APP/launch.sh" "$APP/bin/"*
 
@@ -56,6 +56,26 @@ pkg mgba mgba_libretro.so mgba_libretro.so gba
 pkg pce_fast mednafen_pce_fast_libretro.so mednafen_pce_fast_libretro.so pce pcecd
 pkg ngp mednafen_ngp_libretro.so mednafen_ngp_libretro.so ngp
 pkg pcsx pcsx_rearmed_libretro.so pcsx_rearmed_libretro.so ps
+# ScummVM: il core, i giochi uno per cartella, e i file di dati e i temi della sua interfaccia in
+# Cores/scummvm/scummvm (la sua cartella di sistema è Cores/scummvm: "system_dir" nel JSON)
+if [ -f "$DIST/scummvm/scummvm.zip" ]; then
+    pkg scummvm scummvm_libretro.so scummvm_libretro.so scummvm
+    mkdir -p "$PKG/scummvm/Cores/scummvm"
+    # solo i dati dei motori compilati (elenco "lite"), tastiera virtuale, font, soundfont MIDI e
+    # temi: i font CJK (37 MB) e i dati di Ultima, Titanic, Myst 3 e dei motori 3D non servono
+    keep=""
+    for f in vkeybd_default.zip pred.dic fonts.dat encoding.dat classicmacfonts.dat macgui.dat helpdialog.zip \
+             achievements.dat Roland_SC-55.sf2 teenagent.dat queen.tbl kyra.dat lure.dat drascula.dat mort.dat sky.cpt; do
+        keep="$keep scummvm/extra/$f"
+    done
+    for f in scummremastered.zip scummmodern.zip scummclassic.zip translations.dat gui-icons.dat; do
+        keep="$keep scummvm/theme/$f"
+    done
+    # shellcheck disable=SC2086
+    unzip -q -o "$DIST/scummvm/scummvm.zip" $keep -d "$PKG/scummvm/Cores/scummvm"
+else
+    echo "attenzione: manca scummvm.zip (toolchain/build-cores.sh scummvm): niente pacchetto ScummVM" >&2
+fi
 # console leggere
 pkg stella2014 stella2014_libretro.so stella2014_libretro.so a2600
 pkg prosystem prosystem_libretro.so prosystem_libretro.so a7800
@@ -130,6 +150,8 @@ LYNX: giochi Atari Lynx (.lnx); serve lynxboot.img in Bios/.
 WS, WSC: giochi WonderSwan (.ws) e WonderSwan Color (.wsc).
 POKEMINI: giochi Pokémon mini (.min); bios.min in Bios/ se c'è, altrimenti un BIOS libero.
 VB: giochi Virtual Boy (.vb, .vboy).
+SCUMMVM: avventure grafiche per ScummVM, ogni gioco nella sua cartella con i suoi file
+(Roms/SCUMMVM/Monkey Island/...): il gioco si riconosce da solo.
 GB, GBC, GBA: giochi Game Boy (.gb), Game Boy Color (.gbc) e Game Boy Advance (.gba),
 anche zippati, uno per zip. Il BIOS GBA (gba_bios.bin) in Bios/ non serve, ma se c'è si usa.
 PS: giochi PlayStation (.chd consigliato, .cue con i suoi .bin, .pbp). Più dischi: un file .m3u

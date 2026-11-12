@@ -28,6 +28,7 @@ Included without changes to their code.
 | Beetle WonderSwan (WonderSwan, WonderSwan Color) | `GPL-2.0.txt` | https://github.com/libretro/beetle-wswan-libretro/tree/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd (source also attached to each release) |
 | PokeMini (Pokémon mini) | `GPL-3.0.txt` | https://github.com/libretro/PokeMini/tree/132111b76343559860532a1ccc094f93f1ed5650 (source also attached to each release) |
 | Beetle VB (Virtual Boy) | `GPL-2.0.txt` | https://github.com/libretro/beetle-vb-libretro/tree/d5ae54c8e23b573a3b34e888b2d48a588027e92c (source also attached to each release) |
+| ScummVM 2026.4.0 (adventure games), libretro port with its data files and themes in `Cores/scummvm` | `GPL-3.0.txt` (GPL-3.0-or-later; engines and data files under their own compatible licenses, listed in `Cores/scummvm/scummvm` and in the source) | https://github.com/scummvm/scummvm/tree/7d2709da5136866589f7602f5f5a7b17de03420e with https://github.com/libretro/libretro-deps/tree/bab7d258c451c0e7cba4b6a79f1b062c13efff38 and https://github.com/libretro/libretro-common/tree/879c8d507b0b52e77e27d759239c2b5df1e26dfd (source also attached to each release) |
 
 ## Data downloaded by the console
 

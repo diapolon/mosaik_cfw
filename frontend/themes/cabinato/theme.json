@@ -82,18 +82,6 @@
       "tile": "#12245A",
       "shadow": "#00000080",
       "line": "#2EC8FF55"
-    },
-    "rubino": {
-      "background": "#2A0A12",
-      "background2": "#0A0205",
-      "surface": "#3A1019",
-      "text": "#FFE6EA",
-      "text_dim": "#C48A96",
-      "accent": "#FF3B4E",
-      "accent_text": "#FFFFFF",
-      "tile": "#3A1019",
-      "shadow": "#00000080",
-      "line": "#FF3B4E55"
     }
   }
 }

@@ -1,0 +1,14 @@
+{
+  "name": "ScummVM",
+  "core": "scummvm_libretro",
+  "roms": "Roms/SCUMMVM",
+  "extensions": [
+    "scummvm"
+  ],
+  "folders": true,
+  "system_dir": "Cores/scummvm",
+  "kind": "console",
+  "art": "pc",
+  "short": "ScummVM",
+  "order": 75
+}
