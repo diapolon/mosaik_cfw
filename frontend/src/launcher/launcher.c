@@ -2727,28 +2727,31 @@ static void wpanel_draw(void) {
 }
 
 /* ------------------------------------------------------------ Store */
-/* Schermata dello Store (store.c): prima le categorie (Arcade, Nintendo, Sega, Sony, Altre console;
-   App e Temi quando ce ne saranno), poi i pacchetti della categoria, ognuno con l'immagine della sua
-   console, poi la scheda del pacchetto con i pulsanti. Archivia toglie solo l'emulatore (giochi e
-   salvataggi restano, come sulla Switch), Elimina toglie anche giochi, salvataggi e immagini. */
+/* Schermata dello Store (store.c): prima le quattro cartelle (Arcade, Console, App, Giochi Linux;
+   le ultime due "Presto" finché non hanno pacchetti), poi i pacchetti della cartella, ognuno con
+   l'immagine della sua console, poi la scheda del pacchetto con i pulsanti. Archivia toglie solo
+   l'emulatore (giochi e salvataggi restano, come sulla Switch), Elimina anche giochi, salvataggi e
+   immagini: tutte e due mostrano prima cosa si toglie e cosa resta, con le quantità; Elimina chiede
+   poi di tenere premuto A per 3 secondi, come Cancella tutto. */
 enum { SL_CATS, SL_PKGS };
 enum { SA_NONE, SA_ARCHIVE, SA_DELETE, SA_DELETE2 };
-static const char *const STO_CATS[] = { "arcade", "nintendo", "sega", "sony", "other", "apps", "themes" };
-#define NSTO_CATS 7
+static const char *const STO_CATS[] = { "arcade", "console", "apps", "linux" };
+#define NSTO_CATS 4
 static int sto_level, sto_cat, sto_sel, sto_cats[NSTO_CATS], nsto_cats;
 static int sto_items[64], nsto_items;
 static bool sto_detail, sto_job, sto_removing;
 static int sto_dsel, sto_ask, sto_ask_sel;
+static double sto_hold;          /* Elimina, ultima conferma: da quando A è premuto */
+static store_usage_t sto_use;    /* anteprima: calcolata all'apertura della conferma */
 static float sto_scroll;
 
 static bool sto_online(void) { return wifi_supported() ? wifi_status(false)->state == WIFI_CONNECTED : true; }
+static bool sto_was_offline;   /* aperto senza rete: appena il Wi-Fi si collega si scarica il catalogo */
 
 /* categorie presenti nel catalogo, e pacchetti della categoria scelta */
 static void sto_build(void) {
     nsto_cats = 0;
-    for (int c = 0; c < NSTO_CATS; c++)
-        for (int i = 0; i < store_count(); i++)
-            if (!strcmp(store_pkg(i)->category, STO_CATS[c])) { sto_cats[nsto_cats++] = c; break; }
+    for (int c = 0; store_count() && c < NSTO_CATS; c++) sto_cats[nsto_cats++] = c;
     if (sto_cat >= nsto_cats) sto_cat = nsto_cats ? nsto_cats - 1 : 0;
     nsto_items = 0;
     if (nsto_cats)
@@ -2757,7 +2760,8 @@ static void sto_build(void) {
 }
 
 static void sto_start(void) {
-    store_open(UI.root, UI.set.update_channel, sto_online());
+    sto_was_offline = !sto_online();
+    store_open(UI.root, UI.set.update_channel, !sto_was_offline);
     sto_level = SL_CATS;
     sto_cat = sto_sel = 0;
     sto_scroll = 0;
@@ -2794,6 +2798,11 @@ static void sto_input(void) {
         if (in->pressed[BTN_B]) { store_cancel(); ui_sound(SND_BACK); }
         return;
     }
+    if (sto_was_offline && sto_online() && s->phase != ST_LOADING && !sto_job && !sto_detail && !sto_ask) {
+        sto_was_offline = false;   /* la rete è arrivata: il catalogo aggiornato */
+        store_open(UI.root, UI.set.update_channel, true);
+        return;
+    }
     if (sto_job) {   /* lavoro finito: com'è andata */
         store_join();
         sto_job = false;
@@ -2807,12 +2816,25 @@ static void sto_input(void) {
     sto_build();
     int idx = sto_level == SL_PKGS && sto_sel < nsto_items ? sto_items[sto_sel] : -1;
     if (sto_ask) {   /* conferme di Archivia ed Elimina */
-        int r = ui_confirm_input(&sto_ask_sel);
-        if (r < 0) return;
+        if (sto_ask != SA_ARCHIVE) in->power = false;   /* qui il tasto di accensione non conferma */
         int a = sto_ask;
+        if (a == SA_DELETE2) {   /* ultima: A tenuto premuto, per non passarla premendo A di fila */
+            if (in->pressed[BTN_LEFT] && sto_ask_sel) { sto_ask_sel = 0; sto_hold = 0; ui_sound(SND_MOVE); }
+            if (in->pressed[BTN_RIGHT] && !sto_ask_sel) { sto_ask_sel = 1; sto_hold = 0; ui_sound(SND_MOVE); }
+            if (in->pressed[BTN_B] || (in->pressed[BTN_A] && !sto_ask_sel)) { sto_ask = SA_NONE; sto_hold = 0; ui_sound(SND_BACK); return; }
+            if (sto_ask_sel && in->pressed[BTN_A]) sto_hold = UI.t;
+            if (!sto_ask_sel || !in->down[BTN_A]) { sto_hold = 0; return; }
+            if (sto_hold <= 0 || UI.t - sto_hold < CFM_HOLD_S) return;
+            sto_hold = 0;
+            ui_sound(SND_OK);
+        } else {
+            int r = ui_confirm_input(&sto_ask_sel);
+            if (r < 0) return;
+            if (r != 1 || idx < 0) { sto_ask = SA_NONE; return; }
+            if (a == SA_DELETE) { sto_ask = SA_DELETE2; sto_ask_sel = 0; sto_hold = 0; return; }
+        }
         sto_ask = SA_NONE;
-        if (r != 1 || idx < 0) return;
-        if (a == SA_DELETE) { sto_ask = SA_DELETE2; sto_ask_sel = 0; return; }
+        if (idx < 0) return;
         ui_log("store: %s %s", a == SA_ARCHIVE ? "archivio" : "elimino", store_pkg(idx)->id);
         store_remove(idx, a == SA_DELETE2);
         sto_job = sto_removing = true;
@@ -2832,7 +2854,12 @@ static void sto_input(void) {
             sto_removing = false;
             sto_detail = false;
             ui_sound(SND_OK);
-        } else { sto_ask = b[r] == SB_ARCHIVE ? SA_ARCHIVE : SA_DELETE; sto_ask_sel = 0; ui_sound(SND_OK); }
+        } else {   /* prima l'anteprima: cosa si toglie e cosa resta */
+            sto_ask = b[r] == SB_ARCHIVE ? SA_ARCHIVE : SA_DELETE;
+            sto_ask_sel = 0;
+            store_usage(idx, &sto_use);
+            ui_sound(SND_OK);
+        }
         return;
     }
     int n = sto_level == SL_CATS ? nsto_cats : nsto_items, cols = 4, old = sto_level == SL_CATS ? sto_cat : sto_sel;
@@ -2848,10 +2875,10 @@ static void sto_input(void) {
         else sto_leave();
         return;
     }
-    if (in->pressed[BTN_A] && n) {
+    if (in->pressed[BTN_A] && (n || sto_level == SL_PKGS)) {
         ui_sound(SND_OK);
         if (sto_level == SL_CATS) { sto_level = SL_PKGS; sto_sel = 0; sto_scroll = 0; }
-        else { sto_detail = true; sto_dsel = 0; }
+        else if (nsto_items) { sto_detail = true; sto_dsel = 0; }
     }
 }
 
@@ -2860,15 +2887,13 @@ static void sto_size(long long b, char *out, size_t n) {
     else snprintf(out, n, "%lld KB", (b + 1023) / 1024);
 }
 
-/* l'immagine di una categoria: un'illustrazione tipica, col suo colore */
+/* l'immagine di una cartella: il cabinato, una console, il cassetto delle app, il portatile */
 static void sto_cat_art(int c, color_t *col, emulator_t *em) {
     memset(em, 0, sizeof *em);
-    static const char *const arts[] = { "", "snes", "md", "disc", "pce", "", "" };
-    static const char *const shorts[] = { "", "Nintendo", "Sega", "PS", "", "", "" };
-    static const unsigned cols[] = { 0x8E2A45, 0xA8322D, 0x2B4C9B, 0x3A4E6C, 0xA4471F, 0x4B3C86, 0x2F6B45 };
+    static const char *const arts[] = { "", "", "@apps", "@linux" };   /* Console: una console generica */
+    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x4B3C86, 0x2F6B45 };
     snprintf(em->art, sizeof em->art, "%s", arts[c]);
-    snprintf(em->shortname, sizeof em->shortname, "%s", shorts[c]);
-    em->console = c != 0;
+    em->console = c == 1;
     *col = hexc(cols[c]);
 }
 
@@ -2893,7 +2918,13 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
     ui_clip_pop();
     TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
     int fh = TTF_FontHeight(fn) + TTF_FontHeight(fs) + M(0.02f), pad = w * 9 / 100;
-    draw_emu_art(em, c, label, x + pad, y + pad, w - 2 * pad, h - fh - pad - pad / 2);
+    int ax = x + pad, ay = y + pad, aw = w - 2 * pad, ah = h - fh - pad - pad / 2;
+    if (!strcmp(em->art, "@apps")) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, (aw < ah ? aw : ah) * 2 / 3, rgba(0xF2, 0xF2, 0xF2, 255), c);
+    else if (!strcmp(em->art, "@linux")) {
+        int lw = aw, lh = aw * 80 / 100;
+        if (lh > ah * 80 / 100) { lh = ah * 80 / 100; lw = lh * 100 / 80; }
+        draw_laptop(ax + (aw - lw) / 2, ay + (ah - lh) / 2, lw, lh);
+    } else draw_emu_art(em, c, label, ax, ay, aw, ah);
     ui_rect(x, y + h - fh, w, fh, hexc(0x151822));
     char fit[120];
     TTF_Font *fname = ui_text_w(fn, name) > w - M(0.02f) ? fs : fn;   /* un nome lungo col carattere piccolo */
@@ -2917,6 +2948,81 @@ static const char *sto_badge(const store_pkg_t *p) {
          : p->state == PKG_ARCHIVED ? T("store.archived") : "";
 }
 
+/* anteprima di Archivia ed Elimina: a sinistra cosa si toglie, a destra cosa resta, con quantità e
+   misure; sotto una riga di avviso e i pulsanti (Elimina in rosso) */
+static void sto_preview_draw(const store_pkg_t *pp, bool del) {
+    theme_t *t = &UI.th;
+    store_pkg_t p = *pp;
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), r = M(t->panel_radius) * 2;
+    /* righe: etichetta e valore, nella colonna di chi si toglie o di chi resta */
+    struct { const char *k; char v[48]; bool gone; } row[5];
+    int nr = 0;
+    char a[32];
+    if (p.state != PKG_ARCHIVED) {
+        row[nr].k = T("store.pv_emu");
+        sto_size(p.installed, row[nr].v, sizeof row[nr].v);
+        row[nr++].gone = true;
+    }
+    row[nr].k = T("store.pv_games");
+    sto_size(sto_use.games_bytes, a, sizeof a);
+    if (sto_use.games) snprintf(row[nr].v, sizeof row[nr].v, "%d · %s", sto_use.games, a);
+    else snprintf(row[nr].v, sizeof row[nr].v, "0");
+    row[nr++].gone = del;
+    row[nr].k = T("store.pv_saves");
+    snprintf(row[nr].v, sizeof row[nr].v, "%d", sto_use.saves);
+    row[nr++].gone = del;
+    if (p.console) {   /* le immagini degli arcade sono per nome del gioco, comuni agli altri emulatori: restano */
+        row[nr].k = T("store.pv_media");
+        snprintf(row[nr].v, sizeof row[nr].v, "%d", sto_use.media);
+        row[nr++].gone = del;
+    }
+    row[nr].k = T("store.pv_bios");
+    row[nr].v[0] = 0;
+    row[nr++].gone = false;
+    int ngone = 0;
+    for (int k = 0; k < nr; k++) ngone += row[k].gone;
+    int most = ngone > nr - ngone ? ngone : nr - ngone, step = fnh + M(0.008f);
+    /* altezza dal contenuto: titolo, console, intestazioni, righe, avviso, pulsanti */
+    int head = M(0.04f) + fth + fsh + M(0.025f), cols_h = fsh + M(0.026f) + most * step;
+    int pw = M(0.92f) < UI.w - 2 * M(t->margin) ? M(0.92f) : UI.w - 2 * M(t->margin);
+    int ph = head + cols_h + M(0.015f) + fsh + ui_popup_buttons_h(), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(px, py, pw, ph, r, t->surface);
+    char ttl[160], fit[200];
+    snprintf(ttl, sizeof ttl, T(del ? "store.delete_title" : "store.archive_title"), p.name);
+    ui_text_fit(ft, ttl, pw - M(0.08f), fit, sizeof fit);
+    int y = py + M(0.04f);
+    ui_text(ft, fit, px + pw / 2, y, t->text, ALIGN_CENTER);
+    y += fth;
+    ui_text_fit(fs, p.systems, pw - M(0.08f), fit, sizeof fit);
+    ui_text(fs, fit, px + pw / 2, y, t->text_dim, ALIGN_CENTER);
+    y += fsh + M(0.025f);
+    int pad = M(0.045f), gap = M(0.03f), cw = (pw - 2 * pad - gap) / 2;
+    color_t red = rgba(220, 70, 70, 255), green = rgba(70, 180, 110, 255);
+    for (int c = 0; c < 2; c++) {   /* 0: si toglie, 1: resta */
+        int cx = px + pad + c * (cw + gap), cy = y;
+        color_t hc = c ? green : red;
+        small_caps(T(c ? "store.pv_keep" : "store.pv_remove"), cx, cy, hc);
+        cy += fsh + M(0.012f);
+        ui_rect(cx, cy, cw, M(0.003f) + 1, with_alpha(hc, 120));
+        cy += M(0.014f);
+        for (int k = 0; k < nr; k++) {
+            if (row[k].gone == (c == 1)) continue;
+            ui_rrect(cx, cy + (fnh - M(0.016f)) / 2, M(0.016f), M(0.016f), M(0.008f), hc);
+            ui_text(fn, row[k].k, cx + M(0.03f), cy, t->text, ALIGN_LEFT);
+            ui_text(fn, row[k].v, cx + cw, cy, t->text_dim, ALIGN_RIGHT);
+            cy += step;
+        }
+    }
+    int ny = y + cols_h + M(0.012f);
+    ui_text_fit(fs, T(del ? "store.delete_note" : "store.archive_note"), pw - M(0.08f), fit, sizeof fit);
+    ui_text(fs, fit, px + pw / 2, ny, del ? red : t->text_dim, ALIGN_CENTER);
+    const char *labels[2] = { T("common.cancel"), T(del ? "store.delete" : "store.archive") };
+    ui_popup_buttons(px, py, pw, ph, labels, 2, sto_ask_sel, del ? 1 : -1);
+}
+
 static void sto_draw(void) {
     theme_t *t = &UI.th;
     const store_status_t *s = store_status();
@@ -2931,7 +3037,9 @@ static void sto_draw(void) {
     ui_text(fs, status, mx + W, y + (TTF_FontHeight(UI.f_title) - TTF_FontHeight(fs)) / 2, s->online ? t->accent : t->text_dim, ALIGN_RIGHT);
     y += TTF_FontHeight(UI.f_title) + M(0.03f);
     int n = sto_level == SL_CATS ? nsto_cats : nsto_items;
-    if (!n) {
+    if (!n && sto_level == SL_PKGS) {
+        empty_panel(mx, y, W, bottom - y, T("store.cat_soon"), T("store.soon_body"), NULL, NULL);
+    } else if (!n) {
         empty_panel(mx, y, W, bottom - y, T(s->phase == ST_LOADING ? "store.loading" : "store.none"), s->phase == ST_LOADING ? "" : T("store.empty"), NULL, NULL);
     } else {
         int cols = 4, gap = M(0.022f), tw = (W - (cols - 1) * gap) / cols, th = tw * 112 / 100, area = bottom - y;
@@ -2956,7 +3064,8 @@ static void sto_draw(void) {
                 }
                 sto_cat_art(ci, &c, &em);
                 snprintf(title, sizeof title, "store.cat_%s", STO_CATS[ci]);
-                snprintf(sub, sizeof sub, T(cnt == 1 ? "store.count1" : "store.count"), cnt);
+                if (cnt) snprintf(sub, sizeof sub, T(cnt == 1 ? "store.count1" : "store.count"), cnt);
+                else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
                 char badge[48] = "";
                 if (upd) snprintf(badge, sizeof badge, "%d", upd);
                 sto_tile(x, yy, tw, th, c, &em, T(title), T(title), sub, badge, i == sto_cat);
@@ -3015,18 +3124,14 @@ static void sto_draw(void) {
         if (sto_dsel >= nb) sto_dsel = nb - 1;
         ui_popup_buttons(px, py, pw, ph, labels, nb, sto_dsel, danger);
     }
-    if (sto_ask && idx >= 0) {
-        store_pkg_t p = *store_pkg(idx);
-        char ttl[160], body[400];
-        if (sto_ask == SA_ARCHIVE) {
-            snprintf(ttl, sizeof ttl, T("store.archive_title"), p.name);
-            ui_confirm_draw(ttl, T("store.archive_body"), T("common.cancel"), T("store.archive"), sto_ask_sel);
-        } else if (sto_ask == SA_DELETE) {
-            snprintf(ttl, sizeof ttl, T("store.delete_title"), p.name);
-            snprintf(body, sizeof body, T("store.delete_body"), p.systems);
-            ui_confirm_draw(ttl, body, T("common.cancel"), T("store.delete"), sto_ask_sel);
-        } else ui_confirm_draw(T("reset_all.sure_title"), T("store.delete2_body"), T("common.cancel"), T("store.delete"), sto_ask_sel);
-    }
+    if (sto_ask == SA_DELETE2 && idx >= 0) {   /* ultima conferma: A tenuto premuto 3 secondi */
+        double held = sto_hold > 0 ? UI.t - sto_hold : 0;
+        ui_confirm_draw(T("store.delete2_title"), T("store.delete2_body"), T("common.cancel"), T("store.delete"), sto_ask_sel);
+        int w = M(0.75f), h = M(0.36f), x = (UI.w - w) / 2, y2 = (UI.h - h) / 2, bh = M(0.012f);
+        int bx = x + M(0.06f), bw = w - M(0.12f), by = y2 + h - ui_popup_buttons_h() - bh - M(0.012f);
+        ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 50));
+        if (held > 0) ui_rrect(bx, by, (int)(bw * (held < CFM_HOLD_S ? held / CFM_HOLD_S : 1)), bh, bh / 2, rgba(220, 70, 70, 255));
+    } else if (sto_ask && idx >= 0) sto_preview_draw(store_pkg(idx), sto_ask == SA_DELETE);
     if (s->phase == ST_WORKING) {   /* lavoro in corso */
         int pw = M(0.8f), ph = M(0.26f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2, r = M(t->panel_radius);
         ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));

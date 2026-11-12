@@ -210,7 +210,9 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         snprintf(x->p.file, sizeof x->p.file, "%s", json_str(v, "file", ""));
         snprintf(x->p.sha, sizeof x->p.sha, "%s", json_str(v, "sha256", ""));
         x->p.size = (long long)json_num(v, "size", 0);
-        snprintf(x->p.category, sizeof x->p.category, "%s", json_str(v, "category", "other"));
+        /* cartelle: arcade, console, apps, linux; i cataloghi di prima avevano nintendo, sega, sony e other */
+        const char *cg = json_str(v, "category", "console");
+        snprintf(x->p.category, sizeof x->p.category, "%s", !strcmp(cg, "arcade") || !strcmp(cg, "apps") || !strcmp(cg, "linux") ? cg : "console");
         snprintf(x->p.title, sizeof x->p.title, "%s", json_str(v, "title", x->p.name));
         snprintf(x->p.emu, sizeof x->p.emu, "%s", json_str(v, "emu", ""));
         snprintf(x->p.art, sizeof x->p.art, "%s", json_str(v, "art", ""));
@@ -357,7 +359,7 @@ static void *fetch_worker(void *arg) {
     bool got = t.buf && s.buf && get_mem("store.json", &t) && get_mem("store.sig", &s);
     entry_t *e = NULL;
     int n = 0;
-    if (!got) st.error = SE_NETWORK;
+    if (!got) { st.error = SE_NETWORK; ui_log("store: catalogo non scaricato"); }
     else if (!signature_ok(t.buf, t.len, (unsigned char *)s.buf, s.len)) { st.error = SE_SIGNATURE; got = false; ui_log("store: firma del catalogo non valida"); }
     else if (!parse_catalog(t.buf, &e, &n)) { st.error = SE_CATALOG; got = false; ui_log("store: catalogo non valido"); }
     if (got) {
@@ -389,6 +391,7 @@ void store_open(const char *root, int development, bool online) {
     make_url(development);
     memset((void *)&st, 0, sizeof st);
     bool cached = load_cache();
+    ui_log("store: aperto %s, catalogo sulla scheda: %s", online ? "in rete" : "senza rete", cached ? "sì" : "no");
     if (!online) { st.phase = cached ? ST_READY : ST_FAILED; st.error = cached ? SE_NONE : SE_NETWORK; return; }
     st.phase = ST_LOADING;
     thread_on = pthread_create(&thread, NULL, fetch_worker, NULL) == 0;
@@ -646,24 +649,66 @@ static void rm_tree(const char *dir) {
     rmdir(dir);
 }
 
+/* file e byte sotto una cartella (senza seguire i collegamenti), saltando i nascosti */
+static void count_tree(const char *dir, int *files, long long *bytes, int depth) {
+    DIR *d = depth < 8 ? opendir(dir) : NULL;
+    struct dirent *e;
+    while (d && (e = readdir(d))) {
+        if (e->d_name[0] == '.') continue;
+        char p[1500];
+        struct stat sb;
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        if (lstat(p, &sb) != 0) continue;
+        if (S_ISDIR(sb.st_mode)) count_tree(p, files, bytes, depth + 1);
+        else if (S_ISREG(sb.st_mode)) { (*files)++; if (bytes) *bytes += sb.st_size; }
+    }
+    if (d) closedir(d);
+}
+
+/* cartella dei giochi di una console (solo dentro Roms) e se è una console */
+static bool emu_roms(const char *id, char *roms, size_t n, bool *console) {
+    char p[1300], up[32], def[48];
+    size_t k = 0;
+    for (; id[k] && k < sizeof up - 1; k++) up[k] = (char)(id[k] >= 'a' && id[k] <= 'z' ? id[k] - 32 : id[k]);
+    up[k] = 0;
+    snprintf(def, sizeof def, "Roms/%s", up);
+    snprintf(p, sizeof p, "%s/Emulators/%s.json", root_dir, id);
+    jval *j = json_load(p);
+    snprintf(roms, n, "%s", json_str(j, "roms", def));
+    /* archiviato: il file dell'emulatore non c'è più, si deduce dal nome */
+    *console = j ? !strcmp(json_str(j, "kind", ""), "console") : strcmp(id, "fbneo") && strncmp(id, "mame", 4);
+    json_free(j);
+    return !strncmp(roms, "Roms/", 5) && roms[5] && !strstr(roms, "..") && !strchr(roms + 5, '/');
+}
+
+void store_usage(int i, store_usage_t *u) {
+    memset(u, 0, sizeof *u);
+    pthread_mutex_lock(&lock);
+    entry_t e = i >= 0 && i < ncat ? cat[i] : (entry_t){ 0 };
+    pthread_mutex_unlock(&lock);
+    static const char *types[] = { "snap", "title", "marquee", "box" };
+    for (int k = 0; k < e.nemus; k++) {
+        char roms[300], p[1300];
+        bool console;
+        if (emu_roms(e.emus[k], roms, sizeof roms, &console)) {
+            snprintf(p, sizeof p, "%s/%s", root_dir, roms);
+            count_tree(p, &u->games, &u->games_bytes, 0);
+        }
+        snprintf(p, sizeof p, "%s/Saves/%s", root_dir, e.emus[k]);
+        count_tree(p, &u->saves, &u->saves_bytes, 0);
+        for (int t = 0; console && t < 4; t++) { snprintf(p, sizeof p, "%s/Media/%s/%s", root_dir, types[t], e.emus[k]); count_tree(p, &u->media, NULL, 0); }
+    }
+}
+
 static bool remove_data;
 
 /* giochi, salvataggi e immagini di una console del pacchetto: prima di togliere il suo
    Emulators/<id>.json, che dice dov'è la cartella dei giochi */
 static void remove_emu_data(const char *id) {
-    char p[1300], up[32];
-    snprintf(p, sizeof p, "%s/Emulators/%s.json", root_dir, id);
-    jval *j = json_load(p);
-    size_t k = 0;
-    for (; id[k] && k < sizeof up - 1; k++) up[k] = (char)(id[k] >= 'a' && id[k] <= 'z' ? id[k] - 32 : id[k]);
-    up[k] = 0;
-    char def[48], roms[300];
-    snprintf(def, sizeof def, "Roms/%s", up);
-    snprintf(roms, sizeof roms, "%s", json_str(j, "roms", def));
-    bool console = !strcmp(json_str(j, "kind", ""), "console");
-    json_free(j);
+    char roms[300], p[1300];
+    bool console;
     /* solo una cartella dentro Roms: un percorso assoluto scelto dall'utente non si tocca */
-    if (!strncmp(roms, "Roms/", 5) && roms[5] && !strstr(roms, "..") && !strchr(roms + 5, '/')) {
+    if (emu_roms(id, roms, sizeof roms, &console)) {
         snprintf(p, sizeof p, "%s/%s", root_dir, roms);
         rm_tree(p);
         mkdir(p, 0755);   /* la cartella vuota resta, pronta per altri giochi */

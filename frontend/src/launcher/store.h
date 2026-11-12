@@ -26,7 +26,7 @@ typedef struct {
     char id[32], name[64], label[32], version[24], file[128], sha[65];
     char systems[200];           /* "Sega Mega Drive, Master System, Game Gear" */
     char title[64];              /* breve, per il riquadro: "Super Nintendo", "Sega MD · SMS · Game Gear" */
-    char category[16];           /* arcade, nintendo, sega, sony, other (in futuro apps, themes) */
+    char category[16];           /* arcade, console (in futuro apps, linux) */
     char emu[16], art[16], shortname[16];   /* immagine: quella della prima console del pacchetto */
     bool console;
     long long size, installed;   /* byte dello zip e dei file installati */
@@ -53,6 +53,9 @@ void store_install(int i);              /* in un thread: installa o aggiorna */
    via anche giochi, salvataggi e immagini delle sue console (cartelle dentro Roms,
    Saves/<console>, Media/<tipo>/<console>) e il registro; i BIOS no */
 void store_remove(int i, bool with_data);
+/* anteprima di Archivia ed Elimina: giochi, salvataggi e immagini delle console del pacchetto */
+typedef struct { int games, saves, media; long long games_bytes, saves_bytes; } store_usage_t;
+void store_usage(int i, store_usage_t *u);
 void store_cancel(void);
 void store_join(void);
 /* dopo un'installazione o una rimozione: emulatori cambiati, la libreria va riletta */

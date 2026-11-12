@@ -48,6 +48,12 @@ int main(int c, char **v) {
     }
     int i = find(v[3]);
     if (i < 0) { puts("manca"); return 0; }
+    if (!strcmp(cmd, "usage")) {
+        store_usage_t u;
+        store_usage(i, &u);
+        printf("%d %lld %d %d\n", u.games, u.games_bytes, u.saves, u.media);
+        return 0;
+    }
     if (!strcmp(cmd, "install")) store_install(i); else store_remove(i, !strcmp(cmd, "delete"));
     store_join();
     printf("%d %d %d\n", s->phase, s->error, store_pkg(i)->state);
@@ -99,6 +105,8 @@ check "pacchetto manomesso rifiutato" "5 5 3" "$(./t $R install fbneo 2>/dev/nul
 cp orig.zip $Z
 # archiviare uno arrivato col sistema: i file del catalogo, giochi e salvataggi restano
 mkdir -p sd/Roms/FBNEO sd/Saves/fbneo; echo rom > sd/Roms/FBNEO/gioco.zip; echo sav > sd/Saves/fbneo/gioco.state
+mkdir -p sd/Roms/FBNEO/sotto; echo rom2 > sd/Roms/FBNEO/sotto/altro.zip; touch sd/Roms/FBNEO/.nascosto
+check "anteprima: giochi, byte, salvataggi, immagini (arcade: nessuna)" "2 9 1 0" "$(./t $R usage fbneo 2>/dev/null)"
 check "archiviare" "4 0 4" "$(./t $R archive fbneo 2>/dev/null)"
 check "archiviato: i giochi restano" "rom" "$(cat sd/Roms/FBNEO/gioco.zip)"
 check "archiviato: i salvataggi restano" "sav" "$(cat sd/Saves/fbneo/gioco.state)"
@@ -106,6 +114,7 @@ check "core tolto" "no" "$([ -e sd/Cores/fbneo_libretro.so ] && echo si || echo 
 check "riscaricare un archiviato" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
 # eliminare: via anche giochi e salvataggi, la cartella dei giochi resta vuota; i BIOS no
 mkdir -p sd/Bios; echo bios > sd/Bios/neogeo.zip
+check "anteprima di un archiviato" "2 9 1 0" "$(./t $R usage fbneo 2>/dev/null)"
 check "eliminare" "4 0 0" "$(./t $R delete fbneo 2>/dev/null)"
 check "eliminato: giochi tolti, cartella vuota" "0" "$(ls sd/Roms/FBNEO | wc -l | tr -d ' ')"
 check "eliminato: salvataggi tolti" "no" "$([ -e sd/Saves/fbneo ] && echo si || echo no)"

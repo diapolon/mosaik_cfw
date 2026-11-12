@@ -29,20 +29,21 @@ ap.add_argument("--key", default=os.path.expanduser("~/.config/arcade-update/upd
 ap.add_argument("--labels", help="file 'cartella_sorgente commit' (altrimenti dal volume Docker)")
 args = ap.parse_args()
 
-# pacchetto -> (nome, cartella dei sorgenti in /build/src per il commit, categoria dello Store)
+# pacchetto -> (nome, cartella dei sorgenti in /build/src per il commit, categoria dello Store:
+# arcade o console; in futuro apps e linux)
 PACKAGES = {
     "fbneo": ("FinalBurn Neo", "fbneo", "arcade"),
     "mame2003p": ("MAME 2003-Plus", "mame2003-plus", "arcade"),
     "mame2010": ("MAME 2010", "mame2010", "arcade"),
-    "fceumm": ("FCEUmm", "fceumm", "nintendo"),
-    "genesis_plus_gx": ("Genesis Plus GX", "genesis_plus_gx", "sega"),
-    "snes9x": ("Snes9x", "snes9x", "nintendo"),
-    "gambatte": ("Gambatte", "gambatte", "nintendo"),
-    "mgba": ("mGBA", "mgba", "nintendo"),
-    "pce_fast": ("Beetle PCE Fast", "pce_fast", "other"),
-    "ngp": ("Beetle NeoPop", "ngp", "other"),
-    "pcsx": ("PCSX ReARMed", "pcsx", "sony"),
-    "deadcast": ("Deadcast", None, "sega"),
+    "fceumm": ("FCEUmm", "fceumm", "console"),
+    "genesis_plus_gx": ("Genesis Plus GX", "genesis_plus_gx", "console"),
+    "snes9x": ("Snes9x", "snes9x", "console"),
+    "gambatte": ("Gambatte", "gambatte", "console"),
+    "mgba": ("mGBA", "mgba", "console"),
+    "pce_fast": ("Beetle PCE Fast", "pce_fast", "console"),
+    "ngp": ("Beetle NeoPop", "ngp", "console"),
+    "pcsx": ("PCSX ReARMed", "pcsx", "console"),
+    "deadcast": ("Deadcast", None, "console"),
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")
