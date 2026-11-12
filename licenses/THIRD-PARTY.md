@@ -20,6 +20,14 @@ Included without changes to their code.
 | Beetle NeoPop (Neo Geo Pocket) | `GPL-2.0.txt` | https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227 with `toolchain/patches/beetle-ngp-saveram.patch` (source and patch also attached to each release) |
 | Deadcast (Dreamcast), based on Flycast | `GPL-2.0.txt`; its menu library `deadui-MIT.txt` and font `NotoSans-OFL-1.1.txt` are in `Cores/deadcast/licenses` | https://github.com/tyrannotorus/emulator-dreamcast-deadcast/tree/1.2.5, the author's package `DC-DEADCAST.pak.zip` 1.2.5 used as is (source also attached to each release) |
 | PCSX ReARMed (PlayStation) | `GPL-2.0.txt` | https://github.com/libretro/pcsx_rearmed/tree/7b0e8f8fadfbce3d170d195b9d9eecaabfa08c8e with `toolchain/patches/pcsx-rearmed-lr.patch` (source and patch also attached to each release) |
+| Stella 2014 (Atari 2600) | `GPL-2.0.txt` | https://github.com/libretro/stella2014-libretro/tree/7d1361e407e63f29e52892655069e5fb4096e691 (source also attached to each release) |
+| ProSystem (Atari 7800) | `GPL-2.0.txt` | https://github.com/libretro/prosystem-libretro/tree/8a88014287c7a01cd568067e5a557d0a2b2a051f (source also attached to each release) |
+| Gearcoleco (ColecoVision) | `GPL-3.0.txt` | https://github.com/drhelius/Gearcoleco/tree/2805e70fd56c3bb6a0412a4ddaf210eefc8a5d7c (source also attached to each release) |
+| FreeIntv (Intellivision) | `GPL-2.0.txt` | https://github.com/libretro/FreeIntv/tree/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4 (source also attached to each release) |
+| Handy (Atari Lynx) | `zlib.txt` (the zlib license, notice by K. Wilkins in the source) | https://github.com/libretro/libretro-handy/tree/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1 (source also attached to each release) |
+| Beetle WonderSwan (WonderSwan, WonderSwan Color) | `GPL-2.0.txt` | https://github.com/libretro/beetle-wswan-libretro/tree/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd (source also attached to each release) |
+| PokeMini (Pokémon mini) | `GPL-3.0.txt` | https://github.com/libretro/PokeMini/tree/132111b76343559860532a1ccc094f93f1ed5650 (source also attached to each release) |
+| Beetle VB (Virtual Boy) | `GPL-2.0.txt` | https://github.com/libretro/beetle-vb-libretro/tree/d5ae54c8e23b573a3b34e888b2d48a588027e92c (source also attached to each release) |
 
 ## Data downloaded by the console
 

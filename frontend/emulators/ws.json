@@ -1,0 +1,13 @@
+{
+  "name": "WonderSwan",
+  "core": "mednafen_wswan_libretro",
+  "roms": "Roms/WS",
+  "extensions": [
+    "ws"
+  ],
+  "kind": "console",
+  "art": "handheld-wide",
+  "short": "WS",
+  "thumbnails": "Bandai - WonderSwan",
+  "order": 55
+}

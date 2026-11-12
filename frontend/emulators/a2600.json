@@ -1,0 +1,13 @@
+{
+  "name": "Atari 2600",
+  "core": "stella2014_libretro",
+  "roms": "Roms/A2600",
+  "extensions": [
+    "a26",
+    "bin"
+  ],
+  "kind": "console",
+  "short": "2600",
+  "thumbnails": "Atari - 2600",
+  "order": 26
+}

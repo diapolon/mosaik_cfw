@@ -1565,6 +1565,15 @@ static color_t emu_color(const char *id) {
     if (!strcmp(id, "pce")) return hexc(0xA4471F);
     if (!strcmp(id, "pcecd")) return hexc(0x8C3F6E);
     if (!strcmp(id, "segacd")) return hexc(0x1F3F7A);
+    if (!strcmp(id, "a2600")) return hexc(0x7A4E26);
+    if (!strcmp(id, "a7800")) return hexc(0x3E3E4A);
+    if (!strcmp(id, "lynx")) return hexc(0x2E4F6E);
+    if (!strcmp(id, "coleco")) return hexc(0x2E3E57);
+    if (!strcmp(id, "intv")) return hexc(0x7A5A2E);
+    if (!strcmp(id, "ws")) return hexc(0x4E6A3A);
+    if (!strcmp(id, "wsc")) return hexc(0x2F5E8C);
+    if (!strcmp(id, "pokemini")) return hexc(0x6E2F5E);
+    if (!strcmp(id, "vb")) return hexc(0x9E1F1F);
     if (!strcmp(id, "ngp")) return hexc(0x2D6A4F);
     if (!strcmp(id, "gb")) return hexc(0x6F7F2C);
     if (!strcmp(id, "gbc")) return hexc(0x1E7F86);

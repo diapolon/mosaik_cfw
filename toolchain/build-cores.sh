@@ -5,13 +5,14 @@
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
 #       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [mame2010] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp] [pcsx]
+#       [stella2014] [prosystem] [handy] [wswan] [vb] [gearcoleco] [pokemini] [freeintv]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx}
+WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx stella2014 prosystem handy wswan vb gearcoleco pokemini freeintv}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -19,6 +20,16 @@ clone() {   # cartella in deps, destinazione
     else
         git -C "$SRC/$2" fetch -q "/trimui/deps/$1" && git -C "$SRC/$2" reset -q --hard FETCH_HEAD
     fi
+}
+
+# core semplici: make con platform=unix nella cartella data, il .so che ne esce
+simple() {   # NOME_LOG CARTELLA_IN_DEPS SOTTOCARTELLA MAKEFILE FILE_SO
+    clone "$2" "$1"
+    make -C "$SRC/$1/$3" -f "$4" -j"$JOBS" platform=unix \
+        CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+        > "$SRC/$1.log" 2>&1 \
+        || { tail -30 "$SRC/$1.log"; exit 1; }
+    cp "$SRC/$1/$3/$5" "$OUT/"
 }
 
 for core in $WHICH; do
@@ -144,6 +155,15 @@ for core in $WHICH; do
             || { tail -30 "$SRC/pcsx.log"; exit 1; }
         cp "$SRC/pcsx/pcsx_rearmed_libretro.so" "$OUT/"
         ;;
+    # console leggere (pacchetti dello Store, uno per core)
+    stella2014) echo "== Stella 2014 (Atari 2600)"; simple stella2014 stella2014-libretro . Makefile stella2014_libretro.so ;;
+    prosystem) echo "== ProSystem (Atari 7800)"; simple prosystem prosystem-libretro . Makefile prosystem_libretro.so ;;
+    handy) echo "== Handy (Atari Lynx)"; simple handy libretro-handy . Makefile handy_libretro.so ;;
+    wswan) echo "== Beetle WonderSwan"; simple wswan beetle-wswan-libretro . Makefile mednafen_wswan_libretro.so ;;
+    vb) echo "== Beetle VB (Virtual Boy)"; simple vb beetle-vb-libretro . Makefile mednafen_vb_libretro.so ;;
+    gearcoleco) echo "== Gearcoleco (ColecoVision)"; simple gearcoleco Gearcoleco platforms/libretro Makefile gearcoleco_libretro.so ;;
+    pokemini) echo "== PokeMini (Pokemon Mini)"; simple pokemini PokeMini . Makefile.libretro pokemini_libretro.so ;;
+    freeintv) echo "== FreeIntv (Intellivision)"; simple freeintv FreeIntv . Makefile freeintv_libretro.so ;;
     esac
 done
 aarch64-linux-gnu-strip "$OUT"/*.so

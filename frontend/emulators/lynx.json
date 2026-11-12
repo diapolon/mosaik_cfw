@@ -1,0 +1,18 @@
+{
+  "name": "Atari Lynx",
+  "core": "handy_libretro",
+  "roms": "Roms/LYNX",
+  "extensions": [
+    "lnx",
+    "lyx",
+    "o"
+  ],
+  "kind": "console",
+  "art": "handheld-wide",
+  "short": "Lynx",
+  "thumbnails": "Atari - Lynx",
+  "bios": [
+    "lynxboot.img"
+  ],
+  "order": 54
+}

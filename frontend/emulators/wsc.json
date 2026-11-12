@@ -1,0 +1,13 @@
+{
+  "name": "WonderSwan Color",
+  "core": "mednafen_wswan_libretro",
+  "roms": "Roms/WSC",
+  "extensions": [
+    "wsc"
+  ],
+  "kind": "console",
+  "art": "handheld-wide",
+  "short": "WSC",
+  "thumbnails": "Bandai - WonderSwan Color",
+  "order": 56
+}

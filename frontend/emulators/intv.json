@@ -1,0 +1,18 @@
+{
+  "name": "Intellivision",
+  "core": "freeintv_libretro",
+  "roms": "Roms/INTV",
+  "extensions": [
+    "int",
+    "bin",
+    "rom"
+  ],
+  "kind": "console",
+  "short": "Intv",
+  "thumbnails": "Mattel - Intellivision",
+  "bios": [
+    "exec.bin",
+    "grom.bin"
+  ],
+  "order": 29
+}

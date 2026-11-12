@@ -56,6 +56,15 @@ pkg mgba mgba_libretro.so mgba_libretro.so gba
 pkg pce_fast mednafen_pce_fast_libretro.so mednafen_pce_fast_libretro.so pce pcecd
 pkg ngp mednafen_ngp_libretro.so mednafen_ngp_libretro.so ngp
 pkg pcsx pcsx_rearmed_libretro.so pcsx_rearmed_libretro.so ps
+# console leggere
+pkg stella2014 stella2014_libretro.so stella2014_libretro.so a2600
+pkg prosystem prosystem_libretro.so prosystem_libretro.so a7800
+pkg gearcoleco gearcoleco_libretro.so gearcoleco_libretro.so coleco
+pkg freeintv freeintv_libretro.so freeintv_libretro.so intv
+pkg handy handy_libretro.so handy_libretro.so lynx
+pkg wswan mednafen_wswan_libretro.so mednafen_wswan_libretro.so ws wsc
+pkg pokemini pokemini_libretro.so pokemini_libretro.so pokemini
+pkg vb mednafen_vb_libretro.so mednafen_vb_libretro.so vb
 # Dreamcast: Deadcast, programma a sé (non un core libretro), dal pacchetto del suo autore
 # scaricato a versione fissa da toolchain/fetch-deadcast.sh; lo avvia Cores/deadcast/launch.sh
 DZ=$(ls "$TOP"/deps/deadcast/DC-DEADCAST-*.pak.zip 2>/dev/null | tail -1)
@@ -114,6 +123,13 @@ SEGACD: giochi Sega CD / Mega-CD (.chd, .cue con i .bin, .iso, .m3u); serve in B
 BIOS della regione del gioco: bios_CD_U.bin (USA), bios_CD_E.bin (Europa), bios_CD_J.bin.
 NGP: giochi Neo Geo Pocket e Pocket Color (.ngp, .ngc), anche zippati.
 SNES: giochi Super Nintendo/Super Famicom (.sfc, .smc), anche zippati, uno per zip.
+A2600, A7800: giochi Atari 2600 (.a26, .bin) e 7800 (.a78, .bin), anche zippati.
+COLECO: giochi ColecoVision (.col, .cv, .rom); serve colecovision.rom in Bios/.
+INTV: giochi Intellivision (.int, .bin, .rom); servono exec.bin e grom.bin in Bios/.
+LYNX: giochi Atari Lynx (.lnx); serve lynxboot.img in Bios/.
+WS, WSC: giochi WonderSwan (.ws) e WonderSwan Color (.wsc).
+POKEMINI: giochi Pokémon mini (.min); bios.min in Bios/ se c'è, altrimenti un BIOS libero.
+VB: giochi Virtual Boy (.vb, .vboy).
 GB, GBC, GBA: giochi Game Boy (.gb), Game Boy Color (.gbc) e Game Boy Advance (.gba),
 anche zippati, uno per zip. Il BIOS GBA (gba_bios.bin) in Bios/ non serve, ma se c'è si usa.
 PS: giochi PlayStation (.chd consigliato, .cue con i suoi .bin, .pbp). Più dischi: un file .m3u

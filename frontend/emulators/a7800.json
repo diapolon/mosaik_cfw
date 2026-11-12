@@ -1,0 +1,13 @@
+{
+  "name": "Atari 7800",
+  "core": "prosystem_libretro",
+  "roms": "Roms/A7800",
+  "extensions": [
+    "a78",
+    "bin"
+  ],
+  "kind": "console",
+  "short": "7800",
+  "thumbnails": "Atari - 7800",
+  "order": 27
+}

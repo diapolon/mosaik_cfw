@@ -1,0 +1,13 @@
+{
+  "name": "Pokémon mini",
+  "core": "pokemini_libretro",
+  "roms": "Roms/POKEMINI",
+  "extensions": [
+    "min"
+  ],
+  "kind": "console",
+  "art": "handheld",
+  "short": "Mini",
+  "thumbnails": "Nintendo - Pokemon Mini",
+  "order": 57
+}
