@@ -27,14 +27,18 @@
 
 ## What's inside
 
-- **FinalBurn Neo and MAME 2003-Plus**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
+- **Emulators from the Store**: the system stays small and you install only what you play, from the **Store** on the home screen. Every package is signed; **Archive** removes an emulator and keeps its games and saves, **Delete** removes everything after showing what goes.
+- **FinalBurn Neo, MAME 2003-Plus and MAME 2010**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
-- **PlayStation** (PCSX ReARMed): `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
+- **PlayStation** (PCSX ReARMed) with the DualShock sticks: `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
+- **Dreamcast** with [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), first on the Brick Pro.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
 - **Linux games**, with an in-game menu and sleep.
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
 - **Transfer files over Wi-Fi** from a computer or phone: scan the QR code or open `mosaik.local`, then upload ROMs and download saves without taking the card out.
+- **Backup and restore**: one zip with saves, settings, BIOS files and, if you want, the games; restore it all or only the parts you choose, also onto a new card or the other model.
+- **Apps**: programs that aren't games get their own section on the home screen.
 - **Three themes with color variants**, languages, LEDs and video filters you can configure.
 - **Signed updates** over Wi-Fi, all or nothing: if one is interrupted or the new version fails to start, the console goes back to all the previous files.
 - **CPU profile for each game**, and a notice on the home screen when an update is available.
@@ -92,10 +96,11 @@
 
 You need a good-quality microSD card (4 GB to 256 GB) and [balenaEtcher](https://etcher.balena.io/).
 
-1. **Download the image** for your model from the [latest release](https://github.com/diapolon/mosaik_cfw/releases/latest), under **Assets**: `mosaik-<version>-smartpro.img.gz` for the Smart Pro, `mosaik-<version>-brickpro.img.gz` for the Brick Pro. There's no need to decompress it. **Check the file name: with the image of the other model the console won't start.** Nothing gets damaged: just write the right one. **Ignore all the other files** (`file-0`, `file-1`…, `update.txt`, `update.sig`, source archives): the console's Wi-Fi updater uses them by itself.
+1. **Download the image** for your model from the [latest release](https://github.com/diapolon/mosaik_cfw/releases/latest), under **Assets**: `mosaik-<version>-smartpro.img.gz` for the Smart Pro, `mosaik-<version>-brickpro.img.gz` for the Brick Pro. There's no need to decompress it. **Check the file name: with the image of the other model the console won't start.** Nothing gets damaged: just write the right one. **Ignore all the other files** (`file-0`, `file-1`…, `update.txt`, `update.sig`, `store.json`, `store.sig`, source archives): the console's Wi-Fi updater and Store use them by themselves. The `store-….zip` files are the emulators, for a console without Wi-Fi (step 5).
 2. **Write it to the microSD** with balenaEtcher. Everything on the card is erased. If your computer then asks to format part of the card, say no.
 3. **Put the card in the console and turn it on.** On first boot the partition grows to fill the card, so startup takes a little longer.
-4. **Open the settings with Start** to set the language (Appearance) and the date and time (System).
+4. **Open the settings with Start** to set the language (Appearance), the date and time and the Wi-Fi (System).
+5. **Install the emulators**: open the **Store** from the home screen (the console offers it on a new card) and choose the ones you need. Without Wi-Fi, copy the `store-….zip` files of the emulators you want from the release to the main folder of the card: at the next start the console offers to install them.
 
 To go back to the original system, turn the console off and remove the card.
 
@@ -109,21 +114,24 @@ Turn the console off and connect the card to your computer. Everything is in the
 |---|---|
 | `Roms/FBNEO` | ROMs for FinalBurn Neo (current FBNeo set), subfolders allowed |
 | `Roms/MAME2003P` | ROMs for MAME 2003-Plus (0.78-plus set) |
+| `Roms/MAME2010` | ROMs for MAME 2010 (0.139 set), for the games the other two don't run |
 | `Roms/NES`, `Roms/SNES`, `Roms/MD` | NES, Super Nintendo and Mega Drive games |
 | `Roms/SMS`, `Roms/GG`, `Roms/PCE` | Master System, Game Gear and PC Engine (HuCard) games |
 | `Roms/GB`, `Roms/GBC`, `Roms/GBA`, `Roms/NGP` | Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket games |
 | `Roms/PS` | PlayStation games: `.chd` (recommended), `.cue` with its `.bin` files, or `.pbp` |
-| `Bios` | `neogeo.zip` and other BIOS files |
+| `Roms/DC` | Dreamcast games: `.chd` (recommended), `.gdi` with its tracks, `.cdi` or `.m3u` |
+| `Bios` | `neogeo.zip` and other BIOS files; for the Dreamcast, `dc/dc_boot.bin` |
 | `Linux` | Linux games, one per folder |
+| `Apps` | Programs that aren't games, one per folder with `launch.sh` |
 | `Media` | Game images |
 | `Music` | Background music (MP3, OGG, FLAC, WAV) |
 | `Saves` | Saves |
 
-Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → Tools → Verify ROMs** checks that every zip contains the right files, and the game's details page (X) shows what's missing, including a BIOS.
+Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → ROMs and images → Verify ROMs** checks that every zip contains the right files (**Full** also reads all the data and finds damaged files), and the game's details page (X) shows what's missing, including a BIOS. The Dreamcast menu is Deadcast's own: open it with Menu and always quit the game from there, so the memory-card saves are written.
 
-For covers and information, connect to Wi-Fi and use **Settings → Tools → Download images**.
+For covers and information, connect to Wi-Fi and use **Settings → ROMs and images → Download images**.
 
-You can also copy files without taking the card out: open **Settings → Tools → Transfer files**, then scan the QR code with your phone, or open **http://mosaik.local** in a browser on a computer connected to the same Wi-Fi network and type the PIN (tick **Remember this browser** to skip it next time). From the page you can upload ROMs, BIOS files, images, music and Linux games (files or whole folders, also by dragging them onto the page), download saves and logs (a folder becomes a zip), create, rename and delete. System files can only be downloaded. The transfer stays on only while the window is open on the console, and the PIN changes every time.
+You can also copy files without taking the card out: open **Settings → Card and data → Transfer files**, then scan the QR code with your phone, or open **http://mosaik.local** in a browser on a computer connected to the same Wi-Fi network and type the PIN (tick **Remember this browser** to skip it next time). From the page you can upload ROMs, BIOS files, images, music and Linux games (files or whole folders, also by dragging them onto the page), download saves and logs (a folder becomes a zip), create, rename and delete. System files can only be downloaded. The transfer stays on only while the window is open on the console, and the PIN changes every time. The **Backup** box on the page downloads one zip with your saves, settings, favorites, collections, play time and BIOS files (optionally Wi-Fi networks, images and games) and restores it, all or only the parts you tick; a backup zip copied to the main folder of the card is offered at the next start.
 
 ### Linux games
 
@@ -184,10 +192,13 @@ To update, open **Settings → Updates → Update system** and choose **Download
 
 **Settings → Updates → Update channel** switches between Stable and Development (test builds that may have problems). Going back to Stable applies from the next stable version.
 
+**Settings → Card and data** also has **Reset settings** (settings, lists and Wi-Fi networks back to new; games and saves stay) and **Erase everything** (also games, BIOS files and saves, like a freshly written card). Both ask more than once.
+
 ## Troubleshooting
 
 - **The console doesn't turn on with the card:** check that you wrote the image for your model (`smartpro` or `brickpro` in the file name). Without the card the original system starts as usual.
 - **Black or red screen at startup:** hold the power button for 10-20 seconds, remove the card and look in `Arcade/Logs`.
+- **A system has no games or the emulator is missing:** install it from the **Store** on the home screen. An archived emulator comes back with **Download again**, with its games and saves.
 - **A game won't start:** the console shows what's missing and where to copy it. You can also open the check yourself: on the game details page press X and choose **Game diagnosis**.
 - **A game misbehaves after changing its options:** on its details page press X and choose **Reset game**. Your ROM stays, and save states are kept unless you choose otherwise.
 - **Neo Geo games won't start:** they need `neogeo.zip` in `Arcade/Bios`.
@@ -203,6 +214,6 @@ The build uses Docker and needs components extracted from the official TrimUI fi
 
 The code written for Mosaik is under the [GNU LGPL v3](COPYING.LESSER). It does not cover third-party components, which keep their own licenses: see [`licenses/THIRD-PARTY.md`](licenses/THIRD-PARTY.md), which also links the emulator sources.
 
-FinalBurn Neo, MAME 2003-Plus, Genesis Plus GX and Snes9x are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases), together with the source of the GPL and MPL emulators (FCEUmm, Gambatte, mGBA, Beetle PCE Fast, Beetle NeoPop) in the releases that include them.
+FinalBurn Neo, MAME 2003-Plus, MAME 2010, Genesis Plus GX and Snes9x are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases), together with the source of the GPL and MPL emulators (FCEUmm, Gambatte, mGBA, Beetle PCE Fast, Beetle NeoPop, PCSX ReARMed, Deadcast) in the releases that include them.
 
 Independent project, not affiliated with TrimUI.
