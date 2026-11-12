@@ -2438,8 +2438,11 @@ static void gl_card(int x, int y, int w, int h, bool sel, const char *name, cons
     ui_rrect(x, y, w, h, r, frame);
     int top = y + pad / 2, ih = h - nh - sh - pad * 2 - pad / 2, iy = top + nh + pad / 3;
     char fit[96];
-    ui_text_fit(UI.f_normal, name, w - 2 * pad, fit, sizeof fit);
-    ui_text(UI.f_normal, fit, x + w / 2, top, sel ? t->highlight : light, ALIGN_CENTER);
+    /* nome lungo: prima un carattere più piccolo, i puntini solo se non basta */
+    TTF_Font *nf = UI.f_normal;
+    if (ui_text_w(nf, name) > w - 2 * pad) nf = UI.f_small;
+    ui_text_fit(nf, name, w - 2 * pad, fit, sizeof fit);
+    ui_text(nf, fit, x + w / 2, top + (nh - TTF_FontHeight(nf)) / 2, sel ? t->highlight : light, ALIGN_CENTER);
     int gtab = gi >= 0 && !media_image(&games[gi], t->cover_types, t->ncover) ? vt_game_tab(gi) : -1;
     if (gi >= 0 && gtab < 0) cover_box(&games[gi], x + pad, iy, w - 2 * pad, ih, r / 2);
     else if (gi >= 0) {   /* gioco senza immagine: il disegno della sua piattaforma */

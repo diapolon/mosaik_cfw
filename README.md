@@ -90,12 +90,28 @@
     <td align="center">The transfer page, in any browser</td>
   </tr>
   <tr>
-    <td><img src="docs/images/store.png" alt="Store"></td>
+    <td><img src="docs/images/store-folders.png" alt="Store folders"></td>
+    <td><img src="docs/images/store.png" alt="Consoles in the Store"></td>
+  </tr>
+  <tr>
+    <td align="center">The Store: arcade, consoles, apps and themes</td>
+    <td align="center">Installed emulators in colour, the others in grey</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/store-themes.png" alt="Themes in the Store"></td>
     <td><img src="docs/images/store-delete.png" alt="Delete preview in the Store"></td>
   </tr>
   <tr>
-    <td align="center">The Store: installed emulators in colour, the others in grey</td>
+    <td align="center">Themes to download from the Store</td>
     <td align="center">Before deleting, what is removed and what is kept</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/theme-copertina.png" alt="Cover theme"></td>
+    <td><img src="docs/images/theme-stellato.png" alt="Starry theme"></td>
+  </tr>
+  <tr>
+    <td align="center">Cover theme: the big drawing of the platform and the strip below</td>
+    <td align="center">Starry theme: tabs, and cards with maker and year</td>
   </tr>
 </table>
 

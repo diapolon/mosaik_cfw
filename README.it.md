@@ -90,12 +90,28 @@
     <td align="center">La pagina del trasferimento, in qualsiasi browser</td>
   </tr>
   <tr>
-    <td><img src="docs/images/it/store.png" alt="Store"></td>
+    <td><img src="docs/images/it/store-folders.png" alt="Cartelle dello Store"></td>
+    <td><img src="docs/images/it/store.png" alt="Console nello Store"></td>
+  </tr>
+  <tr>
+    <td align="center">Lo Store: arcade, console, app e temi</td>
+    <td align="center">Emulatori installati a colori, gli altri in grigio</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/it/store-themes.png" alt="Temi nello Store"></td>
     <td><img src="docs/images/it/store-delete.png" alt="Anteprima di Elimina nello Store"></td>
   </tr>
   <tr>
-    <td align="center">Lo Store: emulatori installati a colori, gli altri in grigio</td>
+    <td align="center">Temi da scaricare dallo Store</td>
     <td align="center">Prima di eliminare, cosa si toglie e cosa resta</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/it/theme-copertina.png" alt="Tema Copertina"></td>
+    <td><img src="docs/images/it/theme-stellato.png" alt="Tema Stellato"></td>
+  </tr>
+  <tr>
+    <td align="center">Tema Copertina: il disegno grande della piattaforma e la striscia sotto</td>
+    <td align="center">Tema Stellato: schede in alto, carte con produttore e anno</td>
   </tr>
 </table>
 
