@@ -31,6 +31,7 @@ typedef struct {
     char date[32];           /* data del backup */
     int files;               /* file che si ripristinerebbero, tutti */
     int count[FS_NPARTS];    /* di cui per parte (0: la parte non c'è) */
+    char packages[1024];     /* pacchetti dello Store installati allora, separati da spazi */
 } fs_backup_t;
 
 typedef struct {

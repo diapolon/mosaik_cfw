@@ -27,7 +27,8 @@ typedef struct {
     char id[32], name[64], label[32], version[24], file[128], sha[65];
     char systems[200];           /* "Sega Mega Drive, Master System, Game Gear"; per le app la descrizione */
     char title[64];              /* breve, per il riquadro: "Super Nintendo", "Sega MD · SMS · Game Gear" */
-    char category[16];           /* arcade, console (in futuro apps, linux) */
+    char category[16];           /* arcade, console, apps, themes (in futuro linux) */
+    char colors[24];             /* temi: i colori delle varianti, "RRGGBB RRGGBB RRGGBB" */
     char emu[16], art[16], shortname[16];   /* immagine: quella della prima console del pacchetto */
     bool console;
     long long size, installed;   /* byte dello zip e dei file installati */
@@ -41,6 +42,7 @@ typedef struct {
     _Atomic bool online;         /* catalogo letto ora dalla rete (altrimenti la copia sulla scheda) */
     _Atomic bool cancel;
     char working[64];            /* nome del pacchetto in lavorazione */
+    _Atomic int batch_done, batch_total;   /* pacchetti di un backup: fatti e quanti (0: uno solo) */
 } store_status_t;
 
 /* lingua dei nomi e delle descrizioni delle app nel catalogo ("texts": {"it": {...}}), prima di store_open */
@@ -51,6 +53,10 @@ const store_status_t *store_status(void);
 int store_count(void);
 const store_pkg_t *store_pkg(int i);   /* copia stabile finché non si richiama store_open/store_* */
 void store_install(int i);              /* in un thread: installa o aggiorna */
+/* pacchetti di un backup ripristinato (System/ripristino-pacchetti.txt) ancora da rimettere;
+   0 toglie il file. store_install_restore li installa in un thread, dopo store_open */
+int store_restore_pending(const char *root);
+void store_install_restore(void);
 /* in un thread: toglie i file del pacchetto. Senza with_data è "Archivia": giochi, salvataggi e
    immagini restano e il registro ricorda il pacchetto come archiviato. Con with_data è "Elimina":
    via anche giochi, salvataggi e immagini delle sue console (cartelle dentro Roms,

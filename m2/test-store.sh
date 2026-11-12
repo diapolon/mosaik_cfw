@@ -32,6 +32,15 @@ static int find(const char *id) { for (int i = 0; i < store_count(); i++) if (!s
 int main(int c, char **v) {
     const char *root = v[1], *cmd = v[2];
     if (!strcmp(cmd, "recover")) { store_recover(root); return 0; }
+    if (!strcmp(cmd, "pending")) { printf("%d\n", store_restore_pending(root)); return 0; }
+    if (!strcmp(cmd, "restore")) {
+        store_open(root, 0, true);
+        store_join();
+        store_install_restore();
+        store_join();
+        printf("%d %d\n", store_status()->phase, store_status()->error);
+        return 0;
+    }
     if (!strcmp(cmd, "offline")) {
         char p[1200], n[64], l[32];
         if (!store_offline_find(root, p, sizeof p, n, sizeof n, l, sizeof l)) { puts("niente"); return 0; }
@@ -84,6 +93,10 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     L1=Apps/files/$(printf 'cartella-con-un-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18)a.bin
     L2=Apps/files/$(printf 'altra-cartella-dal-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)b.bin
     mkdir -p "pkgsrc/files/$(dirname $L1)" "pkgsrc/files/$(dirname $L2)"; echo uno > "pkgsrc/files/$L1"; echo due > "pkgsrc/files/$L2"
+    if [ -n "$TEMA" ]; then   # un tema come pacchetto: la cartella Temi dello Store
+        mkdir -p pkgsrc/tema-sole/Themes/sole
+        printf '{\n  // prova\n  "name": "Sole", "version": "1.1",\n  "variants": { "a": { "accent": "#FFAA00" }, "b": { "accent": "#0066FF" } }\n}\n' > pkgsrc/tema-sole/Themes/sole/theme.json
+    fi
     printf 'fbneo d15071a\nmgba 7a12d6d\n' > labels.txt
     rm -rf www; python3 /trimui/toolchain/make-store.py --src pkgsrc --out www --key ${2:-key.pem} --labels labels.txt > /dev/null
 }
@@ -146,6 +159,15 @@ check "la v3 poi si installa" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
 check "v3: file tolto, indice nuovo, niente avanzi" "no indice 3 0" "$([ -e sd/Cores/extra/dati.bin ] && echo si || echo no) $(cat sd/Dats/fbneo.tsv) $(find sd -name '*.annulla' -o -name 'store-giornale.txt' | wc -l | tr -d ' ')"
 rm -rf sd && mv sd-v2 sd
 mk 2
+# pacchetti di un backup ripristinato: si rimettono tutti, restano quelli non riusciti
+printf 'fbneo\nfiles\nmgba\nnonesiste\nfiles\n' > sd/System/ripristino-pacchetti.txt
+check "backup: da rimettere (non i già installati, niente doppi)" "3" "$(./t $R pending 2>/dev/null)"
+check "rimessi: uno non riesce (core rotto)" "5 7" "$(./t $R restore 2>/dev/null)"
+check "app del backup installata" "si" "$([ -x sd/Apps/files/files ] && [ -e sd/System/pacchetti/files.txt ] && echo si || echo no)"
+check "resta da rimettere solo quello non riuscito" "mgba" "$(cat sd/System/ripristino-pacchetti.txt)"
+rm sd/System/ripristino-pacchetti.txt
+check "niente da rimettere" "0" "$(./t $R pending 2>/dev/null)"
+check "app tolta di nuovo" "4 0 0" "$(./t $R delete files 2>/dev/null)"
 # pacchetto manomesso: l'impronta del catalogo non torna
 Z=$(ls www/store-fbneo-*.zip); cp $Z orig.zip; printf 'x' >> $Z
 rm sd/System/pacchetti/fbneo.txt
@@ -201,6 +223,15 @@ check "versione nuova sulla scheda" "indice 3" "$(cat sd/Dats/fbneo.tsv)"
 echo manomesso >> sd/store.json
 rm -f sd/store-*.zip; mk 4; cp www/store-fbneo-*.zip sd/
 check "catalogo accanto manomesso: rifiutato" "FinalBurn Neo non verificato" "$(./t $R offline 2>/dev/null)"
+# temi nello Store
+rm -f sd/store.json sd/store.sig sd/store-*.zip
+TEMA=1 mk 4
+check "tema nel catalogo: nome e cartella Temi" "Sole||themes" "$(./t $R title tema-sole 2>/dev/null)"
+check "tema: i colori delle varianti nel catalogo" "si" "$(grep -q '"colors": \[' www/store.json && grep -q '#0066FF' www/store.json && echo si || echo no)"
+check "tema installato" "4 0 1" "$(./t $R install tema-sole 2>/dev/null)"
+check "file del tema sulla scheda" "si" "$([ -f sd/Themes/sole/theme.json ] && echo si || echo no)"
+check "tema tolto" "4 0 0" "$(./t $R delete tema-sole 2>/dev/null)"
+check "cartella del tema tolta, Themes resta" "no si" "$([ -e sd/Themes/sole ] && echo si || echo no) $([ -d sd/Themes ] && echo si || echo no)"
 kill $SRV
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

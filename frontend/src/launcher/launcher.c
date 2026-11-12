@@ -527,7 +527,7 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3, CFM_STORE, CFM_PKG };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3, CFM_STORE, CFM_PKG, CFM_RESTPKG };
 static double cfm_hold;
 /* pacchetti dello Store copiati sulla scheda (domanda all'avvio), e invito allo Store senza emulatori */
 static bool pkg_checked, store_asked;
@@ -2740,8 +2740,8 @@ static void wpanel_draw(void) {
    poi di tenere premuto A per 3 secondi, come Cancella tutto. */
 enum { SL_CATS, SL_PKGS };
 enum { SA_NONE, SA_ARCHIVE, SA_DELETE, SA_DELETE2 };
-static const char *const STO_CATS[] = { "arcade", "console", "apps", "linux" };
-#define NSTO_CATS 4
+static const char *const STO_CATS[] = { "arcade", "console", "apps", "themes", "linux" };
+#define NSTO_CATS 5
 static int sto_level, sto_cat, sto_sel, sto_cats[NSTO_CATS], nsto_cats;
 static int sto_items[64], nsto_items;
 static bool sto_detail, sto_job, sto_removing;
@@ -2764,6 +2764,9 @@ static void sto_build(void) {
             if (!strcmp(store_pkg(i)->category, STO_CATS[sto_cats[sto_cat]])) sto_items[nsto_items++] = i;
 }
 
+static bool sto_batch;     /* pacchetti di un backup da rimettere appena c'è il catalogo */
+static int restpkg_n;      /* quanti, per la domanda */
+static bool restpkg_asked;
 static void sto_start(void) {
     sto_was_offline = !sto_online();
     store_lang(UI.set.lang);
@@ -2776,19 +2779,36 @@ static void sto_start(void) {
     go(SCR_STORE);
 }
 
+/* temi arrivati o tolti dallo Store: l'elenco delle impostazioni; se quello in uso non c'è più,
+   si torna al predefinito */
+static void sto_themes_refresh(void) {
+    nthemes = theme_list(UI.root, theme_ids, theme_names, 16);
+    char p[1200];
+    snprintf(p, sizeof p, "%s/Themes/%s/theme.json", UI.root, UI.set.theme);
+    if (access(p, F_OK) == 0) return;
+    ui_log("tema %s tolto: torno al predefinito", UI.set.theme);
+    snprintf(UI.set.theme, sizeof UI.set.theme, "%s", "tessera");
+    UI.set.variant[0] = 0;
+    settings_save(&UI.set, UI.root);
+    ui_reload_theme();
+}
+
 static void sto_leave(void) {
     store_join();
-    if (store_changed()) reload_games();
+    if (store_changed()) { reload_games(); sto_themes_refresh(); }
     go(back_screen == SCR_STORE ? SCR_HOME : back_screen);
 }
 
 static bool sto_is_app(const store_pkg_t *p) { return !strcmp(p->category, "apps"); }
+static bool sto_is_theme(const store_pkg_t *p) { return !strcmp(p->category, "themes"); }
+/* app e temi: niente giochi né salvataggi, quindi niente Archivia e una conferma sola */
+static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_theme(p); }
 
 /* pulsanti della scheda secondo lo stato del pacchetto */
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_ARCHIVE, SB_DELETE };
 static int sto_buttons(const store_pkg_t *p, int *b) {
     int n = 0;
-    if (sto_is_app(p)) {   /* niente da archiviare: un'app non ha giochi né salvataggi */
+    if (sto_no_data(p)) {   /* niente da archiviare: app e temi non hanno giochi né salvataggi */
         if (p->state == PKG_ABSENT || p->state == PKG_ARCHIVED) b[n++] = SB_INSTALL;
         else { if (p->state == PKG_UPDATE || p->state == PKG_OLD) b[n++] = SB_UPDATE; b[n++] = SB_DELETE; }
         return n;
@@ -2811,6 +2831,16 @@ static void sto_input(void) {
         if (in->pressed[BTN_B]) { store_cancel(); ui_sound(SND_BACK); }
         return;
     }
+    if (sto_batch && !sto_job && s->phase != ST_LOADING) {   /* catalogo pronto: i pacchetti del backup */
+        sto_batch = false;
+        if (s->phase == ST_READY && store_count()) {
+            ui_log("store: rimetto i pacchetti del backup");
+            store_install_restore();
+            sto_job = true;
+            sto_removing = false;
+            return;
+        }
+    }
     if (sto_was_offline && sto_online() && s->phase != ST_LOADING && !sto_job && !sto_detail && !sto_ask) {
         sto_was_offline = false;   /* la rete è arrivata: il catalogo aggiornato */
         store_open(UI.root, UI.set.update_channel, true);
@@ -2823,7 +2853,7 @@ static void sto_input(void) {
                                       "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned" };
         if (s->phase == ST_DONE) { ui_toast(T("store.done")); ui_sound(SND_OK); }
         else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_UNSIGNED ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
-        if (store_changed()) reload_games();
+        if (store_changed()) { reload_games(); sto_themes_refresh(); }
         return;
     }
     sto_build();
@@ -2844,7 +2874,7 @@ static void sto_input(void) {
             int r = ui_confirm_input(&sto_ask_sel);
             if (r < 0) return;
             if (r != 1 || idx < 0) { sto_ask = SA_NONE; return; }
-            if (a == SA_DELETE && !sto_is_app(store_pkg(idx))) { sto_ask = SA_DELETE2; sto_ask_sel = 0; sto_hold = 0; return; }
+            if (a == SA_DELETE && !sto_no_data(store_pkg(idx))) { sto_ask = SA_DELETE2; sto_ask_sel = 0; sto_hold = 0; return; }
             if (a == SA_DELETE) a = SA_DELETE2;   /* app: si toglie subito, si può riscaricare */
         }
         sto_ask = SA_NONE;
@@ -2906,8 +2936,8 @@ static void sto_size(long long b, char *out, size_t n) {
 /* l'immagine di una cartella: il cabinato, una console, il cassetto delle app, il portatile */
 static void sto_cat_art(int c, color_t *col, emulator_t *em) {
     memset(em, 0, sizeof *em);
-    static const char *const arts[] = { "", "", "@apps", "@linux" };   /* Console: una console generica */
-    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x4B3C86, 0x2F6B45 };
+    static const char *const arts[] = { "", "", "@apps", "@themes", "@linux" };   /* Console: una console generica */
+    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x4B3C86, 0x9A4E2A, 0x2F6B45 };
     snprintf(em->art, sizeof em->art, "%s", arts[c]);
     em->console = c == 1;
     *col = hexc(cols[c]);
@@ -2919,6 +2949,14 @@ static void sto_pkg_art(const store_pkg_t *p, color_t *col, emulator_t *em) {
         snprintf(em->art, sizeof em->art, "@app:%s", p->id);
         *col = !strcmp(p->id, "files") ? hexc(0x1F6E8C) : !strcmp(p->id, "viewer") ? hexc(0x8C4A1F)
              : !strcmp(p->id, "music") ? hexc(0x7A2E6E) : !strcmp(p->id, "sdtest") ? hexc(0x2E6B3E) : hexc(0x4B3C86);
+        return;
+    }
+    if (sto_is_theme(p)) {   /* tema: una schermata nei colori delle sue varianti */
+        snprintf(em->art, sizeof em->art, "@theme");
+        unsigned c1 = 0;
+        if (sscanf(p->colors, "%6x", &c1) != 1) c1 = 0x9A4E2A;
+        snprintf(em->shortname, sizeof em->shortname, "%.15s", p->colors);   /* le prime due */
+        *col = mix(hexc(c1), rgba(0, 0, 0, 255), 0.35f);
         return;
     }
     snprintf(em->id, sizeof em->id, "%s", p->emu);
@@ -2965,6 +3003,15 @@ static void sto_art(const emulator_t *em, color_t c, const char *label, int ax, 
         ui_rrect(fx + cut, fy, fw - cut, fh / 2, fw / 12, white);
         ui_triangle(fx, fy + cut, fx + cut, fy, fx + cut, fy + cut, white);
         for (int k = 0; k < 4; k++) ui_rrect(fx + cut / 2 + k * fw * 2 / 11 + fw / 12, fy + fw / 10, fw / 10, fh / 6, fw / 40, mix(c, white, 0.3f));
+    } else if (!strcmp(em->art, "@themes") || !strcmp(em->art, "@theme")) {   /* schermata: barra in alto e riquadri */
+        unsigned v[2] = { 0, 0 };
+        int nv = sscanf(em->shortname, "%6x %6x", &v[0], &v[1]);
+        color_t a1 = nv >= 1 ? hexc(v[0]) : rgba(255, 196, 60, 255), a2 = nv >= 2 ? hexc(v[1]) : mix(c, white, 0.5f);
+        int fw = s * 84 / 100, fh = fw * 62 / 100, fx = ax + (aw - fw) / 2, fy = ay + (ah - fh) / 2, b = fw / 18;
+        ui_rrect(fx, fy, fw, fh, fw / 12, white);
+        ui_rrect(fx + b, fy + b, fw - 2 * b, fh / 5, fw / 30, a1);
+        int tw = (fw - 4 * b) / 3, ty = fy + b * 2 + fh / 5, th = fh - (ty - fy) - b;
+        for (int k = 0; k < 3; k++) ui_rrect(fx + b + k * (tw + b), ty, tw, th, fw / 30, k == 1 ? a1 : k == 0 ? a2 : mix(c, white, 0.3f));
     } else if (!strncmp(em->art, "@app:", 5)) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, s * 2 / 3, white, c);
     else draw_emu_art(em, c, label, ax, ay, aw, ah);
 }
@@ -3022,9 +3069,9 @@ static void sto_preview_draw(const store_pkg_t *pp, bool del) {
     struct { const char *k; char v[48]; bool gone; } row[5];
     int nr = 0;
     char a[32];
-    bool app = sto_is_app(&p);
-    if (app) {   /* un'app: si toglie solo lei, i file della scheda restano */
-        row[nr].k = T("store.pv_app");
+    bool app = sto_no_data(&p);
+    if (app) {   /* un'app o un tema: si toglie solo lui, i file della scheda restano */
+        row[nr].k = T(sto_is_theme(&p) ? "store.pv_theme" : "store.pv_app");
         sto_size(p.installed, row[nr].v, sizeof row[nr].v);
         row[nr++].gone = true;
         row[nr].k = T("store.pv_yourfiles");
@@ -3139,8 +3186,10 @@ static void sto_draw(void) {
                 }
                 sto_cat_art(ci, &c, &em);
                 snprintf(title, sizeof title, "store.cat_%s", STO_CATS[ci]);
-                bool apps_cat = !strcmp(STO_CATS[ci], "apps") || !strcmp(STO_CATS[ci], "linux");
-                if (cnt) snprintf(sub, sizeof sub, T(cnt == 1 ? (apps_cat ? "store.count1_apps" : "store.count1") : (apps_cat ? "store.count_apps" : "store.count")), cnt);
+                bool apps_cat = !strcmp(STO_CATS[ci], "apps") || !strcmp(STO_CATS[ci], "linux"), theme_cat = !strcmp(STO_CATS[ci], "themes");
+                const char *ck = theme_cat ? (cnt == 1 ? "store.count1_themes" : "store.count_themes")
+                               : apps_cat ? (cnt == 1 ? "store.count1_apps" : "store.count_apps") : (cnt == 1 ? "store.count1" : "store.count");
+                if (cnt) snprintf(sub, sizeof sub, T(ck), cnt);
                 else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
                 char badge[48] = "";
                 if (upd) snprintf(badge, sizeof badge, "%d", upd);
@@ -3151,7 +3200,7 @@ static void sto_draw(void) {
                 /* in grande la console (dice di più a chi gioca), sotto l'emulatore e la misura */
                 char size[32];
                 sto_size(p.size, size, sizeof size);
-                if (sto_is_app(&p)) snprintf(sub, sizeof sub, "%s", size);
+                if (sto_no_data(&p)) snprintf(sub, sizeof sub, "%s", size);
                 else snprintf(sub, sizeof sub, "%s · %s", p.name, size);
                 sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_badge(&p), i == sto_sel, sto_gray(&p));
             }
@@ -3218,6 +3267,10 @@ static void sto_draw(void) {
         ui_rrect(px, py, pw, ph, r, t->surface);
         char line[160];
         snprintf(line, sizeof line, T(sto_removing ? "store.removing" : "store.working"), s->working);
+        if (s->batch_total > 1) {   /* pacchetti di un backup: quale su quanti */
+            size_t l = strlen(line);
+            snprintf(line + l, sizeof line - l, " (%d/%d)", s->batch_done + 1, s->batch_total);
+        }
         ui_text_fit(UI.f_title, line, pw - M(0.08f), line, sizeof line);
         ui_text(UI.f_title, line, px + pw / 2, py + M(0.05f), t->text, ALIGN_CENTER);
         int bw = pw - M(0.12f), bh = M(0.012f), bx = px + M(0.06f), by = py + M(0.05f) + TTF_FontHeight(UI.f_title) + M(0.035f);
@@ -5700,6 +5753,9 @@ static void cfm_input(void) {
         cfm_hold = 0;
     } else if (k == CFM_STORE) {
         sto_start();
+    } else if (k == CFM_RESTPKG) {   /* dopo un ripristino: emulatori e app del backup */
+        sto_start();
+        sto_batch = true;
     } else if (k == CFM_PKG) {   /* pacchetto copiato sulla scheda */
         char msg[160];
         snprintf(msg, sizeof msg, T("store.working"), pkg_name);
@@ -5728,6 +5784,11 @@ static void cfm_draw(void) {
     else if (cfm_kind == CFM_RESETSET) ui_confirm_draw(T("reset_all.settings_title"), T("reset_all.settings_body"), T("common.cancel"), T("reset_all.settings_go"), cfm_sel);
     else if (cfm_kind == CFM_ERASE) ui_confirm_draw(T("reset_all.erase_title"), T("reset_all.erase_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
     else if (cfm_kind == CFM_STORE) ui_confirm_draw(T("store.ask_title"), T("store.ask_body"), T("store.later"), T("store.open"), cfm_sel);
+    else if (cfm_kind == CFM_RESTPKG) {
+        char body[200];
+        snprintf(body, sizeof body, T("store.restore_body"), restpkg_n);
+        ui_confirm_draw(T("store.restore_title"), body, T("store.later"), T("store.restore_go"), cfm_sel);
+    }
     else if (cfm_kind == CFM_PKG) {
         char title[160], body[200];
         snprintf(title, sizeof title, T("store.pkg_title"), pkg_name);
@@ -6901,6 +6962,17 @@ int main(int argc, char **argv) {
                 ui_log("store: pacchetto sulla scheda: %s (%s)", pkg_name, pkg_path);
                 cfm_kind = CFM_PKG;
                 cfm_sel = 1;
+            }
+        }
+        /* dopo un ripristino: una volta per avvio, a Wi-Fi collegato, rimettere i pacchetti del backup
+           (prima dell'invito della scheda senza emulatori, che allora non serve) */
+        if (pkg_checked && !restpkg_asked && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
+            !rdy_open && !sdbad_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
+            restpkg_asked = true;
+            if ((restpkg_n = store_restore_pending(UI.root)) > 0) {
+                cfm_kind = CFM_RESTPKG;
+                cfm_sel = 1;
+                store_asked = true;
             }
         }
         /* nessun emulatore (scheda nuova): una volta per avvio, l'invito ad aprire lo Store, solo

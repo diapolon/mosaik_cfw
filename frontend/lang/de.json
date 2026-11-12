@@ -62,10 +62,10 @@
   },
   "fileserver": {
     "backup": "Sicherung",
-    "backup_note": "Spielstände, Einstellungen, Favoriten, Sammlungen, Spielzeit und BIOS in einer ZIP-Datei.",
+    "backup_note": "Spielstände, Einstellungen, Favoriten, Sammlungen, Spielzeit, BIOS und Rahmen in einer ZIP-Datei.",
     "backup_download": "Sicherung herunterladen",
     "backup_wifi": "Auch die WLAN-Netze, mit Passwörtern",
-    "backup_media": "Auch die Bilder",
+    "backup_media": "Auch Bilder und Musik",
     "backup_games": "Auch Spiele und Apps (%s)",
     "backup_games_big": "Spiele zu groß für die Sicherung (%s): separat kopieren",
     "backup_restore": "Sicherung wiederherstellen",
@@ -142,7 +142,7 @@
     "part_settings": "Einstellungen und Listen",
     "part_bios": "BIOS",
     "part_wifi": "WLAN-Netze",
-    "part_media": "Bilder",
+    "part_media": "Bilder und Musik",
     "part_games": "Spiele und Apps"
   },
   "plat": {
@@ -896,6 +896,9 @@
     "err_verify": "Paket beschädigt: erneut versuchen",
     "err_write": "Fehler beim Schreiben auf die Karte",
     "err_core": "Der Emulator startet nicht: nicht installiert",
+    "restore_title": "Emulatoren und Apps neu installieren?",
+    "restore_body": "Die Sicherung hatte %d: sie werden aus dem Store geladen.",
+    "restore_go": "Installieren",
     "err_cancel": "Abgebrochen",
     "ask_title": "Keine Emulatoren",
     "ask_body": "Lade die benötigten Emulatoren aus dem Store.",
@@ -906,6 +909,7 @@
     "cat_arcade": "Arcade",
     "cat_console": "Konsolen",
     "cat_apps": "Apps",
+    "cat_themes": "Designs",
     "cat_linux": "Linux-Spiele",
     "cat_soon": "Bald",
     "soon_body": "Hier kommen Pakete mit den nächsten Updates.",
@@ -936,10 +940,13 @@
     "delete_note": "Kann nicht rückgängig gemacht werden.",
     "delete2_title": "Letzte Bestätigung",
     "pv_app": "App",
+    "pv_theme": "Design",
     "pv_yourfiles": "Deine Dateien",
     "app_note": "Jederzeit im Store wieder herunterladen.",
     "count_apps": "%d Apps",
     "count1_apps": "1 App",
+    "count_themes": "%d Designs",
+    "count1_themes": "1 Design",
     "err_unsigned": "Paket nicht geprüft: store.json und store.sig daneben kopieren"
   },
   "support": {

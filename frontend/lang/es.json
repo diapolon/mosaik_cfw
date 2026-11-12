@@ -62,10 +62,10 @@
   },
   "fileserver": {
     "backup": "Copia de seguridad",
-    "backup_note": "Partidas, ajustes, favoritos, colecciones, tiempo de juego y BIOS, en un archivo zip.",
+    "backup_note": "Partidas, ajustes, favoritos, colecciones, tiempo de juego, BIOS y marcos, en un archivo zip.",
     "backup_download": "Descargar copia",
     "backup_wifi": "También las redes Wi-Fi, con sus contraseñas",
-    "backup_media": "También las imágenes",
+    "backup_media": "También imágenes y música",
     "backup_games": "También juegos y apps (%s)",
     "backup_games_big": "Juegos demasiado grandes para la copia (%s): cópialos aparte",
     "backup_restore": "Restaurar copia",
@@ -142,7 +142,7 @@
     "part_settings": "Ajustes y listas",
     "part_bios": "BIOS",
     "part_wifi": "Redes Wi-Fi",
-    "part_media": "Imágenes",
+    "part_media": "Imágenes y música",
     "part_games": "Juegos y apps"
   },
   "plat": {
@@ -896,6 +896,9 @@
     "err_verify": "Paquete dañado: inténtalo de nuevo",
     "err_write": "Error al escribir en la tarjeta",
     "err_core": "El emulador no arranca: no instalado",
+    "restore_title": "¿Reinstalar emuladores y apps?",
+    "restore_body": "La copia tenía %d: se descargan de la Store.",
+    "restore_go": "Reinstalar",
     "err_cancel": "Interrumpido",
     "ask_title": "Ningún emulador",
     "ask_body": "Descarga de la Tienda los emuladores que necesites.",
@@ -906,6 +909,7 @@
     "cat_arcade": "Arcade",
     "cat_console": "Consolas",
     "cat_apps": "Apps",
+    "cat_themes": "Temas",
     "cat_linux": "Juegos Linux",
     "cat_soon": "Pronto",
     "soon_body": "Aquí llegarán paquetes con las próximas actualizaciones.",
@@ -936,10 +940,13 @@
     "delete_note": "No se podrá recuperar.",
     "delete2_title": "Última confirmación",
     "pv_app": "App",
+    "pv_theme": "Tema",
     "pv_yourfiles": "Tus archivos",
     "app_note": "Vuelve a descargarla de la Store cuando quieras.",
     "count_apps": "%d apps",
     "count1_apps": "1 app",
+    "count_themes": "%d temas",
+    "count1_themes": "1 tema",
     "err_unsigned": "Paquete no verificado: copia también store.json y store.sig a su lado"
   },
   "support": {

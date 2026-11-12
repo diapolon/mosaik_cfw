@@ -245,7 +245,17 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         x->p.size = (long long)json_num(v, "size", 0);
         /* cartelle: arcade, console, apps, linux; i cataloghi di prima avevano nintendo, sega, sony e other */
         const char *cg = json_str(v, "category", "console");
-        snprintf(x->p.category, sizeof x->p.category, "%s", !strcmp(cg, "arcade") || !strcmp(cg, "apps") || !strcmp(cg, "linux") ? cg : "console");
+        snprintf(x->p.category, sizeof x->p.category, "%s",
+                 !strcmp(cg, "arcade") || !strcmp(cg, "apps") || !strcmp(cg, "linux") || !strcmp(cg, "themes") ? cg : "console");
+        int nc = 0;
+        bool coom = false;   /* senza colori il riquadro usa quello di riserva */
+        char **cl = str_list(json_get(v, "colors"), &nc, &coom);
+        for (int k = 0; k < nc; k++) {
+            size_t l = strlen(x->p.colors);
+            if (k < 3 && strlen(cl[k]) == 7 && cl[k][0] == '#') snprintf(x->p.colors + l, sizeof x->p.colors - l, "%s%s", l ? " " : "", cl[k] + 1);
+            free(cl[k]);
+        }
+        free(cl);
         snprintf(x->p.title, sizeof x->p.title, "%s", json_str(v, "title", x->p.name));
         snprintf(x->p.emu, sizeof x->p.emu, "%s", json_str(v, "emu", ""));
         snprintf(x->p.art, sizeof x->p.art, "%s", json_str(v, "art", ""));
@@ -781,19 +791,19 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
     return err;
 }
 
-static void *install_worker(void *arg) {
-    (void)arg;
+/* scarica e installa il pacchetto job del catalogo; SE_* */
+static int install_job(void) {
     entry_t e;
     pthread_mutex_lock(&lock);
     bool have = job >= 0 && job < ncat;
     if (have) e = cat[job];
     pthread_mutex_unlock(&lock);
-    if (!have) { st.error = SE_CATALOG; st.phase = ST_FAILED; return NULL; }
+    if (!have) return SE_CATALOG;
     snprintf(st.working, sizeof st.working, "%s", e.p.name);
     /* spazio: lo zip più i file installati, con un margine */
     struct statvfs vs;
     if (statvfs(root_dir, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < e.p.size + e.p.installed + (4 << 20)) {
-        st.error = SE_SPACE; st.phase = ST_FAILED; return NULL;
+        return SE_SPACE;
     }
     char dir[1200], zpath[1400], part[1500], sha[65];
     snprintf(dir, sizeof dir, "%s/System/.store", root_dir);
@@ -808,7 +818,7 @@ static void *install_worker(void *arg) {
         long long have_b = stat(part, &sb) == 0 && sb.st_size < e.p.size ? sb.st_size : 0;
         FILE *f = fopen(part, have_b ? "ab" : "wb");
         CURL *c = f ? new_curl(e.p.file) : NULL;
-        if (!c) { if (f) fclose(f); st.error = f ? SE_NETWORK : SE_WRITE; st.phase = ST_FAILED; return NULL; }
+        if (!c) { if (f) fclose(f); return f ? SE_NETWORK : SE_WRITE; }
         curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, to_file);
         curl_easy_setopt(c, CURLOPT_WRITEDATA, f);
         if (have_b) { curl_easy_setopt(c, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)have_b); st.done = have_b; }
@@ -817,26 +827,102 @@ static void *install_worker(void *arg) {
         curl_easy_cleanup(c);
         bool flushed = fflush(f) == 0 && fsync(fileno(f)) == 0;
         fclose(f);
-        if (st.cancel) { st.error = SE_CANCEL; st.phase = ST_FAILED; return NULL; }
+        if (st.cancel) { return SE_CANCEL; }
         if (rc == CURLE_RANGE_ERROR || rc == CURLE_FILESIZE_EXCEEDED) unlink(part);
         /* più grande del pacchetto del catalogo: non è quello */
-        if (rc == CURLE_FILESIZE_EXCEEDED) { ui_log("store: %s più grande del catalogo", e.p.file); st.error = SE_VERIFY; st.phase = ST_FAILED; return NULL; }
-        if (rc != CURLE_OK) { ui_log("store: %s: %s", e.p.file, curl_easy_strerror(rc)); st.error = SE_NETWORK; st.phase = ST_FAILED; return NULL; }
-        if (!flushed) { st.error = SE_WRITE; st.phase = ST_FAILED; return NULL; }
+        if (rc == CURLE_FILESIZE_EXCEEDED) { ui_log("store: %s più grande del catalogo", e.p.file); return SE_VERIFY; }
+        if (rc != CURLE_OK) { ui_log("store: %s: %s", e.p.file, curl_easy_strerror(rc)); return SE_NETWORK; }
+        if (!flushed) { return SE_WRITE; }
         if (stat(part, &sb) != 0 || sb.st_size != e.p.size || !sha256_file(part, sha) || strcmp(sha, e.p.sha)) {
             unlink(part);
             ui_log("store: %s non corrisponde al catalogo", e.p.file);
-            st.error = SE_VERIFY; st.phase = ST_FAILED; return NULL;
+            return SE_VERIFY;
         }
         rename(part, zpath);
     }
     int err = install_zip(zpath, e.p.id, NULL, 0);
     unlink(zpath);
     store_refresh();
+    return err;
+}
+
+static void *install_worker(void *arg) {
+    (void)arg;
+    int err = install_job();
     st.error = err;
     st.phase = err ? ST_FAILED : ST_DONE;
     return NULL;
 }
+
+/* ---------------------------------------------- pacchetti di un backup ripristinato
+   Il backup ricorda i pacchetti installati (mosaik-backup.txt); il ripristino li scrive in
+   System/ripristino-pacchetti.txt, uno per riga, e il launcher propone di rimetterli dallo Store
+   tutti insieme. Restano nel file quelli non riusciti, per la volta dopo. */
+#define RESTORE_PKGS "System/ripristino-pacchetti.txt"
+
+static int restore_ids(char ids[][32], int max) {
+    char p[1200], line[64];
+    snprintf(p, sizeof p, "%s/" RESTORE_PKGS, root_dir);
+    FILE *f = fopen(p, "r");
+    int n = 0;
+    while (f && n < max && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n ")] = 0;
+        if (!line[0] || strchr(line, '/') || strlen(line) >= 32) continue;
+        char rp[1200];
+        record_path(line, rp, sizeof rp);
+        if (!access(rp, F_OK) && !archived(line)) continue;   /* già installato */
+        bool dup = false;
+        for (int k = 0; k < n && !dup; k++) dup = !strcmp(ids[k], line);
+        if (!dup) snprintf(ids[n++], 32, "%s", line);
+    }
+    if (f) fclose(f);
+    return n;
+}
+
+static void restore_save(char ids[][32], int n) {
+    char p[1200];
+    snprintf(p, sizeof p, "%s/" RESTORE_PKGS, root_dir);
+    if (!n) { unlink(p); return; }
+    char buf[64 * 33];
+    size_t len = 0;
+    for (int k = 0; k < n; k++) len += (size_t)snprintf(buf + len, sizeof buf - len, "%s\n", ids[k]);
+    write_durable(p, buf, len);
+}
+
+int store_restore_pending(const char *root) {
+    snprintf(root_dir, sizeof root_dir, "%s", root);
+    char ids[64][32];
+    int n = restore_ids(ids, 64);
+    if (!n) restore_save(ids, 0);
+    return n;
+}
+
+static void *restore_worker(void *arg) {
+    (void)arg;
+    char ids[64][32], left[64][32];
+    int n = restore_ids(ids, 64), nl = 0, last = SE_NONE;
+    st.batch_total = n;
+    for (int k = 0; k < n; k++) {
+        st.batch_done = k;
+        int i = -1;
+        pthread_mutex_lock(&lock);
+        for (int c = 0; c < ncat && i < 0; c++) if (!strcmp(cat[c].p.id, ids[k])) i = c;
+        pthread_mutex_unlock(&lock);
+        if (i < 0) { ui_log("store: %s del backup non è nel catalogo di questo canale", ids[k]); continue; }
+        if (st.cancel) { snprintf(left[nl++], 32, "%s", ids[k]); last = SE_CANCEL; continue; }
+        job = i;
+        st.done = st.total = 0;
+        int err = install_job();
+        ui_log("store: dal backup %s: %s", ids[k], err ? "non riuscito" : "installato");
+        if (err) { snprintf(left[nl++], 32, "%s", ids[k]); last = err; }
+    }
+    restore_save(left, nl);
+    st.batch_total = 0;
+    st.error = last;
+    st.phase = last ? ST_FAILED : ST_DONE;
+    return NULL;
+}
+
 
 /* toglie una cartella e tutto quello che c'è dentro; un collegamento non si segue */
 static void rm_tree(const char *dir) {
@@ -981,12 +1067,14 @@ static void start(int i, void *(*fn)(void *)) {
     st.error = SE_NONE;
     st.done = st.total = 0;
     st.working[0] = 0;
+    st.batch_done = st.batch_total = 0;
     st.phase = ST_WORKING;
     thread_on = pthread_create(&thread, NULL, fn, NULL) == 0;
     if (!thread_on) { st.error = SE_WRITE; st.phase = ST_FAILED; }
 }
 
 void store_install(int i) { start(i, install_worker); }
+void store_install_restore(void) { start(-1, restore_worker); }
 void store_remove(int i, bool with_data) { remove_data = with_data; start(i, remove_worker); }
 
 /* ------------------------------------------------------- pacchetti copiati sulla scheda */

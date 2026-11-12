@@ -62,10 +62,10 @@
   },
   "fileserver": {
     "backup": "Backup",
-    "backup_note": "Saves, settings, favorites, collections, play time and BIOS files, in one zip file.",
+    "backup_note": "Saves, settings, favorites, collections, play time, BIOS files and bezels, in one zip file.",
     "backup_download": "Download backup",
     "backup_wifi": "Also the Wi-Fi networks, with their passwords",
-    "backup_media": "Also the images",
+    "backup_media": "Also images and music",
     "backup_games": "Also games and apps (%s)",
     "backup_games_big": "Games too big for the backup (%s): copy them separately",
     "backup_restore": "Restore backup",
@@ -142,7 +142,7 @@
     "part_settings": "Settings and lists",
     "part_bios": "BIOS files",
     "part_wifi": "Wi-Fi networks",
-    "part_media": "Images",
+    "part_media": "Images and music",
     "part_games": "Games and apps"
   },
   "plat": {
@@ -896,6 +896,9 @@
     "err_verify": "Damaged package: try again",
     "err_write": "Error writing to the card",
     "err_core": "The emulator won't start: not installed",
+    "restore_title": "Reinstall emulators and apps?",
+    "restore_body": "The backup had %d: they download from the Store.",
+    "restore_go": "Reinstall",
     "err_cancel": "Stopped",
     "ask_title": "No emulators",
     "ask_body": "Download the emulators you need from the Store.",
@@ -906,6 +909,7 @@
     "cat_arcade": "Arcade",
     "cat_console": "Consoles",
     "cat_apps": "Apps",
+    "cat_themes": "Themes",
     "cat_linux": "Linux games",
     "cat_soon": "Soon",
     "soon_body": "Packages will arrive here with the next updates.",
@@ -936,10 +940,13 @@
     "delete_note": "This can't be undone.",
     "delete2_title": "Last confirmation",
     "pv_app": "App",
+    "pv_theme": "Theme",
     "pv_yourfiles": "Your files",
     "app_note": "Download it again from the Store whenever you like.",
     "count_apps": "%d apps",
     "count1_apps": "1 app",
+    "count_themes": "%d themes",
+    "count1_themes": "1 theme",
     "err_unsigned": "Unverified package: also copy store.json and store.sig next to it"
   },
   "support": {

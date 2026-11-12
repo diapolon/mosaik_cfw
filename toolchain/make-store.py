@@ -14,7 +14,7 @@ commit del core (o la versione di Deadcast). La console scarica catalogo e firma
 indirizzo degli aggiornamenti (canale Stabile o Sviluppo)."""
 import argparse
 import hashlib
-import json
+import json, re
 import os
 import subprocess
 import sys
@@ -30,7 +30,8 @@ ap.add_argument("--labels", help="file 'cartella_sorgente commit' (altrimenti da
 args = ap.parse_args()
 
 # pacchetto -> (nome, cartella dei sorgenti in /build/src per il commit, categoria dello Store:
-# arcade o console; in futuro apps e linux)
+# arcade, console o apps; in futuro linux). I temi non sono qui: una cartella con il solo
+# Themes/<tema>/theme.json (e i suoi file) è un pacchetto della cartella Temi (theme_info)
 PACKAGES = {
     "fbneo": ("FinalBurn Neo", "fbneo", "arcade"),
     "mame2003p": ("MAME 2003-Plus", "mame2003-plus", "arcade"),
@@ -51,6 +52,22 @@ PACKAGES = {
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")
+
+
+def theme_info(root):
+    """(nome, versione, colori, testi) di un pacchetto con un solo tema, altrimenti None"""
+    td = os.path.join(root, "Themes")
+    if sorted(os.listdir(root)) != ["Themes"] or not os.path.isdir(td):
+        return None
+    ids = [d for d in os.listdir(td) if not d.startswith((".", "_"))]
+    if len(ids) != 1 or not os.path.exists(os.path.join(td, ids[0], "theme.json")):
+        return None
+    text = re.sub(r"^\s*//.*$", "", open(os.path.join(td, ids[0], "theme.json"), encoding="utf-8").read(), flags=re.M)
+    tj = json.loads(text)
+    accents = [v.get("accent") for v in (tj.get("variants") or {}).values() if isinstance(v, dict) and v.get("accent")]
+    if not accents and tj.get("colors", {}).get("accent"):
+        accents = [tj["colors"]["accent"]]
+    return tj.get("name", ids[0]), str(tj.get("version", "1.0")), accents[:3], tj.get("texts")
 
 
 def sha256(path):
@@ -83,9 +100,10 @@ labels = commits()
 catalog = {"format": 1, "packages": []}
 for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
-    if pid not in PACKAGES or not os.path.isdir(root):
+    theme = theme_info(root) if pid not in PACKAGES and os.path.isdir(root) else None
+    if (pid not in PACKAGES and not theme) or not os.path.isdir(root):
         sys.exit(f"pacchetto sconosciuto: {pid}")
-    name, srcdir, category = PACKAGES[pid]
+    name, srcdir, category = PACKAGES[pid] if not theme else (theme[0], None, "themes")
     files = []
     for d, _, names in os.walk(root):
         for n in names:
@@ -120,7 +138,9 @@ for pid in sorted(os.listdir(args.src)):
         aj = json.load(open(appj))
         name = aj.get("title", name)
         texts = aj.get("texts")
-    if category == "apps":
+    if theme:
+        label, texts = theme[1], theme[3]
+    elif category == "apps":
         label = json.load(open(appj)).get("version", "?") if os.path.exists(appj) else "?"
     elif pid == "deadcast":
         dz = sorted(n for n in os.listdir(os.path.join(top, "deps", "deadcast")) if n.endswith(".pak.zip"))
@@ -148,6 +168,8 @@ for pid in sorted(os.listdir(args.src)):
     }
     if texts:   # nomi e descrizioni delle app nelle lingue della console
         entry["texts"] = texts
+    if theme and theme[2]:   # temi: i colori delle varianti, per il riquadro
+        entry["colors"] = theme[2]
     catalog["packages"].append(entry)
     print(f"  {pid:16} {label:10} {os.path.getsize(zpath) / 1e6:6.1f} MB  {', '.join(systems)}")
 

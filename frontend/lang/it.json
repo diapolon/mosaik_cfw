@@ -62,10 +62,10 @@
   },
   "fileserver": {
     "backup": "Backup",
-    "backup_note": "Salvataggi, impostazioni, preferiti, collezioni, tempo di gioco e BIOS, in un file zip.",
+    "backup_note": "Salvataggi, impostazioni, preferiti, collezioni, tempo di gioco, BIOS e cornici, in un file zip.",
     "backup_download": "Scarica backup",
     "backup_wifi": "Anche le reti Wi-Fi, con le password",
-    "backup_media": "Anche le immagini",
+    "backup_media": "Anche immagini e musica",
     "backup_games": "Anche giochi e app (%s)",
     "backup_games_big": "Giochi troppo grandi per il backup (%s): copiali a parte",
     "backup_restore": "Ripristina backup",
@@ -142,7 +142,7 @@
     "part_settings": "Impostazioni e liste",
     "part_bios": "BIOS",
     "part_wifi": "Reti Wi-Fi",
-    "part_media": "Immagini",
+    "part_media": "Immagini e musica",
     "part_games": "Giochi e app"
   },
   "plat": {
@@ -896,6 +896,9 @@
     "err_verify": "Pacchetto rovinato: riprova",
     "err_write": "Errore di scrittura sulla scheda",
     "err_core": "L'emulatore non si avvia: non installato",
+    "restore_title": "Rimettere emulatori e app?",
+    "restore_body": "Il backup ne aveva %d: si scaricano dallo Store.",
+    "restore_go": "Rimetti",
     "err_cancel": "Interrotto",
     "ask_title": "Nessun emulatore",
     "ask_body": "Scarica dallo Store gli emulatori che ti servono.",
@@ -906,6 +909,7 @@
     "cat_arcade": "Arcade",
     "cat_console": "Console",
     "cat_apps": "App",
+    "cat_themes": "Temi",
     "cat_linux": "Giochi Linux",
     "cat_soon": "Presto",
     "soon_body": "Qui arriveranno i pacchetti con i prossimi aggiornamenti.",
@@ -936,10 +940,13 @@
     "delete_note": "Non si potrà recuperare.",
     "delete2_title": "Ultima conferma",
     "pv_app": "App",
+    "pv_theme": "Tema",
     "pv_yourfiles": "I tuoi file",
     "app_note": "La riscarichi dallo Store quando vuoi.",
     "count_apps": "%d app",
     "count1_apps": "1 app",
+    "count_themes": "%d temi",
+    "count1_themes": "1 tema",
     "err_unsigned": "Pacchetto non verificato: copia accanto anche store.json e store.sig"
   },
   "support": {

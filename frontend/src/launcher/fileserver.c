@@ -554,10 +554,12 @@ typedef struct { char rel[1100]; long long size; } zfile_t;
 typedef struct { zfile_t *f; int n, cap; long long total; } zlist_t;
 
 static void zadd(zlist_t *z, const char *rel, long long size) {
-    if (z->n == z->cap) {
-        zfile_t *m = realloc(z->f, sizeof *m * (size_t)(z->cap = z->cap ? z->cap * 2 : 256));
+    if (z->n == z->cap) {   /* la misura nuova solo se la memoria c'è */
+        int nc = z->cap ? z->cap * 2 : 256;
+        zfile_t *m = realloc(z->f, sizeof *m * (size_t)nc);
         if (!m) return;
         z->f = m;
+        z->cap = nc;
     }
     snprintf(z->f[z->n].rel, sizeof z->f[z->n].rel, "%s", rel);
     z->f[z->n].size = size;
@@ -585,12 +587,79 @@ static void zwalk(zlist_t *z, const char *rel, int lvl) {
     closedir(d);
 }
 
+/* App: nel backup solo quelle che non vengono dallo Store; quelle dello Store le ricorda
+   mosaik-backup.txt e dopo il ripristino si riscaricano (aggiornate e registrate) */
+static bool store_record(const char *id) {
+    char rel[300], full[1400];
+    snprintf(rel, sizeof rel, "System/pacchetti/%s.txt", id);
+    full_path(full, sizeof full, rel);
+    return access(full, F_OK) == 0;
+}
+
+static void zwalk_apps(zlist_t *z) {
+    char full[2048];
+    full_path(full, sizeof full, "Apps");
+    DIR *d = opendir(full);
+    if (!d) return;
+    struct dirent *de;
+    while ((de = readdir(d))) {
+        if (de->d_name[0] == '.' || store_record(de->d_name)) continue;
+        char crel[1100], cfull[2400];
+        snprintf(crel, sizeof crel, "Apps/%s", de->d_name);
+        snprintf(cfull, sizeof cfull, "%s/%s", full, de->d_name);
+        struct stat sb;
+        if (stat(cfull, &sb) != 0) continue;
+        if (S_ISDIR(sb.st_mode)) zwalk(z, crel, 1);
+        else if (S_ISREG(sb.st_mode)) zadd(z, crel, (long long)sb.st_size);
+    }
+    closedir(d);
+}
+
+/* pacchetti installati (registro senza "archived"), separati da spazi */
+static void installed_packages(char *out, size_t n) {
+    out[0] = 0;
+    char full[2048];
+    full_path(full, sizeof full, "System/pacchetti");
+    DIR *d = opendir(full);
+    if (!d) return;
+    struct dirent *de;
+    size_t len = 0;
+    while ((de = readdir(d))) {
+        size_t l = strlen(de->d_name);
+        if (de->d_name[0] == '.' || l < 5 || l > 35 || strcmp(de->d_name + l - 4, ".txt")) continue;
+        char p[2400], line[16] = "";
+        snprintf(p, sizeof p, "%s/%s", full, de->d_name);
+        FILE *f = fopen(p, "r");
+        if (!f) continue;
+        bool arch = fgets(line, sizeof line, f) && !strncmp(line, "archived", 8);
+        fclose(f);
+        if (arch || len + l + 1 >= n) continue;
+        len += (size_t)snprintf(out + len, n - len, "%s%.*s", len ? " " : "", (int)(l - 4), de->d_name);
+    }
+    closedir(d);
+}
+
+/* dopo un ripristino: i pacchetti del backup, da proporre sulla console (store_restore_pending) */
+static void restore_packages(const fs_backup_t *bk) {
+    if (!bk->packages[0]) return;
+    char full[1400], tmp[1500], list[1100];
+    full_path(full, sizeof full, "System/ripristino-pacchetti.txt");
+    snprintf(tmp, sizeof tmp, "%s.tmp", full);
+    snprintf(list, sizeof list, "%s", bk->packages);
+    for (char *c = list; *c; c++) if (*c == ' ') *c = '\n';
+    FILE *f = fopen(tmp, "w");
+    bool ok = f && fprintf(f, "%s\n", list) > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (f && fclose(f) != 0) ok = false;
+    if (!ok || rename(tmp, full) != 0) { remove(tmp); return; }
+    sync();
+}
+
 /* ROM e giochi Linux: quanto pesano, per la casella "Anche i giochi" del backup */
 static long long games_size(void) {
     zlist_t g = { 0 };
     zwalk(&g, "Roms", 0);
     zwalk(&g, "Linux", 0);
-    zwalk(&g, "Apps", 0);
+    zwalk_apps(&g);
     free(g.f);
     return g.total;
 }
@@ -711,13 +780,17 @@ static const char *const BACKUP_SYSTEM[] = { "settings.json", "favorites.txt", "
                                              "core-options.txt", "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", NULL };
 #define BACKUP_INFO "mosaik-backup.txt"
 
+/* cornici: nel backup quelle messe dall'utente, non le due predefinite che porta il sistema */
+static bool bezel_default(const char *rel) { return !strcmp(rel, "Bezels/_default.png") || !strcmp(rel, "Bezels/_default_vertical.png"); }
+
 /* ROM, giochi Linux e app: nel backup solo se scelti, perché possono essere tanti */
 static bool backup_game(const char *rel) { return !strncmp(rel, "Roms/", 5) || !strncmp(rel, "Linux/", 6) || !strncmp(rel, "Apps/", 5); }
 
 static bool backup_path_ok(const char *rel, bool wifi) {
     if (!rel_ok(rel) || !*rel) return false;
+    if (bezel_default(rel)) return false;
     if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "Bios/", 5) || !strncmp(rel, "Media/", 6) || !strncmp(rel, "System/collections/", 19)
-        || backup_game(rel))
+        || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Bezels/", 7) || backup_game(rel))
         return depth(rel) >= 2;
     if (wifi && !strcmp(rel, "System/wifi.conf")) return true;
     for (int i = 0; BACKUP_SYSTEM[i]; i++) {
@@ -749,17 +822,27 @@ static void do_backup(req_t *r) {
         full_path(full, sizeof full, "System/wifi.conf");
         if (stat(full, &sb) == 0 && S_ISREG(sb.st_mode)) zadd(&z, "System/wifi.conf", (long long)sb.st_size);
     }
-    if (media) zwalk(&z, "Media", 0);
-    if (games) { zwalk(&z, "Roms", 0); zwalk(&z, "Linux", 0); zwalk(&z, "Apps", 0); }
+    if (media) { zwalk(&z, "Media", 0); zwalk(&z, "Music", 0); }
+    int nb = z.n;   /* cornici sempre (pesano poco), senza le due del sistema */
+    zwalk(&z, "Bezels", 0);
+    int w = nb;
+    for (int i = nb; i < z.n; i++) {
+        if (bezel_default(z.f[i].rel)) { z.total -= z.f[i].size + 30 + 46 + 2 * (long long)strlen(z.f[i].rel); continue; }
+        z.f[w++] = z.f[i];
+    }
+    z.n = w;
+    if (games) { zwalk(&z, "Roms", 0); zwalk(&z, "Linux", 0); zwalk_apps(&z); }
     if (z.total >= 0xFFFF0000LL || z.n > 65000) { free(z.f); reply_err(r->fd, 413, "toolarge"); return; }
     time_t now = time(NULL);
     struct tm tmv;
     localtime_r(&now, &tmv);
-    char date[32], zname[80], info[300];
+    char date[32], zname[80], info[1500], pkgs[1024];
     strftime(date, sizeof date, "%d/%m/%Y %H:%M", &tmv);
     strftime(zname, sizeof zname, "mosaik-backup-%Y%m%d-%H%M.zip", &tmv);
     const char *m = plat_model();
-    snprintf(info, sizeof info, "Mosaik backup\nversion=%s\nmodel=%s\ndate=%s\nfiles=%d\n", update_current(), m ? m : "", date, z.n);
+    installed_packages(pkgs, sizeof pkgs);
+    snprintf(info, sizeof info, "Mosaik backup\nversion=%s\nmodel=%s\ndate=%s\nfiles=%d\npackages=%s\n", update_current(), m ? m : "",
+             date, z.n, pkgs);
     if (send_zip(r->fd, &z, 0, zname, BACKUP_INFO, info)) event(FS_EV_BACKUP, zname);
     free(z.f);
 }
@@ -943,7 +1026,7 @@ static void restore_remove_zip(void) {
 static int backup_part(const char *rel) {
     if (!strncmp(rel, "Saves/", 6)) return FS_PART_SAVES;
     if (!strncmp(rel, "Bios/", 5)) return FS_PART_BIOS;
-    if (!strncmp(rel, "Media/", 6)) return FS_PART_MEDIA;
+    if (!strncmp(rel, "Media/", 6) || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Bezels/", 7)) return FS_PART_MEDIA;
     if (backup_game(rel)) return FS_PART_GAMES;
     if (!strcmp(rel, "System/wifi.conf")) return FS_PART_WIFI;
     return FS_PART_SETTINGS;   /* impostazioni, liste, collezioni, tempo di gioco */
@@ -951,7 +1034,7 @@ static int backup_part(const char *rel) {
 
 /* lo zip (percorso completo) è un backup di Mosaik? data e file che si ripristinerebbero, per parte */
 static bool backup_read(const char *zipfull, fs_backup_t *bk) {
-    char info[512];
+    char info[2048];
     memset(bk, 0, sizeof *bk);
     FILE *f = fopen(zipfull, "rb");
     if (!f) return false;
@@ -967,6 +1050,8 @@ static bool backup_read(const char *zipfull, fs_backup_t *bk) {
     if (!found) return false;
     const char *d = strstr(info, "date=");
     snprintf(bk->date, sizeof bk->date, "%.*s", d ? (int)strcspn(d + 5, "\n") : 0, d ? d + 5 : "");
+    const char *pk = strstr(info, "\npackages=");   /* dalla 0.9.29 */
+    snprintf(bk->packages, sizeof bk->packages, "%.*s", pk ? (int)strcspn(pk + 10, "\n") : 0, pk ? pk + 10 : "");
     return true;
 }
 
@@ -1085,6 +1170,7 @@ static void restore_run(void) {
     int parts = atomic_load(&restore_parts), total = 0;
     for (int p = 0; p < FS_NPARTS; p++) if (parts & (1 << p)) total += restore_bk.count[p];
     bool ok = backup_extract(full, parts, total);
+    if (ok) restore_packages(&restore_bk);
     restore_remove_zip();
     restore_set(ok ? FS_RS_DONE : FS_RS_FAILED);
 }
@@ -1100,7 +1186,9 @@ bool fs_backup_import(const char *dir, const char *zip, int parts) {
     if (!backup_read(zip, &bk)) return false;
     int total = 0;
     for (int p = 0; p < FS_NPARTS; p++) if (parts & (1 << p)) total += bk.count[p];
-    return backup_extract(zip, parts, total);
+    bool ok = backup_extract(zip, parts, total);
+    if (ok) restore_packages(&bk);
+    return ok;
 }
 
 void fs_restore_answer(int parts) {

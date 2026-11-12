@@ -121,6 +121,23 @@ check "backup senza giochi" "0" "$(unzip -l b.zip | grep -c ' Roms/')"
 check "peso dei giochi nella pagina" "$(find sd/Roms sd/Linux -type f ! -name '.*' -exec stat -c %s {} + | awk '{t+=$1} END {print int(t/10000)}')" "$(q "$U/api/info" | sed 's/.*"games":\([0-9]*\).*/\1/' | awk '{print int($1/10000)}')"
 q -o bg.zip "$U/api/backup?games=1"
 check "backup con i giochi se chiesto" "0" "$(unzip -p bg.zip 'Roms/FBNEO/gioco uno.zip' | cmp -s - big.zip; echo $?)"
+# pacchetti dello Store: nel riepilogo (non gli archiviati); le app dello Store non nello zip, le altre sì
+mkdir -p sd/System/pacchetti sd/Apps/files sd/Apps/mia
+printf 'version 1\nfile Cores/x.so\n' > sd/System/pacchetti/fbneo.txt
+printf 'archived\nlabel x\n' > sd/System/pacchetti/mgba.txt
+printf 'version 1.3\n' > sd/System/pacchetti/files.txt
+echo prog > sd/Apps/files/files; echo mia > sd/Apps/mia/launch.sh
+q -o bp.zip "$U/api/backup?games=1"
+check "backup: pacchetti installati, non gli archiviati" "fbneo files" "$(unzip -p bp.zip mosaik-backup.txt | sed -n 's/^packages=//p' | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ $//')"
+check "backup: le app dello Store no, le altre sì" "0 1" "$(unzip -l bp.zip | grep -c 'Apps/files/') $(unzip -l bp.zip | grep -c 'Apps/mia/launch.sh')"
+rm -rf sd/System/pacchetti sd/Apps
+# cornici sempre (non le due del sistema), musica con le immagini
+mkdir -p sd/Music/Album sd/Bezels/fbneo; echo mp3 > sd/Music/Album/a.mp3; echo png > sd/Bezels/fbneo/gioco.png; echo sys > sd/Bezels/_default.png; echo sys > sd/Bezels/_default_vertical.png
+q -o bz.zip "$U/api/backup"; q -o bzm.zip "$U/api/backup?media=1"
+check "backup: cornici dell'utente, non quelle del sistema, niente musica" "1 0 0" "$(unzip -l bz.zip | grep -c Bezels/fbneo/gioco.png) $(unzip -l bz.zip | grep -c Bezels/_default) $(unzip -l bz.zip | grep -c Music/)"
+check "backup con le immagini: anche la musica" "1" "$(unzip -l bzm.zip | grep -c Music/Album/a.mp3)"
+check "zip del backup valido dopo il filtro" "0" "$(unzip -tq bz.zip >/dev/null 2>&1; echo $?)"
+rm -rf sd/Music sd/Bezels
 # ripristino: il salvataggio cambiato torna com'era, solo dopo la conferma
 echo cambiato > sd/Saves/fbneo/gioco.srm
 check "ripristino ricevuto" "true" "$(q -T b.zip "$U/api/restore" | sed 's/.*"ok":\([a-z]*\).*/\1/')"
@@ -198,6 +215,12 @@ check "nessun .part dall'importazione" "0" "$(find sd -name '*.part' | wc -l | t
 echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiato > sd/Saves/nuovo/a.srm
 check "importazione dei soli BIOS" "importato" "$(./imp $W/sd r2.zip 4 2>&1 | cut -d' ' -f2)"
 check "salvataggi non toccati dall'importazione parziale" "cambiato" "$(cat sd/Saves/fbneo/gioco.srm)"
+rm -f sd/System/ripristino-pacchetti.txt
+check "ripristino: i pacchetti del backup da rimettere" "fbneo files" "$(./imp $W/sd bp.zip 2 >/dev/null 2>&1; sort sd/System/ripristino-pacchetti.txt | tr '\n' ' ' | sed 's/ $//')"
+check "backup senza pacchetti: nessun elenco" "no" "$(rm -f sd/System/ripristino-pacchetti.txt; ./imp $W/sd r2.zip >/dev/null 2>&1; [ -e sd/System/ripristino-pacchetti.txt ] && echo si || echo no)"
+rm -rf sd/Music sd/Bezels
+check "ripristino di musica e cornici" "mp3 png no" "$(./imp $W/sd bzm.zip >/dev/null 2>&1; cat sd/Music/Album/a.mp3) $(cat sd/Bezels/fbneo/gioco.png) $([ -e sd/Bezels/_default.png ] && echo si || echo no)"
+rm -rf sd/Music sd/Bezels
 # backup con un file successivo rovinato (CRC sbagliato): niente sostituito (verifica audit BUG-007)
 echo cambiato > sd/Saves/fbneo/gioco.srm
 rm -rf rz3; cp -R rz rz3; mkdir -p rz3/Saves/zz && echo b > rz3/Saves/zz/b.srm && rm -f r3.zip && (cd rz3 && zip -qr -9 ../r3.zip .)

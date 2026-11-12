@@ -79,6 +79,14 @@ app files
 app viewer
 app music
 app sdtest
+# temi dello Store: ogni cartella di frontend/package/themes è un pacchetto (Themes/<id>), i
+# tre temi di base restano nella cartella Arcade dell'immagine
+for t in "$FE"/package/themes/*/; do
+    [ -f "$t/theme.json" ] || continue
+    id=$(basename "$t")
+    mkdir -p "$PKG/tema-$id/Themes"
+    cp -R "$t" "$PKG/tema-$id/Themes/$id"
+done
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"

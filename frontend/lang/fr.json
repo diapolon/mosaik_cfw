@@ -62,10 +62,10 @@
   },
   "fileserver": {
     "backup": "Sauvegarde",
-    "backup_note": "Sauvegardes de jeu, réglages, favoris, collections, temps de jeu et BIOS, dans un fichier zip.",
+    "backup_note": "Sauvegardes de jeu, réglages, favoris, collections, temps de jeu, BIOS et cadres, dans un fichier zip.",
     "backup_download": "Télécharger la sauvegarde",
     "backup_wifi": "Aussi les réseaux Wi-Fi, avec leurs mots de passe",
-    "backup_media": "Aussi les images",
+    "backup_media": "Aussi les images et la musique",
     "backup_games": "Aussi les jeux et les apps (%s)",
     "backup_games_big": "Jeux trop lourds pour la sauvegarde (%s) : copiez-les à part",
     "backup_restore": "Restaurer une sauvegarde",
@@ -142,7 +142,7 @@
     "part_settings": "Réglages et listes",
     "part_bios": "BIOS",
     "part_wifi": "Réseaux Wi-Fi",
-    "part_media": "Images",
+    "part_media": "Images et musique",
     "part_games": "Jeux et apps"
   },
   "plat": {
@@ -896,6 +896,9 @@
     "err_verify": "Paquet abîmé : réessayez",
     "err_write": "Erreur d'écriture sur la carte",
     "err_core": "L'émulateur ne démarre pas : non installé",
+    "restore_title": "Réinstaller émulateurs et apps ?",
+    "restore_body": "La sauvegarde en avait %d : ils se téléchargent depuis le Store.",
+    "restore_go": "Réinstaller",
     "err_cancel": "Interrompu",
     "ask_title": "Aucun émulateur",
     "ask_body": "Téléchargez dans la Boutique les émulateurs qu'il vous faut.",
@@ -906,6 +909,7 @@
     "cat_arcade": "Arcade",
     "cat_console": "Consoles",
     "cat_apps": "Apps",
+    "cat_themes": "Thèmes",
     "cat_linux": "Jeux Linux",
     "cat_soon": "Bientôt",
     "soon_body": "Des paquets arriveront ici avec les prochaines mises à jour.",
@@ -936,10 +940,13 @@
     "delete_note": "Impossible de revenir en arrière.",
     "delete2_title": "Dernière confirmation",
     "pv_app": "App",
+    "pv_theme": "Thème",
     "pv_yourfiles": "Vos fichiers",
     "app_note": "Retéléchargez-la depuis le Store quand vous voulez.",
     "count_apps": "%d apps",
     "count1_apps": "1 app",
+    "count_themes": "%d thèmes",
+    "count1_themes": "1 thème",
     "err_unsigned": "Paquet non vérifié : copiez aussi store.json et store.sig à côté"
   },
   "support": {
