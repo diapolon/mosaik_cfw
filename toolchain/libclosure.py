@@ -48,12 +48,33 @@ while todo:
         q = find(n)
         if q: todo.append(q)
         else: missing.add(n)
+def dynsyms(path):
+    """(simboli chiesti {nome: versione}, simboli definiti)"""
+    und, defd = {}, set()
+    for l in readelf("--dyn-syms", path).splitlines():
+        f = l.split()
+        if len(f) < 8 or not f[0].rstrip(":").isdigit(): continue
+        name, _, ver = f[7].partition("@")
+        if f[6] == "UND": und[name] = ver.lstrip("@")
+        else: defd.add(name)
+    return und, defd
+notes = []
 for prog in ours:
     for lib, ver in versions(prog)[0]:
-        if lib in seen and ver not in versions(seen[lib])[1]:
+        if lib not in seen: continue
+        have = versions(seen[lib])[1]
+        if ver in have: continue
+        if have:
             errors.append("%s chiede %s da %s, che non ce l'ha" % (os.path.basename(prog), ver, lib))
+            continue
+        # libreria senza versioni dei simboli (la zlib del firmware): per la glibc è solo un avviso
+        # ("no version information available") e il programma parte, purché i simboli ci siano
+        lost = sorted(n for n, v in dynsyms(prog)[0].items() if v == ver and n not in dynsyms(seen[lib])[1])
+        if lost: errors.append("%s chiede %s da %s, che non li ha" % (os.path.basename(prog), ", ".join(lost), lib))
+        else: notes.append("%s chiede %s da %s, che non ha versioni: i simboli ci sono, parte con un avviso" % (os.path.basename(prog), ver, lib))
 for n, p in sorted(seen.items()):
     if p.startswith(root): print(os.path.relpath(p, root))
 for m in sorted(missing): print("MANCA", m, file=sys.stderr)
+for e in notes: print("NOTA", e, file=sys.stderr)
 for e in errors: print("ERRORE", e, file=sys.stderr)
 if missing or errors: sys.exit(1)

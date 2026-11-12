@@ -967,5 +967,17 @@
     "body": "O Mosaik é gratuito e vai continuar a ser. Se gosta dele e quer ajudar o desenvolvimento, pode fazer um donativo com PayPal. Obrigado!",
     "scan": "Leia o código com o telemóvel, ou abra",
     "close": "Fechar"
+  },
+  "tzr": {
+    "Africa": "África",
+    "America": "América",
+    "Antarctica": "Antártida",
+    "Arctic": "Ártico",
+    "Asia": "Ásia",
+    "Atlantic": "Atlântico",
+    "Australia": "Austrália",
+    "Europe": "Europa",
+    "Indian": "Oceano Índico",
+    "Pacific": "Pacífico"
   }
 }

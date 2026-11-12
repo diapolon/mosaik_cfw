@@ -70,12 +70,18 @@ models | while IFS="|" read -r id fw name file; do
     mkdir -p $L/bin $L/modules
     # Deadcast (Dreamcast) non lo compiliamo noi: si controlla che il firmware gli basti
     DC=; [ -f $T/dist/store-src/deadcast/Cores/deadcast/deadcast ] && DC=$T/dist/store-src/deadcast/Cores/deadcast/deadcast
-    python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/cores/*.so $DC \
+    # PPSSPP (PSP) e le app dello Store sono programmi a sé, costruiti a parte: anche loro devono
+    # trovare nel firmware ogni libreria e ogni versione di simboli che chiedono (audit A38-006)
+    PS=; [ -f /build/out/ppsspp/PPSSPPSDL ] && PS=/build/out/ppsspp/PPSSPPSDL
+    AP=; for a in /build/out/apps/*; do [ -f "$a" ] && AP="$AP $a"; done
+    python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch /build/out/bin/gamemenu \
+        /build/out/cores/*.so $DC $PS $AP \
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
         $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw \
         +libEGL.so.1 +libGLESv2.so.2 +libasound.so.2 +libIMGegl.so +libsrv_um.so +libusc.so +libglslcompiler.so +libudev.so.1 \
         +libvulkan.so.1 +libVK_IMG.so.1 +libcurl.so.4 +libSDL2-2.0.so.0 \
         > $W/libs-$id.txt 2> $W/libs-mancanti-$id.txt || { echo "strato $id:"; cat $W/libs-mancanti-$id.txt; exit 1; }
+    grep '^NOTA' $W/libs-mancanti-$id.txt | sed "s/^/strato $id: /" || true
     for l in $(cat $W/libs-$id.txt); do mkdir -p $L/$(dirname $l); cp -L $F/$l $L/$l; done
     # Vulkan della PowerVR: lo usa Deadcast (Dreamcast, Cores/deadcast), che chiede anche libcurl e SDL2
     for pat in "libEGL*" "libGLES*" "libpvr*" "libPVR*" "libIMG*" "libsrv_um*" "libusc*" "libglslcompiler*" "libasound*" \

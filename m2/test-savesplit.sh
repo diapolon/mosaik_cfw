@@ -114,7 +114,14 @@ cat > src/k.c <<'C'
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <strings.h>
+#include <unistd.h>
+#include <sys/stat.h>
 #include "games.h"
+#include "durable.h"
+static void ui_log(const char *f, ...) { (void)f; }
 #include "keys.inc"
 static game_t G[20000];
 static int n;
@@ -142,7 +149,7 @@ int main(void) {
     add("Pac [EU]", "/sd/Roms/MD/Pac [EU].md", "Pac [EU]");
     add("Pac", "/sd/Roms/MD/EU/Pac.md", "Pac");
     add("Pac", "/sd/Roms/MD/Pac.md", "Pac");
-    assign_keys(G, n, "/sd/Roms/MD");
+    assign_keys(G, n, "/sd/Roms/MD", NULL);
     for (int i = 0; i < n; i++) printf("%s|%s\n", G[i].key, G[i].title);
     /* BUG-009: 20000 ROM, molte omonime in cartelle diverse; chiavi tutte diverse */
     static char paths[20000][64];
@@ -153,7 +160,7 @@ int main(void) {
         add(nm, paths[i], nm);
     }
     clock_t t0 = clock();
-    assign_keys(G, n, "/sd/Roms/MD");
+    assign_keys(G, n, "/sd/Roms/MD", NULL);
     double secs = (double)(clock() - t0) / CLOCKS_PER_SEC;
     int same = 0;
     char (*k)[sizeof G[0].key] = malloc(sizeof G[0].key * 20000);
@@ -164,7 +171,23 @@ int main(void) {
     return 0;
 }
 C
-gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -o k src/k.c && ./k > $W/keys.txt 2>$W/keys.err
+# registro delle identità (audit A38-001/002): k2 REGISTRO percorso... -> "chiave|titolo" per riga
+sed -e '/^int main(void) {$/,$d' src/k.c > src/k2.c
+cat >> src/k2.c <<'C'
+int main(int c, char **v) {
+    static char names[64][64];
+    for (int i = 2; i < c && i < 66; i++) {
+        const char *b = strrchr(v[i], '/') + 1, *dot = strrchr(b, '.');
+        snprintf(names[i - 2], sizeof names[0], "%.*s", (int)(dot - b), b);
+        add(names[i - 2], v[i], names[i - 2]);
+    }
+    if (!assign_keys(G, n, "/sd/Roms/MD", v[1])) { puts("ERRORE"); return 0; }
+    for (int i = 0; i < n; i++) printf("%s|%s\n", G[i].key, G[i].title);
+    return 0;
+}
+C
+gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -I$F/common -o k src/k.c && ./k > $W/keys.txt 2>$W/keys.err
+gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -I$F/common -o k2 src/k2.c
 line() { sed -n "${1}p" $W/keys.txt; }
 [ "$(line 2)" = "Sonic|Sonic" ] && ok "il gioco nella cartella principale tiene il nome" || ko "principale: $(line 2)"
 [ "$(line 1)" = "Sonic [EU]|Sonic [EU]" ] && ok "omonimo in sottocartella: nome [sottocartella], anche nel titolo" || ko "EU: $(line 1)"
@@ -177,5 +200,26 @@ line() { sed -n "${1}p" $W/keys.txt; }
 [ "$(line 13)" = "Pac [EU]|Pac [EU]" ] && [ "$(line 15)" = "Pac|Pac" ] && [ "$(line 14)" = "Pac [EU md]|Pac [EU md]" ] && ok "un file chiamato davvero \"Pac [EU]\" tiene la chiave" || ko "Pac: $(line 13) / $(line 14) / $(line 15)"
 [ "$(cut -d'|' -f1 $W/keys.txt | sort | uniq -d)" = "" ] && ok "nessuna chiave doppia" || ko "doppie: $(cut -d'|' -f1 $W/keys.txt | sort | uniq -d)"
 grep -q "^grande: 0 chiavi uguali" $W/keys.err && ok "$(cat $W/keys.err)" || ko "grande: $(cat $W/keys.err)"
+
+echo "--- registro delle identità: le chiavi non cambiano con la libreria (A38-001/002)"
+M=/sd/Roms/MD; RG=$W/chiavi/md.tsv; rm -rf $W/chiavi
+k2() { ./k2 $RG "$@" | tr '\n' ' ' | sed 's/ $//'; }
+[ "$(k2 $M/Region/Game.md)" = "Game|Game" ] && ok "una sola ROM: la chiave è il nome" || ko "sola: $(k2 $M/Region/Game.md)"
+r=$(k2 $M/Region/Game.md $M/Game.md)
+[ "${r%% *}" = "Game|Game [Region]" ] || [ "${r%% *}" = "Game|Game" ] && [ "$(echo "$r" | cut -d' ' -f2- | cut -d'|' -f1)" != "Game" ] && ok "aggiunto un omonimo più in alto: la ROM di prima tiene la sua chiave ($r)" || ko "omonimo aggiunto: $r"
+nuova=$(./k2 $RG $M/Region/Game.md $M/Game.md | sed -n 2p | cut -d'|' -f1)
+[ "$(./k2 $RG $M/Game.md | cut -d'|' -f1)" = "$nuova" ] && ok "tolta la prima: l'altra non eredita la sua chiave" || ko "tolta la prima: $(./k2 $RG $M/Game.md)"
+[ "$(./k2 $RG $M/Region/Game.md $M/Game.md | sed -n 1p | cut -d'|' -f1)" = "Game" ] && ok "rimessa la prima: ritrova la sua chiave" || ko "rimessa: $(k2 $M/Region/Game.md $M/Game.md)"
+before=$(md5sum < $RG); ./k2 $RG > /dev/null
+[ "$(md5sum < $RG)" = "$before" ] && ok "emulatore senza giochi (archiviato): il registro resta" || ko "registro cambiato senza giochi"
+rm -rf $W/chiavi
+./k2 $RG $M/X.md > /dev/null
+[ "$(k2 $M/Dir/X.md)" = "X|X" ] && ! grep -q "^X.md" $RG && ok "ROM spostata in una cartella: tiene chiave e salvataggi" || ko "spostata: $(k2 $M/Dir/X.md) / $(cat $RG)"
+rm -rf $W/chiavi
+r=$(./k2 $RG $M/A/Game.md $M/B/game.md | cut -d'|' -f1 | tr 'A-Z' 'a-z' | sort | uniq -d)
+[ -z "$r" ] && ok "nomi uguali tranne le maiuscole: chiavi diverse anche sulla FAT ($(k2 $M/A/Game.md $M/B/game.md))" || ko "maiuscole: $(k2 $M/A/Game.md $M/B/game.md)"
+rm -rf $W/chiavi; mkdir -p $RG
+[ "$(k2 $M/Game.md)" = "ERRORE" ] && ok "registro illeggibile: nessuna chiave assegnata" || ko "illeggibile: $(k2 $M/Game.md)"
+rm -rf $W/chiavi
 
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors errori"; exit 1; }

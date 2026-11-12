@@ -510,6 +510,7 @@ static char **record_files(const char *id, int *n, bool *fail) {
         if (!(out[*n] = strdup(line + 5))) goto oom;
         (*n)++;
     }
+    if (f && ferror(f)) goto oom;   /* letto a metà per un errore della scheda: non è un inventario */
     if (f) fclose(f);
     return out;
 oom:   /* un registro letto a metà non vale come inventario dei file */
@@ -603,22 +604,59 @@ static bool journal_apply(const char *text, bool done) {
     return ok;
 }
 
-/* al primo avvio dopo un'installazione interrotta (launcher, prima di leggere i giochi) */
-void store_recover(const char *root) {
-    snprintf(root_dir, sizeof root_dir, "%s", root);
+/* Lettura del giornale con tre esiti (audit A38-003): assente, letto per intero, errore. Un
+   errore di lettura non dice niente sul contenuto: il giornale resta dov'è. */
+enum { JR_ABSENT, JR_OK, JR_ERROR };
+static int journal_read(const char *p, char **out) {
+    *out = NULL;
+    FILE *f = fopen(p, "rb");
+    if (!f) return errno == ENOENT ? JR_ABSENT : JR_ERROR;
+    size_t cap = 1 << 20, n = 0;
+    char *b = malloc(cap + 1);
+    if (b) n = fread(b, 1, cap, f);
+    bool bad = !b || ferror(f) || (n == cap && fgetc(f) != EOF);
+    fclose(f);
+    if (bad) { free(b); return JR_ERROR; }
+    b[n] = 0;
+    *out = b;
+    return JR_OK;
+}
+
+/* Al primo avvio dopo un'installazione interrotta (launcher, prima di leggere i giochi) e prima di
+   ogni nuova installazione o eliminazione. true: nessuna transazione in sospeso. Il giornale si
+   toglie solo dopo averlo applicato; finché resta, lo Store non scrive altro (le .annulla che
+   elenca sono l'unica copia dei file di prima). */
+bool store_recover(const char *root) {
+    if (root != root_dir) snprintf(root_dir, sizeof root_dir, "%s", root);   /* da dentro lo Store: è già lei */
     char jp[1200];
     journal_path(jp, sizeof jp);
-    char *t = read_file(jp, 1 << 20, NULL);
-    if (!t) { unlink(jp); return; }   /* vuoto o illeggibile: scritto a metà, nulla era cambiato */
-    bool done = strstr(t, "\nfatto\n") != NULL;
-    if (journal_apply(t, done)) {
+    char *t = NULL;
+    int r = journal_read(jp, &t);
+    if (r == JR_ABSENT) return true;
+    if (r == JR_ERROR) {
+        ui_log("store: giornale dell'installazione illeggibile (%s): resta, Store fermo finché non si legge", strerror(errno));
+        return false;
+    }
+    /* il giornale si scrive tutto insieme (write_durable): senza la riga "pacchetto" non è uno
+       scritto a metà ma un file guasto. Si mette da parte, intero, per capire cos'è successo */
+    if (strncmp(t, "pacchetto ", 10)) {
+        char kept[1300];
+        snprintf(kept, sizeof kept, "%s/System/store-giornale-guasto.txt", root_dir);
+        bool moved = rename(jp, kept) == 0;
+        ui_log("store: giornale senza intestazione, %s", moved ? "messo da parte in store-giornale-guasto.txt" : "non spostato: Store fermo");
+        free(t);
+        return moved;
+    }
+    bool done = strstr(t, "\nfatto\n") != NULL, ok = journal_apply(t, done);
+    if (ok) {
         sync();
-        unlink(jp);
+        ok = unlink(jp) == 0 || errno == ENOENT;
         sync();
         ui_log("store: installazione interrotta %s", done ? "conclusa" : "annullata, rimessi i file di prima");
-    } else ui_log("store: giornale dell'installazione non risolto, si riprova al prossimo avvio");
+    } else ui_log("store: giornale dell'installazione non risolto, si riprova al prossimo avvio; Store fermo");
     free(t);
     atomic_store(&changed, true);
+    return ok;
 }
 
 /* Installa lo zip di un pacchetto: pacchetto.json dice id, versione e file. Prima si scrivono
@@ -626,6 +664,7 @@ void store_recover(const char *root) {
    il giornale qui sopra; i file della versione di prima che non ci sono più si tolgono. Un core
    che non si carica fa rimettere la versione di prima (o niente, se non c'era). */
 static int install_zip(const char *zpath, const char *want_id, char *name_out, size_t nn) {
+    if (!store_recover(root_dir)) return SE_WRITE;   /* un'installazione di prima non è chiusa */
     FILE *z = fopen(zpath, "rb");
     if (!z) return SE_WRITE;
     zent_t *ze = NULL;
@@ -1015,6 +1054,8 @@ static void remove_emu_data(const char *id) {
     }
     snprintf(p, sizeof p, "%s/Saves/%s", root_dir, id);
     rm_tree(p);
+    snprintf(p, sizeof p, "%s/System/chiavi/%s.tsv", root_dir, id);   /* e il registro di chi usava quei salvataggi */
+    unlink(p);
     if (console) {   /* le immagini degli arcade sono per nome del gioco, comuni a più emulatori */
         static const char *types[] = { "snap", "title", "marquee", "box" };
         for (int t = 0; t < 4; t++) { snprintf(p, sizeof p, "%s/Media/%s/%s", root_dir, types[t], id); rm_tree(p); }
@@ -1030,6 +1071,7 @@ static void *remove_worker(void *arg) {
     if (have) e = cat[job];
     pthread_mutex_unlock(&lock);
     if (!have) { st.error = SE_CATALOG; st.phase = ST_FAILED; return NULL; }
+    if (!store_recover(root_dir)) { st.error = SE_WRITE; st.phase = ST_FAILED; return NULL; }
     snprintf(st.working, sizeof st.working, "%s", e.p.name);
     int n = 0;
     bool oom = false;

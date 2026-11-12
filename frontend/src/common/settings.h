@@ -52,7 +52,7 @@ void settings_defaults(settings_t *s);
 typedef struct { const char *key; unsigned rgb; } led_color_t;   /* key: nome nei file di lingua */
 extern const led_color_t LED_COLORS[];
 extern const int NLED_COLORS;
-typedef struct { const char *id, *posix; } timezone_t;
+typedef struct { const char *id, *posix; int std_min; } timezone_t;   /* std_min: ora solare rispetto a UTC */
 extern const timezone_t TIMEZONES[];
 extern const int NTIMEZONES;
 int settings_tz_index(const settings_t *s);

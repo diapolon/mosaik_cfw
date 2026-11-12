@@ -74,3 +74,6 @@ void fs_restore_clear(void);
    solo a server spento. Dopo un'importazione riuscita la console va riavviata. */
 bool fs_backup_info(const char *zip, fs_backup_t *out);
 bool fs_backup_import(const char *dir, const char *zip, int parts);
+/* all'avvio: chiude o annulla un ripristino interrotto (System/ripristino-giornale.txt);
+   false se il giornale resta e non si può ancora ripristinare altro */
+bool fs_restore_recover(const char *dir);

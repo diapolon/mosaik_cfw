@@ -43,6 +43,7 @@ static int detail_idx = -1;   /* gioco mostrato nella scheda */
 static void open_detail(int idx);
 static void panel_box(int w, int h, int *x, int *y);
 static void spk_show(int only_emu);
+static void tzp_show(void);
 
 static game_t *games;
 static int ngames;
@@ -5212,6 +5213,7 @@ static void settings_input(void) {
         else if (set_sel == S_FILESERVER) fsrv_start();
         else if (set_sel == S_STORE) { sto_start(); ui_sound(SND_OK); }
         else if (set_sel == S_RESETSET || set_sel == S_ERASE) { cfm_kind = set_sel == S_ERASE ? CFM_ERASE : CFM_RESETSET; cfm_sel = 0; ui_sound(SND_OK); }
+        else if (set_sel == S_TZ) tzp_show();
         else set_change(set_sel, +1);
     }
 }
@@ -6187,6 +6189,8 @@ static void *rst_thread(void *arg) {
     snprintf(p, sizeof p, "%s/System/collections", UI.root);
     ok = rst_tree(p, true) && ok;
     if (rst_all) {
+        snprintf(p, sizeof p, "%s/System/chiavi", UI.root);   /* i salvataggi se ne vanno: anche il registro di chi li usa */
+        ok = rst_tree(p, true) && ok;
         for (int i = 0; RST_SYSTEM_ALL[i]; i++) { snprintf(p, sizeof p, "System/%s", RST_SYSTEM_ALL[i]); ok = rst_file(p) && ok; }
         for (int i = 0; RST_DIRS[i]; i++) {
             snprintf(p, sizeof p, "%s/%s", UI.root, RST_DIRS[i]);
@@ -7276,6 +7280,151 @@ static void spk_draw(void) {
     ui_popup_buttons(x, y, w, h, label, 1, spk_sel == rows ? 0 : -1, -1);
 }
 
+/* Fuso orario: tutti quelli del database tz (common/timezones.h), prima la regione (Europa,
+   America...) poi la città, come in un telefono. Si apre sulle città della regione in uso. */
+static bool tzp_open;
+static int tzp_level, tzp_sel, tzp_first;   /* livello 0: regioni; 1: città della regione */
+static char tzp_region[24];
+static int tzp_rows[480], tzp_n;            /* indici in TIMEZONES, o della prima zona di ogni regione */
+
+static void tz_region_of(const char *id, char *out, size_t n) {
+    const char *sl = strchr(id, '/');
+    snprintf(out, n, "%.*s", sl ? (int)(sl - id) : (int)strlen(id), id);
+}
+
+static void tzp_build(void) {
+    tzp_n = 0;
+    char r[24], prev[24] = "";
+    for (int i = 0; i < NTIMEZONES && tzp_n < (int)(sizeof tzp_rows / sizeof *tzp_rows); i++) {
+        tz_region_of(TIMEZONES[i].id, r, sizeof r);
+        if (tzp_level == 0) {
+            bool seen = !strcmp(r, prev);
+            for (int k = 0; k < tzp_n && !seen; k++) { char q[24]; tz_region_of(TIMEZONES[tzp_rows[k]].id, q, sizeof q); seen = !strcmp(q, r); }
+            if (!seen) tzp_rows[tzp_n++] = i;
+            snprintf(prev, sizeof prev, "%s", r);
+        } else if (!strcmp(r, tzp_region) && strchr(TIMEZONES[i].id, '/')) tzp_rows[tzp_n++] = i;
+    }
+    tzp_first = 0;
+}
+
+static void tzp_show(void) {
+    int cur = settings_tz_index(&UI.set);
+    tz_region_of(TIMEZONES[cur].id, tzp_region, sizeof tzp_region);
+    tzp_level = strchr(TIMEZONES[cur].id, '/') ? 1 : 0;
+    tzp_build();
+    tzp_sel = 0;
+    for (int k = 0; k < tzp_n; k++) {
+        char r[24];
+        tz_region_of(TIMEZONES[tzp_rows[k]].id, r, sizeof r);
+        if (tzp_level ? tzp_rows[k] == cur : !strcmp(r, tzp_region)) tzp_sel = k;
+    }
+    tzp_open = true;
+    ui_sound(SND_OK);
+}
+
+static void tzp_choose(int i) {
+    settings_t *s = &UI.set;
+    snprintf(s->tz, sizeof s->tz, "%s", TIMEZONES[i].id);
+    settings_apply_tz(s);
+    if (plat_standalone()) settings_save_tz_for_boot(s, UI.root);
+    settings_save(s, UI.root);
+    tzp_open = false;
+    ui_sound(SND_OK);
+}
+
+static void tzp_input(void) {
+    input_t *in = &UI.in;
+    int page = 8;
+    if (in->pressed[BTN_UP] && tzp_n) { tzp_sel = (tzp_sel + tzp_n - 1) % tzp_n; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN] && tzp_n) { tzp_sel = (tzp_sel + 1) % tzp_n; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_LEFT] || in->pressed[BTN_L]) { tzp_sel = tzp_sel > page ? tzp_sel - page : 0; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_RIGHT] || in->pressed[BTN_R]) { tzp_sel = tzp_sel + page < tzp_n ? tzp_sel + page : tzp_n - 1; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) {
+        if (tzp_level == 1) {   /* dalle città alle regioni, con la regione di prima scelta */
+            tzp_level = 0;
+            tzp_build();
+            for (int k = 0; k < tzp_n; k++) { char r[24]; tz_region_of(TIMEZONES[tzp_rows[k]].id, r, sizeof r); if (!strcmp(r, tzp_region)) tzp_sel = k; }
+        } else tzp_open = false;
+        ui_sound(SND_BACK);
+        return;
+    }
+    if (!in->pressed[BTN_A] || !tzp_n) return;
+    int i = tzp_rows[tzp_sel];
+    if (tzp_level == 1 || !strchr(TIMEZONES[i].id, '/')) { tzp_choose(i); return; }   /* UTC: niente città */
+    tz_region_of(TIMEZONES[i].id, tzp_region, sizeof tzp_region);
+    tzp_level = 1;
+    tzp_build();
+    tzp_sel = 0;
+    ui_sound(SND_OK);
+}
+
+/* "UTC+5:30", "UTC−3", "UTC" */
+static void tz_offset_label(int m, char *out, size_t n) {
+    if (!m) { snprintf(out, n, "UTC"); return; }
+    int a = m < 0 ? -m : m;
+    if (a % 60) snprintf(out, n, "UTC%s%d:%02d", m < 0 ? "−" : "+", a / 60, a % 60);
+    else snprintf(out, n, "UTC%s%d", m < 0 ? "−" : "+", a / 60);
+}
+
+static void tzp_draw(void) {
+    theme_t *t = &UI.th;
+    int rh = M(t->list_row_h), pad = M(0.04f);
+    int maxrows = (UI.h - M(0.16f) - TTF_FontHeight(UI.f_title) - TTF_FontHeight(UI.f_small)) / rh;
+    int vis = tzp_n < maxrows ? tzp_n : maxrows;
+    int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
+    int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.02f) + rh * vis + TTF_FontHeight(UI.f_small) + M(0.01f), x, y;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    panel_box(w, h, &x, &y);
+    char title[96], key[48];
+    snprintf(key, sizeof key, "tzr.%s", tzp_region);
+    const char *rname = T_opt(key);
+    if (tzp_level == 1) snprintf(title, sizeof title, "%s · %s", T("settings.timezone"), rname ? rname : tzp_region);
+    else snprintf(title, sizeof title, "%s", T("settings.timezone"));
+    char fit[160];
+    ui_text_fit(UI.f_title, title, w - 2 * pad, fit, sizeof fit);
+    ui_text(UI.f_title, fit, x + pad, y + pad, t->text, ALIGN_LEFT);
+    int ry = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    if (tzp_sel < tzp_first) tzp_first = tzp_sel;
+    if (tzp_sel >= tzp_first + vis) tzp_first = tzp_sel - vis + 1;
+    TTF_Font *f = UI.f_normal;
+    int fh = TTF_FontHeight(f), cur = settings_tz_index(&UI.set);
+    for (int k = tzp_first; k < tzp_first + vis && k < tzp_n; k++, ry += rh) {
+        int i = tzp_rows[k];
+        bool sel = k == tzp_sel;
+        if (sel) ui_rrect(x + M(0.02f), ry, w - M(0.04f), rh - M(0.008f), M(t->panel_radius), t->accent);
+        color_t c = sel ? t->accent_text : t->text;
+        int ty = ry + (rh - M(0.008f) - fh) / 2;
+        char label[96], right[24] = "";
+        if (tzp_level == 0) {
+            char r[24];
+            tz_region_of(TIMEZONES[i].id, r, sizeof r);
+            snprintf(key, sizeof key, "tzr.%s", r);
+            const char *tr = T_opt(key);
+            snprintf(label, sizeof label, "%s", tr ? tr : r);
+            if (!strchr(TIMEZONES[i].id, '/')) tz_offset_label(0, right, sizeof right);
+            else snprintf(right, sizeof right, "›");
+        } else {
+            /* "Argentina/Buenos_Aires" -> "Argentina – Buenos Aires" */
+            const char *city = strchr(TIMEZONES[i].id, '/') + 1;
+            size_t o = 0;
+            for (const char *ch = city; *ch && o + 4 < sizeof label; ch++) {
+                if (*ch == '_') label[o++] = ' ';
+                else if (*ch == '/') { memcpy(label + o, " – ", 5); o += 5; }
+                else label[o++] = *ch;
+            }
+            label[o] = 0;
+            tz_offset_label(TIMEZONES[i].std_min, right, sizeof right);
+        }
+        int rw = ui_text_w(UI.f_small, right) + M(0.06f);
+        ui_text_fit(f, label, w - M(0.1f) - rw, fit, sizeof fit);
+        ui_text(f, fit, x + M(0.05f), ty, i == cur && !sel ? t->accent : c, ALIGN_LEFT);
+        ui_text(UI.f_small, right, x + w - M(0.05f), ty + (fh - TTF_FontHeight(UI.f_small)) / 2, sel ? c : t->text_dim, ALIGN_RIGHT);
+    }
+    char pos[32];
+    snprintf(pos, sizeof pos, "%d / %d", tzp_n ? tzp_sel + 1 : 0, tzp_n);
+    ui_text(UI.f_small, pos, x + w - pad, y + h - pad / 2 - TTF_FontHeight(UI.f_small), t->text_dim, ALIGN_RIGHT);
+}
+
 /* ---------------------------------------------- salvaschermo, batteria */
 /* Dopo il tempo scelto senza toccare i tasti: presentazione delle schermate dei giochi
    (zoom lento e dissolvenza) oppure schermo nero. Il primo tasto lo chiude e non fa
@@ -7448,6 +7597,7 @@ int main(int argc, char **argv) {
     char p[1100];
     snprintf(p, sizeof p, "%s/System", root);
     mkdir(p, 0755);
+    fs_restore_recover(root);   /* un ripristino del backup interrotto: prima di leggere impostazioni e giochi */
     if (!ui_init("Arcade", root, auto_script, 48000, true)) return 1;
     plat_cpu_fixed(CPU_ACTIVE_KHZ);
 #ifndef TRIMUI_DEVICE
@@ -7515,7 +7665,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -7552,6 +7702,7 @@ int main(int argc, char **argv) {
         else if (diag_open) diag_input();
         else if (rcq_open) rcq_input();
         else if (spk_open) spk_input();
+        else if (tzp_open) tzp_input();
         else if (romcheck_open) romcheck_input();
         else if (scrape_open) scrape_input();
         else if (upd_open) upd_input();
@@ -7633,6 +7784,7 @@ int main(int argc, char **argv) {
         if (romcheck_open) romcheck_draw();
         if (rcq_open) rcq_draw();
         if (spk_open) spk_draw();
+        if (tzp_open) tzp_draw();
         if (diag_open) diag_draw();
         if (reset_step) reset_draw();
         if (sc_state) sc_draw();

@@ -155,7 +155,7 @@ for n in 1 2 3 4 5 6 7 8; do   # corrente che manca a ogni passo: al riavvio si 
     [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && pass=$((pass+1)) || echo "    interruzione $n: $(cd sd && find . -name '*.annulla' -o -name '*.part' -o -name 'store-giornale.txt' | head -3)"
 done
 check "interruzione a ogni passo e riavvio: v2 intatta" "$tot" "$pass"
-check "giornale troncato (scritto a metà): ignorato" "si" "$(: > sd/System/store-giornale.txt; ./t $R recover 2>/dev/null; [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && echo si || echo no)"
+check "giornale senza intestazione: messo da parte, non cancellato" "si" "$(: > sd/System/store-giornale.txt; ./t $R recover 2>/dev/null; [ -e sd/System/store-giornale-guasto.txt ] && rm sd/System/store-giornale-guasto.txt && [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && echo si || echo no)"
 BADCORE=1 mk 5
 check "aggiornamento con un core che non parte: errore" "5 7 2" "$(./t $R install fbneo 2>/dev/null)"
 check "… e resta la versione di prima, che funziona" "si" "$([ "$(snap)" = "$V2" ] && cmp -s sd/Cores/fbneo_libretro.so good_libretro.so && echo si || echo no)"
@@ -250,6 +250,12 @@ check "cornici nel catalogo: nome e cartella Cornici" "Television|Home consoles 
 check "cornici installate" "4 0 1" "$(./t $R install cornici-tv 2>/dev/null)"
 check "cornice dello Store accanto a quella dell'utente" "tv mia" "$(cat sd/Bezels/nes/_mosaik.png) $(cat sd/Bezels/nes/_default.png)"
 check "cornici tolte, quella dell'utente resta" "4 0 0 no mia" "$(./t $R delete cornici-tv 2>/dev/null) $([ -e sd/Bezels/nes/_mosaik.png ] && echo si || echo no) $(cat sd/Bezels/nes/_default.png)"
+# giornale che non si legge (audit A38-003): resta dov'è e lo Store non scrive altro
+mkdir sd/System/store-giornale.txt
+check "giornale illeggibile: installazione rifiutata, il giornale resta" "5 6 si" "$(./t $R install cornici-tv 2>/dev/null | cut -d' ' -f1-2) $([ -d sd/System/store-giornale.txt ] && echo si || echo no)"
+check "… e niente è stato scritto" "no" "$([ -e sd/Bezels/nes/_mosaik.png ] && echo si || echo no)"
+rmdir sd/System/store-giornale.txt
+check "tolto l'ostacolo si installa di nuovo" "4 0 1" "$(./t $R install cornici-tv 2>/dev/null)"
 kill $SRV
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

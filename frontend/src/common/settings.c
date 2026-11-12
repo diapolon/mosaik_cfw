@@ -15,28 +15,15 @@ const led_color_t LED_COLORS[] = {
 };
 const int NLED_COLORS = sizeof LED_COLORS / sizeof *LED_COLORS;
 
-const timezone_t TIMEZONES[] = {
-    { "UTC", "UTC0" },
-    { "Europe/London", "GMT0BST,M3.5.0/1,M10.5.0" },
-    { "Europe/Lisbon", "WET0WEST,M3.5.0/1,M10.5.0" },
-    { "Europe/Rome", "CET-1CEST,M3.5.0,M10.5.0/3" },
-    { "Europe/Athens", "EET-2EEST,M3.5.0/3,M10.5.0/4" },
-    { "Europe/Moscow", "MSK-3" },
-    { "America/New_York", "EST5EDT,M3.2.0,M11.1.0" },
-    { "America/Chicago", "CST6CDT,M3.2.0,M11.1.0" },
-    { "America/Denver", "MST7MDT,M3.2.0,M11.1.0" },
-    { "America/Los_Angeles", "PST8PDT,M3.2.0,M11.1.0" },
-    { "America/Sao_Paulo", "<-03>3" },
-    { "Asia/Shanghai", "CST-8" },
-    { "Asia/Tokyo", "JST-9" },
-    { "Australia/Sydney", "AEST-10AEDT,M10.1.0,M4.1.0/3" },
-};
+#include "timezones.h"   /* tutti i fusi del database tz: toolchain/make-timezones.py */
 const int NTIMEZONES = sizeof TIMEZONES / sizeof *TIMEZONES;
 
 int settings_tz_index(const settings_t *s) {
     for (int i = 0; i < NTIMEZONES; i++)
         if (!strcmp(TIMEZONES[i].id, s->tz)) return i;
-    return 3;   /* Europe/Rome */
+    for (int i = 0; i < NTIMEZONES; i++)   /* nome sconosciuto: Europe/Rome, come prima */
+        if (!strcmp(TIMEZONES[i].id, "Europe/Rome")) return i;
+    return 0;
 }
 
 void settings_apply_tz(const settings_t *s) {

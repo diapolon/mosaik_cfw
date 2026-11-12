@@ -574,15 +574,25 @@ static bool name_ok(const char *s) {
 /* Rinomina di sole maiuscole: il passaggio intermedio si annota in Apps/files/rinomina.txt
    (temporaneo, nome di prima) prima di farlo. Se la corrente manca a metà, alla prossima apertura
    il file torna al nome di prima (verifica audit APP-006). */
-static void rename_note(const char *tmp, const char *orig) {
+/* true solo se la nota è sulla scheda (audit A38-005): senza, la rinomina non parte. tmp NULL
+   toglie la nota, a rinomina conclusa. */
+static bool rename_note(const char *tmp, const char *orig) {
     char j[1200], jt[1300];
     snprintf(j, sizeof j, "%s/rinomina.txt", app_dir);
     snprintf(jt, sizeof jt, "%s.tmp", j);
-    if (!tmp) { unlink(j); return; }
+    if (!tmp) {
+        bool gone = unlink(j) == 0 || errno == ENOENT;
+        if (!gone) ui_log("file: la nota della rinomina resta: %s", strerror(errno));
+        sync();
+        return gone;
+    }
     FILE *f = fopen(jt, "w");
     bool ok = f && fprintf(f, "%s\n%s\n", tmp, orig) > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (f && fclose(f) != 0) ok = false;
-    if (ok) rename(jt, j); else unlink(jt);
+    if (ok && rename(jt, j) != 0) ok = false;
+    if (!ok) { ui_log("file: nota della rinomina non scritta (%s): non rinomino", strerror(errno)); unlink(jt); return false; }
+    sync();   /* la nota deve esserci prima del primo spostamento */
+    return true;
 }
 
 static void rename_recover(void) {
@@ -626,8 +636,10 @@ static void kb_done(void) {
                 snprintf(t, sizeof t, "%s/.rinomina-%d-%d.tmp", base, (int)getpid(), k);
                 if (access(t, F_OK) != 0) { ok = true; break; }
             }
-            if (ok) rename_note(t, p);
-            if (ok && rename(p, t) == 0) {
+            if (ok) ok = rename_note(t, p);
+            if (!ok) {
+                /* nome occupato o nota non scritta: niente è stato toccato */
+            } else if (rename(p, t) == 0) {
                 if (rename(t, q) != 0) { ok = false; if (rename(t, p) != 0) ui_log("file: %s resta come %s, si rimette alla prossima apertura", p, t); else rename_note(NULL, NULL); }
                 else rename_note(NULL, NULL);
             } else { ok = false; rename_note(NULL, NULL); }

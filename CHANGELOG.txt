@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.39
+it Fuso orario: tutti quelli del mondo, scelti per regione e città
+en Time zone: every one in the world, by region and city
+it Salvataggi: ogni gioco tiene i suoi anche aggiungendo o togliendo giochi con lo stesso nome
+en Saves: each game keeps its own, even when you add or remove games with the same name
+it Ripristino del backup e Store: un'interruzione rimette tutto com'era
+en Backup restore and Store: an interruption puts everything back as it was
+
 0.9.38
 it Scarica immagini: scegli gli emulatori, o X su una piattaforma
 en Download images: choose the emulators, or X on a platform

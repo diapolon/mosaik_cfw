@@ -795,7 +795,7 @@ static bool backup_path_ok(const char *rel, bool wifi) {
     if (!rel_ok(rel) || !*rel) return false;
     if (bezel_default(rel)) return false;
     if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "Bios/", 5) || !strncmp(rel, "Media/", 6) || !strncmp(rel, "System/collections/", 19)
-        || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Bezels/", 7) || backup_game(rel))
+        || !strncmp(rel, "System/chiavi/", 14) || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Bezels/", 7) || backup_game(rel))
         return depth(rel) >= 2;
     if (wifi && !strcmp(rel, "System/wifi.conf")) return true;
     for (int i = 0; BACKUP_SYSTEM[i]; i++) {
@@ -814,6 +814,7 @@ static void do_backup(req_t *r) {
     zwalk(&z, "Saves", 0);
     zwalk(&z, "Bios", 0);
     zwalk(&z, "System/collections", 0);
+    zwalk(&z, "System/chiavi", 0);   /* quale ROM usa quale salvataggio (registro delle identità) */
     for (int i = 0; BACKUP_SYSTEM[i]; i++) {
         char rel[64], full[1200];
         struct stat sb;
@@ -1029,7 +1030,7 @@ static void restore_remove_zip(void) {
 
 /* parte del backup a cui appartiene un file (per scegliere cosa ripristinare) */
 static int backup_part(const char *rel) {
-    if (!strncmp(rel, "Saves/", 6)) return FS_PART_SAVES;
+    if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "System/chiavi/", 14)) return FS_PART_SAVES;   /* il registro va con i salvataggi */
     if (!strncmp(rel, "Bios/", 5)) return FS_PART_BIOS;
     if (!strncmp(rel, "Media/", 6) || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Bezels/", 7)) return FS_PART_MEDIA;
     if (backup_game(rel)) return FS_PART_GAMES;
@@ -1121,16 +1122,135 @@ static void backup_part_name(const char *rel, char *part, size_t n) {
     snprintf(part, n, "%.*s.%s.part", (int)(strlen(dst) - strlen(bn)), dst, bn);
 }
 
+/* Sostituzione annullabile (audit A38-004): prima di toccare un file si scrive
+   System/ripristino-giornale.txt con tutti quelli che cambiano ("sostituito" o "nuovo"); il file
+   di prima diventa ".nome.annulla" accanto, quello del backup prende il suo posto. Se una
+   rinomina fallisce o manca la corrente, tutto torna com'era: subito, o al prossimo avvio
+   (fs_restore_recover). La riga "fatto" è il punto di non ritorno: dopo si tolgono solo gli
+   .annulla. Finché il giornale resta, non parte nessun altro ripristino. */
+#define RESTORE_JOURNAL "System/ripristino-giornale.txt"
+
+static void backup_ann_name(const char *rel, char *ann, size_t n) {
+    char dst[2400];
+    full_path(dst, sizeof dst, rel);
+    const char *bn = base_name(rel);
+    snprintf(ann, n, "%.*s.%s.annulla", (int)(strlen(dst) - strlen(bn)), dst, bn);
+}
+
+#ifdef FS_TEST
+/* prove: RESTORE_FAIL_AT=N fa fallire l'N-esimo spostamento, RESTORE_STOP_AT=N esce lì (corrente) */
+static int rs_step;
+static int rs_rename(const char *a, const char *b) {
+    rs_step++;
+    const char *e = getenv("RESTORE_STOP_AT");
+    if (e && atoi(e) == rs_step) _exit(3);
+    e = getenv("RESTORE_FAIL_AT");
+    if (e && atoi(e) == rs_step) { errno = EIO; return -1; }
+    return rename(a, b);
+}
+#else
+#define rs_rename rename
+#endif
+
+static bool rs_exists(const char *p) { struct stat sb; return lstat(p, &sb) == 0; }
+
+static bool rs_write_durable(const char *path, const char *data, size_t n) {
+    char tmp[1300];
+    snprintf(tmp, sizeof tmp, "%s.tmp", path);
+    FILE *f = fopen(tmp, "wb");
+    bool ok = f && fwrite(data, 1, n, f) == n && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (f && fclose(f) != 0) ok = false;
+    if (!ok || durable_replace(tmp, path) != 0) { remove(tmp); return false; }
+    return true;
+}
+
+/* rimette com'era (done = false) o chiude (done = true); si può ripetere */
+static bool restore_journal_apply(const char *text, bool done) {
+    bool ok = true;
+    for (const char *l = text; *l;) {
+        const char *e = strchr(l, '\n');
+        size_t len = e ? (size_t)(e - l) : strlen(l);
+        char line[1300];
+        snprintf(line, sizeof line, "%.*s", (int)(len < sizeof line - 1 ? len : sizeof line - 1), l);
+        l += len + (e ? 1 : 0);
+        char *sp = strchr(line, ' ');
+        if (!sp) continue;
+        *sp = 0;
+        const char *rel = sp + 1;
+        bool repl = !strcmp(line, "sostituito"), fresh = !strcmp(line, "nuovo");
+        if ((!repl && !fresh) || !backup_path_ok(rel, true)) continue;
+        char part[2500], ann[2500], dst[2400];
+        backup_part_name(rel, part, sizeof part);
+        backup_ann_name(rel, ann, sizeof ann);
+        full_path(dst, sizeof dst, rel);
+        remove(part);
+        if (done) { if (repl) remove(ann); }
+        else if (fresh) { if (remove(dst) != 0 && errno != ENOENT) ok = false; }
+        else if (rs_exists(ann) && rename(ann, dst) != 0) {
+            fprintf(stderr, "ripristino: non riesco a rimettere %s\n", rel);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+/* true: nessun ripristino in sospeso. Un giornale che non si legge resta dov'è. */
+static bool restore_recover(void) {
+    char jp[1200];
+    full_path(jp, sizeof jp, RESTORE_JOURNAL);
+    FILE *f = fopen(jp, "rb");
+    if (!f) return errno == ENOENT;
+    size_t cap = 4u << 20, n = 0;
+    char *t = malloc(cap + 1);
+    if (t) n = fread(t, 1, cap, f);
+    bool bad = !t || ferror(f) || (n == cap && fgetc(f) != EOF);
+    fclose(f);
+    if (bad) { free(t); fprintf(stderr, "ripristino: giornale illeggibile, resta\n"); return false; }
+    t[n] = 0;
+    bool done = strstr(t, "\nfatto\n") != NULL || !strncmp(t, "fatto\n", 6), ok = restore_journal_apply(t, done);
+    free(t);
+    if (ok) {
+        sync();
+        ok = remove(jp) == 0 || errno == ENOENT;
+        sync();
+        fprintf(stderr, "ripristino interrotto: %s\n", done ? "concluso" : "annullato, rimessi i file di prima");
+        atomic_store(&any_change, true);
+    } else fprintf(stderr, "ripristino: giornale non risolto, si riprova al prossimo avvio\n");
+    return ok;
+}
+
+bool fs_restore_recover(const char *dir) {
+    if (thr_on) return true;   /* il server è acceso: la cartella è già la sua */
+    snprintf(root, sizeof root, "%s", dir);
+    return restore_recover();
+}
+
+static const zent_t *dup_z;
+static int dup_cmp(const void *a, const void *b) { return strcasecmp(dup_z[*(const int *)a].name, dup_z[*(const int *)b].name); }
+
 static bool backup_extract(const char *zipfull, int parts, int total) {
+    if (!restore_recover()) return false;   /* un ripristino di prima non è chiuso */
     FILE *f = fopen(zipfull, "rb");
     zent_t *z = NULL;
-    int n = f ? zip_dir(f, &z) : -1, done = 0, staged = 0;
+    int n = f ? zip_dir(f, &z) : -1, done = 0, staged = 0, nsel = 0;
     bool ok = n >= 0;
     int *idx = ok ? malloc(sizeof(int) * (size_t)(n ? n : 1)) : NULL;
-    if (!idx) ok = false;
+    int *sel = ok ? malloc(sizeof(int) * (size_t)(n ? n : 1)) : NULL;
+    if (!idx || !sel) ok = false;
     long long need = 0;
     for (int i = 0; ok && i < n; i++)
-        if (backup_path_ok(z[i].name, true) && (parts & (1 << backup_part(z[i].name)))) need += z[i].usize;
+        if (backup_path_ok(z[i].name, true) && (parts & (1 << backup_part(z[i].name)))) { need += z[i].usize; sel[nsel++] = i; }
+    /* due voci con lo stesso nome, anche solo per le maiuscole (sulla FAT è lo stesso file):
+       finirebbero nello stesso temporaneo. Un archivio così non si ripristina */
+    if (ok && nsel > 1) {
+        dup_z = z;
+        qsort(sel, (size_t)nsel, sizeof(int), dup_cmp);
+        for (int k = 1; ok && k < nsel; k++)
+            if (!strcasecmp(z[sel[k - 1]].name, z[sel[k]].name)) {
+                fprintf(stderr, "ripristino: %s compare due volte nel backup\n", z[sel[k]].name);
+                ok = false;
+            }
+    }
     struct statvfs vs;   /* temporanei e vecchi file insieme: deve starci tutto, più un margine */
     if (ok && (statvfs(root, &vs) != 0 || need + (32LL << 20) > (long long)vs.f_bavail * (long long)vs.f_frsize)) {
         fprintf(stderr, "ripristino: spazio insufficiente (%lld MB da scrivere)\n", need >> 20);
@@ -1152,14 +1272,55 @@ static bool backup_extract(const char *zipfull, int parts, int total) {
         if (!w) { ok = false; break; }
         done++;
     }
-    for (int k = 0; k < staged; k++) {   /* tutto arrivato: al loro posto; altrimenti via i temporanei */
-        char part[2500], dst[2400];
-        backup_part_name(z[idx[k]].name, part, sizeof part);
-        full_path(dst, sizeof dst, z[idx[k]].name);
-        if (!ok) remove(part);
-        else if (rename(part, dst) != 0) { remove(part); ok = false; }
+    if (!ok) {   /* niente è stato toccato: via i temporanei */
+        for (int k = 0; k < staged; k++) {
+            char part[2500];
+            backup_part_name(z[idx[k]].name, part, sizeof part);
+            remove(part);
+        }
+    } else if (staged) {
+        /* il giornale: tutto quello che si farà, prima di farlo */
+        char jp[1200];
+        full_path(jp, sizeof jp, RESTORE_JOURNAL);
+        size_t cap = 16, len = 0;
+        for (int k = 0; k < staged; k++) cap += strlen(z[idx[k]].name) + 16;
+        char *jt = malloc(cap);
+        if (!jt) ok = false;
+        for (int k = 0; ok && k < staged; k++) {
+            char dst[2400];
+            full_path(dst, sizeof dst, z[idx[k]].name);
+            len += (size_t)snprintf(jt + len, cap - len, "%s %s\n", rs_exists(dst) ? "sostituito" : "nuovo", z[idx[k]].name);
+        }
+        bool journaled = ok && rs_write_durable(jp, jt, len);
+        if (!journaled) ok = false;
+        for (int k = 0; ok && k < staged; k++) {   /* i file di prima da parte, quelli del backup al loro posto */
+            char part[2500], ann[2500], dst[2400];
+            backup_part_name(z[idx[k]].name, part, sizeof part);
+            backup_ann_name(z[idx[k]].name, ann, sizeof ann);
+            full_path(dst, sizeof dst, z[idx[k]].name);
+            if (rs_exists(dst) && rs_rename(dst, ann) != 0) ok = false;
+            else if (rs_rename(part, dst) != 0) ok = false;
+        }
+        if (ok) {   /* il punto di non ritorno */
+            memcpy(jt + len, "fatto\n", 7);
+            if (!rs_write_durable(jp, jt, len + 6)) ok = false;
+        }
+        if (journaled) {
+            jt[len] = 0;
+            if (restore_journal_apply(jt, ok)) { sync(); remove(jp); }
+            else fprintf(stderr, "ripristino: non rimesso del tutto, si riprova al prossimo avvio\n");
+        } else {
+            for (int k = 0; k < staged; k++) {
+                char part[2500];
+                backup_part_name(z[idx[k]].name, part, sizeof part);
+                remove(part);
+            }
+        }
+        if (!ok) fprintf(stderr, "ripristino non riuscito: rimessi i file di prima\n");
+        free(jt);
     }
     free(idx);
+    free(sel);
     free(z);
     if (f) fclose(f);
     sync();
@@ -1176,7 +1337,8 @@ static void restore_run(void) {
     for (int p = 0; p < FS_NPARTS; p++) if (parts & (1 << p)) total += restore_bk.count[p];
     bool ok = backup_extract(full, parts, total);
     if (ok) restore_packages(&restore_bk);
-    restore_remove_zip();
+    /* non riuscito: lo zip resta fino alla prossima apertura della finestra (fs_start lo toglie) */
+    if (ok) restore_remove_zip();
     restore_set(ok ? FS_RS_DONE : FS_RS_FAILED);
 }
 

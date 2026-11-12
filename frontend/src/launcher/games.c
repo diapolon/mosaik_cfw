@@ -3,6 +3,7 @@
 #include "../common/ui.h"
 #include "../common/durable.h"
 #include <dirent.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -209,11 +210,13 @@ static game_t *push(list_t *l) {
    BUG-009: gruppi trovati ordinando (n log n), non confrontando ogni coppia. */
 static int path_depth(const char *p) { int d = 0; for (; *p; p++) d += *p == '/'; return d; }
 
-typedef struct { game_t *g; const game_t *keep; int depth, level; size_t tl; } keyref_t;
+typedef struct { game_t *g; const game_t *keep; int depth, level; size_t tl; bool fixed; } keyref_t;
 
+/* le chiavi diventano nomi di file su una FAT, che non distingue le maiuscole: "Game" e "game"
+   sono la stessa chiave (audit A38-001) */
 static int ref_name_cmp(const void *a, const void *b) {
     const keyref_t *x = a, *y = b;
-    int c = strcmp(x->g->name, y->g->name);
+    int c = strcasecmp(x->g->name, y->g->name);
     if (c) return c;
     if (x->depth != y->depth) return x->depth - y->depth;
     return strcmp(x->g->path, y->g->path);
@@ -221,8 +224,9 @@ static int ref_name_cmp(const void *a, const void *b) {
 
 static int ref_key_cmp(const void *a, const void *b) {
     const keyref_t *x = a, *y = b;
-    int c = strcmp(x->g->key, y->g->key);
+    int c = strcasecmp(x->g->key, y->g->key);
     if (c) return c;
+    if (x->fixed != y->fixed) return x->fixed ? -1 : 1;                        /* chi è nel registro non cambia mai */
     if ((x->level >= 0) != (y->level >= 0)) return x->level >= 0 ? 1 : -1;   /* chi tiene il nome vince */
     if (x->level != y->level) return x->level - y->level;                      /* poi chi ha la chiave da prima */
     if (x->depth != y->depth) return x->depth - y->depth;
@@ -265,27 +269,159 @@ static void key_make(keyref_t *r, const char *dir, size_t dl) {
     snprintf(g->title + r->tl, sizeof g->title - r->tl, " [%s]", sub);
 }
 
-static void assign_keys(game_t *g, int n, const char *dir) {
-    if (n <= 0) return;
+/* Registro delle identità (audit A38-002): System/chiavi/<emulatore>.tsv, una riga
+   "percorso<TAB>chiave" per ogni ROM vista, con il percorso dentro la cartella dell'emulatore.
+   Una ROM già nel registro tiene la sua chiave qualunque cosa si aggiunga o si tolga intorno;
+   solo le ROM nuove ricevono una chiave, mai una già di un'altra ROM presente. Le righe delle ROM
+   che non ci sono più restano (un emulatore archiviato e rimesso ritrova tutto), finché una ROM
+   nuova non prende quella chiave: è il caso di un file spostato in un'altra cartella, che così
+   si tiene i suoi salvataggi. */
+typedef struct { char *path, *key; bool used; } regent_t;
+typedef struct { char *buf; regent_t *e; int n; } reg_t;
+
+static int reg_cmp(const void *a, const void *b) { return strcasecmp(((const regent_t *)a)->path, ((const regent_t *)b)->path); }
+
+/* false solo se il file c'è e non si legge: senza registro certo non si assegnano chiavi */
+static bool reg_load(const char *file, reg_t *reg) {
+    memset(reg, 0, sizeof *reg);
+    FILE *f = fopen(file, "rb");
+    if (!f) return errno == ENOENT;
+    size_t cap = 16u << 20, len = 0;
+    if (fseek(f, 0, SEEK_END) == 0) { long sz = ftell(f); if (sz >= 0 && (size_t)sz < cap) cap = (size_t)sz + 1; }
+    rewind(f);
+    reg->buf = malloc(cap + 1);
+    if (reg->buf) len = fread(reg->buf, 1, cap, f);
+    bool bad = !reg->buf || ferror(f) || (len == cap && fgetc(f) != EOF);
+    fclose(f);
+    if (bad) { free(reg->buf); reg->buf = NULL; return false; }
+    reg->buf[len] = 0;
+    int lines = 1;
+    for (char *c = reg->buf; *c; c++) lines += *c == '\n';
+    reg->e = malloc(sizeof(regent_t) * (size_t)lines);
+    if (!reg->e) { free(reg->buf); reg->buf = NULL; return false; }
+    for (char *l = reg->buf; l && *l;) {
+        char *nl = strchr(l, '\n'), *tab;
+        if (nl) *nl = 0;
+        if ((tab = strchr(l, '\t')) && tab > l && tab[1]) {
+            *tab = 0;
+            tab[1 + strcspn(tab + 1, "\r")] = 0;
+            reg->e[reg->n++] = (regent_t){ .path = l, .key = tab + 1 };
+        }
+        l = nl ? nl + 1 : NULL;
+    }
+    qsort(reg->e, (size_t)reg->n, sizeof(regent_t), reg_cmp);
+    return true;
+}
+
+static regent_t *reg_find(reg_t *reg, const char *rel) {
+    regent_t k = { .path = (char *)rel };
+    return reg->n ? bsearch(&k, reg->e, (size_t)reg->n, sizeof(regent_t), reg_cmp) : NULL;
+}
+
+static int str_ci_cmp(const void *a, const void *b) { return strcasecmp(*(char *const *)a, *(char *const *)b); }
+
+static const char *rel_path(const game_t *g, const char *dir, size_t dl) {
+    return !strncmp(g->path, dir, dl) && g->path[dl] == '/' ? g->path + dl + 1 : g->path;
+}
+
+/* riscrive il registro se è cambiato: le ROM presenti, più le righe delle assenti la cui chiave
+   non è stata presa */
+static void reg_save(const char *file, reg_t *reg, game_t *g, int n, const char *dir, size_t dl, const char *old, size_t oldlen) {
+    char **keys = malloc(sizeof(char *) * (size_t)(n ? n : 1));
+    regent_t *all = malloc(sizeof(regent_t) * (size_t)(n + reg->n + 1));
+    if (!keys || !all) { free(keys); free(all); ui_log("registro delle chiavi non aggiornato: memoria"); return; }
+    int na = 0;
+    size_t cap = 1;
+    for (int i = 0; i < n; i++) {
+        keys[i] = g[i].key;
+        all[na++] = (regent_t){ .path = (char *)rel_path(&g[i], dir, dl), .key = g[i].key };
+    }
+    qsort(keys, (size_t)n, sizeof(char *), str_ci_cmp);
+    for (int i = 0; i < reg->n; i++) {
+        if (reg->e[i].used) continue;
+        char *k = reg->e[i].key;
+        if (n && bsearch(&k, keys, (size_t)n, sizeof(char *), str_ci_cmp)) continue;   /* chiave passata a una ROM nuova */
+        all[na++] = reg->e[i];
+    }
+    qsort(all, (size_t)na, sizeof(regent_t), reg_cmp);
+    for (int i = 0; i < na; i++) cap += strlen(all[i].path) + strlen(all[i].key) + 2;
+    char *text = malloc(cap);
+    size_t len = 0;
+    for (int i = 0; text && i < na; i++) len += (size_t)snprintf(text + len, cap - len, "%s\t%s\n", all[i].path, all[i].key);
+    if (text && !(len == oldlen && old && !memcmp(text, old, len))) {
+        char dirp[1500], tmp[1500];
+        snprintf(dirp, sizeof dirp, "%s", file);
+        char *sl = strrchr(dirp, '/');
+        if (sl) { *sl = 0; mkdir(dirp, 0755); }
+        snprintf(tmp, sizeof tmp, "%s.tmp", file);
+        FILE *f = fopen(tmp, "wb");
+        bool ok = f && fwrite(text, 1, len, f) == len && fflush(f) == 0 && fsync(fileno(f)) == 0;
+        if (f && fclose(f) != 0) ok = false;
+        if (!ok || durable_replace(tmp, file) != 0) { remove(tmp); ui_log("registro delle chiavi non scritto: %s", file); }
+    } else if (!text) ui_log("registro delle chiavi non aggiornato: memoria");
+    free(text);
+    free(keys);
+    free(all);
+}
+
+/* false: le chiavi non sono certe (memoria, registro illeggibile) e i giochi di questo emulatore
+   non vanno mostrati, perché partirebbero con i salvataggi di un altro. reg NULL: senza registro. */
+static bool assign_keys(game_t *g, int n, const char *dir, const char *regfile) {
+    if (n <= 0) return true;
     keyref_t *r = malloc(sizeof *r * (size_t)n);
-    for (int i = 0; i < n; i++) snprintf(g[i].key, sizeof g[i].key, "%s", g[i].name);
-    if (!r) return;   /* senza memoria: le chiavi di sempre */
+    if (!r) return false;
+    reg_t reg = { 0 };
+    char *old = NULL;
+    size_t oldlen = 0;
+    if (regfile) {
+        if (!reg_load(regfile, &reg)) { free(r); return false; }
+        /* il testo di prima, per non riscrivere un registro uguale (reg_load lo spezza in righe) */
+        FILE *f = fopen(regfile, "rb");
+        if (f) {
+            size_t cap = 16u << 20;
+            if (fseek(f, 0, SEEK_END) == 0) { long sz = ftell(f); if (sz >= 0 && (size_t)sz < cap) cap = (size_t)sz; }
+            rewind(f);
+            if ((old = malloc(cap + 1))) oldlen = fread(old, 1, cap, f);
+            fclose(f);
+        }
+    }
     size_t dl = strlen(dir);
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
+        snprintf(g[i].key, sizeof g[i].key, "%s", g[i].name);
         r[i] = (keyref_t){ .g = &g[i], .depth = path_depth(g[i].path), .level = -1, .tl = strlen(g[i].title) };
+        regent_t *e = regfile ? reg_find(&reg, rel_path(&g[i], dir, dl)) : NULL;
+        if (e) {
+            snprintf(g[i].key, sizeof g[i].key, "%s", e->key);
+            r[i].fixed = true;
+            e->used = true;
+        }
+    }
     qsort(r, (size_t)n, sizeof *r, ref_name_cmp);
     for (int i = 0, j; i < n; i = j) {
-        for (j = i + 1; j < n && !strcmp(r[j].g->name, r[i].g->name); j++) {
-            r[j].keep = r[i].g;
-            r[j].level = 0;
-            key_make(&r[j], dir, dl);
+        for (j = i + 1; j < n && !strcasecmp(r[j].g->name, r[i].g->name); j++) ;
+        /* tiene il nome chi ce l'ha già nel registro, altrimenti la prima ROM nuova */
+        const game_t *keeper = NULL;
+        for (int m = i; m < j && !keeper; m++) if (r[m].fixed && !strcasecmp(r[m].g->key, r[m].g->name)) keeper = r[m].g;
+        for (int m = i; m < j && !keeper; m++) if (!r[m].fixed) keeper = r[m].g;
+        for (int m = i; m < j; m++) {
+            game_t *x = r[m].g;
+            if (r[m].fixed) {   /* fra omonimi il titolo mostra la parte che distingue, com'è nella chiave */
+                const char *br = j - i > 1 && strcasecmp(x->key, x->name) ? strrchr(x->key, '[') : NULL;
+                if (br && br > x->key && br[-1] == ' ') snprintf(x->title + r[m].tl, sizeof x->title - r[m].tl, " %s", br);
+                continue;
+            }
+            if (x == keeper) continue;
+            r[m].keep = keeper;
+            r[m].level = 0;
+            key_make(&r[m], dir, dl);
         }
     }
     for (int round = 0; round < 16; round++) {
         qsort(r, (size_t)n, sizeof *r, ref_key_cmp);
         bool again = false;
         for (int i = 0, j; i < n; i = j) {
-            for (j = i + 1; j < n && !strcmp(r[j].g->key, r[i].g->key); j++) {
+            for (j = i + 1; j < n && !strcasecmp(r[j].g->key, r[i].g->key); j++) {
+                if (r[j].fixed) continue;   /* due righe del registro con la stessa chiave: restano, non si inventa */
                 if (!r[j].keep) r[j].keep = r[i].g;
                 r[j].level = r[j].level < 0 ? 1 : r[j].level + 1;
                 key_make(&r[j], dir, dl);
@@ -295,6 +431,11 @@ static void assign_keys(game_t *g, int n, const char *dir) {
         if (!again) break;
     }
     free(r);
+    if (regfile) reg_save(regfile, &reg, g, n, dir, dl, old, oldlen);
+    free(old);
+    free(reg.e);
+    free(reg.buf);
+    return true;
 }
 
 static bool has_ext(const char *f, const char *ext) {
@@ -656,7 +797,14 @@ int games_scan(const char *root, game_t **out, bool include_missing) {
         index_load(&ix, ixp);
         int first = l.n;
         scan_dir(&l, &ix, &EMUS[i], dir, 0);
-        assign_keys(&l.g[first], l.n - first, dir);
+        char regf[1500];
+        snprintf(regf, sizeof regf, "%s/System/chiavi/%s.tsv", root, EMUS[i].id);
+        if (!assign_keys(&l.g[first], l.n - first, dir, regf)) {
+            /* chiavi non certe: meglio un emulatore senza giochi che un gioco con i salvataggi di un altro */
+            ui_log("giochi di %s non mostrati: registro delle chiavi illeggibile o memoria finita", EMUS[i].id);
+            for (int k = first; k < l.n; k++) free(l.g[k].path);
+            l.n = first;
+        }
         /* catalogo: giochi dell'indice senza ROM, solo "parent" (i cloni affollerebbero l'elenco) */
         /* le console hanno un indice solo dei giochi che ci sono (lo scrive lo scraper) */
         for (int k = 0; include_missing && !EMUS[i].console && k < ix.n; k++) {

@@ -191,18 +191,20 @@ cat > imp.c <<'C'
 #include "fileserver.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 const char *T(const char *k) { return k; }
 const char *plat_model(void) { return "prova"; }
 const char *update_current(void) { return "0.0.0"; }
 int main(int argc, char **argv) {
     fs_backup_t bk;
+    if (argc == 3 && !strcmp(argv[2], "recover")) { puts(fs_restore_recover(argv[1]) ? "chiuso" : "in sospeso"); return 0; }
     if (argc < 3 || !fs_backup_info(argv[2], &bk)) { puts("non un backup"); return 1; }
     printf("%d %s\n", bk.files, fs_backup_import(argv[1], argv[2], argc > 3 ? atoi(argv[3]) : FS_PARTS_ALL) ? "importato" : "errore");
     return 0;
 }
 C
 gcc -std=c11 -O1 -g -Wall -Wextra -Werror -D_DEFAULT_SOURCE -D_GNU_SOURCE -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -I$S/launcher -I$S/common \
-    -o imp imp.c $S/launcher/fileserver.c $S/launcher/zipread.c -lz -lpthread
+    -DFS_TEST -o imp imp.c $S/launcher/fileserver.c $S/launcher/zipread.c -lz -lpthread
 check "zip qualsiasi: non un backup" "non un backup" "$(./imp $W/sd saves.zip 2>&1)"
 echo cambiato > sd/Saves/fbneo/gioco.srm
 rm -rf sd/Saves/nuovo
@@ -238,6 +240,40 @@ check "backup con un file rovinato: rifiutato" "errore" "$(./imp $W/sd r3.zip 2>
 check "file rovinato: nessun salvataggio sostituito" "cambiato" "$(cat sd/Saves/fbneo/gioco.srm)"
 check "file rovinato: nessun temporaneo rimasto" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"
 check "file rovinato: niente scritto del file guasto" "no" "$([ -e sd/Saves/zz/b.srm ] && echo si || echo no)"
+# sostituzione annullabile (audit A38-004): un errore o la corrente che manca a metà rimette tutto
+snapd() { (cd sd && find Saves Bios -type f | sort | while read f; do echo "$f $(md5sum < "$f")"; done | md5sum | cut -d' ' -f1); }
+avanzi() { find sd -name '*.annulla' -o -name '*.part' -o -name 'ripristino-giornale.txt*' | wc -l | tr -d ' '; }
+echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiato > sd/Saves/nuovo/a.srm
+PRIMA=$(snapd); tot=0; pass=0
+for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    r=$(RESTORE_FAIL_AT=$n ./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2)
+    [ "$r" = errore ] || break   # oltre l'ultimo spostamento: importato
+    tot=$((tot+1))
+    [ "$(snapd)" = "$PRIMA" ] && [ "$(avanzi)" = 0 ] && pass=$((pass+1)) || echo "    spostamento $n: $(find sd -name '*.annulla' -o -name '*.part' | head -3)"
+done
+check "ripristino: più di due spostamenti provati" "si" "$([ $tot -ge 3 ] && echo si || echo no)"
+check "spostamento fallito in ogni punto: tutti i file di prima" "$tot" "$pass"
+check "… e senza errori il backup c'è tutto" "importato vecchio nuovo 0" "$(./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2) $(cat sd/Saves/fbneo/gioco.srm) $(cat sd/Saves/nuovo/a.srm) $(avanzi)"
+pass=0
+for n in $(seq 1 $tot); do
+    echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiato > sd/Saves/nuovo/a.srm
+    RESTORE_STOP_AT=$n ./imp $W/sd r2.zip >/dev/null 2>&1 || true
+    g=$([ -e sd/System/ripristino-giornale.txt ] && echo si || echo no)
+    r=$(./imp $W/sd recover 2>/dev/null)
+    [ "$g $r" = "si chiuso" ] && [ "$(snapd)" = "$PRIMA" ] && [ "$(avanzi)" = 0 ] && pass=$((pass+1)) || echo "    interruzione $n: [$g $r] $(find sd -name '*.annulla' -o -name '*.part' | head -3)"
+done
+check "corrente che manca in ogni punto: al riavvio tutti i file di prima" "$tot" "$pass"
+mkdir sd/System/ripristino-giornale.txt
+check "giornale illeggibile: resta e nessun altro ripristino" "in sospeso errore si" "$(./imp $W/sd recover 2>/dev/null) $(./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2) $([ -d sd/System/ripristino-giornale.txt ] && echo si || echo no)"
+rmdir sd/System/ripristino-giornale.txt
+check "… e i file non sono cambiati" "$PRIMA" "$(snapd)"
+python3 - <<'P'
+import zipfile
+with zipfile.ZipFile("r2.zip") as a, zipfile.ZipFile("doppio.zip", "w") as b:
+    for i in a.infolist(): b.writestr(i, a.read(i))
+    b.writestr("Saves/doppi/Gioco.srm", "uno"); b.writestr("Saves/doppi/gioco.srm", "due")
+P
+check "due nomi uguali tranne le maiuscole: backup rifiutato" "errore $PRIMA 0" "$(./imp $W/sd doppio.zip 2>/dev/null | cut -d' ' -f2) $(snapd) $(avanzi)"
 head -c 300 r2.zip > tronco.zip
 check "zip tronco: non un backup" "non un backup" "$(./imp $W/sd tronco.zip 2>&1)"
 # codice QR: testi di varie lunghezze, letti da zbarimg
