@@ -402,7 +402,7 @@ int plat_battery(bool *charging) {
     return get_int("/sys/class/power_supply/axp2202-battery/capacity");
 }
 
-#else
+#elif !defined(R36S_DEVICE)   /* R36S: src/common/platform_r36s.c */
 
 bool plat_is_device(void) { return false; }
 const char *plat_model(void) { return NULL; }

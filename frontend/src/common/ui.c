@@ -1148,8 +1148,12 @@ int theme_list(const char *root, char ids[][64], char names[][64], int max) {
 void ui_reload_theme(void) {
     fonts_clear();
     theme_load(&UI.th, UI.root, UI.set.theme, UI.set.variant);
-    UI.f_small = ui_font(UI.th.font_path, M(UI.th.font_small));
-    UI.f_normal = ui_font(UI.th.font_path, M(UI.th.font_normal));
+    /* schermi bassi (R36S, 480 righe): il testo piccolo non scende sotto i 15 pixel, che su 3,5"
+       sono il minimo leggibile; da 720 righe in su le misure del tema restano quelle */
+    int fs = M(UI.th.font_small), fn = M(UI.th.font_normal);
+    if (UI.h < 600) { if (fs < 15) fs = 15; if (fn < 18) fn = 18; }
+    UI.f_small = ui_font(UI.th.font_path, fs);
+    UI.f_normal = ui_font(UI.th.font_path, fn);
     UI.f_title = ui_font(UI.th.title_font_path, M(UI.th.font_title));
     UI.f_big = ui_font(UI.th.title_font_path, M(UI.th.font_big));
     sounds_build();

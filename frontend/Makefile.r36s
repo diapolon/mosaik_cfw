@@ -1,0 +1,74 @@
+# PROTOTIPO per R36S (RK3326, Cortex-A35): docs/analisi-r36s.md. Stesso kit della TrimUI (GCC 7,
+# glibc 2.17 come base), livello hardware in src/common/platform_r36s.c (-DR36S_DEVICE),
+# aggiornamenti veri (-DUPDATE_REAL). A runtime SDL2 (con KMSDRM) e GLES sono quelle del sistema
+# dell'R36S (ROCKNIX): qui si usano solo gli header di SDL2, la cui interfaccia non cambia.
+#   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD/..":/trimui \
+#       -w /trimui/frontend trimui-tg5040 make -f Makefile.r36s
+# SDL2 è quella del firmware (con il driver della GPU PowerVR); SDL2_ttf, SDL2_image,
+# SDL2_mixer e libcurl sono compilate da toolchain/build-deps.sh e incluse nei programmi.
+
+CC      := aarch64-linux-gnu-gcc
+STRIP   := aarch64-linux-gnu-strip
+SDK     ?= /opt/sdk/usr
+PREFIX  ?= /build/prefix
+TCLIBC  := /opt/aarch64-linux-gnu-7.5.0-linaro/aarch64-linux-gnu/libc
+OUT     ?= /build/out-r36s
+
+CFLAGS  := -std=c11 -O2 -mcpu=cortex-a35 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation \
+           -D_DEFAULT_SOURCE -D_GNU_SOURCE -DR36S_DEVICE -DUPDATE_REAL -D_REENTRANT -DARCADE_VERSION='"$(shell cat ../VERSION)"' -DUPDATE_DEFAULT_URL='"$(shell cat ../UPDATE_URL 2>/dev/null)"' \
+           -I$(PREFIX)/include -I$(PREFIX)/include/SDL2 -I$(SDK)/include -I$(SDK)/include/SDL2
+# glibc del compilatore per il collegamento; le librerie del firmware si cercano a runtime in
+# /usr/lib, quelle del pacchetto in ../lib accanto ai programmi
+LDFLAGS := -L$(PREFIX)/lib -L$(SDK)/lib -Wl,-rpath-link,$(TCLIBC)/lib -Wl,-rpath-link,$(TCLIBC)/usr/lib \
+           -Wl,-rpath-link,$(SDK)/lib -Wl,-rpath,'$$ORIGIN/../lib' -rdynamic
+SDLLIBS := -Wl,-Bstatic -lSDL2_ttf -lSDL2_image -Wl,-Bdynamic -lSDL2 -lm -lpthread -ldl
+
+COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/platform_r36s.c src/common/wifi.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
+RUNNER   := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
+
+all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu $(OUT)/apps/files $(OUT)/apps/viewer $(OUT)/apps/music $(OUT)/apps/sdtest
+
+# VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010)
+$(OUT)/bin/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h ../VERSION $(wildcard ../UPDATE_URL) | $(OUT)/bin
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(LAUNCHER) $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
+
+$(OUT)/bin/runner: $(COMMON) $(RUNNER) src/common/*.h src/runner/*.h | $(OUT)/bin
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(RUNNER) $(LDFLAGS) $(SDLLIBS) -lz
+
+$(OUT)/bin/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(OUT)/bin
+	$(CC) $(CFLAGS) -o $@ $(COMMON) src/tools/gamemenu.c $(LDFLAGS) $(SDLLIBS)
+
+# app dello Store: fuori da bin (non vanno nel sistema), le impacchetta toolchain/package.sh
+APPKIT   := src/apps/appkit.c
+
+$(OUT)/apps/files: $(COMMON) $(APPKIT) src/apps/files.c src/launcher/zipread.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/files.c src/launcher/zipread.c $(LDFLAGS) $(SDLLIBS) -lz
+
+$(OUT)/apps/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c $(LDFLAGS) $(SDLLIBS) -lz
+
+$(OUT)/apps/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -Wl,-Bdynamic $(SDLLIBS)
+
+$(OUT)/apps/sdtest: $(COMMON) $(APPKIT) src/apps/sdtest.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/sdtest.c $(LDFLAGS) $(SDLLIBS)
+
+$(OUT)/apps:
+	mkdir -p $@
+
+$(OUT)/bin/gamewatch: src/tools/gamewatch.c | $(OUT)/bin
+	$(CC) -std=c11 -O2 -Wall -Wextra -D_DEFAULT_SOURCE -o $@ $< -Wl,-rpath-link,$(TCLIBC)/lib
+
+$(OUT)/bin:
+	mkdir -p $@
+
+# simboli glibc richiesti: la console ha la 2.23
+# glibc chiesta da programmi, app e core: si ferma se supera quella del firmware (la più vecchia
+# fra i modelli estratti in /build/fw, altrimenti 2.33), così un programma che non partirebbe
+# sulla console non arriva in un'immagine (verifica audit)
+FW_GLIBC ?= $(shell for l in /build/fw/*/root/lib/libc.so.6; do [ -e $$l ] && strings $$l | grep -oE '^GLIBC_2\.[0-9]+' | sort -Vu | tail -1; done | sort -V | head -1 | sed 's/GLIBC_//')
+check: all
+	@sh ../toolchain/check-glibc.sh "$(FW_GLIBC)" $(OUT)/bin/* $(OUT)/apps/* $(wildcard $(OUT)/cores/*.so)
+
+.PHONY: all check

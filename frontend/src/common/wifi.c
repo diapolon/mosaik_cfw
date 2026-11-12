@@ -24,7 +24,7 @@ static int cmp_net(const void *a, const void *b) {
 static wifi_status_t st;
 static double st_time = -10;
 
-#ifdef TRIMUI_DEVICE
+#if defined(TRIMUI_DEVICE) || defined(R36S_DEVICE)
 /* ------------------------------------------------------------ console: wpa_cli */
 #include <fcntl.h>
 #include <pthread.h>
@@ -35,7 +35,12 @@ static double st_time = -10;
 
 extern char **environ;
 
+#ifdef R36S_DEVICE
+/* R36S: niente Wi-Fi a bordo; c'è solo con una chiavetta USB riconosciuta dal kernel */
+bool wifi_supported(void) { return plat_standalone() && access("/sys/class/net/wlan0", F_OK) == 0; }
+#else
 bool wifi_supported(void) { return plat_standalone(); }
+#endif
 
 static double uptime_s(void) {
     double up = 1e9;

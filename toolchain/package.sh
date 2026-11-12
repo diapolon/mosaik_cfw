@@ -128,6 +128,14 @@ for t in "$FE"/package/themes/*/; do
     mkdir -p "$PKG/tema-$id/Themes"
     cp -R "$t" "$PKG/tema-$id/Themes/$id"
 done
+# cornici dello Store: ogni serie di frontend/package/bezels è un pacchetto (Bezels/<console>/_mosaik*.png,
+# disegnate da tools/make_bezels.py); la descrizione, pack.json, la legge make-store.py
+for b in "$FE"/package/bezels/*/; do
+    [ -d "$b/Bezels" ] || continue
+    id=$(basename "$b")
+    mkdir -p "$PKG/cornici-$id"
+    cp -R "$b/Bezels" "$PKG/cornici-$id/"
+done
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"

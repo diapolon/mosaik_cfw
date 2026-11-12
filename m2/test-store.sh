@@ -98,6 +98,10 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
         mkdir -p pkgsrc/tema-sole/Themes/sole
         printf '{\n  // prova\n  "name": "Sole", "version": "1.1",\n  "variants": { "a": { "accent": "#FFAA00" }, "b": { "accent": "#0066FF" } }\n}\n' > pkgsrc/tema-sole/Themes/sole/theme.json
     fi
+    if [ -n "$CORNICI" ]; then   # cornici: la descrizione è quella vera, in frontend/package/bezels/tv/pack.json
+        mkdir -p pkgsrc/cornici-tv/Bezels/nes
+        echo tv > pkgsrc/cornici-tv/Bezels/nes/_mosaik.png
+    fi
     printf 'fbneo d15071a\nmgba 7a12d6d\n' > labels.txt
     rm -rf www; python3 /trimui/toolchain/make-store.py --src pkgsrc --out www --key ${2:-key.pem} --labels labels.txt > /dev/null
 }
@@ -239,6 +243,13 @@ check "tema installato" "4 0 1" "$(./t $R install tema-sole 2>/dev/null)"
 check "file del tema sulla scheda" "si" "$([ -f sd/Themes/sole/theme.json ] && echo si || echo no)"
 check "tema tolto" "4 0 0" "$(./t $R delete tema-sole 2>/dev/null)"
 check "cartella del tema tolta, Themes resta" "no si" "$([ -e sd/Themes/sole ] && echo si || echo no) $([ -d sd/Themes ] && echo si || echo no)"
+# cornici nello Store: scrivono solo i file _mosaik, quelli dell'utente restano
+CORNICI=1 mk 4
+mkdir -p sd/Bezels/nes; echo mia > sd/Bezels/nes/_default.png
+check "cornici nel catalogo: nome e cartella Cornici" "Television|Home consoles on an old television set|bezels" "$(./t $R title cornici-tv 2>/dev/null)"
+check "cornici installate" "4 0 1" "$(./t $R install cornici-tv 2>/dev/null)"
+check "cornice dello Store accanto a quella dell'utente" "tv mia" "$(cat sd/Bezels/nes/_mosaik.png) $(cat sd/Bezels/nes/_default.png)"
+check "cornici tolte, quella dell'utente resta" "4 0 0 no mia" "$(./t $R delete cornici-tv 2>/dev/null) $([ -e sd/Bezels/nes/_mosaik.png ] && echo si || echo no) $(cat sd/Bezels/nes/_default.png)"
 kill $SRV
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

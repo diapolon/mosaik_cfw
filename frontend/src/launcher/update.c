@@ -148,6 +148,41 @@ const char *update_current(void) {
     return current;
 }
 
+/* novità delle versioni ("note VERSIONE LINGUA testo" nell'elenco firmato) */
+typedef struct { char ver[16], lang[4], text[204]; } note_t;
+static note_t notes[64];
+static int nnotes;
+
+static void vparse(const char *v, int out[3]) {
+    out[0] = out[1] = out[2] = 0;
+    sscanf(v, "%d.%d.%d", &out[0], &out[1], &out[2]);
+}
+static int vcmp(const char *a, const char *b) {
+    int x[3], y[3];
+    vparse(a, x);
+    vparse(b, y);
+    for (int i = 0; i < 3; i++) if (x[i] != y[i]) return x[i] < y[i] ? -1 : 1;
+    return 0;
+}
+
+int update_notes(const char *lang, const char **out, int max) {
+    const char *cur = update_current();
+    int n = 0;
+    for (int i = 0; i < nnotes && n < max; ) {
+        /* blocco di una versione: le righe nella lingua scelta, altrimenti quelle inglesi */
+        int j = i;
+        while (j < nnotes && !strcmp(notes[j].ver, notes[i].ver)) j++;
+        if (vcmp(notes[i].ver, cur) > 0) {
+            bool have = false;
+            for (int k = i; k < j; k++) have |= !strcmp(notes[k].lang, lang);
+            for (int k = i; k < j && n < max; k++)
+                if (!strcmp(notes[k].lang, have ? lang : "en")) out[n++] = notes[k].text;
+        }
+        i = j;
+    }
+    return n;
+}
+
 #if defined(TRIMUI_DEVICE) || defined(UPDATE_REAL)
 /* ------------------------------------------------------------------ console */
 #include <arpa/inet.h>
@@ -332,12 +367,24 @@ static bool parse_manifest(char *text) {
     st.version[0] = 0;
     st.reinstall = false;
     probe_pause = 0;
+    nnotes = 0;
     for (line = strtok_r(NULL, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
         if (!strncmp(line, "version ", 8)) { snprintf(st.version, sizeof st.version, "%s", line + 8); continue; }
         /* "reinstall N": le schede con l'area di avvio (initramfs, kernel) di generazione più
            bassa di N non hanno cose che il Wi-Fi non può portare: si invita a riscrivere la SD.
            La generazione la scrive l'initramfs in System/area-avvio.txt (manca: 0). */
         if (!strncmp(line, "prova-pausa ", 12)) { probe_pause = atoi(line + 12); if (probe_pause > 60) probe_pause = 60; continue; }
+        if (!strncmp(line, "note ", 5)) {
+            char v[16], lg[4];
+            int off = 0;
+            if (nnotes < 64 && sscanf(line + 5, "%15s %3s %n", v, lg, &off) == 2 && off > 0) {
+                note_t *nt = &notes[nnotes++];
+                snprintf(nt->ver, sizeof nt->ver, "%s", v);
+                snprintf(nt->lang, sizeof nt->lang, "%s", lg);
+                snprintf(nt->text, sizeof nt->text, "%s", line + 5 + off);
+            }
+            continue;
+        }
         if (!strncmp(line, "reinstall ", 10)) {
             st.reinstall = update_boot_gen(root_dir, NULL) < atoi(line + 10);
             continue;
@@ -981,6 +1028,21 @@ void update_check(const char *root) {
     (void)root;
     memset(&st, 0, sizeof st);
     snprintf(st.version, sizeof st.version, "9.9.9 20991231.2359");
+    /* novità di prova: le righe di ../CHANGELOG.txt (ARCADE_CHANGELOG per un altro file) */
+    nnotes = 0;
+    FILE *cf = fopen(getenv("ARCADE_CHANGELOG") ? getenv("ARCADE_CHANGELOG") : "../CHANGELOG.txt", "r");
+    char cl[300], cv[16] = "";
+    while (cf && fgets(cl, sizeof cl, cf) && nnotes < 64) {
+        cl[strcspn(cl, "\r\n")] = 0;
+        if (!cl[0] || cl[0] == '#') continue;
+        if (cl[0] >= '0' && cl[0] <= '9') { snprintf(cv, sizeof cv, "%s", cl); continue; }
+        if (!cv[0] || strlen(cl) < 4 || cl[2] != ' ') continue;
+        note_t *nt = &notes[nnotes++];
+        snprintf(nt->ver, sizeof nt->ver, "%s", cv);
+        snprintf(nt->lang, sizeof nt->lang, "%.2s", cl);
+        snprintf(nt->text, sizeof nt->text, "%s", cl + 3);
+    }
+    if (cf) fclose(cf);
     st.reinstall = getenv("TRIMUI_FAKE_REINSTALL") != NULL;   /* prova dell'invito a riscrivere la SD */
     st.files = 12;
     st.total = 64LL << 20;

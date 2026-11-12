@@ -32,7 +32,7 @@
 #include <zlib.h>
 
 /* cartelle in cui dalla pagina si può scrivere; tutto il resto si può solo scaricare */
-static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Linux", "Apps", "Bezels", NULL };
+static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Linux", "Apps", "Bezels", "Themes", NULL };
 /* testi della pagina, dalla sezione "fileserver" dei file di lingua */
 static const char *const PAGE_KEYS[] = {
     "title", "pin_page", "enter", "wrong_pin", "locked", "free", "readonly", "upload_files", "upload_folder",
@@ -780,8 +780,13 @@ static const char *const BACKUP_SYSTEM[] = { "settings.json", "favorites.txt", "
                                              "core-options.txt", "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", NULL };
 #define BACKUP_INFO "mosaik-backup.txt"
 
-/* cornici: nel backup quelle messe dall'utente, non le due predefinite che porta il sistema */
-static bool bezel_default(const char *rel) { return !strcmp(rel, "Bezels/_default.png") || !strcmp(rel, "Bezels/_default_vertical.png"); }
+/* cornici: nel backup quelle messe dall'utente, non le due predefinite che porta il sistema né
+   le _mosaik dei pacchetti Cornici, che dopo un ripristino si rimettono dallo Store */
+static bool bezel_default(const char *rel) {
+    if (!strcmp(rel, "Bezels/_default.png") || !strcmp(rel, "Bezels/_default_vertical.png")) return true;
+    const char *b = strrchr(rel, '/');
+    return !strncmp(rel, "Bezels/", 7) && b && !strncmp(b + 1, "_mosaik", 7);
+}
 
 /* ROM, giochi Linux e app: nel backup solo se scelti, perché possono essere tanti */
 static bool backup_game(const char *rel) { return !strncmp(rel, "Roms/", 5) || !strncmp(rel, "Linux/", 6) || !strncmp(rel, "Apps/", 5); }

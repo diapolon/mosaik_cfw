@@ -94,7 +94,7 @@
     <td><img src="docs/images/it/store.png" alt="Console nello Store"></td>
   </tr>
   <tr>
-    <td align="center">Lo Store: arcade, console, app e temi</td>
+    <td align="center">Lo Store: arcade, console, computer, app, temi e cornici</td>
     <td align="center">Emulatori installati a colori, gli altri in grigio</td>
   </tr>
   <tr>

@@ -225,11 +225,13 @@ bool settings_save(const settings_t *s, const char *root) {
     return durable_replace(tmp, path) == 0;
 }
 
+/* misure dello schermo per modello; "r36s" (640x480) è il prototipo del porting (docs/analisi-r36s.md) */
 void device_size(const char *device, int *w, int *h) {
     if (!strcmp(device, "brickpro")) { *w = 1024; *h = 768; }
+    else if (!strcmp(device, "r36s")) { *w = 640; *h = 480; }
     else { *w = 1280; *h = 720; }
 }
 
 const char *device_label(const char *device) {
-    return !strcmp(device, "brickpro") ? "Brick Pro 1024×768" : "Smart Pro 1280×720";
+    return !strcmp(device, "brickpro") ? "Brick Pro 1024×768" : !strcmp(device, "r36s") ? "R36S 640×480" : "Smart Pro 1280×720";
 }

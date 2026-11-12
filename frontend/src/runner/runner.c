@@ -913,8 +913,8 @@ static SDL_Texture *build_overlay(int tiles_x, int tiles_y, int w, int h) {
     return t;
 }
 
-/* Cornici: Bezels/<core>/<rom>.png, Bezels/<rom>.png, poi Bezels/_default.png o
-   _default_vertical.png. La finestra del gioco è il rettangolo trasparente della PNG,
+/* Cornici: Bezels/<core>/<rom>.png, Bezels/<rom>.png, quella della console, poi Bezels/_default.png o
+   _default_vertical.png (ordine completo in bezel_load). La finestra del gioco è il rettangolo trasparente della PNG,
    oppure "viewport": [x, y, w, h] in un .json con lo stesso nome. */
 static SDL_Texture *bez_tex;
 static SDL_Rect bez_vp;
@@ -955,17 +955,34 @@ static bool bezel_open(const char *path) {
     return true;
 }
 
+/* base senza ".png": prima la versione per questo schermo (<base>-1024x768.png), poi quella comune */
+static bool bezel_try(const char *base) {
+    char p[1450];
+    snprintf(p, sizeof p, "%s-%dx%d.png", base, UI.w, UI.h);
+    if (bezel_open(p)) return true;
+    snprintf(p, sizeof p, "%s.png", base);
+    return bezel_open(p);
+}
+
+/* Ordine: il gioco (Bezels/<core>/<rom>, Bezels/<rom>), la console (Bezels/<console>/_default,
+   messa dall'utente, poi _mosaik dei pacchetti Cornici dello Store), infine Bezels/_default.
+   I pacchetti scrivono solo i file _mosaik: quelli dell'utente non si toccano. */
 static void bezel_load(bool vertical) {
     if (bez_tex) SDL_DestroyTexture(bez_tex);
     bez_tex = NULL;
     bez_vertical = vertical;
+    const char *v = vertical ? "_vertical" : "", *sys = system_id[0] ? system_id : core_id;
     char p[1400];
-    snprintf(p, sizeof p, "%s/Bezels/%s/%s.png", root, core_id, rom_base);
-    if (bezel_open(p)) return;
-    snprintf(p, sizeof p, "%s/Bezels/%s.png", root, rom_name);
-    if (bezel_open(p)) return;
-    snprintf(p, sizeof p, "%s/Bezels/_default%s.png", root, vertical ? "_vertical" : "");
-    bezel_open(p);
+    snprintf(p, sizeof p, "%s/Bezels/%s/%s", root, core_id, rom_base);
+    if (bezel_try(p)) return;
+    snprintf(p, sizeof p, "%s/Bezels/%s", root, rom_name);
+    if (bezel_try(p)) return;
+    snprintf(p, sizeof p, "%s/Bezels/%s/_default%s", root, sys, v);
+    if (bezel_try(p)) return;
+    snprintf(p, sizeof p, "%s/Bezels/%s/_mosaik%s", root, sys, v);
+    if (bezel_try(p)) return;
+    snprintf(p, sizeof p, "%s/Bezels/_default%s", root, v);
+    bezel_try(p);
 }
 
 static void draw_game(void) {

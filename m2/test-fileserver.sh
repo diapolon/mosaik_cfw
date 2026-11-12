@@ -132,9 +132,9 @@ check "backup: pacchetti installati, non gli archiviati" "fbneo files" "$(unzip 
 check "backup: le app dello Store no, le altre sì" "0 1" "$(unzip -l bp.zip | grep -c 'Apps/files/') $(unzip -l bp.zip | grep -c 'Apps/mia/launch.sh')"
 rm -rf sd/System/pacchetti sd/Apps
 # cornici sempre (non le due del sistema), musica con le immagini
-mkdir -p sd/Music/Album sd/Bezels/fbneo; echo mp3 > sd/Music/Album/a.mp3; echo png > sd/Bezels/fbneo/gioco.png; echo sys > sd/Bezels/_default.png; echo sys > sd/Bezels/_default_vertical.png
+mkdir -p sd/Music/Album sd/Bezels/fbneo; echo mp3 > sd/Music/Album/a.mp3; echo png > sd/Bezels/fbneo/gioco.png; echo sys > sd/Bezels/_default.png; echo sys > sd/Bezels/_default_vertical.png; mkdir -p sd/Bezels/gb; echo store > sd/Bezels/gb/_mosaik.png; echo mio > sd/Bezels/gb/_default.png
 q -o bz.zip "$U/api/backup"; q -o bzm.zip "$U/api/backup?media=1"
-check "backup: cornici dell'utente, non quelle del sistema, niente musica" "1 0 0" "$(unzip -l bz.zip | grep -c Bezels/fbneo/gioco.png) $(unzip -l bz.zip | grep -c Bezels/_default) $(unzip -l bz.zip | grep -c Music/)"
+check "backup: cornici dell'utente, non quelle del sistema né dello Store, niente musica" "1 0 1 0 0" "$(unzip -l bz.zip | grep -c Bezels/fbneo/gioco.png) $(unzip -l bz.zip | grep -c ' Bezels/_default') $(unzip -l bz.zip | grep -c Bezels/gb/_default.png) $(unzip -l bz.zip | grep -c _mosaik) $(unzip -l bz.zip | grep -c Music/)"
 check "backup con le immagini: anche la musica" "1" "$(unzip -l bzm.zip | grep -c Music/Album/a.mp3)"
 check "zip del backup valido dopo il filtro" "0" "$(unzip -tq bz.zip >/dev/null 2>&1; echo $?)"
 rm -rf sd/Music sd/Bezels

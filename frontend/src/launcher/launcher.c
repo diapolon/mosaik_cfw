@@ -867,18 +867,18 @@ static void lib_common_input(int cols) {
 /* Genere: ArcadeDB lo dà in inglese ("Platform / Shooter Scrolling"); la categoria
    principale si traduce con la chiave genre.<categoria> del file di lingua. */
 static const char *genre_label(const char *raw, char *out, size_t n) {
-    char main[48], key[80] = "genre.";
-    genre_main(raw, main, sizeof main);
+    char cat[48], key[80] = "genre.";
+    genre_main(raw, cat, sizeof cat);
     size_t k = strlen(key);
-    for (const char *c = main; *c && k < sizeof key - 4; c++) {
+    for (const char *c = cat; *c && k < sizeof key - 4; c++) {
         if ((*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9')) key[k++] = *c;
         else if (*c >= 'A' && *c <= 'Z') key[k++] = (char)(*c + 32);
         else if (*c == '&') { memcpy(key + k, "and", 3); k += 3; }
         else if ((*c == ' ' || *c == '-') && key[k - 1] != '_') key[k++] = '_';
     }
     key[k] = 0;
-    const char *tr = main[0] ? T_opt(key) : NULL;
-    snprintf(out, n, "%s", tr ? tr : main);
+    const char *tr = cat[0] ? T_opt(key) : NULL;
+    snprintf(out, n, "%s", tr ? tr : cat);
     return out;
 }
 
@@ -2721,7 +2721,7 @@ static const int cat_items[SC_COUNT][12] = {
 /* solo nel sistema su SD: partendo dal sistema TrimUI quella cartella è nella memoria interna */
 static bool sc_available(void) {
     if (!plat_standalone()) return false;
-#ifdef TRIMUI_DEVICE
+#if defined(TRIMUI_DEVICE) || defined(R36S_DEVICE)
     return true;
 #else
     return getenv("TRIMUI_FAKE_STICKS") != NULL;
@@ -3060,7 +3060,8 @@ static void set_change(int item, int dir) {
         if (plat_standalone()) settings_save_tz_for_boot(s, UI.root);
         break;
     case S_DEVICE:
-        snprintf(s->device, sizeof s->device, "%s", !strcmp(s->device, "smartpro") ? "brickpro" : "smartpro");
+        /* simulazione sul Mac: Smart Pro, Brick Pro, R36S (prototipo) */
+        snprintf(s->device, sizeof s->device, "%s", !strcmp(s->device, "smartpro") ? "brickpro" : !strcmp(s->device, "brickpro") ? "r36s" : "smartpro");
         ui_apply_device();
         ring_init = false;
         break;
@@ -3236,8 +3237,8 @@ static void wpanel_draw(void) {
    poi di tenere premuto A per 3 secondi, come Cancella tutto. */
 enum { SL_CATS, SL_PKGS };
 enum { SA_NONE, SA_ARCHIVE, SA_DELETE, SA_DELETE2 };
-static const char *const STO_CATS[] = { "arcade", "console", "apps", "themes", "linux" };
-#define NSTO_CATS 5
+static const char *const STO_CATS[] = { "arcade", "console", "computer", "apps", "themes", "bezels", "linux" };
+#define NSTO_CATS 7
 static int sto_level, sto_cat, sto_sel, sto_cats[NSTO_CATS], nsto_cats;
 static int sto_items[64], nsto_items;
 static bool sto_detail, sto_job, sto_removing;
@@ -3297,8 +3298,9 @@ static void sto_leave(void) {
 
 static bool sto_is_app(const store_pkg_t *p) { return !strcmp(p->category, "apps"); }
 static bool sto_is_theme(const store_pkg_t *p) { return !strcmp(p->category, "themes"); }
-/* app e temi: niente giochi né salvataggi, quindi niente Archivia e una conferma sola */
-static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_theme(p); }
+static bool sto_is_bezel(const store_pkg_t *p) { return !strcmp(p->category, "bezels"); }
+/* app, temi e cornici: niente giochi né salvataggi, quindi niente Archivia e una conferma sola */
+static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_theme(p) || sto_is_bezel(p); }
 
 /* pulsanti della scheda secondo lo stato del pacchetto */
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_ARCHIVE, SB_DELETE };
@@ -3432,8 +3434,8 @@ static void sto_size(long long b, char *out, size_t n) {
 /* l'immagine di una cartella: il cabinato, una console, il cassetto delle app, il portatile */
 static void sto_cat_art(int c, color_t *col, emulator_t *em) {
     memset(em, 0, sizeof *em);
-    static const char *const arts[] = { "", "", "@apps", "@themes", "@linux" };   /* Console: una console generica */
-    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x4B3C86, 0x9A4E2A, 0x2F6B45 };
+    static const char *const arts[] = { "", "", "pc", "@apps", "@themes", "@bezel:t", "@linux" };   /* Console: una console generica */
+    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x2E7D4F, 0x4B3C86, 0x9A4E2A, 0x2A6E78, 0x2F6B45 };
     snprintf(em->art, sizeof em->art, "%s", arts[c]);
     em->console = c == 1;
     *col = hexc(cols[c]);
@@ -3445,6 +3447,14 @@ static void sto_pkg_art(const store_pkg_t *p, color_t *col, emulator_t *em) {
         snprintf(em->art, sizeof em->art, "@app:%s", p->id);
         *col = !strcmp(p->id, "files") ? hexc(0x1F6E8C) : !strcmp(p->id, "viewer") ? hexc(0x8C4A1F)
              : !strcmp(p->id, "music") ? hexc(0x7A2E6E) : !strcmp(p->id, "sdtest") ? hexc(0x2E6B3E) : hexc(0x4B3C86);
+        return;
+    }
+    if (sto_is_bezel(p)) {   /* cornici: la forma del pacchetto (portatile, televisore, cabinato) */
+        const char *st = strrchr(p->id, '-');
+        st = st ? st + 1 : "tv";   /* l'ultima parte dell'id: portatili, tv, arcade */
+        snprintf(em->art, sizeof em->art, "@bezel:%c", !strcmp(st, "portatili") ? 'h' : !strcmp(st, "arcade") ? 'a' : 't');
+        unsigned c1 = 0;
+        *col = sscanf(p->colors, "%6x", &c1) == 1 ? hexc(c1) : hexc(0x2A6E78);
         return;
     }
     if (sto_is_theme(p)) {   /* tema: una schermata nei colori delle sue varianti */
@@ -3508,6 +3518,44 @@ static void sto_art(const emulator_t *em, color_t c, const char *label, int ax, 
         ui_rrect(fx + b, fy + b, fw - 2 * b, fh / 5, fw / 30, a1);
         int tw = (fw - 4 * b) / 3, ty = fy + b * 2 + fh / 5, th = fh - (ty - fy) - b;
         for (int k = 0; k < 3; k++) ui_rrect(fx + b + k * (tw + b), ty, tw, th, fw / 30, k == 1 ? a1 : k == 0 ? a2 : mix(c, white, 0.3f));
+    } else if (!strncmp(em->art, "@bezel:", 7)) {   /* uno schermo largo con la cornice intorno al gioco */
+        const char *st = em->art + 7;
+        color_t dark = mix(c, rgba(0, 0, 0, 255), 0.55f), game = rgba(0x3C, 0xB4, 0xE6, 255), hill = rgba(0x5A, 0xC8, 0x6E, 255);
+        int fw = s * 92 / 100, fh = fw * 9 / 16, fx = ax + (aw - fw) / 2, fy = ay + (ah - fh) / 2, r = fw / 16;
+        if (fx + fw > ax + aw) { fw = aw; fh = fw * 9 / 16; fx = ax; fy = ay + (ah - fh) / 2; }
+        ui_rrect(fx, fy, fw, fh, fw / 24, dark);
+        int gw, gh, gx, gy;
+        if (*st == 'h') {   /* guscio arrotondato con croce e due tasti */
+            int bw = fw * 88 / 100, bh = fh * 84 / 100, bx = fx + (fw - bw) / 2, by = fy + (fh - bh) / 2;
+            ui_rrect(bx, by, bw, bh, bh / 3, mix(c, white, 0.75f));
+            gh = bh * 62 / 100; gw = gh * 10 / 9; gx = fx + (fw - gw) / 2; gy = by + (bh - gh) / 2;
+            ui_rrect(gx - r / 2, gy - r / 2, gw + r, gh + r, r / 2, rgba(0x30, 0x32, 0x3A, 255));
+            int u = bh / 10, cx = bx + (gx - bx) / 2, cy = by + bh / 2;
+            ui_rect(cx - u * 3 / 2, cy - u / 2, 3 * u, u, rgba(0x30, 0x32, 0x3A, 255));
+            ui_rect(cx - u / 2, cy - u * 3 / 2, u, 3 * u, rgba(0x30, 0x32, 0x3A, 255));
+            int rx = gx + gw + (bx + bw - gx - gw) / 2;
+            ui_circle(rx - u, cy + u / 2, u * 2 / 3, c);
+            ui_circle(rx + u, cy - u / 2, u * 2 / 3, c);
+        } else if (*st == 'a') {   /* fianchi del cabinato con le strisce al neon */
+            gh = fh; gw = gh * 4 / 3; gx = fx + (fw - gw) / 2; gy = fy;
+            for (int k = 0; k < 3; k++) {
+                int o = fw / 40 + k * fw / 36;
+                ui_rect(fx + o, fy + fh / 8, fw / 90 + 1, fh * 3 / 4, mix(c, white, 0.3f + 0.2f * k));
+                ui_rect(fx + fw - o - fw / 90 - 1, fy + fh / 8, fw / 90 + 1, fh * 3 / 4, mix(c, white, 0.3f + 0.2f * k));
+            }
+        } else {   /* televisore: mobile, schermo arrotondato, manopole a destra */
+            int bw = fw * 92 / 100, bh = fh * 90 / 100, bx = fx + (fw - bw) / 2, by = fy + (fh - bh) / 2;
+            ui_rrect(bx, by, bw, bh, bh / 10, mix(c, white, 0.2f));
+            gh = bh * 80 / 100; gw = gh * 4 / 3; gx = bx + bh / 10; gy = by + (bh - gh) / 2;
+            ui_rrect(gx - r / 3, gy - r / 3, gw + r * 2 / 3, gh + r * 2 / 3, r, rgba(0x22, 0x22, 0x26, 255));
+            int kx = gx + gw + (bx + bw - gx - gw) / 2, u = bh / 9;
+            ui_circle(kx, by + bh * 3 / 10, u * 2 / 3, mix(c, white, 0.7f));
+            ui_circle(kx, by + bh * 3 / 10 + u * 2, u * 2 / 3, mix(c, white, 0.7f));
+            for (int k = 0; k < 3; k++) ui_rect(kx - u, by + bh * 7 / 10 + k * u / 2, 2 * u, u / 5 + 1, mix(c, rgba(0, 0, 0, 255), 0.3f));
+        }
+        ui_rrect(gx, gy, gw, gh, r / 2, game);   /* il gioco: cielo, collina e sole */
+        ui_rrect(gx, gy + gh * 2 / 3, gw, gh / 3, r / 2, hill);
+        ui_circle(gx + gw * 3 / 4, gy + gh / 3, gh / 8 + 1, rgba(255, 220, 90, 255));
     } else if (!strncmp(em->art, "@app:", 5)) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, s * 2 / 3, white, c);
     else draw_emu_art(em, c, label, ax, ay, aw, ah);
 }
@@ -3567,7 +3615,7 @@ static void sto_preview_draw(const store_pkg_t *pp, bool del) {
     char a[32];
     bool app = sto_no_data(&p);
     if (app) {   /* un'app o un tema: si toglie solo lui, i file della scheda restano */
-        row[nr].k = T(sto_is_theme(&p) ? "store.pv_theme" : "store.pv_app");
+        row[nr].k = T(sto_is_theme(&p) ? "store.pv_theme" : sto_is_bezel(&p) ? "store.pv_bezels" : "store.pv_app");
         sto_size(p.installed, row[nr].v, sizeof row[nr].v);
         row[nr++].gone = true;
         row[nr].k = T("store.pv_yourfiles");
@@ -3683,7 +3731,9 @@ static void sto_draw(void) {
                 sto_cat_art(ci, &c, &em);
                 snprintf(title, sizeof title, "store.cat_%s", STO_CATS[ci]);
                 bool apps_cat = !strcmp(STO_CATS[ci], "apps") || !strcmp(STO_CATS[ci], "linux"), theme_cat = !strcmp(STO_CATS[ci], "themes");
-                const char *ck = theme_cat ? (cnt == 1 ? "store.count1_themes" : "store.count_themes")
+                bool bezel_cat = !strcmp(STO_CATS[ci], "bezels");
+                const char *ck = bezel_cat ? (cnt == 1 ? "store.count1_bezels" : "store.count_bezels")
+                               : theme_cat ? (cnt == 1 ? "store.count1_themes" : "store.count_themes")
                                : apps_cat ? (cnt == 1 ? "store.count1_apps" : "store.count_apps") : (cnt == 1 ? "store.count1" : "store.count");
                 if (cnt) snprintf(sub, sizeof sub, T(ck), cnt);
                 else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
@@ -4831,8 +4881,23 @@ static void upd_draw(void) {
     int w = M(0.95f), pad = M(0.05f), bw = w - 2 * pad, bh = M(0.02f), sh = TTF_FontHeight(UI.f_small);
     char lines[3][160];
     int nl = sub[0] ? ui_wrap(UI.f_small, sub, bw, lines, 3) : 0;
+    /* novità della versione offerta (e di quelle saltate), prima e durante lo scaricamento */
+    char news[8][160];
+    int nn = 0;
+    if (s->phase == UPD_AVAILABLE || s->phase == UPD_DOWNLOAD || s->phase == UPD_VERIFY || s->phase == UPD_READY) {
+        const char *items[12];
+        int ni = update_notes(UI.set.lang, items, 12);
+        for (int i = 0; i < ni && nn < 7; i++) {
+            char one[220], wl[3][160];
+            snprintf(one, sizeof one, "• %s", items[i]);
+            int k = ui_wrap(UI.f_small, one, bw - M(0.02f), wl, 3);
+            for (int q = 0; q < k && nn < 7; q++) snprintf(news[nn++], sizeof news[0], "%s%s", q ? "   " : "", wl[q]);
+        }
+        if (ni > 0 && nn == 7) snprintf(news[nn++], sizeof news[0], "…");
+    }
+    int news_h = nn ? M(0.02f) + TTF_FontHeight(UI.f_normal) + M(0.008f) + nn * sh : 0;
     int h = pad + TTF_FontHeight(UI.f_title) + M(0.03f) + TTF_FontHeight(UI.f_normal) + M(0.03f)
-          + (bar ? bh + M(0.03f) : 0) + nl * sh + (nb ? ui_popup_buttons_h() : pad);
+          + (bar ? bh + M(0.03f) : 0) + nl * sh + news_h + (nb ? ui_popup_buttons_h() : pad);
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(x, y, w, h, r, t->surface);
@@ -4853,6 +4918,13 @@ static void upd_draw(void) {
         ty += bh + M(0.03f);
     }
     for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text_dim, ALIGN_LEFT);
+    ty += nl * sh;
+    if (nn) {
+        ty += M(0.02f);
+        ui_text(UI.f_normal, T("update.whats_new"), x + pad, ty, t->accent, ALIGN_LEFT);
+        ty += TTF_FontHeight(UI.f_normal) + M(0.008f);
+        for (int i = 0; i < nn; i++) ui_text(UI.f_small, news[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
+    }
     ui_popup_buttons(x, y, w, h, blabels, nb, upd_sel_phase == s->phase ? upd_sel : nb - 1, -1);
 }
 

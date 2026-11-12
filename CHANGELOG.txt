@@ -1,0 +1,32 @@
+# Novità di ogni versione, mostrate dalla console nella finestra dell'aggiornamento.
+# toolchain/update-server.py mette le ultime versioni nell'elenco firmato (righe "note").
+# Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
+# lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
+
+0.9.37
+it Store: nuova cartella Cornici, con portatili, televisore e sala giochi
+en Store: new Bezels folder, with handhelds, television and arcade
+it Store: nuova cartella Computer, con ScummVM
+en Store: new Computers folder, with ScummVM
+it Stellato: i nomi lunghi delle schede non si tagliano
+en Starry: long card names are no longer cut
+it Le novità di ogni versione in questa finestra
+en What's new in each version, in this window
+
+0.9.36
+it PlayStation Portable con PPSSPP (Store → Console)
+en PlayStation Portable with PPSSPP (Store → Consoles)
+it Copertina: i nomi lunghi nella striscia non si tagliano
+en Cover: long names in the strip are no longer cut
+
+0.9.35
+it ScummVM per le avventure grafiche (Store)
+en ScummVM for adventure games (Store)
+it Stellato 1.1: la variante Notte è in oro
+en Starry 1.1: the Night variant is gold
+it Cabinato: tolta la variante Rubino
+en Cabinato: the Ruby variant is gone
+
+0.9.34
+it Nove console nuove nello Store: Atari 2600 e 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy
+en Nine new consoles in the Store: Atari 2600 and 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy

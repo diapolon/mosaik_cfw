@@ -246,7 +246,7 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         /* cartelle: arcade, console, apps, linux; i cataloghi di prima avevano nintendo, sega, sony e other */
         const char *cg = json_str(v, "category", "console");
         snprintf(x->p.category, sizeof x->p.category, "%s",
-                 !strcmp(cg, "arcade") || !strcmp(cg, "apps") || !strcmp(cg, "linux") || !strcmp(cg, "themes") ? cg : "console");
+                 !strcmp(cg, "arcade") || !strcmp(cg, "apps") || !strcmp(cg, "linux") || !strcmp(cg, "themes") || !strcmp(cg, "computer") || !strcmp(cg, "bezels") ? cg : "console");
         int nc = 0;
         bool coom = false;   /* senza colori il riquadro usa quello di riserva */
         char **cl = str_list(json_get(v, "colors"), &nc, &coom);
@@ -326,7 +326,7 @@ static void compute_states(entry_t *e, int n) {
         installed_version(e[i].p.id, v, sizeof v, lab, sizeof lab);
         /* app e temi: conta il loro numero di versione (app.json, theme.json), non l'impronta dei
            file, che cambia anche solo ricompilando con la libreria comune aggiornata */
-        bool by_label = (!strcmp(e[i].p.category, "apps") || !strcmp(e[i].p.category, "themes")) && lab[0] && e[i].p.label[0];
+        bool by_label = (!strcmp(e[i].p.category, "apps") || !strcmp(e[i].p.category, "themes") || !strcmp(e[i].p.category, "bezels")) && lab[0] && e[i].p.label[0];
         if (v[0]) { e[i].p.state = (by_label ? strcmp(lab, e[i].p.label) : strcmp(v, e[i].p.version)) ? PKG_UPDATE : PKG_INSTALLED; continue; }
         /* arrivato con il sistema, prima dello Store: ci sono tutti i suoi emulatori */
         bool all = e[i].nemus > 0;

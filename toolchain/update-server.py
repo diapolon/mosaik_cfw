@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import http.server
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -87,6 +88,26 @@ if reinstall > 0:
 pausa = int(os.environ.get("MOSAIK_PROVA_PAUSA", "0") or 0)
 if pausa > 0:
     lines.append(f"prova-pausa {min(pausa, 60)}")
+# novità delle ultime versioni (CHANGELOG.txt), fino a questa: la console mostra quelle più nuove
+# della sua. "note VERSIONE LINGUA testo"; i sistemi che non le conoscono le ignorano.
+def vnum(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v.split()[0])[:3]) if v.strip() else ()
+blocks, cur = [], None
+cl = os.path.join(top, "CHANGELOG.txt")
+for raw in (open(cl, encoding="utf-8").read().splitlines() if os.path.exists(cl) else []):
+    l = raw.strip()
+    if not l or l.startswith("#"):
+        continue
+    if re.fullmatch(r"\d+\.\d+\.\d+", l):
+        cur = (l, [])
+        blocks.append(cur)
+    elif cur and len(l) > 3 and l[2] == " ":
+        cur[1].append((l[:2], l[3:].replace("\n", " ")[:200]))
+blocks = [b for b in blocks if vnum(b[0]) <= vnum(version)]
+blocks.sort(key=lambda b: vnum(b[0]), reverse=True)
+for v, notes in blocks[:6]:
+    for lang, text in notes:
+        lines.append(f"note {v} {lang} {text}")
 for sd, path in files:
     lines.append(f"file {sha256(path)} {os.path.getsize(path)} {sd}")
 manifest = ("\n".join(lines) + "\n").encode()

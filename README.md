@@ -94,7 +94,7 @@
     <td><img src="docs/images/store.png" alt="Consoles in the Store"></td>
   </tr>
   <tr>
-    <td align="center">The Store: arcade, consoles, apps and themes</td>
+    <td align="center">The Store: arcade, consoles, computers, apps, themes and bezels</td>
     <td align="center">Installed emulators in colour, the others in grey</td>
   </tr>
   <tr>

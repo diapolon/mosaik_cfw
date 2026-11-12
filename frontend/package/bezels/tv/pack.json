@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "color": "#7A5A3C",
+  "texts": {
+    "it": {
+      "title": "Televisore",
+      "description": "Le console da casa su un televisore di una volta"
+    },
+    "en": {
+      "title": "Television",
+      "description": "Home consoles on an old television set"
+    },
+    "es": {
+      "title": "Televisor",
+      "description": "Las consolas de sobremesa en un televisor de los de antes"
+    },
+    "fr": {
+      "title": "Téléviseur",
+      "description": "Les consoles de salon sur un téléviseur d'autrefois"
+    },
+    "de": {
+      "title": "Fernseher",
+      "description": "Heimkonsolen auf einem alten Fernseher"
+    },
+    "pt": {
+      "title": "Televisor",
+      "description": "As consolas de casa num televisor antigo"
+    }
+  }
+}

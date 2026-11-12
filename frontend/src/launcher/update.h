@@ -31,6 +31,9 @@ void update_set_channel(int development); /* da chiamare prima di update_check *
 void update_notify_start(const char *root, int development);
 /* versione più recente trovata, "" se non c'è nulla di nuovo */
 const char *update_notify_version(void);
+/* novità delle versioni più nuove di quella in uso (dall'elenco firmato), nella lingua data o in
+   inglese; puntatori validi fino al prossimo controllo */
+int update_notes(const char *lang, const char **out, int max);
 void update_check(const char *root);      /* cerca la versione e ne controlla la firma, in un thread */
 /* dopo UPD_AVAILABLE, in un thread: confronta i file con la scheda (UPD_CHECK), poi li scarica e
    li controlla; UPD_CURRENT se nessun file è cambiato */

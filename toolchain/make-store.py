@@ -53,7 +53,7 @@ PACKAGES = {
     "wswan": ("Beetle WonderSwan", "wswan", "console"),
     "pokemini": ("PokeMini", "pokemini", "console"),
     "vb": ("Beetle VB", "vb", "console"),
-    "scummvm": ("ScummVM", "scummvm", "console"),
+    "scummvm": ("ScummVM", "scummvm", "computer"),   # cartella Computer (i sistemi fino alla 0.9.36 la mettono in Console)
     "ppsspp": ("PPSSPP", "ppsspp", "console"),
     "files": ("Files", None, "apps"),   # app: nome, versione e traduzioni da Apps/<id>/app.json
     "viewer": ("Images and comics", None, "apps"),
@@ -78,6 +78,28 @@ def theme_info(root):
     if not accents and tj.get("colors", {}).get("accent"):
         accents = [tj["colors"]["accent"]]
     return tj.get("name", ids[0]), str(tj.get("version", "1.0")), accents[:3], tj.get("texts")
+
+
+def bezel_info(pid, root):
+    """(nome, versione, colori, testi, console) di un pacchetto Cornici, altrimenti None. Le
+    cornici sono in frontend/package/bezels/<serie>/Bezels (tools/make_bezels.py), la descrizione
+    in pack.json accanto; nel pacchetto ci sono solo i file Bezels/<console>/_mosaik*.png, che
+    il runner usa dopo quelli dell'utente. Una console sta in una serie sola: due serie con lo
+    stesso file si toglierebbero a vicenda la cornice."""
+    if not pid.startswith("cornici-") or sorted(os.listdir(root)) != ["Bezels"]:
+        return None
+    pj = os.path.join(top, "frontend", "package", "bezels", pid[8:], "pack.json")
+    if not os.path.exists(pj):
+        return None
+    meta = json.load(open(pj, encoding="utf-8"))
+    texts = meta.get("texts") or {}
+    name = (texts.get("en") or {}).get("title", pid)
+    consoles = []
+    for sid in sorted(os.listdir(os.path.join(root, "Bezels"))):
+        ej = os.path.join(top, "frontend", "emulators", sid + ".json")
+        em = json.load(open(ej)) if os.path.exists(ej) else {}
+        consoles.append((em.get("order", 100), em.get("short") or em.get("name") or sid))
+    return name, str(meta.get("version", "1.0")), [meta["color"]] if meta.get("color") else [], texts, [c[1] for c in sorted(consoles)]
 
 
 def sha256(path):
@@ -111,9 +133,13 @@ catalog = {"format": 1, "packages": []}
 for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
     theme = theme_info(root) if pid not in PACKAGES and os.path.isdir(root) else None
-    if (pid not in PACKAGES and not theme) or not os.path.isdir(root):
+    bezel = bezel_info(pid, root) if pid not in PACKAGES and not theme and os.path.isdir(root) else None
+    if (pid not in PACKAGES and not theme and not bezel) or not os.path.isdir(root):
         sys.exit(f"pacchetto sconosciuto: {pid}")
-    name, srcdir, category = PACKAGES[pid] if not theme else (theme[0], None, "themes")
+    if pid in PACKAGES:
+        name, srcdir, category = PACKAGES[pid]
+    else:
+        name, srcdir, category = (theme or bezel)[0], None, "themes" if theme else "bezels"
     files = []
     for d, _, names in os.walk(root):
         for n in names:
@@ -148,8 +174,10 @@ for pid in sorted(os.listdir(args.src)):
         aj = json.load(open(appj))
         name = aj.get("title", name)
         texts = aj.get("texts")
-    if theme:
-        label, texts = theme[1], theme[3]
+    if bezel:   # le console delle cornici, per la scheda del pacchetto (i sistemi fino alla 0.9.36 le mettono in Console)
+        systems = bezel[4]
+    if theme or bezel:
+        label, texts = (theme or bezel)[1], (theme or bezel)[3]
     elif category == "apps":
         label = json.load(open(appj)).get("version", "?") if os.path.exists(appj) else "?"
     elif pid == "deadcast":
@@ -180,6 +208,8 @@ for pid in sorted(os.listdir(args.src)):
         entry["texts"] = texts
     if theme and theme[2]:   # temi: i colori delle varianti, per il riquadro
         entry["colors"] = theme[2]
+    if bezel and bezel[2]:   # cornici: il colore del riquadro
+        entry["colors"] = bezel[2]
     catalog["packages"].append(entry)
     print(f"  {pid:16} {label:10} {os.path.getsize(zpath) / 1e6:6.1f} MB  {', '.join(systems)}")
 

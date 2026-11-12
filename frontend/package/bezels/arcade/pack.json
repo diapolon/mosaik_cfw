@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "color": "#B0306E",
+  "texts": {
+    "it": {
+      "title": "Sala giochi",
+      "description": "I fianchi di un cabinato, anche per i giochi verticali"
+    },
+    "en": {
+      "title": "Arcade",
+      "description": "The sides of a cabinet, vertical games too"
+    },
+    "es": {
+      "title": "Salón recreativo",
+      "description": "Los laterales de una máquina, también para juegos verticales"
+    },
+    "fr": {
+      "title": "Salle d'arcade",
+      "description": "Les flancs d'une borne, jeux verticaux compris"
+    },
+    "de": {
+      "title": "Spielhalle",
+      "description": "Die Seiten eines Automaten, auch für vertikale Spiele"
+    },
+    "pt": {
+      "title": "Salão de jogos",
+      "description": "As laterais de uma máquina, também para jogos verticais"
+    }
+  }
+}

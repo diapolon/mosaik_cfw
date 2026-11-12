@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "color": "#5A4FA8",
+  "texts": {
+    "it": {
+      "title": "Portatili",
+      "description": "Il gioco dentro una portatile disegnata intorno allo schermo"
+    },
+    "en": {
+      "title": "Handhelds",
+      "description": "The game inside a handheld drawn around the screen"
+    },
+    "es": {
+      "title": "Portátiles",
+      "description": "El juego dentro de una portátil dibujada alrededor de la pantalla"
+    },
+    "fr": {
+      "title": "Portables",
+      "description": "Le jeu dans une console portable dessinée autour de l'écran"
+    },
+    "de": {
+      "title": "Handhelds",
+      "description": "Das Spiel in einem Handheld rund um den Bildschirm"
+    },
+    "pt": {
+      "title": "Portáteis",
+      "description": "O jogo dentro de uma portátil desenhada à volta do ecrã"
+    }
+  }
+}
