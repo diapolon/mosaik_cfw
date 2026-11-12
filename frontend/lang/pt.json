@@ -603,7 +603,8 @@
     "password_for": "Palavra-passe de %s",
     "short": "A palavra-passe precisa de pelo menos 8 caracteres",
     "error": "Não foi possível ligar: verifica a palavra-passe e tenta de novo",
-    "already": "Já estás ligado a esta rede"
+    "already": "Já estás ligado a esta rede",
+    "keys_paused": "Wi-Fi a iniciar: botões em pausa"
   },
   "led": {
     "off": "Desligados",

@@ -1538,14 +1538,43 @@ void ui_poll(void) {
 
 static char toast_msg[160];
 static double toast_until;
-bool ui_toast_active(void) { return toast_msg[0] && UI.t <= toast_until; }
+static bool keys_paused(void);
+bool ui_toast_active(void) { return (toast_msg[0] && UI.t <= toast_until) || keys_paused(); }
 
 void ui_toast(const char *msg) {
     snprintf(toast_msg, sizeof toast_msg, "%s", msg);
     toast_until = UI.t + 2.2;
 }
 
+/* Brick Pro: mentre il Wi-Fi si accende m2/wifi-ctl ferma trimui_inputd (blocco del bus I2C 3,
+   issue #1) e per qualche secondo i tasti non rispondono. Finché c'è il segno della pausa un avviso
+   lo dice, al posto dei messaggi brevi; il file si guarda quattro volte al secondo.
+   ARCADE_INPUTD_PAUSE: un altro file, per provarlo sul Mac. */
+static bool keys_paused(void) {
+    static double next = -1;
+    static bool on;
+    if (UI.t >= next || UI.t < next - 1) {
+        const char *p = getenv("ARCADE_INPUTD_PAUSE");
+        next = UI.t + 0.25;
+        on = access(p && p[0] ? p : "/run/wifi-inputd-pausa", F_OK) == 0;
+    }
+    return on;
+}
+
 void ui_draw_toast(void) {
+    if ((UI.t > toast_until || !toast_msg[0]) && keys_paused()) {
+        TTF_Font *f = UI.f_normal;
+        const char *msg = T("wifi.keys_paused");
+        int pad = M(0.03f), h = M(0.075f), d = M(0.012f), tw = ui_text_w(f, msg), w = tw + pad * 2 + d * 3;
+        int x = (UI.w - w) / 2, y = M(UI.th.topbar_h) - h / 2;
+        ui_shadow(x, y + M(0.005f), w, h, h / 2, M(0.02f), UI.th.shadow);
+        ui_rrect(x, y, w, h, h / 2, with_alpha(UI.th.text, 235));
+        /* un punto che pulsa: la console sta lavorando, non è bloccata */
+        float k = 0.5f + 0.5f * (float)sin(UI.t * 6.0);
+        ui_rrect(x + pad, y + (h - d) / 2, d, d, d / 2, with_alpha(UI.th.accent, (int)(120 + 135 * k)));
+        ui_text(f, msg, x + pad + d * 3, y + (h - TTF_FontHeight(f)) / 2, UI.th.bg, ALIGN_LEFT);
+        return;
+    }
     if (UI.t > toast_until || !toast_msg[0]) return;
     float a = (float)fmin(1.0, (toast_until - UI.t) / 0.3);
     TTF_Font *f = UI.f_normal;

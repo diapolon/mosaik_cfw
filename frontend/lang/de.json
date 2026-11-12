@@ -603,7 +603,8 @@
     "password_for": "Passwort für %s",
     "short": "Das Passwort braucht mindestens 8 Zeichen",
     "error": "Keine Verbindung: prüfe das Passwort und versuche es erneut",
-    "already": "Du bist bereits mit diesem Netz verbunden"
+    "already": "Du bist bereits mit diesem Netz verbunden",
+    "keys_paused": "WLAN startet: Tasten pausiert"
   },
   "led": {
     "off": "Aus",

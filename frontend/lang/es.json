@@ -603,7 +603,8 @@
     "password_for": "Contraseña de %s",
     "short": "La contraseña necesita al menos 8 caracteres",
     "error": "No se ha podido conectar: revisa la contraseña e inténtalo de nuevo",
-    "already": "Ya estás conectado a esta red"
+    "already": "Ya estás conectado a esta red",
+    "keys_paused": "Wi-Fi iniciando: botones en pausa"
   },
   "led": {
     "off": "Apagados",

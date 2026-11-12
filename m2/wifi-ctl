@@ -35,7 +35,8 @@ done
 # circa 500 volte al secondo; il blocco è un panico del driver I2C del kernel quando una lettura
 # scade mentre il Wi-Fi parte (issue trimui/firmware_brickpro#4). Con il bus fermo per quei pochi
 # secondi il difetto non può scattare. SIGSTOP/SIGCONT: il programma non si chiude e una lettura
-# già cominciata finisce prima. Riparte al collegamento, dopo 10 s o con "wifi-ctl off".
+# già cominciata finisce prima. Riparte finita la prima ricerca delle reti (il momento del blocco),
+# al collegamento, dopo 10 s o con "wifi-ctl off"; intanto il launcher mostra un avviso.
 INPUTD_PAUSE=${WIFI_INPUTD_PAUSE:-/run/wifi-inputd-pausa}
 inputd_pause() {
     [ "${WIFI_INPUTD:-1}" = 1 ] && [ -e "${WIFI_I2C:-/dev/i2c-3}" ] || return 0
@@ -48,6 +49,27 @@ inputd_resume() {   # $1: gettone dell'accensione, vuoto = qualunque
     [ -n "$1" ] && [ "$1" != "$(sed -n 1p $INPUTD_PAUSE)" ] && return 0
     kill -CONT $(sed -n 2p $INPUTD_PAUSE) 2> /dev/null
     rm -f $INPUTD_PAUSE
+}
+# i tasti tornano appena la prima ricerca delle reti ha dato i risultati, con mezzo secondo di
+# margine: prima del collegamento (che con una rete nota arriva un paio di secondi dopo) e senza
+# aspettare 10 s quando nessuna rete salvata è vicina. Senza reti salvate wpa_supplicant non cerca
+# da solo: la ricerca si chiede qui, così avviene ancora con i tasti fermi. Nessuna rete intorno:
+# restano i 10 s del timer.
+inputd_after_scan() {   # $1: gettone dell'accensione
+    [ -f $INPUTD_PAUSE ] || return 0
+    grep -q '^network=' "$CONF" 2> /dev/null || wpa_cli -p "$CTRL" -i wlan0 scan > /dev/null 2>&1
+    s=0
+    while [ $s -lt ${WIFI_SCAN_TRIES:-45} ]; do
+        n=$(wpa_cli -p "$CTRL" -i wlan0 scan_results 2> /dev/null | grep -c '^..:..:..:' || true)
+        if [ "$n" -gt 0 ]; then
+            sleep 0.5
+            [ -f $INPUTD_PAUSE ] && [ "$1" = "$(sed -n 1p $INPUTD_PAUSE)" ] && log "tasti ripresi dopo la prima ricerca delle reti ($n)"
+            inputd_resume "$1"
+            return 0
+        fi
+        sleep 0.2
+        s=$((s + 1))
+    done
 }
 
 case "$1" in
@@ -94,6 +116,7 @@ on)
         wpa_cli -B -P "$EVPID" -p "$CTRL" -i wlan0 -a /usr/arcade/bin/wifi-event > /dev/null 2>&1 9>&-
     fi
     logs "Wi-Fi acceso"
+    ( inputd_after_scan "$tok" ) > /dev/null 2>&1 9>&- &
     ;;
 off)
     inputd_resume ""

@@ -603,7 +603,8 @@
     "password_for": "Password for %s",
     "short": "The password needs at least 8 characters",
     "error": "Couldn't connect: check the password and try again",
-    "already": "You're already connected to this network"
+    "already": "You're already connected to this network",
+    "keys_paused": "Wi-Fi starting: buttons paused"
   },
   "led": {
     "off": "Off",

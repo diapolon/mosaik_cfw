@@ -235,6 +235,34 @@ awk '/exec "\$0" resume "\$tok"/{t=NR} /inputd_pause "\$tok"/{p=NR} END{exit !(t
 awk '/^off\)/{o=1} o&&/inputd_resume ""/{f=1} END{exit !f}' $CTL && ok "spegnendo il Wi-Fi riparte comunque" || ko "off non lo fa ripartire"
 grep -q 'wifi-ctl resume' /trimui/m2/wifi-event && ok "wifi-event lo fa ripartire al collegamento" || ko "wifi-event non lo riprende"
 awk '/inputd_pause "\$tok"/{p=NR} /insmod/{if(p&&!i)i=NR} END{exit !(p&&i>p)}' $CTL && ok "pausa prima di caricare il driver" || ko "pausa dopo il driver"
+# ripresa dopo la prima ricerca delle reti: wpa_cli finto, risultati al terzo controllo
+scan() {   # scan RETI_SALVATE: stampa i comandi di wpa_cli e le chiamate a kill
+    : > $W/kill.log; : > $W/wpa.log; rm -f $W/n; printf 'A\n4242\n' > $W/inputd-pausa
+    [ "$1" = 1 ] && printf 'network={\n}\n' > $W/conf || : > $W/conf
+    (WIFI_I2C=$W/i2c-3 WIFI_INPUTD_PAUSE=$W/inputd-pausa CONF=$W/conf CTRL=/run/wpa WIFI_SCAN_TRIES=${2:-45}
+     log() { echo "$*" >> $W/scan-log; }; sleep() { :; }; kill() { echo "$*" >> $W/kill.log; }
+     wpa_cli() { eval "c=\${$#}"; echo "$c" >> $W/wpa.log
+         if [ "$c" = scan_results ]; then n=$(($(cat $W/n 2>/dev/null || echo 0) + 1)); echo $n > $W/n
+             echo "bssid / frequency / signal level / flags / ssid"
+             [ $n -ge 3 ] && [ "${NORETI:-}" != 1 ] && printf '00:11:22:33:44:55\t2412\t-50\t[WPA2]\tuno\naa:bb:cc:dd:ee:ff\t2437\t-70\t[ESS]\tdue\n'; fi; }
+     . $W/led.sh; inputd_after_scan A)
+}
+: > $W/scan-log; scan 1
+check "dopo la prima ricerca: tasti ripresi" [ "$(cat $W/kill.log)" = "-CONT 4242" ]
+check "con reti salvate nessuna ricerca chiesta" [ "$(grep -c '^scan$' $W/wpa.log)" = 0 ]
+check "registro: tasti ripresi con il numero di reti" grep -q 'prima ricerca delle reti (2)' $W/scan-log
+scan 0
+check "senza reti salvate la ricerca si chiede" [ "$(head -1 $W/wpa.log)" = scan ]
+check "e i tasti riprendono" [ "$(cat $W/kill.log)" = "-CONT 4242" ]
+NORETI=1 scan 1 5
+check "nessuna rete intorno: restano fermi (timer di 10 s)" [ ! -s $W/kill.log ]
+check "nessuna rete intorno: il segno della pausa resta" [ -e $W/inputd-pausa ]
+printf 'B\n4242\n' > $W/inputd-pausa; : > $W/kill.log
+(WIFI_I2C=$W/i2c-3 WIFI_INPUTD_PAUSE=$W/inputd-pausa CONF=$W/conf CTRL=/run/wpa; log() { :; }; sleep() { :; }; kill() { echo "$*" >> $W/kill.log; }
+ wpa_cli() { echo "00:11:22:33:44:55	2412	-50	[ESS]	uno"; }; . $W/led.sh; inputd_after_scan A)
+check "accensione più nuova: non riprende la pausa di un'altra" [ ! -s $W/kill.log ]
+rm -f $W/inputd-pausa
+awk '/logs "Wi-Fi acceso"/{a=NR} /inputd_after_scan "\$tok" \) .*9>&- &/{b=NR} END{exit !(a&&b>a)}' $CTL && ok "controllo della ricerca in fondo, senza il blocco" || ko "controllo della ricerca mancante"
 grep -q 'exec "\$0" resume "\$tok" ) > /dev/null 2>&1 9>&- &' $CTL && ok "il timer non tiene il blocco" || ko "timer con il blocco"
 ! grep -q 'led_pause\|led-anim\|led_anim' $CTL && ok "LED non toccati dal Wi-Fi" || ko "pausa dei LED ancora presente"
 

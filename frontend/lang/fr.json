@@ -603,7 +603,8 @@
     "password_for": "Mot de passe de %s",
     "short": "Le mot de passe doit avoir au moins 8 caractères",
     "error": "Connexion impossible : vérifiez le mot de passe et réessayez",
-    "already": "Tu es déjà connecté à ce réseau"
+    "already": "Tu es déjà connecté à ce réseau",
+    "keys_paused": "Wi-Fi en démarrage : boutons en pause"
   },
   "led": {
     "off": "Éteintes",
