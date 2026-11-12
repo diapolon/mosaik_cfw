@@ -12,8 +12,7 @@
    lang/<lingua>.json accanto al programma, con l'inglese come riserva.
 
    Sul Mac: build/files --root sdcard [--auto "wait:30,shot:/tmp/f.png,quit"] */
-#include "../common/ui.h"
-#include "../common/json.h"
+#include "appkit.h"
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -28,25 +27,6 @@
 #include <time.h>
 #include <unistd.h>
 
-/* ------------------------------------------------------------ testi */
-
-static jval *texts, *texts_en;
-
-static void texts_load(const char *dir) {
-    char p[1200];
-    snprintf(p, sizeof p, "%s/lang/%s.json", dir, UI.set.lang);
-    texts = json_load(p);
-    snprintf(p, sizeof p, "%s/lang/en.json", dir);
-    texts_en = json_load(p);
-}
-
-/* testo dell'app; se manca, quello del sistema (common.*), poi la chiave stessa */
-static const char *FT(const char *key) {
-    const char *s = json_str(texts, key, NULL);
-    if (!s) s = json_str(texts_en, key, NULL);
-    return s ? s : T(key);
-}
-
 /* ------------------------------------------------------------ voci della cartella */
 
 typedef struct {
@@ -55,8 +35,7 @@ typedef struct {
     long long size;
 } ent_t;
 
-static char root[1024];      /* cartella Arcade */
-static char app_dir[1024];   /* cartella dell'app (lang/) */
+#define root app_root
 static char cwd[1024];       /* relativa a root, "" = principale */
 static ent_t *ents;
 static int nents, cap_ents, sel;
@@ -165,12 +144,6 @@ static int marked_count(void) {
     int n = 0;
     for (int i = 0; i < nents; i++) n += ents[i].mark;
     return n;
-}
-
-static void size_text(long long b, char *out, size_t n) {
-    if (b >= 1LL << 30) snprintf(out, n, "%.1f GB", (double)b / (1 << 30));
-    else if (b >= 1 << 20) snprintf(out, n, "%.1f MB", (double)b / (1 << 20));
-    else snprintf(out, n, "%lld KB", (b + 1023) / 1024);
 }
 
 /* ------------------------------------------------------------ lavori: copia, sposta, elimina */
@@ -544,24 +517,13 @@ static void kb_input(void) {
     }
 }
 
-static void panel(int w, int h, int *x, int *y) {
-    theme_t *t = &UI.th;
-    *x = (UI.w - w) / 2;
-    *y = (UI.h - h) / 2;
-    int r = M(t->panel_radius) * 2;
-    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
-    ui_shadow(*x, *y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(*x, *y, w, h, r, with_alpha(t->bg, 255));   /* fondo pieno: in Onda la superficie è trasparente */
-    ui_rrect(*x, *y, w, h, r, t->surface);
-}
-
 static void kb_draw(void) {
     theme_t *t = &UI.th;
     int pad = M(0.035f), key = M(0.085f), gap = M(0.012f);
     int w = pad * 2 + 10 * key + 9 * gap;
     if (w > UI.w - M(0.04f)) { key = (UI.w - M(0.04f) - pad * 2 - 9 * gap) / 10; w = pad * 2 + 10 * key + 9 * gap; }
     int field_h = M(0.075f), h = pad * 2 + field_h + M(0.02f) + 5 * key + 4 * gap, x, y;
-    panel(w, h, &x, &y);
+    app_panel(w, h, &x, &y);
     int fy = y + pad;
     ui_rrect(x + pad, fy, w - 2 * pad, field_h, M(t->panel_radius), with_alpha(t->text_dim, 40));
     TTF_Font *f = UI.f_normal;
@@ -598,7 +560,7 @@ static void menu_draw(void) {
     theme_t *t = &UI.th;
     TTF_Font *f = UI.f_normal;
     int rh = TTF_FontHeight(f) + M(0.03f), pad = M(0.03f), w = M(0.6f), h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.02f) + nmenu * rh, x, y;
-    panel(w, h, &x, &y);
+    app_panel(w, h, &x, &y);
     int n = marked_count();
     char title[300];
     if (n > 1) snprintf(title, sizeof title, FT("files.n_selected"), n);
@@ -622,7 +584,7 @@ static void menu_draw(void) {
 static void job_draw(void) {
     theme_t *t = &UI.th;
     int w = M(0.8f), h = M(0.3f), x, y;
-    panel(w, h, &x, &y);
+    app_panel(w, h, &x, &y);
     char line[300], a[32], b[32];
     snprintf(line, sizeof line, "%s", FT(job.kind == JOB_DELETE ? "files.deleting" : job.kind == JOB_MOVE ? "files.moving" : "files.copying"));
     ui_text(UI.f_title, line, x + w / 2, y + M(0.04f), t->text, ALIGN_CENTER);
@@ -633,8 +595,8 @@ static void job_draw(void) {
     long long tot = job.total, done = job.done;
     ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 60));
     if (tot > 0) ui_rrect(bx, by, (int)((long long)bw * (done < tot ? done : tot) / tot), bh, bh / 2, t->accent);
-    size_text(done, a, sizeof a);
-    size_text(tot, b, sizeof b);
+    app_size(done, a, sizeof a);
+    app_size(tot, b, sizeof b);
     snprintf(line, sizeof line, "%s / %s", a, b);
     if (tot > 0) ui_text(UI.f_small, line, x + w / 2, by + bh + M(0.02f), t->text_dim, ALIGN_CENTER);
     const char *h2[] = { "B", T("common.cancel") };
@@ -678,7 +640,7 @@ static void list_draw(void) {
         size_t l = strlen(path);
         snprintf(path + l, sizeof path - l, " / %.*s", (int)(s - c), c);
     }
-    if (free_bytes >= 0) { size_text(free_bytes, sp, sizeof sp); snprintf(free_s, sizeof free_s, FT("files.free"), sp); }
+    if (free_bytes >= 0) { app_size(free_bytes, sp, sizeof sp); snprintf(free_s, sizeof free_s, FT("files.free"), sp); }
     else free_s[0] = 0;
     int fw = ui_text_w(fs, free_s);
     ui_text(fs, free_s, mx + W, py + (fnh - fsh) / 2, t->text_dim, ALIGN_RIGHT);
@@ -710,7 +672,7 @@ static void list_draw(void) {
             } else icon(ix, ry + (rh - is) / 2, is, e->dir, on ? t->accent_text : e->dir ? t->accent : t->text_dim);
             char right[48];
             if (e->dir) snprintf(right, sizeof right, "%s", "");
-            else size_text(e->size, right, sizeof right);
+            else app_size(e->size, right, sizeof right);
             int rw = ui_text_w(fs, right);
             ui_text(fs, right, mx + W, ry + (rh - fsh) / 2, dc, ALIGN_RIGHT);
             ui_text_fit(fn, e->name, W - is - M(0.03f) - rw - M(0.03f), fit, sizeof fit);
@@ -762,7 +724,7 @@ static void list_input(void) {
                 struct tm tm;
                 localtime_r(&sb.st_mtime, &tm);
                 strftime(when, sizeof when, "%d/%m/%Y %H:%M", &tm);
-                size_text((long long)sb.st_size, sz, sizeof sz);
+                app_size((long long)sb.st_size, sz, sizeof sz);
                 snprintf(msg, sizeof msg, "%s · %s", sz, when);
                 ui_toast(msg);
             }
@@ -771,17 +733,7 @@ static void list_input(void) {
 }
 
 int main(int argc, char **argv) {
-    const char *r = getenv("ROOT"), *auto_script = NULL;
-    for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--root") && i + 1 < argc) r = argv[++i];
-        else if (!strcmp(argv[i], "--auto") && i + 1 < argc) auto_script = argv[++i];
-        else if (!strcmp(argv[i], "--app") && i + 1 < argc) snprintf(app_dir, sizeof app_dir, "%s", argv[++i]);
-    }
-    if (!r) r = "sdcard";
-    if (!realpath(r, root)) snprintf(root, sizeof root, "%s", r);
-    if (!app_dir[0]) snprintf(app_dir, sizeof app_dir, "%s/Apps/files", root);
-    if (!ui_init("files", root, auto_script, 48000, true)) return 1;
-    texts_load(app_dir);
+    if (!app_start(argc, argv, "files")) return 1;
     reload(NULL);
     while (!quit) {
         ui_poll();
@@ -829,7 +781,7 @@ int main(int argc, char **argv) {
             int n = marked_count();
             if (n > 1) snprintf(title, sizeof title, FT("files.delete_n"), n);
             else snprintf(title, sizeof title, FT("files.delete_one"), nents ? ents[sel].name : "");
-            size_text(del_bytes, sz, sizeof sz);
+            app_size(del_bytes, sz, sizeof sz);
             snprintf(body, sizeof body, FT("files.delete_body"), del_files, sz);
             ui_confirm_draw(title, body, T("common.cancel"), FT("files.delete"), ask_sel);
         }

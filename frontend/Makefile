@@ -11,7 +11,7 @@ LDLIBS  += $(shell pkg-config --libs $(PKGS)) -lm
 BUILD   := build
 COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 
-all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files
+all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest
 
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 
@@ -27,8 +27,19 @@ $(BUILD)/gamemenu: $(COMMON) src/tools/gamemenu.c src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) src/tools/gamemenu.c $(LDLIBS)
 
 # app dello Store (pacchetti in Arcade/Apps): Esplora file
-$(BUILD)/files: $(COMMON) src/apps/files.c src/common/*.h | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $(COMMON) src/apps/files.c $(LDLIBS) -lpthread
+APPKIT := src/apps/appkit.c
+
+$(BUILD)/files: $(COMMON) $(APPKIT) src/apps/files.c src/apps/appkit.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/files.c $(LDLIBS) -lpthread
+
+$(BUILD)/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c src/apps/appkit.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c $(LDLIBS) -lz
+
+$(BUILD)/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDLIBS) $(shell pkg-config --libs SDL2_mixer)
+
+$(BUILD)/sdtest: $(COMMON) $(APPKIT) src/apps/sdtest.c src/apps/appkit.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/sdtest.c $(LDLIBS) -lpthread
 
 $(BUILD)/gamewatch: src/tools/gamewatch.c | $(BUILD)
 	$(CC) -std=c11 -O2 -Wall -Wextra -D_DEFAULT_SOURCE -o $@ $<

@@ -1,0 +1,22 @@
+{
+ "music": {
+  "title": "Leitor de música",
+  "empty": "Não há faixas. Copie ficheiros MP3, OGG, FLAC ou WAV para a pasta Music, também em subpastas para os álbuns.",
+  "none": "Não há faixas",
+  "choose": "Escolha uma faixa e prima A",
+  "count": "%d faixas",
+  "paused": "Em pausa",
+  "quit": "Sair",
+  "play": "Tocar",
+  "pause": "Pausa",
+  "repeat": "Repetir",
+  "shuffle": "Aleatório",
+  "screen_off": "Desligar ecrã",
+  "repeat_off": "Repetir: não",
+  "repeat_all": "Repetir: todas",
+  "repeat_one": "Repetir: uma",
+  "shuffle_on": "Aleatório: sim",
+  "shuffle_off": "Aleatório: não",
+  "bad_file": "Faixa ilegível"
+ }
+}

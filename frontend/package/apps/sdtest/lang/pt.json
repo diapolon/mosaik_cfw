@@ -1,0 +1,27 @@
+{
+ "sdtest": {
+  "title": "Teste do cartão SD",
+  "card": "Cartão de %s, %s livres",
+  "quick": "Teste rápido",
+  "quick_desc": "Escreve e relê 256 MB: a velocidade em meio minuto.",
+  "full": "Teste completo",
+  "full_desc": "Enche o espaço livre e relê tudo: deteta cartões falsos ou avariados. Pode durar horas.",
+  "last": "Último teste",
+  "quit": "Sair",
+  "start": "Começar",
+  "writing": "Escrita",
+  "reading": "Leitura e verificação",
+  "remaining": "Faltam cerca de %s",
+  "bad_blocks": "%lld blocos diferentes do que foi escrito",
+  "full_warn": "Mantenha o carregador ligado. No fim os ficheiros de teste apagam-se sozinhos.",
+  "stop": "Parar",
+  "stopped": "Teste interrompido, ficheiros de teste apagados",
+  "error": "Erro de escrita ou leitura: o cartão pode estar avariado.",
+  "charge": "Ligue o carregador para o teste completo",
+  "result": "%s testados: escrita %.1f MB/s, leitura %.1f MB/s. %s",
+  "great": "Cartão rápido.",
+  "good": "Cartão bom.",
+  "slow": "Cartão lento: os jogos em disco podem carregar devagar.",
+  "bad": "Dados danificados: o cartão é falso ou está avariado, copie os seus ficheiros para outro lado."
+ }
+}

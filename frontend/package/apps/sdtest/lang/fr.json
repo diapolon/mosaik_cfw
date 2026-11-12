@@ -1,0 +1,27 @@
+{
+ "sdtest": {
+  "title": "Test de la carte SD",
+  "card": "Carte de %s, %s libres",
+  "quick": "Test rapide",
+  "quick_desc": "Écrit et relit 256 Mo : la vitesse en une demi-minute.",
+  "full": "Test complet",
+  "full_desc": "Remplit l'espace libre et relit tout : détecte les cartes fausses ou défectueuses. Peut durer des heures.",
+  "last": "Dernier test",
+  "quit": "Quitter",
+  "start": "Démarrer",
+  "writing": "Écriture",
+  "reading": "Lecture et vérification",
+  "remaining": "Environ %s restantes",
+  "bad_blocks": "%lld blocs différents de ce qui a été écrit",
+  "full_warn": "Gardez le chargeur branché. Les fichiers de test s'effacent à la fin.",
+  "stop": "Arrêter",
+  "stopped": "Test interrompu, fichiers de test supprimés",
+  "error": "Erreur d'écriture ou de lecture : la carte est peut-être défectueuse.",
+  "charge": "Branchez le chargeur pour le test complet",
+  "result": "%s testés : écriture %.1f Mo/s, lecture %.1f Mo/s. %s",
+  "great": "Carte rapide.",
+  "good": "Bonne carte.",
+  "slow": "Carte lente : les jeux sur disque peuvent charger lentement.",
+  "bad": "Données abîmées : la carte est fausse ou défectueuse, copiez vos fichiers ailleurs."
+ }
+}

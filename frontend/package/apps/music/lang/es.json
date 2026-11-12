@@ -1,0 +1,22 @@
+{
+ "music": {
+  "title": "Reproductor de música",
+  "empty": "No hay pistas. Copia archivos MP3, OGG, FLAC o WAV en la carpeta Music, también en subcarpetas para los álbumes.",
+  "none": "No hay pistas",
+  "choose": "Elige una pista y pulsa A",
+  "count": "%d pistas",
+  "paused": "En pausa",
+  "quit": "Salir",
+  "play": "Reproducir",
+  "pause": "Pausa",
+  "repeat": "Repetir",
+  "shuffle": "Aleatorio",
+  "screen_off": "Apagar pantalla",
+  "repeat_off": "Repetir: no",
+  "repeat_all": "Repetir: todas",
+  "repeat_one": "Repetir: una",
+  "shuffle_on": "Aleatorio: sí",
+  "shuffle_off": "Aleatorio: no",
+  "bad_file": "Pista ilegible"
+ }
+}

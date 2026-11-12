@@ -1,0 +1,10 @@
+{
+ "viewer": {
+  "title": "Imágenes y cómics",
+  "empty": "No hay imágenes aquí. Las imágenes (PNG, JPG) y los cómics .cbz pueden estar en cualquier carpeta, por ejemplo Media.",
+  "quit": "Salir",
+  "open": "Abrir",
+  "bad_comic": "Cómic ilegible",
+  "load_failed": "Imagen ilegible"
+ }
+}

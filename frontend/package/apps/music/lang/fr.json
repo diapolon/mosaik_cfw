@@ -1,0 +1,22 @@
+{
+ "music": {
+  "title": "Lecteur de musique",
+  "empty": "Aucun morceau. Copiez des fichiers MP3, OGG, FLAC ou WAV dans le dossier Music, aussi dans des sous-dossiers pour les albums.",
+  "none": "Aucun morceau",
+  "choose": "Choisissez un morceau et appuyez sur A",
+  "count": "%d morceaux",
+  "paused": "En pause",
+  "quit": "Quitter",
+  "play": "Lire",
+  "pause": "Pause",
+  "repeat": "Répéter",
+  "shuffle": "Aléatoire",
+  "screen_off": "Écran éteint",
+  "repeat_off": "Répéter : non",
+  "repeat_all": "Répéter : tout",
+  "repeat_one": "Répéter : un",
+  "shuffle_on": "Aléatoire : oui",
+  "shuffle_off": "Aléatoire : non",
+  "bad_file": "Morceau illisible"
+ }
+}

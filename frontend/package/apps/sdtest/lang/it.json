@@ -1,0 +1,27 @@
+{
+ "sdtest": {
+  "title": "Test della SD",
+  "card": "Scheda da %s, liberi %s",
+  "quick": "Prova veloce",
+  "quick_desc": "Scrive e rilegge 256 MB: la velocità in mezzo minuto.",
+  "full": "Prova completa",
+  "full_desc": "Riempie lo spazio libero e rilegge tutto: trova le schede false o guaste. Può durare ore.",
+  "last": "Ultima prova",
+  "quit": "Esci",
+  "start": "Inizia",
+  "writing": "Scrittura",
+  "reading": "Lettura e controllo",
+  "remaining": "Mancano circa %s",
+  "bad_blocks": "%lld blocchi diversi da quelli scritti",
+  "full_warn": "Tieni il caricatore collegato. Alla fine i file di prova si cancellano da soli.",
+  "stop": "Ferma",
+  "stopped": "Prova interrotta, file di prova tolti",
+  "error": "Errore di scrittura o di lettura: la scheda potrebbe essere guasta.",
+  "charge": "Per la prova completa collega il caricatore",
+  "result": "%s provati: scrittura %.1f MB/s, lettura %.1f MB/s. %s",
+  "great": "Scheda veloce.",
+  "good": "Scheda buona.",
+  "slow": "Scheda lenta: i giochi su disco possono caricare piano.",
+  "bad": "Dati rovinati: la scheda è falsa o guasta, copia altrove i tuoi file."
+ }
+}

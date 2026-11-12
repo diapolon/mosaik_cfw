@@ -2915,7 +2915,8 @@ static void sto_pkg_art(const store_pkg_t *p, color_t *col, emulator_t *em) {
     memset(em, 0, sizeof *em);
     if (sto_is_app(p)) {   /* app: il suo simbolo, disegnato qui (l'icona arriva solo installandola) */
         snprintf(em->art, sizeof em->art, "@app:%s", p->id);
-        *col = !strcmp(p->id, "files") ? hexc(0x1F6E8C) : hexc(0x4B3C86);
+        *col = !strcmp(p->id, "files") ? hexc(0x1F6E8C) : !strcmp(p->id, "viewer") ? hexc(0x8C4A1F)
+             : !strcmp(p->id, "music") ? hexc(0x7A2E6E) : !strcmp(p->id, "sdtest") ? hexc(0x2E6B3E) : hexc(0x4B3C86);
         return;
     }
     snprintf(em->id, sizeof em->id, "%s", p->emu);
@@ -2941,6 +2942,27 @@ static void sto_art(const emulator_t *em, color_t c, const char *label, int ax, 
         ui_rrect(fx, fy + fh / 8, fw, fh * 7 / 8, r, light);
         ui_rrect(fx + fw / 16, fy + fh / 16, fw * 7 / 8, fh / 2, r / 2, white);
         ui_rrect(fx, fy + fh * 3 / 8, fw, fh * 5 / 8, r, mix(c, white, 0.2f));
+    } else if (!strcmp(em->art, "@app:viewer")) {   /* cornice con monti e sole */
+        int fw = s * 80 / 100, fh = fw * 75 / 100, fx = ax + (aw - fw) / 2, fy = ay + (ah - fh) / 2, b = fw / 14;
+        ui_rrect(fx, fy, fw, fh, fw / 12, white);
+        ui_rrect(fx + b, fy + b, fw - 2 * b, fh - 2 * b, fw / 20, mix(c, white, 0.35f));
+        ui_triangle(fx + b, fy + fh - b, fx + fw * 2 / 5, fy + fh * 2 / 5, fx + fw * 3 / 4, fy + fh - b, mix(c, rgba(0, 0, 0, 255), 0.25f));
+        ui_triangle(fx + fw / 2, fy + fh - b, fx + fw * 2 / 3, fy + fh * 3 / 5, fx + fw - b, fy + fh - b, mix(c, rgba(0, 0, 0, 255), 0.4f));
+        ui_circle(fx + fw * 3 / 4, fy + fh / 3, fw / 12, rgba(255, 196, 60, 255));
+    } else if (!strcmp(em->art, "@app:music")) {   /* due note unite */
+        int u = s / 10, cx = ax + aw / 2, cy = ay + ah / 2;
+        ui_circle(cx - 2 * u, cy + 2 * u, u * 3 / 2, white);
+        ui_circle(cx + 2 * u, cy + u * 3 / 2, u * 3 / 2, white);
+        ui_rect(cx - u / 2, cy - 3 * u, u * 2 / 3, 5 * u, white);
+        ui_rect(cx + 3 * u, cy - 3 * u - u / 2, u * 2 / 3, 5 * u, white);
+        ui_triangle(cx - u / 2, cy - 3 * u, cx + 3 * u + u * 2 / 3, cy - 4 * u, cx + 3 * u + u * 2 / 3, cy - 2 * u - u / 2, white);
+        ui_triangle(cx - u / 2, cy - 3 * u, cx + 3 * u + u * 2 / 3, cy - 2 * u - u / 2, cx - u / 2, cy - u - u / 2, white);
+    } else if (!strcmp(em->art, "@app:sdtest")) {   /* scheda SD con i contatti */
+        int fw = s * 56 / 100, fh = fw * 13 / 10, fx = ax + (aw - fw) / 2, fy = ay + (ah - fh) / 2, cut = fw / 4;
+        ui_rrect(fx, fy + cut, fw, fh - cut, fw / 12, white);
+        ui_rrect(fx + cut, fy, fw - cut, fh / 2, fw / 12, white);
+        ui_triangle(fx, fy + cut, fx + cut, fy, fx + cut, fy + cut, white);
+        for (int k = 0; k < 4; k++) ui_rrect(fx + cut / 2 + k * fw * 2 / 11 + fw / 12, fy + fw / 10, fw / 10, fh / 6, fw / 40, mix(c, white, 0.3f));
     } else if (!strncmp(em->art, "@app:", 5)) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, s * 2 / 3, white, c);
     else draw_emu_art(em, c, label, ax, ay, aw, ah);
 }

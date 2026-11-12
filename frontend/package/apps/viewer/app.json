@@ -1,0 +1,35 @@
+{
+ "title": "Images and comics",
+ "description": "View images, .cbz comics and game manuals, with zoom and page turning.",
+ "author": "Mosaik",
+ "version": "1.0",
+ "env": {
+  "GAMEWATCH_NOMENU": "1"
+ },
+ "texts": {
+  "it": {
+   "title": "Immagini e fumetti",
+   "description": "Guarda immagini, fumetti .cbz e manuali dei giochi, con zoom e cambio pagina."
+  },
+  "en": {
+   "title": "Images and comics",
+   "description": "View images, .cbz comics and game manuals, with zoom and page turning."
+  },
+  "de": {
+   "title": "Bilder und Comics",
+   "description": "Bilder, .cbz-Comics und Spielanleitungen ansehen, mit Zoom und Blättern."
+  },
+  "es": {
+   "title": "Imágenes y cómics",
+   "description": "Mira imágenes, cómics .cbz y manuales de juegos, con zoom y cambio de página."
+  },
+  "fr": {
+   "title": "Images et BD",
+   "description": "Affichez images, BD .cbz et manuels de jeux, avec zoom et changement de page."
+  },
+  "pt": {
+   "title": "Imagens e BD",
+   "description": "Veja imagens, BD .cbz e manuais de jogos, com zoom e mudança de página."
+  }
+ }
+}

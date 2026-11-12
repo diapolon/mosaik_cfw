@@ -1,0 +1,35 @@
+{
+ "title": "SD card test",
+ "description": "Measures the card's speed and finds fake or failing cards.",
+ "author": "Mosaik",
+ "version": "1.0",
+ "env": {
+  "GAMEWATCH_NOMENU": "1"
+ },
+ "texts": {
+  "it": {
+   "title": "Test della SD",
+   "description": "Misura la velocità della scheda e scopre le schede false o guaste."
+  },
+  "en": {
+   "title": "SD card test",
+   "description": "Measures the card's speed and finds fake or failing cards."
+  },
+  "de": {
+   "title": "SD-Kartentest",
+   "description": "Misst die Geschwindigkeit der Karte und erkennt gefälschte oder defekte Karten."
+  },
+  "es": {
+   "title": "Prueba de la SD",
+   "description": "Mide la velocidad de la tarjeta y detecta tarjetas falsas o averiadas."
+  },
+  "fr": {
+   "title": "Test de la carte SD",
+   "description": "Mesure la vitesse de la carte et détecte les cartes fausses ou défectueuses."
+  },
+  "pt": {
+   "title": "Teste do cartão SD",
+   "description": "Mede a velocidade do cartão e deteta cartões falsos ou avariados."
+  }
+ }
+}

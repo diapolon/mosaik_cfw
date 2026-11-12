@@ -1,0 +1,10 @@
+{
+ "viewer": {
+  "title": "Immagini e fumetti",
+  "empty": "Nessuna immagine qui. Le immagini (PNG, JPG) e i fumetti .cbz possono stare in qualsiasi cartella, per esempio Media.",
+  "quit": "Esci",
+  "open": "Apri",
+  "bad_comic": "Fumetto non leggibile",
+  "load_failed": "Immagine non leggibile"
+ }
+}

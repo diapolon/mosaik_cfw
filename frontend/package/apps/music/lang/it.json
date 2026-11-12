@@ -1,0 +1,22 @@
+{
+ "music": {
+  "title": "Lettore musicale",
+  "empty": "Nessun brano. Copia MP3, OGG, FLAC o WAV nella cartella Music, anche in sottocartelle per gli album.",
+  "none": "Nessun brano",
+  "choose": "Scegli un brano e premi A",
+  "count": "%d brani",
+  "paused": "In pausa",
+  "quit": "Esci",
+  "play": "Suona",
+  "pause": "Pausa",
+  "repeat": "Ripeti",
+  "shuffle": "Casuale",
+  "screen_off": "Schermo spento",
+  "repeat_off": "Ripeti: no",
+  "repeat_all": "Ripeti: tutti",
+  "repeat_one": "Ripeti: uno",
+  "shuffle_on": "Casuale: sì",
+  "shuffle_off": "Casuale: no",
+  "bad_file": "Brano non leggibile"
+ }
+}

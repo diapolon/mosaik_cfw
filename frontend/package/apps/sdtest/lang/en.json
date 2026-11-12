@@ -1,0 +1,27 @@
+{
+ "sdtest": {
+  "title": "SD card test",
+  "card": "%s card, %s free",
+  "quick": "Quick test",
+  "quick_desc": "Writes and reads back 256 MB: the speed in half a minute.",
+  "full": "Full test",
+  "full_desc": "Fills the free space and reads it all back: finds fake or failing cards. It can take hours.",
+  "last": "Last test",
+  "quit": "Quit",
+  "start": "Start",
+  "writing": "Writing",
+  "reading": "Reading and checking",
+  "remaining": "About %s left",
+  "bad_blocks": "%lld blocks differ from what was written",
+  "full_warn": "Keep the charger connected. The test files delete themselves at the end.",
+  "stop": "Stop",
+  "stopped": "Test stopped, test files removed",
+  "error": "Write or read error: the card may be failing.",
+  "charge": "Connect the charger for the full test",
+  "result": "%s tested: write %.1f MB/s, read %.1f MB/s. %s",
+  "great": "Fast card.",
+  "good": "Good card.",
+  "slow": "Slow card: disc games may load slowly.",
+  "bad": "Damaged data: the card is fake or failing, copy your files elsewhere."
+ }
+}

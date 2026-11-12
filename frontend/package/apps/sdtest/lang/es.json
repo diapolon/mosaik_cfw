@@ -1,0 +1,27 @@
+{
+ "sdtest": {
+  "title": "Prueba de la SD",
+  "card": "Tarjeta de %s, %s libres",
+  "quick": "Prueba rápida",
+  "quick_desc": "Escribe y relee 256 MB: la velocidad en medio minuto.",
+  "full": "Prueba completa",
+  "full_desc": "Llena el espacio libre y lo relee todo: detecta tarjetas falsas o averiadas. Puede durar horas.",
+  "last": "Última prueba",
+  "quit": "Salir",
+  "start": "Empezar",
+  "writing": "Escritura",
+  "reading": "Lectura y comprobación",
+  "remaining": "Faltan unos %s",
+  "bad_blocks": "%lld bloques distintos de lo escrito",
+  "full_warn": "Mantén el cargador conectado. Al final los archivos de prueba se borran solos.",
+  "stop": "Parar",
+  "stopped": "Prueba interrumpida, archivos de prueba borrados",
+  "error": "Error de escritura o lectura: la tarjeta podría estar averiada.",
+  "charge": "Conecta el cargador para la prueba completa",
+  "result": "%s probados: escritura %.1f MB/s, lectura %.1f MB/s. %s",
+  "great": "Tarjeta rápida.",
+  "good": "Tarjeta buena.",
+  "slow": "Tarjeta lenta: los juegos en disco pueden cargar despacio.",
+  "bad": "Datos dañados: la tarjeta es falsa o está averiada, copia tus archivos en otro lugar."
+ }
+}

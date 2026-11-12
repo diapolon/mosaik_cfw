@@ -1,0 +1,10 @@
+{
+ "viewer": {
+  "title": "Images and comics",
+  "empty": "No images here. Images (PNG, JPG) and .cbz comics can be in any folder, for example Media.",
+  "quit": "Quit",
+  "open": "Open",
+  "bad_comic": "Comic can't be read",
+  "load_failed": "Image can't be read"
+ }
+}

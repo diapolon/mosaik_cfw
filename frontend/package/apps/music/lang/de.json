@@ -1,0 +1,22 @@
+{
+ "music": {
+  "title": "Musikplayer",
+  "empty": "Keine Titel. MP3-, OGG-, FLAC- oder WAV-Dateien in den Ordner Music kopieren, auch in Unterordner für Alben.",
+  "none": "Keine Titel",
+  "choose": "Titel wählen und A drücken",
+  "count": "%d Titel",
+  "paused": "Pausiert",
+  "quit": "Beenden",
+  "play": "Abspielen",
+  "pause": "Pause",
+  "repeat": "Wiederholen",
+  "shuffle": "Zufall",
+  "screen_off": "Bildschirm aus",
+  "repeat_off": "Wiederholen: aus",
+  "repeat_all": "Wiederholen: alle",
+  "repeat_one": "Wiederholen: einen",
+  "shuffle_on": "Zufall: an",
+  "shuffle_off": "Zufall: aus",
+  "bad_file": "Titel nicht abspielbar"
+ }
+}

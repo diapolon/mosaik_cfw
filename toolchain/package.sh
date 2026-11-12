@@ -76,6 +76,9 @@ app() {   # app NOME: frontend/package/apps/NOME più il programma compilato dis
     chmod +x "$PKG/$1/Apps/$1/$1" "$PKG/$1/Apps/$1/launch.sh"
 }
 app files
+app viewer
+app music
+app sdtest
 cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"

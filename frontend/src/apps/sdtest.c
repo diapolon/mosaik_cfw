@@ -1,0 +1,325 @@
+/* Test della SD: app di Mosaik, pacchetto dello Store (Arcade/Apps/sdtest).
+
+   Prova veloce: scrive 256 MB e li rilegge, per la velocità. Prova completa: riempie lo spazio
+   libero (ne lascia sempre 256 MB al sistema) con file da 1 GB, li rilegge e controlla ogni
+   blocco: una scheda falsa, che dichiara più spazio di quanto ne ha, o una scheda guasta danno
+   dati diversi da quelli scritti. I dati sono una sequenza pseudocasuale che dipende solo dalla
+   posizione, così per controllarli non serve tenerli in memoria. Si scrive in Arcade/.sdtest,
+   che alla fine (anche interrompendo con B) si toglie; prima di rileggere si svuota la cache del
+   sistema, altrimenti la lettura misurerebbe la memoria e non la scheda. L'ultimo risultato
+   resta in last.txt accanto al programma.
+
+   Sul Mac: build/sdtest --root sdcard --app package/apps/sdtest [--auto "..."] */
+#include "appkit.h"
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <time.h>
+#include <unistd.h>
+
+#define BLOCK (4u << 20)                  /* 4 MB per scrittura e controllo */
+#define FILE_BYTES (1024LL << 20)         /* file da 1 GB (il FAT arriva a 4) */
+#define QUICK_BYTES (256LL << 20)
+#define RESERVE (256LL << 20)             /* spazio lasciato al sistema nella prova completa */
+
+enum { PH_IDLE, PH_WRITE, PH_READ, PH_DONE };
+static struct {
+    _Atomic int phase;
+    _Atomic bool cancel, full;
+    _Atomic long long done, total;      /* byte della fase in corso */
+    _Atomic long long bad;              /* blocchi diversi da quelli scritti */
+    _Atomic long long first_bad;        /* primo byte rovinato, -1 nessuno */
+    double t0, write_s, read_s;         /* tempi (s) */
+    long long tested;                   /* byte scritti e riletti */
+    bool error;                         /* errore di scrittura o lettura */
+    char msg[160];
+} job;
+static pthread_t thr;
+static bool thr_on, quit;
+static int sel;
+static long long card_total, card_free;
+static char last[300];
+
+static double now_s(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
+static void space(void) {
+    struct statvfs v;
+    if (statvfs(app_root, &v) == 0) {
+        card_total = (long long)v.f_blocks * (long long)v.f_frsize;
+        card_free = (long long)v.f_bavail * (long long)v.f_frsize;
+    }
+}
+
+/* dati del blocco n: xorshift64 con il seme dal numero del blocco */
+static void fill(uint64_t *b, long long n) {
+    uint64_t x = 0x9E3779B97F4A7C15ULL ^ ((uint64_t)n * 0xD1B54A32D192ED03ULL);
+    for (size_t i = 0; i < BLOCK / 8; i++) {
+        x ^= x << 13; x ^= x >> 7; x ^= x << 17;
+        b[i] = x ^ (uint64_t)i;
+    }
+}
+
+static void test_dir(char *out, size_t n) { snprintf(out, n, "%s/.sdtest", app_root); }
+
+static void cleanup(void) {
+    char d[1100], p[1300];
+    test_dir(d, sizeof d);
+    DIR *dd = opendir(d);
+    struct dirent *e;
+    while (dd && (e = readdir(dd))) {
+        if (e->d_name[0] == '.') continue;
+        snprintf(p, sizeof p, "%s/%s", d, e->d_name);
+        unlink(p);
+    }
+    if (dd) closedir(dd);
+    rmdir(d);
+    sync();
+}
+
+/* la cache dei file si svuota (serve root, sulla console c'è): la lettura arriva dalla scheda */
+static void drop_caches(void) {
+    sync();
+    FILE *f = fopen("/proc/sys/vm/drop_caches", "w");
+    if (f) { fputs("3\n", f); fclose(f); }
+}
+
+static void *worker(void *arg) {
+    (void)arg;
+    uint64_t *buf = malloc(BLOCK), *rd = malloc(BLOCK);
+    char d[1100], p[1300];
+    test_dir(d, sizeof d);
+    cleanup();
+    mkdir(d, 0755);
+    space();
+    long long want = job.full ? card_free - RESERVE : QUICK_BYTES;
+    want -= want % BLOCK;
+    if (!buf || !rd || want < (long long)BLOCK) { job.error = true; snprintf(job.msg, sizeof job.msg, "%s", "spazio"); goto end; }
+    /* scrittura */
+    job.phase = PH_WRITE;
+    job.total = want;
+    job.done = 0;
+    job.t0 = now_s();
+    long long blk = 0;
+    for (int fi = 0; job.done < want && !job.cancel; fi++) {
+        snprintf(p, sizeof p, "%s/%04d.bin", d, fi);
+        int fd = open(p, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0) { job.error = true; break; }
+        long long in_file = 0;
+        while (in_file < FILE_BYTES && job.done < want && !job.cancel) {
+            fill(buf, blk++);
+            ssize_t w = write(fd, buf, BLOCK);
+            if (w != (ssize_t)BLOCK) { job.error = true; break; }
+            in_file += BLOCK;
+            job.done += BLOCK;
+        }
+        if (fsync(fd) != 0) job.error = true;
+        close(fd);
+        if (job.error) break;
+    }
+    job.write_s = now_s() - job.t0;
+    long long written = job.done;
+    if (job.cancel || job.error) goto end;
+    /* lettura e controllo */
+    drop_caches();
+    job.phase = PH_READ;
+    job.total = written;
+    job.done = 0;
+    job.t0 = now_s();
+    blk = 0;
+    for (int fi = 0; job.done < written && !job.cancel; fi++) {
+        snprintf(p, sizeof p, "%s/%04d.bin", d, fi);
+        int fd = open(p, O_RDONLY);
+        if (fd < 0) { job.error = true; break; }
+        long long in_file = 0;
+        while (in_file < FILE_BYTES && job.done < written && !job.cancel) {
+            ssize_t r = 0;
+            for (ssize_t got; r < (ssize_t)BLOCK; r += got)
+                if ((got = read(fd, (char *)rd + r, BLOCK - (size_t)r)) <= 0) break;
+            fill(buf, blk++);
+            if (r != (ssize_t)BLOCK || memcmp(buf, rd, BLOCK)) {
+                if (job.first_bad < 0) job.first_bad = job.done;
+                job.bad++;
+            }
+            in_file += BLOCK;
+            job.done += BLOCK;
+        }
+        close(fd);
+    }
+    job.read_s = now_s() - job.t0;
+    job.tested = job.cancel ? 0 : written;
+end:
+    free(buf);
+    free(rd);
+    cleanup();
+    space();
+    job.phase = PH_DONE;
+    return NULL;
+}
+
+static void start(bool full) {
+    memset((void *)&job, 0, sizeof job);
+    job.full = full;
+    job.first_bad = -1;
+    job.phase = PH_WRITE;
+    ui_log("sd: prova %s, libero %lld MB", full ? "completa" : "veloce", card_free >> 20);
+    thr_on = pthread_create(&thr, NULL, worker, NULL) == 0;
+    if (!thr_on) job.phase = PH_IDLE;
+}
+
+/* ------------------------------------------------------------ risultato */
+
+static double mbs(long long b, double s) { return s > 0 ? (double)b / (1 << 20) / s : 0; }
+
+static void result_text(char *out, size_t n) {
+    char sz[32];
+    app_size(job.tested, sz, sizeof sz);
+    double w = mbs(job.tested, job.write_s), r = mbs(job.tested, job.read_s);
+    const char *verdict = job.bad ? FT("sdtest.bad") : w >= 30 && r >= 70 ? FT("sdtest.great") : w >= 12 && r >= 40 ? FT("sdtest.good") : FT("sdtest.slow");
+    snprintf(out, n, FT("sdtest.result"), sz, w, r, verdict);
+}
+
+static void last_save(const char *s) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/last.txt", app_dir);
+    FILE *f = fopen(p, "w");
+    if (f) { fprintf(f, "%s\n", s); fclose(f); }
+}
+
+static void last_load(void) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/last.txt", app_dir);
+    FILE *f = fopen(p, "r");
+    if (f) { if (!fgets(last, sizeof last, f)) last[0] = 0; fclose(f); }
+    last[strcspn(last, "\r\n")] = 0;
+}
+
+/* ------------------------------------------------------------ disegno */
+
+static void hms(double s, char *out, size_t n) {
+    int t = (int)s;
+    if (t >= 3600) snprintf(out, n, "%d h %02d min", t / 3600, t / 60 % 60);
+    else snprintf(out, n, "%d min %02d s", t / 60, t % 60);
+}
+
+static void draw_idle(void) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx;
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small, *ft = UI.f_title;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), fth = TTF_FontHeight(ft);
+    int y = M(t->topbar_h) + M(0.025f);
+    char a[32], b[32], line[300];
+    app_size(card_total, a, sizeof a);
+    app_size(card_free, b, sizeof b);
+    snprintf(line, sizeof line, FT("sdtest.card"), a, b);
+    ui_text(fn, line, mx, y, t->accent, ALIGN_LEFT);
+    y += fnh + M(0.03f);
+    static const char *k[2][2] = { { "sdtest.quick", "sdtest.quick_desc" }, { "sdtest.full", "sdtest.full_desc" } };
+    int bh = fth + 2 * fsh + M(0.04f);
+    for (int i = 0; i < 2; i++, y += bh + M(0.02f)) {
+        bool on = i == sel;
+        ui_rrect(mx, y, W, bh, M(t->panel_radius), on ? t->accent : with_alpha(t->text_dim, 35));
+        ui_text(ft, FT(k[i][0]), mx + M(0.025f), y + M(0.015f), on ? t->accent_text : t->text, ALIGN_LEFT);
+        char lines[2][160];
+        int n = ui_wrap(fs, FT(k[i][1]), W - M(0.05f), lines, 2);
+        for (int l = 0; l < n; l++) ui_text(fs, lines[l], mx + M(0.025f), y + M(0.015f) + fth + l * fsh, on ? t->accent_text : t->text_dim, ALIGN_LEFT);
+    }
+    if (last[0]) {   /* l'ultima prova */
+        y += M(0.01f);
+        ui_text(fs, FT("sdtest.last"), mx, y, t->text_dim, ALIGN_LEFT);
+        char lines[3][160];
+        int n = ui_wrap(fn, last, W, lines, 3);
+        for (int l = 0; l < n; l++) ui_text(fn, lines[l], mx, y + fsh + l * fnh, t->text, ALIGN_LEFT);
+    }
+    const char *h[] = { "B", FT("sdtest.quit"), NULL, "A", FT("sdtest.start"), NULL };
+    ui_keybar(h, 6);
+}
+
+static void draw_run(void) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx;
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small, *ft = UI.f_title;
+    int fsh = TTF_FontHeight(fs), fth = TTF_FontHeight(ft);
+    int y = M(t->topbar_h) + M(0.06f);
+    int ph = job.phase;
+    ui_text(ft, FT(ph == PH_READ ? "sdtest.reading" : "sdtest.writing"), mx, y, t->text, ALIGN_LEFT);
+    y += fth + M(0.03f);
+    long long done = job.done, tot = job.total;
+    double el = now_s() - job.t0, sp = mbs(done, el);
+    int bh = M(0.02f);
+    ui_rrect(mx, y, W, bh, bh / 2, with_alpha(t->text_dim, 60));
+    if (tot > 0) ui_rrect(mx, y, (int)((long long)W * (done < tot ? done : tot) / tot), bh, bh / 2, t->accent);
+    y += bh + M(0.025f);
+    char a[32], b[32], c[32], line[300];
+    app_size(done, a, sizeof a);
+    app_size(tot, b, sizeof b);
+    snprintf(line, sizeof line, "%s / %s  ·  %.1f MB/s", a, b, sp);
+    ui_text(fn, line, mx, y, t->text, ALIGN_LEFT);
+    y += TTF_FontHeight(fn) + M(0.015f);
+    if (sp > 0 && tot > done) {
+        hms((double)(tot - done) / (1 << 20) / sp, c, sizeof c);
+        snprintf(line, sizeof line, FT("sdtest.remaining"), c);
+        ui_text(fs, line, mx, y, t->text_dim, ALIGN_LEFT);
+    }
+    y += fsh + M(0.03f);
+    if (job.bad) {
+        snprintf(line, sizeof line, FT("sdtest.bad_blocks"), (long long)job.bad);
+        ui_text(fn, line, mx, y, rgba(220, 70, 70, 255), ALIGN_LEFT);
+    }
+    if (job.full) {
+        char lines[2][160];
+        int n = ui_wrap(fs, FT("sdtest.full_warn"), W, lines, 2);
+        for (int l = 0; l < n; l++) ui_text(fs, lines[l], mx, UI.h - ui_keybar_h() - M(0.02f) - (n - l) * fsh, t->text_dim, ALIGN_LEFT);
+    }
+    const char *h[] = { "B", FT("sdtest.stop"), NULL };
+    ui_keybar(h, 3);
+}
+
+int main(int argc, char **argv) {
+    if (!app_start(argc, argv, "sdtest")) return 1;
+    cleanup();   /* avanzi di una prova interrotta da uno spegnimento */
+    space();
+    last_load();
+    while (!quit) {
+        ui_poll();
+        if (UI.in.quit) break;
+        UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch */
+        input_t *in = &UI.in;
+        int ph = job.phase;
+        if (ph == PH_IDLE) {
+            if (in->pressed[BTN_UP] || in->pressed[BTN_DOWN]) { sel = !sel; ui_sound(SND_MOVE); }
+            if (in->pressed[BTN_B] || in->pressed[BTN_MENU]) quit = true;
+            else if (in->pressed[BTN_A]) {
+                bool charging;
+                int bat = ui_battery(&charging);
+                if (sel == 1 && !charging && bat >= 0 && bat < 50) { ui_toast(FT("sdtest.charge")); ui_sound(SND_ERROR); }
+                else { ui_sound(SND_OK); start(sel == 1); }
+            }
+        } else if (ph == PH_DONE) {
+            if (thr_on) { pthread_join(thr, NULL); thr_on = false; }
+            if (job.cancel) { ui_toast(FT("sdtest.stopped")); snprintf(last, sizeof last, "%s", ""); last_load(); }
+            else if (job.error) { snprintf(last, sizeof last, "%s", FT("sdtest.error")); last_save(last); }
+            else { result_text(last, sizeof last); last_save(last); }
+            ui_log("sd: %s (rovinati %lld, primo %lld)", job.cancel ? "interrotta" : last, (long long)job.bad, (long long)job.first_bad);
+            job.phase = PH_IDLE;
+        } else if (in->pressed[BTN_B]) { job.cancel = true; ui_sound(SND_BACK); }
+        ui_begin();
+        ui_topbar(FT("sdtest.title"));
+        if (job.phase == PH_IDLE) draw_idle(); else draw_run();
+        ui_end();
+    }
+    if (thr_on) { job.cancel = true; pthread_join(thr, NULL); }
+    ui_shutdown();
+    return 0;
+}

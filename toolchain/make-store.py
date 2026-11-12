@@ -45,6 +45,9 @@ PACKAGES = {
     "pcsx": ("PCSX ReARMed", "pcsx", "console"),
     "deadcast": ("Deadcast", None, "console"),
     "files": ("Files", None, "apps"),   # app: nome, versione e traduzioni da Apps/<id>/app.json
+    "viewer": ("Images and comics", None, "apps"),
+    "music": ("Music player", None, "apps"),
+    "sdtest": ("SD card test", None, "apps"),
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")
