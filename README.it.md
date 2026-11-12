@@ -217,7 +217,7 @@ In **Impostazioni → Scheda e dati** ci sono anche **Reimposta impostazioni** (
 
 ## Sostieni Mosaik
 
-Mosaik è gratis e resterà gratis. Se ti piace e vuoi aiutarne lo sviluppo, puoi fare una donazione con [PayPal](https://www.paypal.me/diapolonRS): grazie! Sulla console, **Impostazioni → Aggiornamenti → Sostieni Mosaik** mostra un codice QR per aprire la stessa pagina dal telefono.
+Mosaik è gratis e resterà gratis. Se ti piace e vuoi aiutarne lo sviluppo, puoi fare una donazione con [PayPal](https://www.paypal.me/diapolonRS): grazie! Sulla console, il pulsante **Sostieni Mosaik** in alto nelle impostazioni (tasto **Y**) mostra un codice QR per aprire la stessa pagina dal telefono.
 
 ## Compilare
 

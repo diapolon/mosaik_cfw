@@ -3774,6 +3774,7 @@ static void support_draw(void) {
     if (qs > w * 40 / 100) qs = w * 40 / 100;
     int bw = w - 3 * pad - qs, cy = y + pad;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, with_alpha(t->bg, 255));   /* fondo pieno: in Onda la superficie è trasparente */
     ui_rrect(x, y, w, h, r, t->surface);
     ui_text(ft, T("support.title"), lx, cy, t->text, ALIGN_LEFT);
     cy += fth + M(0.02f);
@@ -4447,6 +4448,8 @@ static void settings_input(void) {
     }
     if (set_row >= n) set_row = n - 1;
     set_sel = rows[set_row];
+    /* Sostieni Mosaik: Y dalla pagina iniziale delle impostazioni (in Onda da ogni sezione) */
+    if ((set_page < 0 || is_bar_layout()) && in->pressed[BTN_Y]) { support_open = true; ui_sound(SND_OK); return; }
     if (grid) {
         if (in->pressed[BTN_A]) { settings_open(set_sel - ROW_CAT, 0); ui_sound(SND_OK); }
         else if (in->pressed[BTN_B] || in->pressed[BTN_START]) { go(back_screen == SCR_SETTINGS ? SCR_HOME : back_screen); ui_sound(SND_BACK); }
@@ -4711,6 +4714,17 @@ static void settings_draw(void) {
     TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
     int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
     home_title(set_page < 0 || onda ? T("settings.title") : set_cat_title(ROW_CAT + set_page), y, t->text);
+    if (set_page < 0 || onda) {   /* Sostieni Mosaik, ben visibile: a destra del titolo, si apre con Y */
+        const char *lab = T("support.title");
+        int fnh = TTF_FontHeight(fn), ph = fnh + M(0.018f), d = ph - M(0.014f), pw = M(0.016f) + d + M(0.014f) + ui_text_w(fn, lab) + M(0.024f);
+        int px = UI.w - mx - pw, py = y + (TTF_FontHeight(UI.f_title) - ph) / 2;
+        ui_rrect(px, py, pw, ph, ph / 2, with_alpha(t->accent, 40));
+        ui_rborder(px, py, pw, ph, ph / 2, M(0.003f) + 1, t->accent);
+        int cx = px + M(0.016f);
+        ui_rrect(cx, py + (ph - d) / 2, d, d, d / 2, t->accent);
+        ui_text(fs, "Y", cx + d / 2, py + (ph - TTF_FontHeight(fs)) / 2, t->accent_text, ALIGN_CENTER);
+        ui_text(fn, lab, cx + d + M(0.014f), py + (ph - fnh) / 2, t->accent, ALIGN_LEFT);
+    }
     y += TTF_FontHeight(UI.f_title) + M(0.03f);
     if (set_page < 0) {
         if (is_list_layout()) settings_draw_menu(y, bottom); else settings_draw_grid(y, bottom);

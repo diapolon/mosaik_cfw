@@ -217,7 +217,7 @@ To update, open **Settings → Updates → Update system** and choose **Download
 
 ## Support Mosaik
 
-Mosaik is free and will stay free. If you enjoy it and want to help its development, you can make a donation with [PayPal](https://www.paypal.me/diapolonRS): thank you! On the console, **Settings → Updates → Support Mosaik** shows a QR code to open the same page from your phone.
+Mosaik is free and will stay free. If you enjoy it and want to help its development, you can make a donation with [PayPal](https://www.paypal.me/diapolonRS): thank you! On the console, the **Support Mosaik** button at the top of the settings (press **Y**) shows a QR code to open the same page from your phone.
 
 ## Building
 
