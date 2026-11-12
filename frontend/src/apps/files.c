@@ -94,18 +94,19 @@ static void reload(const char *keep) {
     char p[1300];
     full(p, sizeof p, cwd);
     nents = 0;
+    bool cut = false;   /* nome troppo lungo o memoria finita: l'elenco non è intero e si dice */
     DIR *d = opendir(p);
     struct dirent *e;
     while (d && (e = readdir(d))) {
         if (hidden(cwd, e->d_name) || !strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
         char q[1600];
         struct stat sb;
-        snprintf(q, sizeof q, "%s/%s", p, e->d_name);
+        if (snprintf(q, sizeof q, "%s/%s", p, e->d_name) >= (int)sizeof q || strlen(e->d_name) >= sizeof ents[0].name) { cut = true; continue; }
         if (stat(q, &sb) != 0) continue;
         if (nents == cap_ents) {
             int nc = cap_ents ? cap_ents * 2 : 256;
             ent_t *ne = realloc(ents, (size_t)nc * sizeof *ne);
-            if (!ne) break;
+            if (!ne) { cut = true; break; }
             ents = ne;
             cap_ents = nc;
         }
@@ -116,6 +117,7 @@ static void reload(const char *keep) {
         x->size = x->dir ? 0 : (long long)sb.st_size;
     }
     if (d) closedir(d);
+    if (cut) { ui_log("file: elenco di %s incompleto", cwd); ui_toast(FT("files.list_incomplete")); }
     if (nents > 1) qsort(ents, (size_t)nents, sizeof *ents, ent_cmp);
     if (sel >= nents) sel = nents ? nents - 1 : 0;
     for (int i = 0; keep && i < nents; i++)
@@ -569,6 +571,40 @@ static bool name_ok(const char *s) {
     return s[n - 1] != '.' && s[n - 1] != ' ' && s[0] != ' ';
 }
 
+/* Rinomina di sole maiuscole: il passaggio intermedio si annota in Apps/files/rinomina.txt
+   (temporaneo, nome di prima) prima di farlo. Se la corrente manca a metà, alla prossima apertura
+   il file torna al nome di prima (verifica audit APP-006). */
+static void rename_note(const char *tmp, const char *orig) {
+    char j[1200], jt[1300];
+    snprintf(j, sizeof j, "%s/rinomina.txt", app_dir);
+    snprintf(jt, sizeof jt, "%s.tmp", j);
+    if (!tmp) { unlink(j); return; }
+    FILE *f = fopen(jt, "w");
+    bool ok = f && fprintf(f, "%s\n%s\n", tmp, orig) > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (f && fclose(f) != 0) ok = false;
+    if (ok) rename(jt, j); else unlink(jt);
+}
+
+static void rename_recover(void) {
+    char j[1200], tmp[1600] = "", orig[1600] = "";
+    snprintf(j, sizeof j, "%s/rinomina.txt", app_dir);
+    FILE *f = fopen(j, "r");
+    if (!f) return;
+    bool got = fgets(tmp, sizeof tmp, f) && fgets(orig, sizeof orig, f);
+    fclose(f);
+    tmp[strcspn(tmp, "\n")] = 0;
+    orig[strcspn(orig, "\n")] = 0;
+    /* solo un temporaneo nostro, dentro la scheda */
+    bool ours = got && strstr(tmp, "/.rinomina-") && !strncmp(tmp, app_root, strlen(app_root)) && !strncmp(orig, app_root, strlen(app_root));
+    if (ours && access(tmp, F_OK) == 0 && access(orig, F_OK) != 0) {
+        int r = rename(tmp, orig);
+        ui_log("file: rinomina interrotta, rimesso %s: %s", orig, r == 0 ? "fatto" : strerror(errno));
+        if (r != 0) return;   /* si riprova alla prossima apertura */
+        sync();
+    }
+    unlink(j);
+}
+
 static void kb_done(void) {
     if (!name_ok(kb_text)) { toast("files.bad_name"); ui_sound(SND_ERROR); return; }
     char base[1300], p[1600], q[1600];
@@ -590,9 +626,11 @@ static void kb_done(void) {
                 snprintf(t, sizeof t, "%s/.rinomina-%d-%d.tmp", base, (int)getpid(), k);
                 if (access(t, F_OK) != 0) { ok = true; break; }
             }
+            if (ok) rename_note(t, p);
             if (ok && rename(p, t) == 0) {
-                if (rename(t, q) != 0) { rename(t, p); ok = false; }
-            } else ok = false;
+                if (rename(t, q) != 0) { ok = false; if (rename(t, p) != 0) ui_log("file: %s resta come %s, si rimette alla prossima apertura", p, t); else rename_note(NULL, NULL); }
+                else rename_note(NULL, NULL);
+            } else { ok = false; rename_note(NULL, NULL); }
         } else ok = access(q, F_OK) != 0 && rename(p, q) == 0;
     }
     ui_log("file: %s %s/%s: %s", kb_new ? "nuova cartella" : "rinomino in", cwd, kb_text, ok ? "fatto" : "errore");
@@ -862,6 +900,7 @@ static void list_input(void) {
 
 int main(int argc, char **argv) {
     if (!app_start(argc, argv, "files")) return 1;
+    rename_recover();
     reload(NULL);
     while (!quit) {
         ui_poll();

@@ -42,6 +42,9 @@ static struct {
     double t0, write_s, read_s;         /* tempi (s) */
     long long tested;                   /* byte scritti e riletti */
     bool error;                         /* errore di scrittura o lettura */
+    bool no_space;                      /* lo spazio non basta più (o non si legge) al momento di partire */
+    bool clean_failed;                  /* file di prova rimasti nella cartella .sdtest */
+    int first_errno;                    /* primo errore del sistema, per il log */
     char msg[160];
 } job;
 static pthread_t thr;
@@ -69,13 +72,15 @@ static double now_s(void) {
     return ts.tv_sec + ts.tv_nsec / 1e9;
 }
 
-static void space(void) {
+/* falso se lo spazio non si legge: allora vale -1 e nessuna prova parte (verifica audit APP-009) */
+static bool space(void) {
     struct statvfs v;
-    if (statvfs(app_root, &v) == 0) {
-        card_total = (long long)v.f_blocks * (long long)v.f_frsize;
-        card_free = (long long)v.f_bavail * (long long)v.f_frsize;
-    }
+    if (statvfs(app_root, &v) != 0) { card_free = -1; return false; }
+    card_total = (long long)v.f_blocks * (long long)v.f_frsize;
+    card_free = (long long)v.f_bavail * (long long)v.f_frsize;
+    return true;
 }
+static void note_errno(void) { if (!job.first_errno) job.first_errno = errno ? errno : EIO; }
 
 /* dati del blocco n: xorshift64 con il seme dal numero del blocco */
 static void fill(uint64_t *b, long long n) {
@@ -126,27 +131,29 @@ static void *worker(void *arg) {
     char d[1100], p[1300];
     test_dir(d, sizeof d);
     cleanup();
-    mkdir(d, 0755);
-    space();
+    /* lo spazio si rilegge qui: fra la conferma e l'inizio può essere cambiato */
+    bool sp = space();
     long long want = job.full ? card_free - RESERVE : QUICK_BYTES;
     want -= want % BLOCK;
-    if (!buf || !rd || want < (long long)BLOCK) { job.error = true; snprintf(job.msg, sizeof job.msg, "%s", "spazio"); goto end; }
+    if (!sp || want < (long long)BLOCK || card_free - want < RESERVE) { job.no_space = true; goto end; }
+    if (!buf || !rd) { job.error = true; goto end; }
+    mkdir(d, 0755);
     /* scrittura (i dati della fase prima della fase stessa: la finestra li legge) */
     phase_set(PH_WRITE, want);
     long long blk = 0;
     for (int fi = 0; job.done < want && !job.cancel; fi++) {
         snprintf(p, sizeof p, "%s/%04d.bin", d, fi);
         int fd = open(p, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd < 0) { job.error = true; break; }
+        if (fd < 0) { note_errno(); job.error = true; break; }
         long long in_file = 0;
         while (in_file < FILE_BYTES && job.done < want && !job.cancel) {
             fill(buf, blk++);
             ssize_t w = write(fd, buf, BLOCK);
-            if (w != (ssize_t)BLOCK) { job.error = true; break; }
+            if (w != (ssize_t)BLOCK) { note_errno(); job.error = true; break; }
             in_file += BLOCK;
             job.done += BLOCK;
         }
-        if (fsync(fd) != 0) job.error = true;
+        if (fsync(fd) != 0) { note_errno(); job.error = true; }
         close(fd);
         if (job.error) break;
     }
@@ -160,14 +167,14 @@ static void *worker(void *arg) {
     for (int fi = 0; job.done < written && !job.cancel; fi++) {
         snprintf(p, sizeof p, "%s/%04d.bin", d, fi);
         int fd = open(p, O_RDONLY);
-        if (fd < 0) { job.error = true; break; }
+        if (fd < 0) { note_errno(); job.error = true; break; }
         long long in_file = 0;
         while (in_file < FILE_BYTES && job.done < written && !job.cancel) {
             ssize_t r = 0;
             for (ssize_t got; r < (ssize_t)BLOCK; r += got)
-                if ((got = read(fd, (char *)rd + r, BLOCK - (size_t)r)) <= 0) break;
+                if ((got = read(fd, (char *)rd + r, BLOCK - (size_t)r)) <= 0) { if (got < 0) note_errno(); break; }
             fill(buf, blk++);
-            if (r != (ssize_t)BLOCK) job.read_err++;
+            if (r != (ssize_t)BLOCK) job.read_err++;   /* contato a parte: non letto non è "rovinato" */
             if (r != (ssize_t)BLOCK || memcmp(buf, rd, BLOCK)) {
                 if (job.first_bad < 0) job.first_bad = job.done;
                 job.bad++;
@@ -182,7 +189,7 @@ static void *worker(void *arg) {
 end:
     free(buf);
     free(rd);
-    cleanup();
+    job.clean_failed = !cleanup();
     space();
     job.phase = PH_DONE;
     return NULL;
@@ -329,7 +336,7 @@ static void draw_run(void) {
 
 int main(int argc, char **argv) {
     if (!app_start(argc, argv, "sdtest")) return 1;
-    cleanup();   /* avanzi di una prova interrotta da uno spegnimento */
+    if (!cleanup()) ui_toast(FT("sdtest.cleanup_failed"));   /* avanzi di una prova interrotta da uno spegnimento */
     space();
     last_load();
     while (!quit) {
@@ -348,8 +355,9 @@ int main(int argc, char **argv) {
             else if (in->pressed[BTN_A]) {
                 bool charging;
                 int bat = ui_battery(&charging);
-                space();
-                if (sel == 1 && !charging && bat >= 0 && bat < 50) { ui_toast(FT("sdtest.charge")); ui_sound(SND_ERROR); }
+                bool sp = space();
+                if (!sp) { ui_toast(FT("sdtest.no_space")); ui_sound(SND_ERROR); }
+                else if (sel == 1 && !charging && bat >= 0 && bat < 50) { ui_toast(FT("sdtest.charge")); ui_sound(SND_ERROR); }
                 else if (card_free < (sel == 1 ? 1LL << 30 : QUICK_BYTES) + RESERVE) { ui_toast(FT("sdtest.no_space")); ui_sound(SND_ERROR); }
                 else if (sel == 1) { confirm_open = true; confirm_sel = 0; ui_sound(SND_OK); }   /* prima l'avviso */
                 else { ui_sound(SND_OK); start(false); }
@@ -357,9 +365,12 @@ int main(int argc, char **argv) {
         } else if (ph == PH_DONE) {
             if (thr_on) { pthread_join(thr, NULL); thr_on = false; }
             if (job.cancel) { ui_toast(FT("sdtest.stopped")); snprintf(last, sizeof last, "%s", ""); last_load(); }
+            else if (job.no_space) { ui_toast(FT("sdtest.no_space")); ui_sound(SND_ERROR); last_load(); }
             else if (job.error) { snprintf(last, sizeof last, "%s", FT("sdtest.error")); last_save(last); }
             else { result_text(last, sizeof last); last_save(last); }
-            ui_log("sd: %s (rovinati %lld, primo %lld)", job.cancel ? "interrotta" : last, (long long)job.bad, (long long)job.first_bad);
+            ui_log("sd: %s (rovinati %lld, primo %lld, non letti %lld, errore %d%s)", job.cancel ? "interrotta" : job.no_space ? "spazio" : last,
+                   (long long)job.bad, (long long)job.first_bad, (long long)job.read_err, job.first_errno, job.clean_failed ? ", file di prova rimasti" : "");
+            if (job.clean_failed) ui_toast(FT("sdtest.cleanup_failed"));
             job.phase = PH_IDLE;
         } else if (in->pressed[BTN_B]) { job.cancel = true; ui_sound(SND_BACK); }
         ui_begin();

@@ -1,5 +1,6 @@
 {
  "music": {
+  "list_incomplete": "Elenco incompleto: nomi troppo lunghi o memoria esaurita",
   "title": "Lettore musicale",
   "empty": "Nessun brano. Copia MP3, OGG, FLAC o WAV nella cartella Music, anche in sottocartelle per gli album.",
   "none": "Nessun brano",

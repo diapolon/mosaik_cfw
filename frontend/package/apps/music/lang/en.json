@@ -1,5 +1,6 @@
 {
  "music": {
+  "list_incomplete": "Incomplete list: names too long or out of memory",
   "title": "Music player",
   "empty": "No tracks. Copy MP3, OGG, FLAC or WAV files to the Music folder, also in subfolders for albums.",
   "none": "No tracks",

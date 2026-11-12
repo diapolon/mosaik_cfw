@@ -61,7 +61,11 @@ $(OUT)/bin:
 	mkdir -p $@
 
 # simboli glibc richiesti: la console ha la 2.23
+# glibc chiesta da programmi, app e core: si ferma se supera quella del firmware (la più vecchia
+# fra i modelli estratti in /build/fw, altrimenti 2.33), così un programma che non partirebbe
+# sulla console non arriva in un'immagine (verifica audit)
+FW_GLIBC ?= $(shell for l in /build/fw/*/root/lib/libc.so.6; do [ -e $$l ] && strings $$l | grep -oE '^GLIBC_2\.[0-9]+' | sort -Vu | tail -1; done | sort -V | head -1 | sed 's/GLIBC_//')
 check: all
-	@for f in $(OUT)/bin/* $(OUT)/apps/*; do printf '%s: ' $$f; aarch64-linux-gnu-objdump -T $$f | grep -oE 'GLIBC_2\.[0-9]+' | sort -Vu | tail -1; done
+	@sh ../toolchain/check-glibc.sh "$(FW_GLIBC)" $(OUT)/bin/* $(OUT)/apps/* $(wildcard $(OUT)/cores/*.so)
 
 .PHONY: all check

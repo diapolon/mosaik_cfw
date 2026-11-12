@@ -1,5 +1,6 @@
 {
  "viewer": {
+  "list_incomplete": "Liste incomplète : noms trop longs ou mémoire épuisée",
   "title": "Images et BD",
   "empty": "Aucune image ici. Les images (PNG, JPG) et les BD .cbz peuvent être dans n'importe quel dossier, par exemple Media.",
   "quit": "Quitter",

@@ -1,5 +1,6 @@
 {
  "viewer": {
+  "list_incomplete": "Lista incompleta: nombres demasiado largos o memoria agotada",
   "title": "Imágenes y cómics",
   "empty": "No hay imágenes aquí. Las imágenes (PNG, JPG) y los cómics .cbz pueden estar en cualquier carpeta, por ejemplo Media.",
   "quit": "Salir",

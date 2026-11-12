@@ -228,7 +228,17 @@ audio_apply_slow() {
     done
 }
 AUDIO_CONF="$ROOT/System/audio.conf"
+# "configurazione modello" (tg5040, tg4040): una System ricopiata da una scheda dell'altro modello
+# non vale qui e si rifà la prova (verifica audit). I file vecchi, senza modello, valgono.
+FWID=$(basename "$(readlink /run/fw)")
 saved=$(cat "$AUDIO_CONF" 2>/dev/null)
+saved_model=${saved#* }
+[ "$saved_model" = "$saved" ] && saved_model=""
+saved=${saved%% *}
+if [ -n "$saved_model" ] && [ "$saved_model" != "$FWID" ]; then
+    echo "configurazione ricordata ($saved) di un altro modello ($saved_model): rifaccio la prova" >> "$AUDIO"
+    saved=""
+fi
 ok=0
 # configurazione già trovata su questa scheda: si applica senza la prova (2 s risparmiati a
 # ogni avvio). Per rifare la prova basta cancellare System/audio.conf.
@@ -244,7 +254,7 @@ if [ $ok = 0 ]; then
     # bloccano, e a schermo nero sembrerebbe una console guasta
     for cfg in knulli asis hub0 hub1; do
         audio_apply $cfg
-        if audio_test; then echo "prova $cfg: riuscita" >> "$AUDIO"; ok=1; echo $cfg > "$AUDIO_CONF"; break; fi
+        if audio_test; then echo "prova $cfg: riuscita" >> "$AUDIO"; ok=1; echo "$cfg $FWID" > "$AUDIO_CONF"; break; fi
         echo "prova $cfg: bloccata" >> "$AUDIO"
         [ -n "${WAIT_SHOWN:-}" ] || { step_show "PREPARO L'AUDIO" "PRIMA ACCENSIONE"; WAIT_SHOWN=1; }
     done
@@ -400,6 +410,13 @@ sd_check() {
     echo b > /proc/sysrq-trigger
     reboot -f
 }
+# processi morti non raccolti (verifica audit: il processo 1 è questa shell; quando aspetta un
+# programma raccoglie anche gli orfani, ma va misurato): nel registro dei passi solo se ce ne sono
+zombie_note() {
+    zn=$(grep -l '^State:[[:space:]]*Z' /proc/[0-9]*/status 2> /dev/null | wc -l)
+    [ "$zn" -gt 0 ] && step "processi morti non raccolti dopo $1: $zn"
+    return 0
+}
 run_app() {
     rm -f "$ROOT/System/exit.txt"
     "$@" >> "$LOG" 2>&1 &
@@ -536,6 +553,7 @@ while :; do
     step "10 AVVIO DEL LAUNCHER"
     run_app "$BIN/launcher" --root "$ROOT"
     sd_check
+    zombie_note launcher
     step "launcher: uscita $rc"
     case $rc in
     10) fails=0 ;;
@@ -565,6 +583,7 @@ while :; do
         ) >> "$LINUXLOG" 2>&1
         grc=$?
         sd_check
+        zombie_note "gioco linux"
         rm -f "$ROOT/System/next.env"
         # 120: tasto di accensione tenuto premuto durante il gioco (gamewatch)
         [ $grc -eq 120 ] && finish
@@ -579,6 +598,7 @@ while :; do
     step "gioco: $title"
     run_app "$BIN/runner" "$@"
     sd_check
+    zombie_note runner
     step "runner: uscita $rc"
     [ $rc -eq 20 ] && finish
 done

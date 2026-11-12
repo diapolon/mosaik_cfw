@@ -25,6 +25,7 @@
   "bad": "Données abîmées : la carte est fausse ou défectueuse, copiez vos fichiers ailleurs.",
   "full_confirm": "Le test complet écrit sur tout l'espace libre de la carte qui contient le système et vos fichiers. Une carte saine ne perd rien, mais une carte fausse ou défectueuse peut aussi abîmer les fichiers déjà présents : sauvegardez d'abord vos parties. Pour vérifier une carte neuve, testez-la vide.",
   "no_space": "Pas assez d'espace libre pour le test",
+  "cleanup_failed": "Certains fichiers de test n'ont pas pu être supprimés : ils sont dans le dossier .sdtest",
   "read_errors": "Erreurs de lecture : la carte est peut-être défectueuse.",
   "cached": "Lecture depuis la mémoire : la vitesse de lecture n'est pas celle de la carte."
  }

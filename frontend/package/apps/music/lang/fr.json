@@ -1,5 +1,6 @@
 {
  "music": {
+  "list_incomplete": "Liste incomplète : noms trop longs ou mémoire épuisée",
   "title": "Lecteur de musique",
   "empty": "Aucun morceau. Copiez des fichiers MP3, OGG, FLAC ou WAV dans le dossier Music, aussi dans des sous-dossiers pour les albums.",
   "none": "Aucun morceau",

@@ -2,7 +2,7 @@
  "title": "Music player",
  "description": "Listen to the Music folder: tracks and albums, repeat, shuffle, even with the screen off.",
  "author": "Mosaik",
- "version": "1.2",
+ "version": "1.3",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

@@ -1,5 +1,6 @@
 {
  "viewer": {
+  "list_incomplete": "Elenco incompleto: nomi troppo lunghi o memoria esaurita",
   "title": "Immagini e fumetti",
   "empty": "Nessuna immagine qui. Le immagini (PNG, JPG) e i fumetti .cbz possono stare in qualsiasi cartella, per esempio Media.",
   "quit": "Esci",

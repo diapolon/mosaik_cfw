@@ -1,5 +1,6 @@
 {
  "files": {
+  "list_incomplete": "Lista incompleta: nombres demasiado largos o memoria agotada",
   "title": "Archivos",
   "free": "%s libres",
   "read_only_tag": "solo lectura",

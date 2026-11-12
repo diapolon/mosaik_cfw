@@ -66,6 +66,7 @@ static int natcmp(const char *a, const char *b) {
 
 static int track_cmp(const void *a, const void *b) { return natcmp(((const track_t *)a)->rel, ((const track_t *)b)->rel); }
 
+static bool scan_cut;   /* qualcosa è rimasto fuori dall'elenco (nome troppo lungo, memoria) */
 static void scan(const char *dir, const char *rel, int depth) {
     DIR *d = depth < 4 ? opendir(dir) : NULL;
     struct dirent *e;
@@ -73,16 +74,16 @@ static void scan(const char *dir, const char *rel, int depth) {
         if (e->d_name[0] == '.') continue;
         char p[1600], r[600];
         struct stat sb;
-        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
-        if (rel[0]) snprintf(r, sizeof r, "%s/%s", rel, e->d_name);
-        else snprintf(r, sizeof r, "%s", e->d_name);
+        int lp = snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        int lr = rel[0] ? snprintf(r, sizeof r, "%s/%s", rel, e->d_name) : snprintf(r, sizeof r, "%s", e->d_name);
+        if (lp >= (int)sizeof p || lr >= (int)sizeof r || lr >= (int)sizeof tracks[0].rel) { scan_cut = true; continue; }
         if (stat(p, &sb) != 0) continue;
         if (S_ISDIR(sb.st_mode)) { scan(p, r, depth + 1); continue; }
         if (!is_audio(e->d_name)) continue;
         if (ntracks == cap_tracks) {
             int nc = cap_tracks ? cap_tracks * 2 : 128;
             track_t *nt = realloc(tracks, (size_t)nc * sizeof *nt);
-            if (!nt) break;
+            if (!nt) { scan_cut = true; break; }
             tracks = nt;
             cap_tracks = nc;
         }
@@ -117,7 +118,10 @@ static void on_finished(void) { finished = true; }
 
 static bool mixer_open(void) {
     if (mixer_on) return true;
-    Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_FLAC);
+    /* quali codec ci sono davvero: un brano di un formato mancante non parte e lo dice il log */
+    static bool told;
+    int got = Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_FLAC);
+    if (!told) { told = true; ui_log("musica: codec mp3 %s, ogg %s, flac %s", got & MIX_INIT_MP3 ? "sì" : "no", got & MIX_INIT_OGG ? "sì" : "no", got & MIX_INIT_FLAC ? "sì" : "no"); }
     ui_audio_takeover(play_fx);   /* l'uscita audio passa al mixer: i suoni dei tasti anche */
     if (Mix_OpenAudioDevice(UI.audio_rate ? UI.audio_rate : 48000, AUDIO_S16SYS, 2, 2048, NULL, 0) < 0) {
         ui_log("musica: audio non disponibile (%s)", Mix_GetError());
@@ -184,6 +188,36 @@ static void skip(int dir, bool user) {
 }
 
 static double position(void) { return mus ? Mix_GetMusicPosition(mus) : 0; }
+
+/* Dopo una sospensione della console (gamewatch ferma l'app, arcade-suspend, poi la riprende)
+   l'uscita audio può non rispondere più: il mixer si riapre e il brano riparte da dove era,
+   in pausa se lo era (verifica audit). La sospensione si riconosce dal tempo: CLOCK_BOOTTIME la
+   conta, CLOCK_MONOTONIC no. */
+static void resume_check(void) {
+#ifdef CLOCK_BOOTTIME
+    struct timespec bt, mt;
+    static double last = -1;
+    clock_gettime(CLOCK_BOOTTIME, &bt);
+    clock_gettime(CLOCK_MONOTONIC, &mt);
+    double gap = (bt.tv_sec - mt.tv_sec) + (bt.tv_nsec - mt.tv_nsec) / 1e9;
+    bool slept = last >= 0 && gap - last > 1.0;
+    last = gap;
+    if (!slept || !mixer_on) return;
+    int idx = cur;
+    bool was_paused = paused;
+    double pos = position();
+    ui_log("musica: ripresa dalla sospensione, riapro l'audio (brano %d, %.0f s)", idx, pos);
+    Mix_HookMusicFinished(NULL);
+    Mix_HaltMusic();
+    if (mus) { Mix_FreeMusic(mus); mus = NULL; }
+    Mix_CloseAudio();
+    mixer_on = false;
+    if (idx >= 0 && play(idx)) {
+        if (pos > 0) Mix_SetMusicPosition(pos);
+        if (was_paused) { Mix_PauseMusic(); paused = true; }
+    }
+#endif
+}
 
 static void seek(double delta) {
     if (!mus) return;
@@ -309,11 +343,13 @@ int main(int argc, char **argv) {
     snprintf(dir, sizeof dir, "%s/Music", app_root);
     scan(dir, "", 0);
     if (ntracks > 1) qsort(tracks, (size_t)ntracks, sizeof *tracks, track_cmp);
-    ui_log("musica: %d brani", ntracks);
+    ui_log("musica: %d brani%s", ntracks, scan_cut ? " (elenco incompleto)" : "");
+    if (scan_cut) ui_toast(FT("music.list_incomplete"));
     while (!quit) {
         ui_poll();
         if (UI.in.quit) break;
         UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch */
+        resume_check();
         input();
         if (mixer_on) volume_apply();
         if (finished) { finished = false; skip(+1, false); }

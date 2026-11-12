@@ -1,5 +1,6 @@
 {
  "viewer": {
+  "list_incomplete": "Liste unvollständig: Namen zu lang oder Speicher voll",
   "title": "Bilder und Comics",
   "empty": "Hier sind keine Bilder. Bilder (PNG, JPG) und .cbz-Comics können in jedem Ordner liegen, zum Beispiel in Media.",
   "quit": "Beenden",

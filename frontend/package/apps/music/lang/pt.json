@@ -1,5 +1,6 @@
 {
  "music": {
+  "list_incomplete": "Lista incompleta: nomes demasiado longos ou memória esgotada",
   "title": "Leitor de música",
   "empty": "Não há faixas. Copie ficheiros MP3, OGG, FLAC ou WAV para a pasta Music, também em subpastas para os álbuns.",
   "none": "Não há faixas",

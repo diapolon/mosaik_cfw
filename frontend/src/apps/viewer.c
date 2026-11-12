@@ -78,6 +78,7 @@ static void reload(const char *keep) {
     char p[1300];
     full(p, sizeof p, cwd);
     nents = 0;
+    bool cut = false;   /* nome troppo lungo o memoria finita: l'elenco non è intero e si dice */
     DIR *d = opendir(p);
     struct dirent *e;
     while (d && (e = readdir(d))) {
@@ -85,7 +86,7 @@ static void reload(const char *keep) {
         if (!strcasecmp(cwd, "System")) continue;   /* niente da vedere, e lì c'è wifi.conf */
         char q[1600];
         struct stat sb;
-        snprintf(q, sizeof q, "%s/%s", p, e->d_name);
+        if (snprintf(q, sizeof q, "%s/%s", p, e->d_name) >= (int)sizeof q || strlen(e->d_name) >= sizeof ents[0].name) { cut = true; continue; }
         if (stat(q, &sb) != 0) continue;
         bool dir = S_ISDIR(sb.st_mode);
         if (!dir && !is_image(e->d_name) && !is_comic(e->d_name)) continue;
@@ -93,7 +94,7 @@ static void reload(const char *keep) {
         if (nents == cap_ents) {
             int nc = cap_ents ? cap_ents * 2 : 256;
             ent_t *ne = realloc(ents, (size_t)nc * sizeof *ne);
-            if (!ne) break;
+            if (!ne) { cut = true; break; }
             ents = ne;
             cap_ents = nc;
         }
@@ -103,6 +104,7 @@ static void reload(const char *keep) {
         x->size = dir ? 0 : (long long)sb.st_size;
     }
     if (d) closedir(d);
+    if (cut) { ui_log("immagini: elenco di %s incompleto", cwd); ui_toast(FT("viewer.list_incomplete")); }
     if (nents > 1) qsort(ents, (size_t)nents, sizeof *ents, ent_cmp);
     if (sel >= nents) sel = nents ? nents - 1 : 0;
     for (int i = 0; keep && i < nents; i++)

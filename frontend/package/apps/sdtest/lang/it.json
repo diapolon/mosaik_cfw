@@ -25,6 +25,7 @@
   "bad": "Dati rovinati: la scheda è falsa o guasta, copia altrove i tuoi file.",
   "full_confirm": "La prova completa scrive su tutto lo spazio libero della scheda che contiene il sistema e i tuoi file. Una scheda sana non perde nulla, ma una scheda falsa o guasta può rovinare anche i file che ci sono già: prima fai un backup dei salvataggi. Per controllare una scheda nuova, meglio provarla vuota.",
   "no_space": "Spazio libero insufficiente per la prova",
+  "cleanup_failed": "Alcuni file di prova non si sono potuti togliere: sono nella cartella .sdtest",
   "read_errors": "Errori di lettura: la scheda potrebbe essere guasta.",
   "cached": "Lettura dalla memoria: la velocità di lettura non è quella della scheda."
  }

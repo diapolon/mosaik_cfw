@@ -1,5 +1,6 @@
 {
  "files": {
+  "list_incomplete": "Incomplete list: names too long or out of memory",
   "title": "Files",
   "free": "%s free",
   "read_only_tag": "read-only",

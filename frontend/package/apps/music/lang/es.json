@@ -1,5 +1,6 @@
 {
  "music": {
+  "list_incomplete": "Lista incompleta: nombres demasiado largos o memoria agotada",
   "title": "Reproductor de música",
   "empty": "No hay pistas. Copia archivos MP3, OGG, FLAC o WAV en la carpeta Music, también en subcarpetas para los álbumes.",
   "none": "No hay pistas",

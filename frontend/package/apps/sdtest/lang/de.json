@@ -25,6 +25,7 @@
   "bad": "Beschädigte Daten: die Karte ist gefälscht oder defekt, sichere deine Dateien.",
   "full_confirm": "Der vollständige Test beschreibt den ganzen freien Speicher der Karte, auf der das System und deine Dateien liegen. Eine gesunde Karte verliert nichts, aber eine gefälschte oder defekte Karte kann auch vorhandene Dateien beschädigen: sichere zuerst deine Spielstände. Eine neue Karte am besten leer testen.",
   "no_space": "Nicht genug freier Speicher für den Test",
+  "cleanup_failed": "Einige Testdateien konnten nicht entfernt werden: sie liegen im Ordner .sdtest",
   "read_errors": "Lesefehler: die Karte könnte defekt sein.",
   "cached": "Aus dem Speicher gelesen: die Lesegeschwindigkeit ist nicht die der Karte."
  }

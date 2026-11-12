@@ -1,5 +1,6 @@
 {
  "music": {
+  "list_incomplete": "Liste unvollständig: Namen zu lang oder Speicher voll",
   "title": "Musikplayer",
   "empty": "Keine Titel. MP3-, OGG-, FLAC- oder WAV-Dateien in den Ordner Music kopieren, auch in Unterordner für Alben.",
   "none": "Keine Titel",

@@ -25,6 +25,7 @@
   "bad": "Damaged data: the card is fake or failing, copy your files elsewhere.",
   "full_confirm": "The full test writes over all the free space of the card that holds the system and your files. A healthy card loses nothing, but a fake or failing card can also damage the files already on it: back up your saves first. To check a new card, test it while it is empty.",
   "no_space": "Not enough free space for the test",
+  "cleanup_failed": "Some test files could not be removed: they are in the .sdtest folder",
   "read_errors": "Read errors: the card may be failing.",
   "cached": "Read from memory: the read speed is not the card's."
  }
