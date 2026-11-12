@@ -6540,6 +6540,9 @@ int main(int argc, char **argv) {
     mkdir(p, 0755);
     if (!ui_init("Arcade", root, auto_script, 48000, true)) return 1;
     plat_cpu_fixed(CPU_ACTIVE_KHZ);
+#ifndef TRIMUI_DEVICE
+    if (!UI.set.wifi) wifi_enable(false);   /* Mac: il Wi-Fi simulato segue l'impostazione (sulla console lo fa system-init) */
+#endif
     ui_busy(T("common.loading"), 0);   /* subito qualcosa a schermo mentre si caricano i giochi */
     if (!auto_script && consume_resume()) {
         ui_log("riprendo l'ultima partita");
@@ -6749,9 +6752,10 @@ int main(int argc, char **argv) {
                 cfm_sel = 1;
             }
         }
-        /* nessun emulatore (scheda nuova): una volta per avvio, l'invito ad aprire lo Store */
+        /* nessun emulatore (scheda nuova): una volta per avvio, l'invito ad aprire lo Store, solo
+           a Wi-Fi collegato (senza rete lo Store non ha il catalogo) e non mentre si sceglie la rete */
         if (pkg_checked && !store_asked && NEMUS == 0 && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
-            !rdy_open && !sdbad_open && screen != SCR_STORE && !fsrv_open) {
+            !rdy_open && !sdbad_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
             store_asked = true;
             cfm_kind = CFM_STORE;
             cfm_sel = 1;
