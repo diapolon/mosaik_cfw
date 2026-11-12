@@ -25,6 +25,8 @@
 </p>
 
 > **Status:** version 0.9. **Smart Pro and Brick Pro: tested.**
+>
+> **Coming:** R36S. A first version is being prepared and is not ready to install yet.
 
 ## What's inside
 

@@ -25,6 +25,8 @@
 </p>
 
 > **Stato:** versione 0.9. **Smart Pro e Brick Pro: provate.**
+>
+> **In arrivo:** R36S. Una prima versione è in preparazione e non si può ancora installare.
 
 ## Cosa c'è dentro
 
