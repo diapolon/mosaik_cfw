@@ -45,6 +45,17 @@ static struct {
     char msg[160];
 } job;
 static pthread_t thr;
+/* fase, inizio e totale cambiano insieme: la finestra li legge sotto lo stesso mutex (V26-04) */
+static pthread_mutex_t jl = PTHREAD_MUTEX_INITIALIZER;
+static double now_s(void);
+static void phase_set(int ph, long long total) {
+    pthread_mutex_lock(&jl);
+    job.total = total;
+    job.done = 0;
+    job.t0 = now_s();
+    job.phase = ph;
+    pthread_mutex_unlock(&jl);
+}
 static bool thr_on, quit;
 static int sel;
 static bool confirm_open;   /* prova completa: avviso e conferma */
@@ -121,10 +132,7 @@ static void *worker(void *arg) {
     want -= want % BLOCK;
     if (!buf || !rd || want < (long long)BLOCK) { job.error = true; snprintf(job.msg, sizeof job.msg, "%s", "spazio"); goto end; }
     /* scrittura (i dati della fase prima della fase stessa: la finestra li legge) */
-    job.total = want;
-    job.done = 0;
-    job.t0 = now_s();
-    job.phase = PH_WRITE;
+    phase_set(PH_WRITE, want);
     long long blk = 0;
     for (int fi = 0; job.done < want && !job.cancel; fi++) {
         snprintf(p, sizeof p, "%s/%04d.bin", d, fi);
@@ -147,10 +155,7 @@ static void *worker(void *arg) {
     if (job.cancel || job.error) goto end;
     /* lettura e controllo */
     job.cached = !drop_caches();   /* sul Mac, o senza i permessi: si legge dalla memoria */
-    job.total = written;
-    job.done = 0;
-    job.t0 = now_s();
-    job.phase = PH_READ;
+    phase_set(PH_READ, written);
     blk = 0;
     for (int fi = 0; job.done < written && !job.cancel; fi++) {
         snprintf(p, sizeof p, "%s/%04d.bin", d, fi);
@@ -187,6 +192,7 @@ static void start(bool full) {
     memset((void *)&job, 0, sizeof job);
     job.full = full;
     job.first_bad = -1;
+    job.t0 = now_s();      /* prima di creare il lavoro: nessuno lo legge ancora */
     job.phase = PH_WRITE;
     ui_log("sd: prova %s, libero %lld MB", full ? "completa" : "veloce", card_free >> 20);
     thr_on = pthread_create(&thr, NULL, worker, NULL) == 0;
@@ -283,11 +289,15 @@ static void draw_run(void) {
     TTF_Font *fn = UI.f_normal, *fs = UI.f_small, *ft = UI.f_title;
     int fsh = TTF_FontHeight(fs), fth = TTF_FontHeight(ft);
     int y = M(t->topbar_h) + M(0.06f);
+    pthread_mutex_lock(&jl);
     int ph = job.phase;
+    long long tot = job.total;
+    double t0 = job.t0;
+    pthread_mutex_unlock(&jl);
     ui_text(ft, FT(ph == PH_READ ? "sdtest.reading" : "sdtest.writing"), mx, y, t->text, ALIGN_LEFT);
     y += fth + M(0.03f);
-    long long done = job.done, tot = job.total;
-    double el = now_s() - job.t0, sp = mbs(done, el);
+    long long done = job.done;
+    double el = now_s() - t0, sp = mbs(done, el);
     int bh = M(0.02f);
     ui_rrect(mx, y, W, bh, bh / 2, with_alpha(t->text_dim, 60));
     if (tot > 0) ui_rrect(mx, y, (int)((long long)W * (done < tot ? done : tot) / tot), bh, bh / 2, t->accent);
@@ -357,6 +367,7 @@ int main(int argc, char **argv) {
         if (job.phase == PH_IDLE) { draw_idle(); if (confirm_open) draw_confirm(); } else draw_run();
         ui_end();
     }
+    app_exit_begin();
     if (thr_on) { job.cancel = true; pthread_join(thr, NULL); }
     app_quit();
     return 0;

@@ -10,3 +10,6 @@ int zip_dir(FILE *f, zent_t **out);
 /* dati di una voce (salvata o deflate): in un file (to), oppure in memoria (to NULL, al massimo
    n-1 byte in mem, più lo zero finale); vero solo se completa e con il CRC giusto */
 bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n);
+/* segnale di annullamento guardato a ogni blocco di zip_entry (NULL nessuno): una voce grande
+   si ferma subito invece che alla fine (Esplora file, Estrai qui) */
+void zip_cancel_flag(const _Atomic bool *flag);

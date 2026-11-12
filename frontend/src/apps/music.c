@@ -324,6 +324,7 @@ int main(int argc, char **argv) {
         draw();
         ui_end();
     }
+    app_exit_begin();
     plat_screen_off(false);
     if (mixer_on) {
         Mix_HookMusicFinished(NULL);

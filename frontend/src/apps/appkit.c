@@ -30,10 +30,16 @@ bool app_start(int argc, char **argv, const char *id) {
     return true;
 }
 
+/* chiusura sorvegliata: dall'inizio dell'uscita (prima di fermare audio e lavori in corso, che
+   possono bloccarsi) al massimo 5 s, poi il segnale chiude l'app e gamewatch torna al launcher
+   (audit APP-011, V26-03) */
+void app_exit_begin(void) {
+    static bool armed;
+    if (!armed) { alarm(5); armed = true; }
+}
+
 void app_quit(void) {
-    /* se la chiusura di SDL si blocca (succede sulla console), il segnale chiude l'app e
-       gamewatch torna al launcher (audit APP-011) */
-    alarm(5);
+    app_exit_begin();
     ui_shutdown();
 }
 

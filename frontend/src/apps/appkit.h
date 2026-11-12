@@ -17,4 +17,5 @@ bool app_start(int argc, char **argv, const char *id);
 const char *FT(const char *key);                  /* scritta dell'app, poi del sistema, poi la chiave */
 void app_panel(int w, int h, int *x, int *y);     /* finestra centrata, con ombra e fondo pieno */
 void app_size(long long bytes, char *out, size_t n);
-void app_quit(void);                              /* chiusura con un tempo massimo di 5 s */
+void app_exit_begin(void);                        /* da qui l'uscita ha al massimo 5 s */
+void app_quit(void);                              /* chiusura di SDL (dentro gli stessi 5 s) */

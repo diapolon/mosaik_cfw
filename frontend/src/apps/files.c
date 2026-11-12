@@ -220,7 +220,7 @@ static bool secret_file(const char *path) {
 
 static bool copy_file(const char *src, const char *dst_dir, const char *name) {
     char part[1600], dst[1600];
-    snprintf(part, sizeof part, "%s/.%s.part", dst_dir, name);
+    snprintf(part, sizeof part, "%s/.%s.%d.part", dst_dir, name, (int)getpid());   /* temporaneo solo nostro */
     snprintf(dst, sizeof dst, "%s/%s", dst_dir, name);
     int in = open(src, O_RDONLY);
     if (in < 0) return false;
@@ -318,13 +318,15 @@ static bool extract_zip(const char *zpath, const char *dst) {
     if (n < 0) { if (z) fclose(z); return false; }
     long long total = 0;
     for (int i = 0; i < n; i++) total += ze[i].usize;
+    /* spazio: se non si riesce a misurarlo non si estrae (verifica audit 0.9.26) */
     struct statvfs v;
-    if (statvfs(dst, &v) == 0 && total + (64LL << 20) > (long long)v.f_bavail * (long long)v.f_frsize) {
+    if (statvfs(dst, &v) != 0 || total + (64LL << 20) > (long long)v.f_bavail * (long long)v.f_frsize) {
         job.nospace = true;
         free(ze);
         fclose(z);
         return false;
     }
+    zip_cancel_flag(&job.cancel);   /* B ferma anche dentro una voce grande */
     job.total = total;
     bool ok = true;
     for (int i = 0; i < n && !job.cancel; i++) {
@@ -353,7 +355,7 @@ static bool extract_zip(const char *zpath, const char *dst) {
         snprintf(name, sizeof name, "%s", slash ? slash + 1 : rel);
         if (!unique_name(dir_full, name, out, sizeof out)) { ok = false; continue; }
         char part[1700], fin[1700];
-        snprintf(part, sizeof part, "%s/.%s.part", dir_full, out);
+        snprintf(part, sizeof part, "%s/.%s.%d.part", dir_full, out, (int)getpid());   /* temporaneo solo nostro */
         snprintf(fin, sizeof fin, "%s/%s", dir_full, out);
         FILE *o = fopen(part, "wb");
         bool fok = o && zip_entry(z, &ze[i], o, NULL, 0) && fflush(o) == 0 && fsync(fileno(o)) == 0;
@@ -363,6 +365,7 @@ static bool extract_zip(const char *zpath, const char *dst) {
         job.done += ze[i].usize;
         job.files_done++;
     }
+    zip_cancel_flag(NULL);
     free(ze);
     fclose(z);
     return ok && !job.cancel;
@@ -913,6 +916,7 @@ int main(int argc, char **argv) {
         }
         ui_end();
     }
+    app_exit_begin();
     if (job_joinable) { job.cancel = true; pthread_join(job_thread, NULL); }
     app_quit();   /* senza exit.txt: quel file è del launcher e del runner */
     return 0;

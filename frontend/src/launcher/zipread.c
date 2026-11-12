@@ -48,6 +48,9 @@ int zip_dir(FILE *f, zent_t **out) {
     return k;
 }
 
+static const _Atomic bool *cancel_flag;
+void zip_cancel_flag(const _Atomic bool *flag) { cancel_flag = flag; }
+
 /* dati di una voce (anche compressa): in memoria (to NULL, max n byte in mem) o in un file */
 bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n) {
     unsigned char h[30];
@@ -69,6 +72,7 @@ bool zip_entry(FILE *f, const zent_t *e, FILE *to, char *mem, size_t n) {
     bool ok = true;
     int zr = Z_OK;
     while (ok && left > 0 && zr != Z_STREAM_END) {
+        if (cancel_flag && *cancel_flag) { ok = false; break; }
         size_t want = left < 65536 ? left : 65536, got = fread(in, 1, want, f);
         if (got == 0) { ok = false; break; }
         left -= (uint32_t)got;

@@ -24,10 +24,10 @@ run() {  # RUNVER
     (
         RUNVER=$1; LOG=/tmp/j/log
         step() { echo "$*" >> $LOG; }
-        rollback() { echo rollback >> $LOG; }
-        halt_with() { echo "fermo: $*" >> $LOG; }
+        halt_with() { echo "fermo: $*" >> $LOG; exit 0; }   # come quello vero: dopo non si prosegue
         sync() { :; }
         . /tmp/giornale.sh
+        rollback() { echo rollback >> $LOG; }   # dopo il blocco, che ora contiene quello vero
         journal_check
     )
 }
@@ -53,21 +53,43 @@ card applico "1.0 B"
 (
     RUNVER="1.0 A"; LOG=/tmp/j/log
     step() { echo "$*" >> $LOG; }
-    rollback() { echo rollback >> $LOG; }
-    halt_with() { echo "fermo: $*" >> $LOG; }
+    halt_with() { echo "fermo: $*" >> $LOG; exit 0; }
     sync() { :; }
     mv() { case "$*" in *a.so.annulla*) return 1 ;; *) command mv "$@" ;; esac; }
     . /tmp/giornale.sh
+    rollback() { echo rollback >> $LOG; }
     journal_check
+    echo "proseguito" >> $LOG
 )
 [ -f $J ] && [ -f $ROOT/Cores/a.so.annulla ] && ok "giornale e copia tenuti dopo l'errore" || ko "giornale dimenticato nonostante l'errore"
 grep -q "non rimesso Cores/a.so" /tmp/j/log && grep -q "si riprova" /tmp/j/log && ok "errore scritto nei passi" || ko "errore non registrato: $(cat /tmp/j/log)"
 [ "$(cat $ROOT/Lang/y.json)" = vecchio ] && [ ! -e $ROOT/Lang/x.json ] && ok "gli altri file rimessi comunque" || ko "altri file non ripristinati"
-grep -q "fermo: AGGIORNAMENTO DA RIPRISTINARE" /tmp/j/log && ok "avvio fermato con il messaggio, niente launcher con file misti" || ko "avvio non fermato: $(cat /tmp/j/log)"
+grep -q "fermo: AGGIORNAMENTO DA RIPRISTINARE" /tmp/j/log && ! grep -q proseguito /tmp/j/log && ok "avvio fermato con il messaggio, niente launcher con file misti" || ko "avvio non fermato: $(cat /tmp/j/log)"
 rm -f /tmp/j/log
 run "1.0 A"
 restored && ok "all'avvio dopo il ripristino si completa" || ko "secondo tentativo non riuscito: $(ls -R $ROOT)"
 grep -q "fermo" /tmp/j/log && ko "fermato anche quando il ripristino è riuscito" || ok "ripristino riuscito: l'avvio prosegue"
+
+echo "--- tre avvii falliti (rollback vero) e un file che non si rimette"
+for prec in no si; do
+    card installato "1.0 B"; echo 3 > $PENDING; [ $prec = si ] && echo vecchio > $SYSF.prec
+    (
+        RUNVER="1.0 B"; LOG=/tmp/j/log
+        step() { echo "$*" >> $LOG; }
+        halt_with() { echo "fermo: $*" >> $LOG; exit 0; }
+        finish() { echo "finish $*" >> $LOG; exit 0; }
+        sync() { :; }
+        mv() { case "$*" in *a.so.annulla*) return 1 ;; *) command mv "$@" ;; esac; }
+        . /tmp/giornale.sh
+        rollback
+        journal_check
+        echo "proseguito" >> $LOG
+    )
+    [ -f $J ] && [ -f $ROOT/Cores/a.so.annulla ] && [ -f $PENDING ] && grep -q "fermo: AGGIORNAMENTO" /tmp/j/log && ! grep -q "finish\|proseguito" /tmp/j/log \
+        && ok "rollback fermo (sistema precedente: $prec): giornale, copia e segno di prova tenuti" || ko "rollback proseguito (sistema precedente: $prec): $(cat /tmp/j/log)"
+    [ $prec = si ] && { [ -f $SYSF.prec ] && ok "sistemi non scambiati" || ko "sistema scambiato nonostante il ripristino fallito"; }
+    rm -f /tmp/j/log
+done
 
 echo "--- tornati al sistema precedente dopo tre prove (versione in uso diversa)"
 card installato "1.0 B"; run "1.0 A"

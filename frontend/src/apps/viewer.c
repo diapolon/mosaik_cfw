@@ -192,6 +192,9 @@ static bool img_dims(const unsigned char *b, size_t n, long *w, long *h) {
     if (n >= 24 && !memcmp(b, "\x89PNG", 4)) { *w = be32(b + 16); *h = be32(b + 20); return true; }
     if (n >= 10 && !memcmp(b, "GIF8", 4)) { *w = b[6] | b[7] << 8; *h = b[8] | b[9] << 8; return true; }
     if (n >= 26 && b[0] == 'B' && b[1] == 'M') {
+        uint32_t hs = (uint32_t)(b[14] | b[15] << 8 | b[16] << 16 | (uint32_t)b[17] << 24);
+        if (hs == 12) { *w = b[18] | b[19] << 8; *h = b[20] | b[21] << 8; return true; }   /* intestazione vecchia (OS/2) */
+        if (hs < 40) return false;
         int32_t x = (int32_t)(b[18] | b[19] << 8 | b[20] << 16 | (uint32_t)b[21] << 24), y = (int32_t)(b[22] | b[23] << 8 | b[24] << 16 | (uint32_t)b[25] << 24);
         *w = labs((long)x); *h = labs((long)y); return true;
     }
@@ -203,17 +206,45 @@ static bool img_dims(const unsigned char *b, size_t n, long *w, long *h) {
             if (m == 0xFF) { i++; continue; }
             if (m == 0xD8 || (m >= 0xD0 && m <= 0xD7) || m == 0x01) { i += 2; continue; }
             size_t len = (size_t)b[i + 2] << 8 | b[i + 3];
+            if (len < 2) return false;
             if (m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) { *h = b[i + 5] << 8 | b[i + 6]; *w = b[i + 7] << 8 | b[i + 8]; return true; }
             i += 2 + len;
         }
     }
     return false;
 }
+/* JPEG su file: i segmenti uno dopo l'altro fino a quello con le misure, anche oltre i primi 64 KB
+   (metadati grandi: verifica audit V26-02) */
+static bool jpeg_dims_file(FILE *f, long *w, long *h) {
+    unsigned char m[9];
+    if (fseek(f, 2, SEEK_SET) != 0) return false;
+    for (int guard = 0; guard < 4096; guard++) {
+        int c = fgetc(f);
+        if (c == EOF) return false;
+        if (c != 0xFF) continue;
+        int mk;
+        do mk = fgetc(f); while (mk == 0xFF);
+        if (mk == EOF) return false;
+        if (mk == 0xD8 || (mk >= 0xD0 && mk <= 0xD7) || mk == 0x01) continue;
+        if (fread(m, 1, 2, f) != 2) return false;
+        long len = m[0] << 8 | m[1];
+        if (len < 2) return false;
+        if (mk >= 0xC0 && mk <= 0xCF && mk != 0xC4 && mk != 0xC8 && mk != 0xCC) {
+            if (fread(m, 1, 5, f) != 5) return false;
+            *h = m[1] << 8 | m[2];
+            *w = m[3] << 8 | m[4];
+            return true;
+        }
+        if (fseek(f, len - 2, SEEK_CUR) != 0) return false;
+    }
+    return false;
+}
+
 #define MAX_PIXELS 40000000L   /* 40 milioni di pixel: circa 160 MB decodificati */
-static bool too_big(const unsigned char *b, size_t n) {
-    long w, h;
-    load_big = img_dims(b, n, &w, &h) && (w <= 0 || h <= 0 || w > 30000 || h > 30000 || w * h > MAX_PIXELS);
-    return load_big;
+/* vero se l'immagine si può decodificare: misure note ed entro i limiti; con misure ignote no */
+static bool size_ok(bool known, long w, long h) {
+    load_big = known && (w <= 0 || h <= 0 || w > 30000 || h > 30000 || w * h > MAX_PIXELS);
+    return known && !load_big;
 }
 
 static void page_load(void) {
@@ -225,7 +256,8 @@ static void page_load(void) {
         zent_t *e = &pg.zents[pg.zpages[pg.cur]];
         size_t n = (size_t)e->usize + 1;
         char *buf = e->usize < (64u << 20) ? malloc(n) : NULL;   /* una pagina oltre 64 MB non è un fumetto */
-        if (buf && zip_entry(pg.zf, e, NULL, buf, n) && !too_big((unsigned char *)buf, e->usize))
+        long w = 0, h = 0;
+        if (buf && zip_entry(pg.zf, e, NULL, buf, n) && size_ok(img_dims((unsigned char *)buf, e->usize, &w, &h), w, h))
             s = IMG_Load_RW(SDL_RWFromConstMem(buf, (int)e->usize), 1);
         free(buf);
     } else {
@@ -235,8 +267,10 @@ static void page_load(void) {
         snprintf(p, sizeof p, "%s/%s", pg.dir, pg.names[pg.cur]);
         FILE *f = fopen(p, "rb");
         size_t hn = f ? fread(head, 1, sizeof head, f) : 0;
+        long w = 0, h = 0;
+        bool known = hn >= 4 && head[0] == 0xFF && head[1] == 0xD8 ? jpeg_dims_file(f, &w, &h) : img_dims(head, hn, &w, &h);
         if (f) fclose(f);
-        if (stat(p, &sb) == 0 && sb.st_size < (64 << 20) && hn && !too_big(head, hn)) s = IMG_Load(p);
+        if (stat(p, &sb) == 0 && sb.st_size < (64 << 20) && size_ok(known, w, h)) s = IMG_Load(p);
     }
     if (s) tex = make_texture(s);
     if (!tex || tw <= 0 || th <= 0) { page_free(); tw = th = 0; load_failed = true; ui_log("immagini: pagina %d non leggibile o troppo grande (%s)", pg.cur + 1, IMG_GetError()); }
@@ -512,6 +546,7 @@ int main(int argc, char **argv) {
         if (pg.open) view_draw(); else list_draw();
         ui_end();
     }
+    app_exit_begin();
     pages_close();
     app_quit();
     return 0;

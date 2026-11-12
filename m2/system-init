@@ -484,9 +484,11 @@ journal_check() {
         journal_finish
     fi
 }
-# <<< giornale
+# tre avvii di prova falliti: file di prima e sistema precedente. Se i file non si rimettono ci si
+# ferma come in journal_check, prima di togliere il segno di prova o scambiare i sistemi: dopo,
+# journal_finish cancellerebbe le copie di un ripristino non riuscito (verifica audit V26-01)
 rollback() {
-    journal_restore
+    journal_restore || journal_stuck
     # aggiornamento senza sistema nuovo: bastano i file di prima, nessun riavvio
     if [ ! -f "$SYSF.prec" ]; then rm -f "$PENDING"; sync; return 1; fi
     step "aggiornamento non riuscito: torno al sistema precedente"
@@ -499,6 +501,7 @@ rollback() {
     sync
     finish reboot
 }
+# <<< giornale
 # schede con la prima parte dell'avvio più vecchia: il conteggio si fa qui
 if [ -f "$PENDING" ] && [ ! -f /run/boot-counted ]; then
     n=$(cat "$PENDING" 2>/dev/null)
