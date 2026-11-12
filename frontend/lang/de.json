@@ -979,5 +979,14 @@
     "Europe": "Europa",
     "Indian": "Indischer Ozean",
     "Pacific": "Pazifik"
+  },
+  "keys": {
+    "unsaved": "Karte nicht beschreibbar: Konsole neu starten"
+  },
+  "recover": {
+    "title": "Unvollständiger Vorgang",
+    "body": "Eine Wiederherstellung oder Installation wurde nicht beendet. Erneut versuchen; sonst ausschalten und Karte prüfen.",
+    "retry": "Wiederholen",
+    "off": "Ausschalten"
   }
 }

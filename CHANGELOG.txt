@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.40
+it Esplora file nello Store (cartella App): copia, sposta, rinomina ed estrae zip sulla console
+en Files in the Store (Apps folder): copy, move, rename and extract zips on the console
+it Avviso all'accensione se un ripristino o un'installazione è rimasto a metà, con Riprova
+en A notice at start if a restore or an installation was left unfinished, with Retry
+
 0.9.39
 it Fuso orario: tutti quelli del mondo, scelti per regione e città
 en Time zone: every one in the world, by region and city

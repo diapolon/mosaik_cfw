@@ -1164,6 +1164,39 @@ static bool rs_write_durable(const char *path, const char *data, size_t n) {
     return true;
 }
 
+
+/* c'è ancora un ".nome.annulla" (la copia di un file di prima) sotto dir? */
+static bool rs_has_annulla(const char *dir, int depth) {
+    DIR *d = opendir(dir);
+    if (!d) return false;
+    bool found = false;
+    struct dirent *e;
+    while (!found && (e = readdir(d))) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        size_t l = strlen(e->d_name);
+        if (l > 8 && !strcmp(e->d_name + l - 8, ".annulla")) { found = true; break; }
+        char p[2600];
+        struct stat sb;
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        if (depth < 12 && lstat(p, &sb) == 0 && S_ISDIR(sb.st_mode)) found = rs_has_annulla(p, depth + 1);
+    }
+    closedir(d);
+    return found;
+}
+
+/* il giornale è intero? prima riga "ripristino N", poi proprio N righe di file (R39-02) */
+static bool restore_journal_valid(const char *t) {
+    if (strncmp(t, "ripristino ", 11)) return false;
+    int want = atoi(t + 11), files = 0;
+    for (const char *l = t; *l;) {
+        const char *e = strchr(l, '\n');
+        if (!e) return false;
+        if (!strncmp(l, "sostituito ", 11) || !strncmp(l, "nuovo ", 6)) files++;
+        l = e + 1;
+    }
+    return want > 0 && want == files;
+}
+
 /* rimette com'era (done = false) o chiude (done = true); si può ripetere */
 static bool restore_journal_apply(const char *text, bool done) {
     bool ok = true;
@@ -1207,7 +1240,24 @@ static bool restore_recover(void) {
     fclose(f);
     if (bad) { free(t); fprintf(stderr, "ripristino: giornale illeggibile, resta\n"); return false; }
     t[n] = 0;
-    bool done = strstr(t, "\nfatto\n") != NULL || !strncmp(t, "fatto\n", 6), ok = restore_journal_apply(t, done);
+    if (!restore_journal_valid(t)) {
+        /* non si può applicare: con una copia dei file di prima ancora in giro il ripristino era
+           a metà e resta bloccato; senza, niente era stato sostituito e il giornale si mette da parte */
+        static const char *const dirs[] = { "Saves", "Bios", "System", "Media", "Music", "Bezels", "Roms", "Linux", "Apps" };
+        bool half = false;
+        for (size_t i = 0; i < sizeof dirs / sizeof *dirs && !half; i++) {
+            char d[1300];
+            full_path(d, sizeof d, dirs[i]);
+            half = rs_has_annulla(d, 0);
+        }
+        char kept[1300];
+        full_path(kept, sizeof kept, "System/ripristino-giornale-guasto.txt");
+        bool moved = !half && rename(jp, kept) == 0;
+        fprintf(stderr, "ripristino: giornale guasto, %s\n", half ? "con file di prima ancora da rimettere: fermo" : moved ? "nessun file a metà: messo da parte" : "non spostato: fermo");
+        free(t);
+        return moved;
+    }
+    bool done = strstr(t, "\nfatto\n") != NULL, ok = restore_journal_apply(t, done);
     free(t);
     if (ok) {
         sync();
@@ -1282,10 +1332,11 @@ static bool backup_extract(const char *zipfull, int parts, int total) {
         /* il giornale: tutto quello che si farà, prima di farlo */
         char jp[1200];
         full_path(jp, sizeof jp, RESTORE_JOURNAL);
-        size_t cap = 16, len = 0;
+        size_t cap = 48, len = 0;
         for (int k = 0; k < staged; k++) cap += strlen(z[idx[k]].name) + 16;
         char *jt = malloc(cap);
         if (!jt) ok = false;
+        else len = (size_t)snprintf(jt, cap, "ripristino %d\n", staged);
         for (int k = 0; ok && k < staged; k++) {
             char dst[2400];
             full_path(dst, sizeof dst, z[idx[k]].name);

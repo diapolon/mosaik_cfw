@@ -979,5 +979,14 @@
     "Europe": "Europa",
     "Indian": "Oceano Índico",
     "Pacific": "Pacífico"
+  },
+  "keys": {
+    "unsaved": "Cartão sem escrita: reinicia a consola"
+  },
+  "recover": {
+    "title": "Operação a meio",
+    "body": "Um restauro ou uma instalação não terminou. Tenta de novo; se não passar, desliga e verifica o cartão.",
+    "retry": "Repetir",
+    "off": "Desligar"
   }
 }

@@ -326,10 +326,12 @@ static const char *rel_path(const game_t *g, const char *dir, size_t dl) {
 
 /* riscrive il registro se è cambiato: le ROM presenti, più le righe delle assenti la cui chiave
    non è stata presa */
-static void reg_save(const char *file, reg_t *reg, game_t *g, int n, const char *dir, size_t dl, const char *old, size_t oldlen) {
+/* false: il registro sulla scheda non è quello appena deciso (verifica audit R39-01) */
+static bool reg_save(const char *file, reg_t *reg, game_t *g, int n, const char *dir, size_t dl, const char *old, size_t oldlen) {
     char **keys = malloc(sizeof(char *) * (size_t)(n ? n : 1));
     regent_t *all = malloc(sizeof(regent_t) * (size_t)(n + reg->n + 1));
-    if (!keys || !all) { free(keys); free(all); ui_log("registro delle chiavi non aggiornato: memoria"); return; }
+    if (!keys || !all) { free(keys); free(all); ui_log("registro delle chiavi non aggiornato: memoria"); return false; }
+    bool saved = true;
     int na = 0;
     size_t cap = 1;
     for (int i = 0; i < n; i++) {
@@ -357,11 +359,15 @@ static void reg_save(const char *file, reg_t *reg, game_t *g, int n, const char 
         FILE *f = fopen(tmp, "wb");
         bool ok = f && fwrite(text, 1, len, f) == len && fflush(f) == 0 && fsync(fileno(f)) == 0;
         if (f && fclose(f) != 0) ok = false;
-        if (!ok || durable_replace(tmp, file) != 0) { remove(tmp); ui_log("registro delle chiavi non scritto: %s", file); }
-    } else if (!text) ui_log("registro delle chiavi non aggiornato: memoria");
+#ifdef KEYS_TEST
+        if (getenv("KEYS_FAIL_SAVE")) ok = false;   /* prove: la scheda non si lascia scrivere */
+#endif
+        if (!ok || durable_replace(tmp, file) != 0) { remove(tmp); ui_log("registro delle chiavi non scritto: %s", file); saved = false; }
+    } else if (!text) { ui_log("registro delle chiavi non aggiornato: memoria"); saved = false; }
     free(text);
     free(keys);
     free(all);
+    return saved;
 }
 
 /* false: le chiavi non sono certe (memoria, registro illeggibile) e i giochi di questo emulatore
@@ -430,8 +436,11 @@ static bool assign_keys(game_t *g, int n, const char *dir, const char *regfile) 
         }
         if (!again) break;
     }
+    /* registro non scritto: le ROM già registrate hanno la chiave di sempre e si giocano; quelle
+       nuove aspettano, perché al prossimo avvio la loro chiave potrebbe essere un'altra */
+    if (regfile && !reg_save(regfile, &reg, g, n, dir, dl, old, oldlen))
+        for (int i = 0; i < n; i++) if (!r[i].fixed) r[i].g->key_unsaved = true;
     free(r);
-    if (regfile) reg_save(regfile, &reg, g, n, dir, dl, old, oldlen);
     free(old);
     free(reg.e);
     free(reg.buf);

@@ -979,5 +979,14 @@
     "Europe": "Europe",
     "Indian": "Indian Ocean",
     "Pacific": "Pacific"
+  },
+  "keys": {
+    "unsaved": "Card not writable: restart the console"
+  },
+  "recover": {
+    "title": "Unfinished operation",
+    "body": "A restore or an installation did not finish. Try again; if it keeps failing, power off and check the card.",
+    "retry": "Retry",
+    "off": "Power off"
   }
 }

@@ -554,6 +554,12 @@ static bool have_games(void) {
 
 static void launch_ex(game_t *g, bool resume) {
     char path[1100], core[1100];
+    if (g->key_unsaved) {   /* la sua chiave non è nel registro: partirebbe con salvataggi non suoi (R39-01) */
+        ui_log("%s non avviato: registro delle chiavi non scritto", g->name);
+        ui_toast(T("keys.unsaved"));
+        ui_sound(SND_ERROR);
+        return;
+    }
     if (g->missing) {
         const emulator_t *emu = emulator_find(g->core);
         char msg[300];
@@ -4761,6 +4767,41 @@ static void sdbad_draw(void) {
     const char *label[1] = { T("common.restart") };
     ui_popup_buttons(x, y, w, h, label, 1, 0, -1);
 }
+
+/* Un ripristino del backup o un'installazione dello Store rimasti a metà e non richiusi all'avvio
+   (verifica audit R39-03): non si prosegue come se niente fosse, con impostazioni o emulatori per
+   metà nuovi. La finestra resta finché "Riprova" non li chiude, oppure si spegne. */
+static bool rec_open, rec_fs_bad, rec_st_bad;
+static int rec_sel;
+static void reload_games(void);
+static void rec_input(void) {
+    int r = ui_popup_input(&rec_sel, 2);
+    if (r == 1) { ui_log("operazione a metà: spengo"); power_off(); return; }
+    if (r != 0) return;
+    if (rec_fs_bad) rec_fs_bad = !fs_restore_recover(UI.root);
+    if (rec_st_bad) rec_st_bad = !store_recover(UI.root);
+    if (rec_fs_bad || rec_st_bad) { ui_log("operazione a metà: ancora non chiusa"); ui_sound(SND_ERROR); return; }
+    ui_log("operazione a metà: chiusa, rileggo impostazioni e giochi");
+    settings_load(&UI.set, UI.root);   /* il ripristino può averle rimesse */
+    reload_games();
+    rec_open = false;
+    ui_sound(SND_OK);
+}
+static void rec_draw(void) {
+    theme_t *t = &UI.th;
+    char lines[4][160];
+    int w = M(0.9f), pad = M(0.05f), sh = TTF_FontHeight(UI.f_small);
+    int nl = ui_wrap(UI.f_small, T("recover.body"), w - 2 * pad, lines, 4);
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + ui_popup_buttons_h();
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 160));
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_text(UI.f_title, T("recover.title"), x + pad, y + pad, rgba(230, 130, 20, 255), ALIGN_LEFT);
+    int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
+    const char *label[2] = { T("recover.retry"), T("recover.off") };
+    ui_popup_buttons(x, y, w, h, label, 2, rec_sel, -1);
+}
 static int rdy_sel = 2;
 
 static bool upd_battery_ok(void);
@@ -7597,7 +7638,7 @@ int main(int argc, char **argv) {
     char p[1100];
     snprintf(p, sizeof p, "%s/System", root);
     mkdir(p, 0755);
-    fs_restore_recover(root);   /* un ripristino del backup interrotto: prima di leggere impostazioni e giochi */
+    rec_fs_bad = !fs_restore_recover(root);   /* un ripristino del backup interrotto: prima di leggere impostazioni e giochi */
     if (!ui_init("Arcade", root, auto_script, 48000, true)) return 1;
     plat_cpu_fixed(CPU_ACTIVE_KHZ);
 #ifndef TRIMUI_DEVICE
@@ -7616,7 +7657,9 @@ int main(int argc, char **argv) {
     nthemes = theme_list(UI.root, theme_ids, theme_names, 16);
     nlangs = lang_list(UI.root, lang_codes, lang_names, 16);
     nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
-    store_recover(UI.root);   /* un'installazione dello Store interrotta: prima di leggere i giochi */
+    rec_st_bad = !store_recover(UI.root);   /* un'installazione dello Store interrotta: prima di leggere i giochi */
+    rec_open = rec_fs_bad || rec_st_bad || getenv("ARCADE_TEST_RECOVER") != NULL;
+    if (rec_open) ui_log("avvio: %s non chiuso, si chiede di riprovare", rec_fs_bad ? "ripristino del backup" : "Store");
     reload_games();
     ui_mark("giochi pronti");
     music_init(UI.root);
@@ -7686,6 +7729,7 @@ int main(int argc, char **argv) {
             sdbad_open = access("/run/sd-guasta", F_OK) == 0 || getenv("ARCADE_TEST_SDBAD");
         }
         if (sdbad_open) sdbad_input();
+        else if (rec_open) rec_input();
         else if (dlg_open && dlg_suspend) {
             int r = ui_confirm_input(&dlg_sel);
             if (r >= 0) dlg_open = dlg_suspend = false;
@@ -7794,6 +7838,7 @@ int main(int argc, char **argv) {
         if (atomic_load(&imp_state)) imp_draw();
         if (atomic_load(&rst_state)) rst_draw();
         if (rdy_open) rdy_draw();
+        if (rec_open) rec_draw();
         if (sdbad_open) sdbad_draw();
         if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
         battery_check();
@@ -7806,12 +7851,12 @@ int main(int argc, char **argv) {
         }
         /* la domanda arriva quando il controllo in sottofondo è finito, solo se nulla è aperto */
         /* un backup copiato sulla scheda: dopo la lingua, prima del Wi-Fi della prima accensione */
-        if (!imp_checked && setup_step != 1 && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open) {
+        if (!imp_checked && setup_step != 1 && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open && !rec_open) {
             imp_checked = true;
             if (imp_find()) { atomic_store(&imp_state, IMP_ASK); pp_reset(&imp_pp, &imp_bk); }
         }
         /* poi i pacchetti dello Store copiati sulla scheda, uno alla volta */
-        if (imp_checked && !atomic_load(&imp_state) && !pkg_checked && !setup_step && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open) {
+        if (imp_checked && !atomic_load(&imp_state) && !pkg_checked && !setup_step && !upd_open && !dlg_open && !cfm_kind && !rdy_open && !sdbad_open && !rec_open) {
             pkg_checked = true;
             if (store_offline_find(UI.root, pkg_path, sizeof pkg_path, pkg_name, sizeof pkg_name, pkg_label, sizeof pkg_label)) {
                 ui_log("store: pacchetto sulla scheda: %s (%s)", pkg_name, pkg_path);
@@ -7822,7 +7867,7 @@ int main(int argc, char **argv) {
         /* dopo un ripristino: una volta per avvio, a Wi-Fi collegato, rimettere i pacchetti del backup
            (prima dell'invito della scheda senza emulatori, che allora non serve) */
         if (pkg_checked && !restpkg_asked && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
-            !rdy_open && !sdbad_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
+            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
             restpkg_asked = true;
             if ((restpkg_n = store_restore_pending(UI.root)) > 0) {
                 cfm_kind = CFM_RESTPKG;
@@ -7833,7 +7878,7 @@ int main(int argc, char **argv) {
         /* nessun emulatore (scheda nuova): una volta per avvio, l'invito ad aprire lo Store, solo
            a Wi-Fi collegato (senza rete lo Store non ha il catalogo) e non mentre si sceglie la rete */
         if (pkg_checked && !store_asked && NEMUS == 0 && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
-            !rdy_open && !sdbad_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
+            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
             store_asked = true;
             cfm_kind = CFM_STORE;
             cfm_sel = 1;

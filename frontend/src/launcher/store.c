@@ -604,6 +604,43 @@ static bool journal_apply(const char *text, bool done) {
     return ok;
 }
 
+
+/* c'è ancora un ".nome.annulla" (la copia di un file di prima) sotto dir? */
+static bool st_has_annulla(const char *dir, int depth) {
+    DIR *d = opendir(dir);
+    if (!d) return false;
+    bool found = false;
+    struct dirent *e;
+    while (!found && (e = readdir(d))) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        size_t l = strlen(e->d_name);
+        if (l > 8 && !strcmp(e->d_name + l - 8, ".annulla")) { found = true; break; }
+        char p[2600];
+        struct stat sb;
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        if (depth < 12 && lstat(p, &sb) == 0 && S_ISDIR(sb.st_mode)) found = st_has_annulla(p, depth + 1);
+    }
+    closedir(d);
+    return found;
+}
+
+/* Il giornale è intero? Intestazione, riga del registro e, da quando c'è, il conto delle righe
+   dei file ("righe N"); quelli scritti prima non l'hanno e valgono se hanno il resto. */
+static bool journal_valid(const char *t) {
+    if (strncmp(t, "pacchetto ", 10)) return false;
+    int files = 0, want = -1;
+    bool reg = false;
+    for (const char *l = t; *l;) {
+        const char *e = strchr(l, '\n');
+        if (!e) return false;   /* ogni riga finisce con un a capo: l'ultima è tronca */
+        if (!strncmp(l, "sostituito ", 11) || !strncmp(l, "nuovo ", 6) || !strncmp(l, "tolto ", 6)) files++;
+        else if (!strncmp(l, "registro ", 9)) reg = true;
+        else if (!strncmp(l, "righe ", 6)) want = atoi(l + 6);
+        l = e + 1;
+    }
+    return reg && (want < 0 || want == files);
+}
+
 /* Lettura del giornale con tre esiti (audit A38-003): assente, letto per intero, errore. Un
    errore di lettura non dice niente sul contenuto: il giornale resta dov'è. */
 enum { JR_ABSENT, JR_OK, JR_ERROR };
@@ -639,11 +676,22 @@ bool store_recover(const char *root) {
     }
     /* il giornale si scrive tutto insieme (write_durable): senza la riga "pacchetto" non è uno
        scritto a metà ma un file guasto. Si mette da parte, intero, per capire cos'è successo */
-    if (strncmp(t, "pacchetto ", 10)) {
+    if (!journal_valid(t)) {
+        /* Non si può applicare. Se in giro c'è ancora la copia di un file di prima (.annulla),
+           un'installazione era a metà e non si sa quale: lo Store resta fermo e niente si tocca
+           (R39-02). Senza copie niente era stato sostituito: il giornale si mette da parte. */
+        static const char *const dirs[] = { "Cores", "Emulators", "Dats", "Apps", "Themes", "Filters", "Bezels", "System/pacchetti" };
+        bool half = false;
+        for (size_t i = 0; i < sizeof dirs / sizeof *dirs && !half; i++) {
+            char d[1300];
+            snprintf(d, sizeof d, "%s/%s", root_dir, dirs[i]);
+            half = st_has_annulla(d, 0);
+        }
         char kept[1300];
         snprintf(kept, sizeof kept, "%s/System/store-giornale-guasto.txt", root_dir);
-        bool moved = rename(jp, kept) == 0;
-        ui_log("store: giornale senza intestazione, %s", moved ? "messo da parte in store-giornale-guasto.txt" : "non spostato: Store fermo");
+        bool moved = !half && rename(jp, kept) == 0;
+        ui_log("store: giornale guasto, %s", half ? "con file di prima ancora da rimettere: Store fermo"
+               : moved ? "nessun file a metà: messo da parte in store-giornale-guasto.txt" : "non spostato: Store fermo");
         free(t);
         return moved;
     }
@@ -741,7 +789,7 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
     snprintf(sysd, sizeof sysd, "%s/System/pacchetti", root_dir);
     mkdir(sysd, 0755);
     /* il giornale: tutto quello che si farà, prima di farlo */
-    size_t jcap = 64 + strlen(id), jlen = 0;
+    size_t jcap = 96 + strlen(id), jlen = 0;
     for (int k = 0; k < nf; k++) jcap += strlen(files[k]) + 16;
     for (int i = 0; i < no; i++) jcap += strlen(old[i]) + 16;
     char *jt = malloc(jcap);
@@ -763,6 +811,10 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
             jlen += (size_t)snprintf(jt + jlen, jcap - jlen, "tolto %s\n", old[i]);
         }
         jlen += (size_t)snprintf(jt + jlen, jcap - jlen, "registro %s\n", had_record ? "si" : "no");
+        /* quante righe di file ha il giornale: uno letto a pezzi non si applica (R39-02) */
+        int rows = 0;
+        for (const char *c = jt; (c = strchr(c, '\n')); c++) rows++;
+        jlen += (size_t)snprintf(jt + jlen, jcap - jlen, "righe %d\n", rows - 2);
         if (!write_durable(jp, jt, jlen)) err = SE_WRITE;
     }
     bool journaled = !err;

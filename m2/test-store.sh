@@ -31,7 +31,7 @@ void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr
 static int find(const char *id) { for (int i = 0; i < store_count(); i++) if (!strcmp(store_pkg(i)->id, id)) return i; return -1; }
 int main(int c, char **v) {
     const char *root = v[1], *cmd = v[2];
-    if (!strcmp(cmd, "recover")) { store_recover(root); return 0; }
+    if (!strcmp(cmd, "recover")) { puts(store_recover(root) ? "chiuso" : "in sospeso"); return 0; }
     if (!strcmp(cmd, "pending")) { printf("%d\n", store_restore_pending(root)); return 0; }
     if (!strcmp(cmd, "restore")) {
         store_open(root, 0, true);
@@ -151,11 +151,21 @@ pass=0; tot=0
 for n in 1 2 3 4 5 6 7 8; do   # corrente che manca a ogni passo: al riavvio si torna alla v2
     tot=$((tot+1))
     STORE_STOP_AT=$n ./t $R install fbneo >/dev/null 2>&1 || true
-    ./t $R recover 2>/dev/null
+    ./t $R recover >/dev/null 2>&1
     [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && pass=$((pass+1)) || echo "    interruzione $n: $(cd sd && find . -name '*.annulla' -o -name '*.part' -o -name 'store-giornale.txt' | head -3)"
 done
 check "interruzione a ogni passo e riavvio: v2 intatta" "$tot" "$pass"
-check "giornale senza intestazione: messo da parte, non cancellato" "si" "$(: > sd/System/store-giornale.txt; ./t $R recover 2>/dev/null; [ -e sd/System/store-giornale-guasto.txt ] && rm sd/System/store-giornale-guasto.txt && [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && echo si || echo no)"
+check "giornale senza intestazione: messo da parte, non cancellato" "si" "$(: > sd/System/store-giornale.txt; ./t $R recover >/dev/null 2>&1; [ -e sd/System/store-giornale-guasto.txt ] && rm sd/System/store-giornale-guasto.txt && [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && echo si || echo no)"
+# giornale rovinato con un'installazione a metà (verifica audit R39-02): lo Store resta fermo
+STORE_STOP_AT=3 ./t $R install fbneo >/dev/null 2>&1 || true
+cp sd/System/store-giornale.txt giornale-buono.txt
+ANN=$(find sd -name '*.annulla' | wc -l | tr -d ' ')
+sed '2d' giornale-buono.txt > sd/System/store-giornale.txt
+check "giornale con una riga in meno e file a metà: resta, Store fermo" "in sospeso si $ANN 5 6" "$(./t $R recover 2>/dev/null) $([ -e sd/System/store-giornale.txt ] && echo si || echo no) $(find sd -name '*.annulla' | wc -l | tr -d ' ') $(./t $R install fbneo 2>/dev/null | cut -d' ' -f1-2)"
+head -c 40 giornale-buono.txt > sd/System/store-giornale.txt
+check "giornale tronco e file a metà: resta" "in sospeso" "$(./t $R recover 2>/dev/null)"
+cp giornale-buono.txt sd/System/store-giornale.txt
+check "rimesso il giornale intero: si chiude e torna la v2" "chiuso si" "$(./t $R recover 2>/dev/null) $([ "$(snap)" = "$V2" ] && echo si || echo no)"
 BADCORE=1 mk 5
 check "aggiornamento con un core che non parte: errore" "5 7 2" "$(./t $R install fbneo 2>/dev/null)"
 check "… e resta la versione di prima, che funziona" "si" "$([ "$(snap)" = "$V2" ] && cmp -s sd/Cores/fbneo_libretro.so good_libretro.so && echo si || echo no)"

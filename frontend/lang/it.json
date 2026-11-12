@@ -979,5 +979,14 @@
     "Europe": "Europa",
     "Indian": "Oceano Indiano",
     "Pacific": "Pacifico"
+  },
+  "keys": {
+    "unsaved": "Scheda non scrivibile: riavvia la console"
+  },
+  "recover": {
+    "title": "Operazione rimasta a metà",
+    "body": "Un ripristino o un'installazione non si è concluso. Riprova; se non passa, spegni e controlla la scheda.",
+    "retry": "Riprova",
+    "off": "Spegni"
   }
 }

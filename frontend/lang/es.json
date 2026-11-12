@@ -979,5 +979,14 @@
     "Europe": "Europa",
     "Indian": "Océano Índico",
     "Pacific": "Pacífico"
+  },
+  "keys": {
+    "unsaved": "Tarjeta no escribible: reinicia la consola"
+  },
+  "recover": {
+    "title": "Operación a medias",
+    "body": "Una restauración o una instalación no terminó. Reintenta; si no pasa, apaga y revisa la tarjeta.",
+    "retry": "Reintentar",
+    "off": "Apagar"
   }
 }

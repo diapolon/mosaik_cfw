@@ -263,6 +263,19 @@ for n in $(seq 1 $tot); do
     [ "$g $r" = "si chiuso" ] && [ "$(snapd)" = "$PRIMA" ] && [ "$(avanzi)" = 0 ] && pass=$((pass+1)) || echo "    interruzione $n: [$g $r] $(find sd -name '*.annulla' -o -name '*.part' | head -3)"
 done
 check "corrente che manca in ogni punto: al riavvio tutti i file di prima" "$tot" "$pass"
+# giornale rovinato con un ripristino a metà (verifica audit R39-02): resta bloccato
+echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiato > sd/Saves/nuovo/a.srm
+RESTORE_STOP_AT=3 ./imp $W/sd r2.zip >/dev/null 2>&1 || true
+cp sd/System/ripristino-giornale.txt rg-buono.txt
+sed '2d' rg-buono.txt > sd/System/ripristino-giornale.txt
+check "giornale con una riga in meno e file a metà: resta, niente altro ripristino" "in sospeso errore si" "$(./imp $W/sd recover 2>/dev/null) $(./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2) $([ -n "$(find sd -name '*.annulla')" ] && echo si || echo no)"
+: > sd/System/ripristino-giornale.txt
+check "giornale vuoto e file a metà: resta" "in sospeso" "$(./imp $W/sd recover 2>/dev/null)"
+cp rg-buono.txt sd/System/ripristino-giornale.txt
+check "rimesso il giornale intero: tutto torna com'era" "chiuso $PRIMA 0" "$(./imp $W/sd recover 2>/dev/null) $(snapd) $(avanzi)"
+: > sd/System/ripristino-giornale.txt
+check "giornale vuoto senza file a metà: messo da parte" "chiuso si" "$(./imp $W/sd recover 2>/dev/null) $([ -e sd/System/ripristino-giornale-guasto.txt ] && echo si || echo no)"
+rm -f sd/System/ripristino-giornale-guasto.txt
 mkdir sd/System/ripristino-giornale.txt
 check "giornale illeggibile: resta e nessun altro ripristino" "in sospeso errore si" "$(./imp $W/sd recover 2>/dev/null) $(./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2) $([ -d sd/System/ripristino-giornale.txt ] && echo si || echo no)"
 rmdir sd/System/ripristino-giornale.txt

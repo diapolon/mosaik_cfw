@@ -182,12 +182,12 @@ int main(int c, char **v) {
         add(names[i - 2], v[i], names[i - 2]);
     }
     if (!assign_keys(G, n, "/sd/Roms/MD", v[1])) { puts("ERRORE"); return 0; }
-    for (int i = 0; i < n; i++) printf("%s|%s\n", G[i].key, G[i].title);
+    for (int i = 0; i < n; i++) printf("%s|%s%s\n", G[i].key, G[i].title, G[i].key_unsaved ? "|ATTESA" : "");
     return 0;
 }
 C
 gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -I$F/common -o k src/k.c && ./k > $W/keys.txt 2>$W/keys.err
-gcc -O2 -Wall -Wextra -Wno-unused-function -Isrc -I$F/common -o k2 src/k2.c
+gcc -O2 -Wall -Wextra -Wno-unused-function -DKEYS_TEST -Isrc -I$F/common -o k2 src/k2.c
 line() { sed -n "${1}p" $W/keys.txt; }
 [ "$(line 2)" = "Sonic|Sonic" ] && ok "il gioco nella cartella principale tiene il nome" || ko "principale: $(line 2)"
 [ "$(line 1)" = "Sonic [EU]|Sonic [EU]" ] && ok "omonimo in sottocartella: nome [sottocartella], anche nel titolo" || ko "EU: $(line 1)"
@@ -218,6 +218,11 @@ rm -rf $W/chiavi
 rm -rf $W/chiavi
 r=$(./k2 $RG $M/A/Game.md $M/B/game.md | cut -d'|' -f1 | tr 'A-Z' 'a-z' | sort | uniq -d)
 [ -z "$r" ] && ok "nomi uguali tranne le maiuscole: chiavi diverse anche sulla FAT ($(k2 $M/A/Game.md $M/B/game.md))" || ko "maiuscole: $(k2 $M/A/Game.md $M/B/game.md)"
+rm -rf $W/chiavi
+./k2 $RG $M/Game.md > /dev/null
+r=$(KEYS_FAIL_SAVE=1 ./k2 $RG $M/Game.md $M/Nuovo.md | tr '\n' ' ' | sed 's/ $//')
+[ "$r" = "Game|Game Nuovo|Nuovo|ATTESA" ] && ok "registro non scritto: la ROM nuova aspetta, quella già registrata si gioca (R39-01)" || ko "non scritto: $r"
+[ "$(k2 $M/Game.md $M/Nuovo.md)" = "Game|Game Nuovo|Nuovo" ] && ok "… e appena il registro si scrive parte anche la nuova" || ko "dopo: $(k2 $M/Game.md $M/Nuovo.md)"
 rm -rf $W/chiavi; mkdir -p $RG
 [ "$(k2 $M/Game.md)" = "ERRORE" ] && ok "registro illeggibile: nessuna chiave assegnata" || ko "illeggibile: $(k2 $M/Game.md)"
 rm -rf $W/chiavi

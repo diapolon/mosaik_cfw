@@ -979,5 +979,14 @@
     "Europe": "Europe",
     "Indian": "Océan Indien",
     "Pacific": "Pacifique"
+  },
+  "keys": {
+    "unsaved": "Carte non inscriptible : redémarre la console"
+  },
+  "recover": {
+    "title": "Opération inachevée",
+    "body": "Une restauration ou une installation ne s'est pas terminée. Réessaie ; sinon éteins et vérifie la carte.",
+    "retry": "Réessayer",
+    "off": "Éteindre"
   }
 }
