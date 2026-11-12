@@ -71,6 +71,7 @@ typedef struct {
     int audio_rate;
     bool automation;
     bool vol_bar;        /* chi disegna una barra del volume sua (runner): niente avviso a schermo */
+    bool gray;           /* forme e testi in toni di grigio (Store: pacchetti non installati) */
 } ui_t;
 
 extern ui_t UI;
@@ -120,6 +121,8 @@ int M(float f);
 color_t rgba(Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 color_t with_alpha(color_t c, int a);
 color_t mix(color_t a, color_t b, float t);
+/* il colore come lo disegna l'interfaccia: in grigio se UI.gray */
+color_t ui_shade(color_t c);
 
 /* forme */
 void ui_rect(int x, int y, int w, int h, color_t c);

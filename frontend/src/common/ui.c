@@ -313,8 +313,17 @@ static shape_t *shape_get(int r, int thick, int blur) {
     return &shapes[nshapes++];
 }
 
+color_t ui_shade(color_t c) {
+    if (!UI.gray) return c;
+    /* luminosità, un po' schiarita e con meno contrasto: grigio "spento", non nero */
+    int y = (c.r * 299 + c.g * 587 + c.b * 114) / 1000;
+    y = 70 + y * 65 / 100;
+    return (color_t){ (Uint8)y, (Uint8)y, (Uint8)(y + 4 > 255 ? 255 : y + 4), c.a };
+}
+
 static void nine(shape_t *sh, int x, int y, int w, int h, color_t c) {
     int k = sh->k, s = 2 * k + 1;
+    c = ui_shade(c);
     SDL_SetTextureColorMod(sh->tex, c.r, c.g, c.b);
     SDL_SetTextureAlphaMod(sh->tex, c.a);
     int cw = w - 2 * k, ch = h - 2 * k;
@@ -339,6 +348,7 @@ static int fit_radius(int r, int w, int h) {
 }
 
 void ui_rect(int x, int y, int w, int h, color_t c) {
+    c = ui_shade(c);
     SDL_SetRenderDrawColor(UI.ren, c.r, c.g, c.b, c.a);
     SDL_RenderFillRect(UI.ren, &(SDL_Rect){ x, y, w, h });
 }
@@ -501,6 +511,7 @@ static void glyph_draw(int kind, int cx, int cy, int rad, color_t c) {
         SDL_SetRenderTarget(UI.ren, prev);
         SDL_RenderSetClipRect(UI.ren, clipped ? &clip : NULL);
     }
+    c = ui_shade(c);
     SDL_SetTextureColorMod(g->tex, c.r, c.g, c.b);
     SDL_SetTextureAlphaMod(g->tex, c.a);
     int d = rad * 2 + 2;
@@ -517,6 +528,7 @@ void ui_wifi_icon(int x, int y, int h, int level, color_t on, color_t off) {
 }
 
 void ui_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c) {
+    c = ui_shade(c);
     SDL_Color col = { c.r, c.g, c.b, c.a };
     SDL_Vertex v[3] = {
         { { (float)x1, (float)y1 }, col, { 0, 0 } },
@@ -547,6 +559,8 @@ void ui_clip_pop(void) {
 }
 
 void ui_vgradient(int x, int y, int w, int h, color_t top, color_t bottom) {
+    top = ui_shade(top);
+    bottom = ui_shade(bottom);
     SDL_Color a = { top.r, top.g, top.b, top.a }, b = { bottom.r, bottom.g, bottom.b, bottom.a };
     SDL_Vertex v[4] = {
         { { (float)x, (float)y }, a, { 0, 0 } }, { { (float)(x + w), (float)y }, a, { 0, 0 } },
@@ -658,6 +672,7 @@ int ui_text(TTF_Font *f, const char *s, int x, int y, color_t c, int align) {
     if (!e) return 0;
     if (align == ALIGN_CENTER) x -= e->w / 2;
     else if (align == ALIGN_RIGHT) x -= e->w;
+    c = ui_shade(c);
     SDL_SetTextureColorMod(e->tex, c.r, c.g, c.b);
     SDL_SetTextureAlphaMod(e->tex, c.a);
     SDL_RenderCopy(UI.ren, e->tex, NULL, &(SDL_Rect){ x, y, e->w, e->h });

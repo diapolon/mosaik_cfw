@@ -1574,6 +1574,7 @@ static void plat_count_text(int tab, char *out, size_t sz) {
 
 static void plat_line(int x1, int y1, int x2, int y2, int th, color_t c) {
     SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
+    c = ui_shade(c);
     SDL_SetRenderDrawColor(UI.ren, c.r, c.g, c.b, c.a);
     for (int k = 0; k < th; k++) SDL_RenderDrawLine(UI.ren, x1 + k, y1, x2 + k, y2);
 }
@@ -2908,8 +2909,9 @@ static void sto_pkg_art(const store_pkg_t *p, color_t *col, emulator_t *em) {
 
 /* riquadro a righe come quelli delle Piattaforme, con l'immagine e il nome sotto */
 static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em, const char *label, const char *name,
-                     const char *sub, const char *badge, bool sel) {
+                     const char *sub, const char *badge, bool sel, bool gray) {
     theme_t *t = &UI.th;
+    UI.gray = gray;   /* non installato: tutto in grigio, tranne etichetta e cornice della scelta */
     ui_shadow(x, y + M(0.006f), w, h, M(0.006f), M(0.016f), t->shadow);
     ui_rect(x, y, w, h, c);
     ui_clip_push(x, y, w, h);
@@ -2933,6 +2935,7 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
     ui_text(fname, fit, x + w / 2, ty + (TTF_FontHeight(fn) - TTF_FontHeight(fname)) / 2, rgba(0xF2, 0xF2, 0xF2, 255), ALIGN_CENTER);
     ui_text_fit(fs, sub, w - M(0.02f), fit, sizeof fit);
     ui_text(fs, fit, x + w / 2, ty + TTF_FontHeight(fn), rgba(0xC8, 0xCC, 0xD4, 255), ALIGN_CENTER);
+    UI.gray = false;
     if (badge && badge[0]) {   /* stato in alto a destra */
         int bw = ui_text_w(fs, badge) + M(0.02f), bh = TTF_FontHeight(fs) + M(0.006f);
         ui_rrect(x + w - bw - M(0.008f), y + M(0.008f), bw, bh, bh / 2, t->accent);
@@ -2943,10 +2946,13 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
     else ui_rborder(x, y, w, h, 3, 2, with_alpha(rgba(255, 255, 255, 255), 70));
 }
 
+/* installato: a colori e senza etichetta; non installato: in grigio; da aggiornare: a colori con
+   l'etichetta; archiviato: in grigio con l'etichetta (giochi e salvataggi sono ancora lì) */
 static const char *sto_badge(const store_pkg_t *p) {
-    return p->state == PKG_INSTALLED ? T("store.installed") : p->state == PKG_UPDATE || p->state == PKG_OLD ? T("store.update")
-         : p->state == PKG_ARCHIVED ? T("store.archived") : "";
+    return p->state == PKG_UPDATE || p->state == PKG_OLD ? T("store.update") : p->state == PKG_ARCHIVED ? T("store.archived") : "";
 }
+
+static bool sto_gray(const store_pkg_t *p) { return p->state == PKG_ABSENT || p->state == PKG_ARCHIVED; }
 
 /* anteprima di Archivia ed Elimina: a sinistra cosa si toglie, a destra cosa resta, con quantità e
    misure; sotto una riga di avviso e i pulsanti (Elimina in rosso) */
@@ -3068,7 +3074,7 @@ static void sto_draw(void) {
                 else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
                 char badge[48] = "";
                 if (upd) snprintf(badge, sizeof badge, "%d", upd);
-                sto_tile(x, yy, tw, th, c, &em, T(title), T(title), sub, badge, i == sto_cat);
+                sto_tile(x, yy, tw, th, c, &em, T(title), T(title), sub, badge, i == sto_cat, false);
             } else {
                 store_pkg_t p = *store_pkg(sto_items[i]);
                 sto_pkg_art(&p, &c, &em);
@@ -3076,7 +3082,7 @@ static void sto_draw(void) {
                 char size[32];
                 sto_size(p.size, size, sizeof size);
                 snprintf(sub, sizeof sub, "%s · %s", p.name, size);
-                sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_badge(&p), i == sto_sel);
+                sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_badge(&p), i == sto_sel, sto_gray(&p));
             }
         }
         ui_clip_pop();
@@ -3097,8 +3103,10 @@ static void sto_draw(void) {
         emulator_t em;
         color_t c;
         sto_pkg_art(&p, &c, &em);
+        UI.gray = sto_gray(&p);
         ui_rrect(px + pad, py + pad, aw, ah - pad, r, c);
         draw_emu_art(&em, c, p.name, px + pad + aw / 10, py + pad + aw / 10, aw - aw / 5, ah - pad - aw / 5);
+        UI.gray = false;
         int tx = px + pad + aw + M(0.03f), tw = px + pw - pad - tx, ty = py + pad;
         char fit[200], line[240], a[32], b2[32];
         ui_text_fit(ft, p.name, tw, fit, sizeof fit);
