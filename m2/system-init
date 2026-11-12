@@ -326,6 +326,8 @@ finish() {
         step "chip di alimentazione col caricatore: $(axpctl dump 2>&1 | tr '\n' ' ')"
     fi
     step "${1:-spegnimento}"
+    # registro dei consumi: l'ultima misura e le righe ancora in memoria sulla SD
+    if [ -f /run/consumi.pid ]; then kill "$(cat /run/consumi.pid)" 2> /dev/null; sleep 0.5; fi
     # Wi-Fi e SD lavorano fino all'ultimo: con l'altoparlante acceso si sentirebbe un ronzio
     arcade-suspend mute 2> /dev/null
     [ -n "${KPID:-}" ] && kill "$KPID" 2> /dev/null
@@ -496,6 +498,9 @@ if [ -f "$PENDING" ]; then
 fi
 journal_check
 sync
+# registro dei consumi (m2/consumi): memoria, processore, batteria ogni 30 s in Logs/consumi.tsv,
+# con il registro diagnostico "Prestazioni" o "Completo"
+[ "$DEBUG" -ge 2 ] && ROOT="$ROOT" consumi > /dev/null 2>&1 &
 fails=0
 while :; do
     step "10 AVVIO DEL LAUNCHER"

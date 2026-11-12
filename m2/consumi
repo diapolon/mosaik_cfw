@@ -1,0 +1,93 @@
+#!/bin/sh
+# Registro dei consumi: lo avvia system-init con il registro diagnostico "Prestazioni" o
+# "Completo". Ogni 30 secondi una riga in Logs/consumi.tsv: che cosa gira (menu, gioco libretro
+# e core, gioco Linux o emulatore a sé), memoria, processi più grandi, processore, temperatura,
+# batteria e Wi-Fi. Serve a trovare dove il sistema spreca memoria (perdite in una sessione
+# lunga) o batteria (menu fermo, Wi-Fi, standby, giochi).
+# Le righe restano in /run e vanno sulla SD ogni 10 misure (5 minuti) e alla chiusura, per non
+# svegliare la scheda a ogni misura. SIGUSR1: una misura subito e scrittura (arcade-suspend la
+# chiede prima di dormire e al risveglio: il salto nell'ora e la batteria dicono quanto consuma
+# lo standby). SIGTERM: scrive e chiude (finish di system-init).
+# Analisi sul Mac: python3 toolchain/consumi.py Arcade/Logs/consumi.tsv
+ROOT=${ROOT:-/mnt/SDCARD/Arcade}
+OUT=${CONSUMI_OUT:-$ROOT/Logs/consumi.tsv}
+BUF=${CONSUMI_BUF:-/run/consumi.buf}
+PIDF=${CONSUMI_PID:-/run/consumi.pid}
+EVERY=${CONSUMI_EVERY:-30}
+FLUSH=${CONSUMI_FLUSH:-10}
+SYSD=${CONSUMI_SYS:-/sys}          # le prove sul Mac/Docker usano un /sys finto
+PS=$SYSD/class/power_supply
+echo $$ > "$PIDF"
+
+val() { cat "$1" 2>/dev/null || echo; }
+# kB di memoria residente di un processo (primo pid col nome dato), vuoto se non gira
+rss() {
+    p=$(pidof "$1" 2>/dev/null | cut -d' ' -f1)
+    [ -n "$p" ] && sed -n 's/^VmRSS:[[:space:]]*\([0-9]*\).*/\1/p' /proc/$p/status 2>/dev/null
+}
+# che cosa gira: "menu", "gioco <core>", "linux <titolo>", "app"; è il primo campo utile
+what() {
+    p=$(pidof runner 2>/dev/null | cut -d' ' -f1)
+    if [ -n "$p" ]; then
+        core=$(tr '\0' '\n' < /proc/$p/cmdline 2>/dev/null | sed -n '/^--core$/{n;p;}' | sed 's,.*/,,; s,_libretro.*,,')
+        echo "gioco	$core"; return
+    fi
+    p=$(pidof gamewatch 2>/dev/null | cut -d' ' -f1)
+    if [ -n "$p" ]; then
+        t=$(tr '\0' '\n' < /proc/$p/environ 2>/dev/null | sed -n 's/^ARCADE_TITLE=//p' | tr '\t' ' ')
+        echo "linux	$t"; return
+    fi
+    pidof launcher >/dev/null 2>&1 && { echo "menu	"; return; }
+    echo "altro	"
+}
+
+prev_total=0; prev_idle=0
+cpu() {
+    set -- $(head -1 /proc/stat)
+    shift
+    total=0; for v in "$@"; do total=$((total + v)); done
+    idle=$(( $4 + ${5:-0} ))
+    dt=$((total - prev_total)); di=$((idle - prev_idle))
+    prev_total=$total; prev_idle=$idle
+    [ $dt -gt 0 ] && echo $(( (dt - di) * 100 / dt )) || echo
+}
+
+sample() {
+    mem=$(awk '/^MemAvailable:/{a=$2} /^MemFree:/{f=$2} END{print a "\t" f}' /proc/meminfo)
+    # il processo più grande fuori da launcher e runner (gioco Linux, Deadcast, servizi)
+    big=$(awk '/^Name:/{n=$2} /^VmRSS:/{if (n != "launcher" && n != "runner") print $2, n}' /proc/[0-9]*/status 2>/dev/null \
+          | sort -rn | head -1 | awk '{print $2 ":" $1}')
+    mhz=$(val $SYSD/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq); [ -n "$mhz" ] && mhz=$((mhz / 1000))
+    temp=$(val $SYSD/class/thermal/thermal_zone0/temp); [ -n "$temp" ] && [ "$temp" -gt 1000 ] && temp=$((temp / 1000))
+    mv=$(val $PS/axp2202-battery/voltage_now); [ -n "$mv" ] && mv=$((mv / 1000))
+    ma=$(val $PS/axp2202-battery/current_now); [ -n "$ma" ] && ma=$((ma / 1000))
+    wifi=$(val $SYSD/class/net/wlan0/operstate); [ -n "$wifi" ] || wifi=spento
+    rx=$(val $SYSD/class/net/wlan0/statistics/rx_bytes); [ -n "$rx" ] && rx=$((rx / 1024))
+    tx=$(val $SYSD/class/net/wlan0/statistics/tx_bytes); [ -n "$tx" ] && tx=$((tx / 1024))
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$(date +%Y-%m-%dT%H:%M:%S)" "$(cut -d' ' -f1 /proc/uptime)" "$(what)" "$mem" "$(rss launcher)" "$(rss runner)" "$big" \
+        "$(cpu)" "$(cut -d' ' -f1 /proc/loadavg)" "$mhz" "$temp" \
+        "$(val $PS/axp2202-battery/capacity)" "$mv" "$ma" "$(val $PS/axp2202-battery/status)" "$(val $PS/axp2202-usb/online)" \
+        "$wifi" "$rx" "$tx" >> "$BUF"
+    n=$((n + 1))
+}
+
+flush() {
+    [ -s "$BUF" ] || return
+    # un file per volta: oltre 2 MB il vecchio diventa consumi.tsv.1
+    if [ -f "$OUT" ] && [ "$(wc -c < "$OUT")" -gt 2097152 ]; then mv -f "$OUT" "$OUT.1"; fi
+    [ -f "$OUT" ] || printf 'ora\tsecondi\tstato\tgioco\tmem_disp_kB\tmem_libera_kB\tlauncher_kB\trunner_kB\tprocesso_piu_grande\tcpu_%%\tcarico\tmhz\ttemp_C\tbatteria_%%\tmV\tmA\tcarica\tusb\twifi\trx_kB\ttx_kB\n' > "$OUT"
+    cat "$BUF" >> "$OUT" && : > "$BUF"
+    n=0
+}
+
+n=0
+trap 'sample; flush' USR1
+trap 'sample; flush; rm -f "$PIDF"; exit 0' TERM INT
+cpu > /dev/null   # primo valore di riferimento per l'uso del processore
+while :; do
+    sample
+    [ $n -ge "$FLUSH" ] && flush
+    # sleep in sottofondo: un segnale interrompe l'attesa e fa la sua misura subito
+    sleep "$EVERY" & wait $!
+done

@@ -51,6 +51,9 @@ fi
 echo 0 > /sys/class/led_anim/enable 2> /dev/null
 # audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
 mute
+# registro dei consumi (Registro diagnostico "Prestazioni"): una misura subito prima di dormire
+consumi_mark() { [ -f /run/consumi.pid ] && kill -USR1 "$(cat /run/consumi.pid)" 2> /dev/null && sleep 0.3; }
+consumi_mark
 touch /tmp/system_suspend
 sync
 
@@ -131,6 +134,7 @@ if [ ! -f /run/sd-ok ]; then
     exit 0
 fi
 step "risveglio (sospensione $r, tentativi $tries, batteria $(battery)%)"
+consumi_mark   # e una al risveglio: batteria prima e dopo dicono quanto consuma lo standby
 sync   # la riga del risveglio sulla SD anche se poi la console viene spenta a forza
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
 [ "$r" != "non riuscita" ]
