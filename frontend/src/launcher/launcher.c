@@ -2197,12 +2197,12 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
@@ -2215,7 +2215,7 @@ static const int cat_items[SC_COUNT][12] = {
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },          /* ROM e immagini */
     { S_STORE, S_FILESERVER, S_RESETSET, S_ERASE, -1 },  /* scheda e dati */
-    { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, -1 },
+    { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUPPORT, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
 
@@ -3749,6 +3749,48 @@ static void sdinfo_start(void) {
     sdinfo_open = true;
 }
 
+/* Sostieni Mosaik: la pagina delle donazioni (PayPal), con il codice QR da inquadrare col telefono.
+   Si apre solo da qui: nessun avviso compare da solo. */
+#define SUPPORT_URL "https://www.paypal.me/diapolonRS"
+static bool support_open;
+
+static void support_input(void) {
+    int sel = 0;
+    if (ui_popup_input(&sel, 1) != -1 || UI.in.pressed[BTN_B]) { support_open = false; ui_sound(SND_BACK); }
+}
+
+static void fsrv_qr(int x, int y, int size, const char *url);
+
+static void support_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    int w = UI.w - 2 * M(0.04f), pad = M(0.04f), h = M(0.62f);
+    if (h > UI.h - M(0.04f)) h = UI.h - M(0.04f);
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2, lx = x + pad;
+    int foot = y + h - ui_popup_buttons_h();
+    int qs = foot - (y + pad) - M(0.01f);
+    if (qs > w * 40 / 100) qs = w * 40 / 100;
+    int bw = w - 3 * pad - qs, cy = y + pad;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_text(ft, T("support.title"), lx, cy, t->text, ALIGN_LEFT);
+    cy += fth + M(0.02f);
+    char lines[5][160];
+    int n = ui_wrap(fn, T("support.body"), bw, lines, 5);
+    for (int k = 0; k < n; k++, cy += fnh) ui_text(fn, lines[k], lx, cy, t->text, ALIGN_LEFT);
+    cy += M(0.025f);
+    ui_text(fs, T("support.scan"), lx, cy, t->text_dim, ALIGN_LEFT);
+    cy += fsh;
+    char fit[120];
+    ui_text_fit(fn, "paypal.me/diapolonRS", bw, fit, sizeof fit);
+    ui_text(fn, fit, lx, cy, t->accent, ALIGN_LEFT);
+    fsrv_qr(x + w - pad - qs, y + pad, qs, SUPPORT_URL);
+    const char *labels[1] = { T("support.close") };
+    ui_popup_buttons(x, y, w, h, labels, 1, 0, -1);
+}
+
 static void sdinfo_input(void) {
     if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { sdinfo_open = false; ui_sound(SND_BACK); }
 }
@@ -4464,6 +4506,7 @@ static void settings_input(void) {
             ui_sound(SND_OK);
         }
         else if (set_sel == S_INFO) { sdinfo_start(); ui_sound(SND_OK); }
+        else if (set_sel == S_SUPPORT) { support_open = true; ui_sound(SND_OK); }
         else if (set_sel == S_FILESERVER) fsrv_start();
         else if (set_sel == S_STORE) { sto_start(); ui_sound(SND_OK); }
         else if (set_sel == S_RESETSET || set_sel == S_ERASE) { cfm_kind = set_sel == S_ERASE ? CFM_ERASE : CFM_RESETSET; cfm_sel = 0; ui_sound(SND_OK); }
@@ -4537,7 +4580,7 @@ static void set_draw_value(int i, TTF_Font *f, int x, int cy, int maxw, bool sel
         return;
     }
     color_t vc = sel ? t->accent : t->text_dim;
-    bool arrows = sel && i != S_INFO && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_STICKCAL && i != S_WIFINETS;
+    bool arrows = sel && i != S_INFO && i != S_SUPPORT && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_STICKCAL && i != S_WIFINETS;
     int aw = arrows ? ui_text_w(f, "‹") + M(0.015f) : 0, rr = fh / 3, dw = i == S_LEDCOLOR ? 2 * rr + M(0.015f) : 0;
     ui_text_fit(f, val, maxw - 2 * aw - dw, fit, sizeof fit);
     int tw = ui_text_w(f, fit), x0 = right ? x - (2 * aw + dw + tw) : x;
@@ -4711,7 +4754,7 @@ static void settings_draw(void) {
         for (int k = 0; k < n; k++) ui_text(fs, lines[k], mx, bottom - desc_h + M(0.012f) + k * fsh, t->text_dim, ALIGN_LEFT);
     }
     /* con una finestra aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || wpanel_open || clean_open || fsrv_open) return;
+    if (clock_open || sdinfo_open || support_open || wpanel_open || clean_open || fsrv_open) return;
     int end;
     if (set_page < 0) {
         const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
@@ -4720,7 +4763,7 @@ static void settings_draw(void) {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
                    set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
                    set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER ||
-                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE;
+                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
                             "L/R", T("common.section"), "" };
         end = ui_keybar(h, onda ? 9 : 6);
@@ -6604,7 +6647,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = wpanel_open = clean_open = gp_open = rcq_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -6653,6 +6696,7 @@ int main(int argc, char **argv) {
         else if (wpanel_open) wpanel_input();
         else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
+        else if (support_open) support_input();
         else if (fsrv_open) fsrv_input();
         else if (screen == SCR_HOME) home_input();
         else if (screen == SCR_LIBRARY) library_input();
@@ -6708,6 +6752,7 @@ int main(int argc, char **argv) {
         if (wpanel_open) wpanel_draw();
         if (clean_open) clean_draw();
         if (sdinfo_open) sdinfo_draw();
+        if (support_open) support_draw();
         if (fsrv_open) fsrv_draw();
         if (fpanel_open) fpanel_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();

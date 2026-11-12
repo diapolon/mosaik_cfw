@@ -242,7 +242,8 @@
     "speaker_rest": "Speaker at rest",
     "reset_settings": "Reset settings",
     "erase_all": "Erase everything",
-    "store": "Store"
+    "store": "Store",
+    "support": "Support Mosaik"
   },
   "settings_desc": {
     "file_server": "Manage the card's files from a computer or phone on the same Wi-Fi network.",
@@ -296,7 +297,8 @@
     "speaker_rest": "The hiss comes from the amplifier: off after 4 s without sound, back on at the next sound. A and B: two ways of switching it off, to compare.",
     "reset_settings": "Settings, lists and Wi-Fi networks go back to new. Games and saves stay.",
     "erase_all": "Erases games, saves, BIOS files, images and settings: the card goes back to freshly written.",
-    "store": "Download, update and remove emulators."
+    "store": "Download, update and remove emulators.",
+    "support": "A PayPal donation to help development."
   },
   "aspect": {
     "original": "Original",
@@ -933,5 +935,11 @@
     "archive_note": "Download it again from the Store whenever you like.",
     "delete_note": "This can't be undone.",
     "delete2_title": "Last confirmation"
+  },
+  "support": {
+    "title": "Support Mosaik",
+    "body": "Mosaik is free and will stay free. If you enjoy it and want to help its development, you can make a donation with PayPal. Thank you!",
+    "scan": "Scan the code with your phone, or open",
+    "close": "Close"
   }
 }

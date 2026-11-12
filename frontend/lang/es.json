@@ -242,7 +242,8 @@
     "speaker_rest": "Altavoz en reposo",
     "reset_settings": "Restablecer ajustes",
     "erase_all": "Borrar todo",
-    "store": "Tienda"
+    "store": "Tienda",
+    "support": "Apoya Mosaik"
   },
   "settings_desc": {
     "file_server": "Gestiona los archivos de la tarjeta desde un ordenador o un teléfono en la misma red Wi-Fi.",
@@ -296,7 +297,8 @@
     "speaker_rest": "El siseo viene del amplificador: se apaga tras 4 s sin sonido y vuelve con el siguiente. A y B: dos formas de apagarlo, para comparar.",
     "reset_settings": "Ajustes, listas y redes Wi-Fi vuelven a estar como nuevos. Juegos y partidas se quedan.",
     "erase_all": "Borra juegos, partidas, BIOS, imágenes y ajustes: la tarjeta queda como recién grabada.",
-    "store": "Descarga, actualiza y quita emuladores."
+    "store": "Descarga, actualiza y quita emuladores.",
+    "support": "Una donación con PayPal para ayudar al desarrollo."
   },
   "aspect": {
     "original": "Original",
@@ -933,5 +935,11 @@
     "archive_note": "Vuelve a descargarlo de la Store cuando quieras.",
     "delete_note": "No se podrá recuperar.",
     "delete2_title": "Última confirmación"
+  },
+  "support": {
+    "title": "Apoya Mosaik",
+    "body": "Mosaik es gratis y seguirá siéndolo. Si te gusta y quieres ayudar a su desarrollo, puedes hacer una donación con PayPal. ¡Gracias!",
+    "scan": "Escanea el código con el móvil, o abre",
+    "close": "Cerrar"
   }
 }

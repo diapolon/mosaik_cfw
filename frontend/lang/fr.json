@@ -242,7 +242,8 @@
     "speaker_rest": "Haut-parleur au repos",
     "reset_settings": "Réinitialiser les réglages",
     "erase_all": "Tout effacer",
-    "store": "Boutique"
+    "store": "Boutique",
+    "support": "Soutenir Mosaik"
   },
   "settings_desc": {
     "file_server": "Gère les fichiers de la carte depuis un ordinateur ou un téléphone sur le même réseau Wi-Fi.",
@@ -296,7 +297,8 @@
     "speaker_rest": "Le souffle vient de l'amplificateur : éteint après 4 s sans son, rallumé au son suivant. A et B : deux façons de l'éteindre, à comparer.",
     "reset_settings": "Réglages, listes et réseaux Wi-Fi reviennent à neuf. Jeux et sauvegardes restent.",
     "erase_all": "Efface jeux, sauvegardes, BIOS, images et réglages : la carte redevient comme juste écrite.",
-    "store": "Télécharger, mettre à jour et retirer des émulateurs."
+    "store": "Télécharger, mettre à jour et retirer des émulateurs.",
+    "support": "Un don PayPal pour aider le développement."
   },
   "aspect": {
     "original": "Original",
@@ -933,5 +935,11 @@
     "archive_note": "Retéléchargez-le depuis le Store quand vous voulez.",
     "delete_note": "Impossible de revenir en arrière.",
     "delete2_title": "Dernière confirmation"
+  },
+  "support": {
+    "title": "Soutenir Mosaik",
+    "body": "Mosaik est gratuit et le restera. S'il vous plaît et que vous voulez aider son développement, vous pouvez faire un don avec PayPal. Merci !",
+    "scan": "Scannez le code avec votre téléphone, ou ouvrez",
+    "close": "Fermer"
   }
 }

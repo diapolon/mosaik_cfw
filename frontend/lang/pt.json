@@ -242,7 +242,8 @@
     "speaker_rest": "Altifalante em repouso",
     "reset_settings": "Repor definições",
     "erase_all": "Apagar tudo",
-    "store": "Loja"
+    "store": "Loja",
+    "support": "Apoiar o Mosaik"
   },
   "settings_desc": {
     "file_server": "Gere os ficheiros do cartão a partir de um computador ou telemóvel na mesma rede Wi-Fi.",
@@ -296,7 +297,8 @@
     "speaker_rest": "O chiado vem do amplificador: desliga após 4 s sem som e volta no som seguinte. A e B: duas formas de o desligar, para comparar.",
     "reset_settings": "Definições, listas e redes Wi-Fi voltam a ficar como novas. Jogos e jogos guardados ficam.",
     "erase_all": "Apaga jogos, jogos guardados, BIOS, imagens e definições: o cartão fica como acabado de gravar.",
-    "store": "Descarregar, atualizar e remover emuladores."
+    "store": "Descarregar, atualizar e remover emuladores.",
+    "support": "Um donativo com PayPal para ajudar o desenvolvimento."
   },
   "aspect": {
     "original": "Original",
@@ -933,5 +935,11 @@
     "archive_note": "Volte a transferi-lo da Store quando quiser.",
     "delete_note": "Não poderá ser recuperado.",
     "delete2_title": "Última confirmação"
+  },
+  "support": {
+    "title": "Apoiar o Mosaik",
+    "body": "O Mosaik é gratuito e vai continuar a ser. Se gosta dele e quer ajudar o desenvolvimento, pode fazer um donativo com PayPal. Obrigado!",
+    "scan": "Leia o código com o telemóvel, ou abra",
+    "close": "Fechar"
   }
 }

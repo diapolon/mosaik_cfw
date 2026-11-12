@@ -16,6 +16,7 @@
   <a href="#comandi">Comandi</a> ·
   <a href="#problemi-frequenti">Problemi frequenti</a> ·
   <a href="https://github.com/diapolon/mosaik_cfw/wiki/Italiano">Wiki</a> ·
+  <a href="#sostieni-mosaik">Sostieni</a> ·
   <a href="README.md">English</a>
 </p>
 
@@ -213,6 +214,10 @@ In **Impostazioni → Scheda e dati** ci sono anche **Reimposta impostazioni** (
 - **Un gioco è lento o l'audio gracchia:** prova il profilo Prestazioni in Impostazioni → Giochi. Alcuni arcade 3D sono troppo pesanti o non supportati.
 - **File rovinati dopo la copia:** schede e lettori economici possono rovinare i file senza dare errori. Prova un altro lettore o un'altra scheda.
 - **Serve più dettaglio:** il registro è spento di base. Accendilo in **Impostazioni → Aggiornamenti → Registro diagnostico**, riavvia la console, riproduci il problema e guarda in `Arcade/Logs`.
+
+## Sostieni Mosaik
+
+Mosaik è gratis e resterà gratis. Se ti piace e vuoi aiutarne lo sviluppo, puoi fare una donazione con [PayPal](https://www.paypal.me/diapolonRS): grazie! Sulla console, **Impostazioni → Aggiornamenti → Sostieni Mosaik** mostra un codice QR per aprire la stessa pagina dal telefono.
 
 ## Compilare
 

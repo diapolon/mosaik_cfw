@@ -16,6 +16,7 @@
   <a href="#controls">Controls</a> ·
   <a href="#troubleshooting">Troubleshooting</a> ·
   <a href="https://github.com/diapolon/mosaik_cfw/wiki">Wiki</a> ·
+  <a href="#support-mosaik">Support</a> ·
   <a href="README.it.md">Italiano</a>
 </p>
 
@@ -213,6 +214,10 @@ To update, open **Settings → Updates → Update system** and choose **Download
 - **A game is slow or the audio crackles:** try the Performance profile in Settings → Games. Some 3D arcade games are too heavy or aren't supported.
 - **Damaged files after copying:** cheap cards and readers can damage files without reporting errors. Try another reader or card.
 - **Need more detail:** logs are off by default. Turn them on in **Settings → Updates → Diagnostic log**, restart the console, reproduce the problem and check `Arcade/Logs`.
+
+## Support Mosaik
+
+Mosaik is free and will stay free. If you enjoy it and want to help its development, you can make a donation with [PayPal](https://www.paypal.me/diapolonRS): thank you! On the console, **Settings → Updates → Support Mosaik** shows a QR code to open the same page from your phone.
 
 ## Building
 

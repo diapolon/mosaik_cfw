@@ -242,7 +242,8 @@
     "speaker_rest": "Altoparlante a riposo",
     "reset_settings": "Reimposta impostazioni",
     "erase_all": "Cancella tutto",
-    "store": "Store"
+    "store": "Store",
+    "support": "Sostieni Mosaik"
   },
   "settings_desc": {
     "file_server": "Gestisci i file della scheda da un computer o da un telefono sulla stessa rete Wi-Fi.",
@@ -296,7 +297,8 @@
     "speaker_rest": "Il fruscio viene dall'amplificatore: spento dopo 4 s senza suoni, si riaccende al primo suono. A e B: due modi di spegnerlo, da confrontare.",
     "reset_settings": "Impostazioni, liste e reti Wi-Fi tornano come nuove. Giochi e salvataggi restano.",
     "erase_all": "Cancella giochi, salvataggi, BIOS, immagini e impostazioni: la scheda torna come appena scritta.",
-    "store": "Scarica, aggiorna e togli gli emulatori."
+    "store": "Scarica, aggiorna e togli gli emulatori.",
+    "support": "Una donazione con PayPal per aiutare lo sviluppo."
   },
   "aspect": {
     "original": "Originale",
@@ -933,5 +935,11 @@
     "archive_note": "Lo riscarichi dallo Store quando vuoi.",
     "delete_note": "Non si potrà recuperare.",
     "delete2_title": "Ultima conferma"
+  },
+  "support": {
+    "title": "Sostieni Mosaik",
+    "body": "Mosaik è gratis e resterà gratis. Se ti piace e vuoi aiutarne lo sviluppo, puoi fare una donazione con PayPal. Grazie!",
+    "scan": "Inquadra il codice col telefono, oppure apri",
+    "close": "Chiudi"
   }
 }
