@@ -145,6 +145,9 @@
     "part_media": "Images and music",
     "part_games": "Games and apps"
   },
+  "gallery": {
+    "no_recent": "No recent games"
+  },
   "plat": {
     "title": "Platforms",
     "open": "Open library",

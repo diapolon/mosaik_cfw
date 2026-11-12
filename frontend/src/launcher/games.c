@@ -61,6 +61,21 @@ int emulators_load(const char *root) {
         snprintf(m->launch, sizeof m->launch, "%s", json_str(j, "launch", ""));
         m->nomenu = !json_bool(j, "menu", true);
         m->planned = planned;
+        /* produttore e anno (layout galleria): dal JSON, altrimenti dalla tabella qui sotto, così
+           gli emulatori già pubblicati non cambiano pacchetto solo per questo */
+        static const struct { const char *id, *maker, *year; } known[] = {
+            { "fbneo", "Arcade", "" }, { "mame2003p", "Arcade", "" }, { "mame2010", "Arcade", "" },
+            { "nes", "Nintendo", "1983" }, { "snes", "Nintendo", "1990" }, { "gb", "Nintendo", "1989" },
+            { "gbc", "Nintendo", "1998" }, { "gba", "Nintendo", "2001" }, { "md", "Sega", "1988" },
+            { "sms", "Sega", "1985" }, { "gg", "Sega", "1990" }, { "segacd", "Sega", "1991" },
+            { "dc", "Sega", "1998" }, { "pce", "NEC", "1987" }, { "pcecd", "NEC", "1988" },
+            { "ngp", "SNK", "1998" }, { "ps", "Sony", "1994" } };
+        for (size_t k = 0; k < sizeof known / sizeof *known; k++)
+            if (!strcmp(m->id, known[k].id)) { snprintf(m->maker, sizeof m->maker, "%s", known[k].maker); snprintf(m->year, sizeof m->year, "%s", known[k].year); }
+        if (json_get(j, "maker")) snprintf(m->maker, sizeof m->maker, "%s", json_str(j, "maker", ""));
+        jval *yv = json_get(j, "year");
+        if (yv && yv->t == J_NUM) snprintf(m->year, sizeof m->year, "%d", (int)yv->n);
+        else if (yv) snprintf(m->year, sizeof m->year, "%s", json_str(j, "year", ""));
         jval *bi = json_get(j, "bios");
         for (jval *v = bi && bi->t == J_ARR ? bi->child : NULL; v && m->nbios < 4; v = v->next)
             if (v->t == J_STR && !strchr(v->s, '/')) snprintf(m->bios[m->nbios++], sizeof m->bios[0], "%s", v->s);

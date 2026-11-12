@@ -1,0 +1,94 @@
+{
+  // Stellato: come il menu di una console sotto un cielo di stelle. In alto il titolo e le schede
+  // Preferiti, Recenti, Piattaforme (L/R); a sinistra il nome grande della scelta; al centro un
+  // carosello di schede con il disegno della piattaforma, produttore e anno; in basso una fascia
+  // di colore. Tema dello Store: richiede il layout "galleria" (sistema 0.9.32 o dopo); con un
+  // sistema più vecchio si vede con i riquadri di Tessera.
+  "name": "Stellato",
+  "author": "Mosaik",
+  "version": "1.0",
+  "title": "Mosaik",
+  "title_uppercase": true,
+  "layout": "galleria",
+  "sound_style": "soft",
+  "texts": {
+    "it": { "title": "Stellato", "description": "Cielo stellato, schede in alto e un carosello di piattaforme con produttore e anno" },
+    "en": { "title": "Starry", "description": "Starry sky, tabs on top and a carousel of platforms with maker and year" },
+    "es": { "title": "Estrellado", "description": "Cielo estrellado, pestañas arriba y un carrusel de plataformas con fabricante y año" },
+    "fr": { "title": "Étoilé", "description": "Ciel étoilé, onglets en haut et un carrousel de plateformes avec fabricant et année" },
+    "de": { "title": "Sternenhimmel", "description": "Sternenhimmel, Reiter oben und ein Karussell der Plattformen mit Hersteller und Jahr" },
+    "pt": { "title": "Estrelado", "description": "Céu estrelado, separadores em cima e um carrossel de plataformas com fabricante e ano" }
+  },
+  "fonts": {
+    "regular": "../_shared/fonts/Nunito.ttf:3",
+    "title": "../_shared/fonts/Nunito.ttf:8"
+  },
+  "media": {
+    "cover": ["title", "snap"],
+    "cover_style": "fill"
+  },
+  "metrics": {
+    "topbar_h": 0.11,
+    "hintbar_h": 0.10,
+    "margin": 0.05,
+    "tile_size": 0.32,
+    "tile_aspect": 1.333,
+    "grid_tile": 0.21,
+    "tile_gap": 0.022,
+    "tile_radius": 0.012,
+    "select_border": 0.007,
+    "icon_size": 0.095,
+    "font_small": 0.027,
+    "font_normal": 0.036,
+    "font_title": 0.046,
+    "font_big": 0.085,
+    "list_row_h": 0.075,
+    "panel_radius": 0.014
+  },
+  "animation": { "speed": 16, "pulse": true },
+  "effects": { "stars": true },
+  "variants": {
+    "notte": {
+      "label": { "it": "Notte", "en": "Night", "es": "Noche", "fr": "Nuit", "de": "Nacht", "pt": "Noite" },
+      "background": "#05060E",
+      "background2": "#1B2FD2",
+      "surface": "#151B3AE6",
+      "text": "#F4F6FB",
+      "text_dim": "#9EA7C4",
+      "accent": "#E8382D",
+      "accent_text": "#FFFFFF",
+      "highlight": "#FF4A3D",
+      "tile": "#151B3AE6",
+      "shadow": "#00000088",
+      "line": "#FFFFFF2E"
+    },
+    "aurora": {
+      "label": { "it": "Aurora", "en": "Aurora", "es": "Aurora", "fr": "Aurore", "de": "Polarlicht", "pt": "Aurora" },
+      "background": "#030A0C",
+      "background2": "#0B7A64",
+      "surface": "#0F2421E6",
+      "text": "#F2FAF7",
+      "text_dim": "#97B9B0",
+      "accent": "#F5C542",
+      "accent_text": "#0A1A16",
+      "highlight": "#F5C542",
+      "tile": "#0F2421E6",
+      "shadow": "#00000088",
+      "line": "#FFFFFF2E"
+    },
+    "tramonto": {
+      "label": { "it": "Tramonto", "en": "Sunset", "es": "Atardecer", "fr": "Coucher de soleil", "de": "Abendrot", "pt": "Pôr do sol" },
+      "background": "#08040F",
+      "background2": "#6A1FB0",
+      "surface": "#1E1233E6",
+      "text": "#FBF5FF",
+      "text_dim": "#B7A4CC",
+      "accent": "#FF8A3D",
+      "accent_text": "#1A0B24",
+      "highlight": "#FF8A3D",
+      "tile": "#1E1233E6",
+      "shadow": "#00000088",
+      "line": "#FFFFFF2E"
+    }
+  }
+}

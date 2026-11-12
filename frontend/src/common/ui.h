@@ -43,7 +43,7 @@ typedef struct {
     float list_row_h, panel_radius;
     float tile_aspect;   /* larghezza/altezza dei riquadri: 1 quadrati, 1.333 per le schermate 4:3 */
     float anim_speed;
-    bool pulse, scanlines, title_upper, waves;
+    bool pulse, scanlines, title_upper, waves, stars;
     char sound_style[16];
     char variants[8][16];
     char variant_labels[8][32];   /* nome della variante dal tema ("label", anche per lingua), "" se manca */

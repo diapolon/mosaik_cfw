@@ -145,6 +145,9 @@
     "part_media": "Bilder und Musik",
     "part_games": "Spiele und Apps"
   },
+  "gallery": {
+    "no_recent": "Keine zuletzt gespielten Spiele"
+  },
   "plat": {
     "title": "Plattformen",
     "open": "Bibliothek öffnen",

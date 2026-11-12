@@ -124,6 +124,10 @@ static bool is_bar_layout(void) { return !strcmp(UI.th.layout, "bar"); }
 static bool is_showcase_layout(void) { return !strcmp(UI.th.layout, "vetrina"); }
 static void vt_draw(void);
 static void vt_input(void);
+/* galleria: schede Preferiti/Recenti/Piattaforme in alto e un carosello di schede con produttore e anno */
+static bool is_gallery_layout(void) { return !strcmp(UI.th.layout, "galleria"); }
+static void gl_draw(void);
+static void gl_input(void);
 
 static void go(int scr) {
     if (scr == screen) return;
@@ -1271,6 +1275,7 @@ static int home_focus_game(void) {
 
 static void home_input(void) {
     if (is_showcase_layout()) { vt_input(); return; }
+    if (is_gallery_layout()) { gl_input(); return; }
     input_t *in = &UI.in;
     bool cards = !is_list_layout() && !is_bar_layout();
     int old = hsel * 16 + hrow * 4 + hbtn;
@@ -1515,6 +1520,7 @@ static void home_draw_bar(int y, int bottom) {
 
 static void home_draw(void) {
     if (is_showcase_layout()) { vt_draw(); return; }
+    if (is_gallery_layout()) { gl_draw(); return; }
     theme_t *t = &UI.th;
     topbar_theme();
     int y = M(t->topbar_h) + M(0.025f), bottom = UI.h - ui_keybar_h() - M(0.03f);
@@ -2356,6 +2362,197 @@ static void vt_input(void) {
         ui_sound(SND_OK);
     }
     if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
+}
+
+/* ------------------------------------------------------ galleria (layout "galleria")
+   Come il menu di una console: in alto il titolo e le schede (L/R) Preferiti, Recenti,
+   Piattaforme; a sinistra il nome grande della scelta e quanti giochi; al centro un carosello di
+   schede: la piattaforma col suo disegno, sotto produttore e anno (o il gioco con la sua
+   immagine); in fondo, sulla fascia del cielo, i tasti. Con Piattaforme anche App, Store,
+   Impostazioni e Spegni, come nella vetrina. */
+enum { GT_FAV, GT_RECENT, GT_PLAT, GT_N };
+static int gl_tab = GT_PLAT, gl_sel[GT_N];
+static float gl_off, gl_off_target;
+
+static int gl_games(int tab, int *out, int max) {
+    int n = 0;
+    if (tab == GT_RECENT) {
+        for (int r = 1; r <= 40 && n < max; r++)
+            for (int i = 0; i < ngames; i++)
+                if (games[i].recent == r && !games[i].hidden && !games[i].missing) { out[n++] = i; break; }
+    } else
+        for (int i = 0; i < ngames && n < max; i++)
+            if (games[i].fav && !games[i].hidden && !games[i].missing) out[n++] = i;
+    return n;
+}
+
+/* una scheda: cornice scura, nome in alto, immagine al centro, sotto produttore e anno */
+static void gl_card(int x, int y, int w, int h, bool sel, const char *name, const char *maker, const char *year,
+                    const vt_entry_t *e, int gi) {
+    theme_t *t = &UI.th;
+    color_t frame = hexc(0x14172A), light = rgba(0xF2, 0xF2, 0xF2, 255);
+    int r = M(0.012f), pad = w * 6 / 100, nh = TTF_FontHeight(UI.f_normal), sh = TTF_FontHeight(UI.f_small);
+    ui_shadow(x, y + M(0.008f), w, h, r, M(0.024f), rgba(0, 0, 0, 140));
+    ui_rrect(x, y, w, h, r, frame);
+    int top = y + pad / 2, ih = h - nh - sh - pad * 2 - pad / 2, iy = top + nh + pad / 3;
+    char fit[96];
+    ui_text_fit(UI.f_normal, name, w - 2 * pad, fit, sizeof fit);
+    ui_text(UI.f_normal, fit, x + w / 2, top, sel ? t->highlight : light, ALIGN_CENTER);
+    int gtab = gi >= 0 && !media_image(&games[gi], t->cover_types, t->ncover) ? vt_game_tab(gi) : -1;
+    if (gi >= 0 && gtab < 0) cover_box(&games[gi], x + pad, iy, w - 2 * pad, ih, r / 2);
+    else if (gi >= 0) {   /* gioco senza immagine: il disegno della sua piattaforma */
+        color_t c = plat_color(gtab);
+        ui_rrect(x + pad, iy, w - 2 * pad, ih, r / 2, c);
+        vt_stripes(x + pad, iy, w - 2 * pad, ih, c, M(0.026f));
+        draw_plat_art(gtab, x + pad * 2, iy + pad / 2, w - 4 * pad, ih - pad);
+    } else {
+        color_t c = vt_color(e);
+        ui_rrect(x + pad, iy, w - 2 * pad, ih, r / 2, c);
+        vt_stripes(x + pad, iy, w - 2 * pad, ih, c, M(0.026f));
+        vt_art(e, x + pad * 2, iy + pad / 2, w - 4 * pad, ih - pad, 0);
+        if (e->kind == VK_TAB && is_plan(ptabs[e->v])) ui_rrect(x + pad, iy, w - 2 * pad, ih, r / 2, with_alpha(c, 130));
+    }
+    int by = iy + ih + pad / 2;
+    ui_text_fit(UI.f_small, maker, w * 55 / 100, fit, sizeof fit);
+    ui_text(UI.f_small, fit, x + pad, by + (sh + M(0.01f) - sh) / 2, rgba(0xB4, 0xBA, 0xCC, 255), ALIGN_LEFT);
+    if (year && year[0]) {   /* l'anno in un'etichetta chiara, come un bollino */
+        int yw = ui_text_w(UI.f_small, year) + M(0.016f), yh = sh + M(0.008f);
+        ui_rrect(x + w - pad - yw, by, yw, yh, M(0.006f), hexc(0x8C93A8));
+        ui_text(UI.f_small, year, x + w - pad - yw / 2, by + M(0.004f), hexc(0x14172A), ALIGN_CENTER);
+    }
+    int bt = M(0.005f) + 1;
+    if (sel) ui_rborder(x - bt, y - bt, w + 2 * bt, h + 2 * bt, r + bt, bt, t->accent);
+    else ui_rborder(x, y, w, h, r, 2, with_alpha(light, 60));
+}
+
+static void gl_draw(void) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin);
+    /* titolo e schede */
+    int cy = M(t->topbar_h) / 2, fth = TTF_FontHeight(UI.f_title), fn = TTF_FontHeight(UI.f_normal);
+    char tt[64];
+    snprintf(tt, sizeof tt, "%s", t->title);
+    if (t->title_upper) for (char *p = tt; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+    int x = mx + ui_text(UI.f_title, tt, mx, cy - fth / 2, t->highlight, ALIGN_LEFT) + M(0.03f);
+    ui_button_glyph("L", x + M(0.014f), cy, M(0.03f));
+    x += M(0.04f);
+    static const char *const tk[GT_N] = { "home.favorites", "home.recent", "plat.title" };
+    for (int k = 0; k < GT_N; k++) {
+        int w = ui_text(UI.f_normal, T(tk[k]), x, cy - fn / 2, k == gl_tab ? t->text : t->text_dim, ALIGN_LEFT);
+        if (k == gl_tab) ui_rrect(x, cy + fn / 2 + M(0.004f), w, M(0.006f) + 1, M(0.003f), t->accent);
+        x += w + M(0.03f);
+    }
+    ui_button_glyph("R", x + M(0.008f), cy, M(0.03f));
+    ui_topbar(NULL);
+    /* il contenuto della scheda */
+    vt_entry_t e[MAX_EMUS + 48];
+    int gl[64], n = gl_tab == GT_PLAT ? vt_entries(e, MAX_EMUS + 48) : gl_games(gl_tab, gl, 64);
+    if (gl_tab == GT_PLAT && n && e[0].kind == VK_GAME) { memmove(e, e + 1, sizeof *e * (size_t)(n - 1)); n--; }   /* l'ultima partita è in Recenti */
+    int *sel = &gl_sel[gl_tab];
+    if (*sel >= n) *sel = n ? n - 1 : 0;
+    int iy = M(t->topbar_h) + M(0.03f);
+    char big[96] = "", sub[160] = "";
+    if (n && gl_tab == GT_PLAT) {
+        const vt_entry_t *s = &e[*sel];
+        const emulator_t *em = s->kind == VK_TAB && ptabs[s->v] >= TAB_EMU && ptabs[s->v] < TAB_COLL ? &EMUS[ptabs[s->v] - TAB_EMU] : NULL;
+        snprintf(big, sizeof big, "%s", em && em->shortname[0] ? em->shortname : vt_label(s));
+        if (s->kind == VK_TAB) plat_count_text(ptabs[s->v], sub, sizeof sub);
+    } else if (n) {
+        snprintf(big, sizeof big, "%s", games[gl[*sel]].title);
+        snprintf(sub, sizeof sub, "%s", games_core_label(games[gl[*sel]].core));
+    }
+    if (big[0]) {
+        char fit[96];
+        ui_text_fit(UI.f_big, big, UI.w - 2 * mx, fit, sizeof fit);
+        ui_text(UI.f_big, fit, mx, iy, t->text, ALIGN_LEFT);
+        int sy = iy + TTF_FontHeight(UI.f_big) + M(0.006f), d = TTF_FontHeight(UI.f_small) * 7 / 10;
+        if (sub[0]) {
+            ui_rrect(mx, sy + (TTF_FontHeight(UI.f_normal) - d) / 2, d, d, d / 4, t->accent);
+            ui_text(UI.f_normal, sub, mx + d + M(0.014f), sy, t->text, ALIGN_LEFT);
+        }
+    }
+    /* il carosello: la scheda scelta più grande, tenuta al secondo posto da sinistra */
+    int ch = UI.h * 33 / 100, cw = ch * 82 / 100, bigh = ch * 116 / 100, bigw = cw * 116 / 100, gap = M(0.018f);
+    int row_mid = UI.h * 58 / 100;
+    if (!n) {
+        const char *msg = gl_tab == GT_FAV ? T("library.empty_fav") : T("gallery.no_recent");
+        ui_text(UI.f_normal, msg, UI.w / 2, row_mid - fn / 2, t->text_dim, ALIGN_CENTER);
+    } else {
+        int sel_x = *sel * (cw + gap);
+        gl_off_target = (float)(sel_x - (cw + gap));
+        if (gl_off_target < 0) gl_off_target = 0;
+        gl_off = ui_approach(gl_off, gl_off_target);
+        int xx = mx - (int)gl_off;
+        for (int i = 0; i < n; i++) {
+            bool sl = i == *sel;
+            int w = sl ? bigw : cw, h = sl ? bigh : ch, y = row_mid - h / 2;
+            if (xx < UI.w && xx + w > 0) {
+                if (gl_tab == GT_PLAT) {
+                    const vt_entry_t *s = &e[i];
+                    const emulator_t *em = s->kind == VK_TAB && ptabs[s->v] >= TAB_EMU && ptabs[s->v] < TAB_COLL ? &EMUS[ptabs[s->v] - TAB_EMU] : NULL;
+                    char cnt[48] = "";
+                    if (!em && s->kind == VK_TAB) plat_count_text(ptabs[s->v], cnt, sizeof cnt);
+                    gl_card(xx, y, w, h, sl, vt_label(s), em ? em->maker : cnt, em ? em->year : "", s, -1);
+                } else {
+                    const game_t *g = &games[gl[i]];   /* il produttore e l'anno del gioco, se l'indice li ha */
+                    gl_card(xx, y, w, h, sl, g->title, g->maker[0] ? g->maker : games_core_label(g->core), g->year, NULL, gl[i]);
+                }
+            }
+            xx += w + gap;
+        }
+    }
+    /* tasti, sulla fascia in basso */
+    bool game = n && gl_tab != GT_PLAT;
+    int g = game ? gl[*sel] : -1;
+    const char *act = T(game ? (g == resume_idx ? "home.resume" : "common.play") : n && e[*sel].kind == VK_TAB ? "plat.open" : "common.open");
+    const char *h1[] = { "A", act, NULL, "X", T("common.info"), "", "Y", T(g >= 0 && games[g].fav ? "common.unfavorite" : "common.favorite"), "",
+                         "START", T("common.settings"), NULL };
+    const char *h2[] = { "A", act, NULL, "START", T("common.settings"), NULL };
+    if (g >= 0) ui_keybar(h1, 12); else ui_keybar(h2, n ? 6 : 3);
+}
+
+static void gl_input(void) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_L] || in->pressed[BTN_R]) {
+        gl_tab = (gl_tab + (in->pressed[BTN_R] ? 1 : GT_N - 1)) % GT_N;
+        gl_off = gl_off_target = 0;
+        ui_sound(SND_MOVE);
+        return;
+    }
+    vt_entry_t e[MAX_EMUS + 48];
+    int gl[64], n = gl_tab == GT_PLAT ? vt_entries(e, MAX_EMUS + 48) : gl_games(gl_tab, gl, 64);
+    if (gl_tab == GT_PLAT && n && e[0].kind == VK_GAME) { memmove(e, e + 1, sizeof *e * (size_t)(n - 1)); n--; }
+    int *sel = &gl_sel[gl_tab], old = *sel;
+    if (in->pressed[BTN_LEFT] && *sel > 0) (*sel)--;
+    if (in->pressed[BTN_RIGHT] && *sel < n - 1) (*sel)++;
+    if (*sel != old) ui_sound(SND_MOVE);
+    if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); return; }
+    if (!n) return;
+    if (gl_tab != GT_PLAT) {
+        int g = gl[*sel];
+        if (in->pressed[BTN_A]) { home_play(g); return; }
+        if (in->pressed[BTN_X]) { open_detail(g); return; }
+        if (in->pressed[BTN_Y]) {
+            games_toggle_fav(UI.root, &games[g]);
+            ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
+            build_tabs();
+            build_carousel();
+            ui_sound(SND_OK);
+        }
+        return;
+    }
+    const vt_entry_t *s = &e[*sel];
+    if (!in->pressed[BTN_A]) return;
+    if (s->kind == VK_MENU) home_do(s->v);
+    else if (is_plan(ptabs[s->v])) ui_sound(SND_ERROR);
+    else if (s->v < ntabs) {
+        tab_sel = s->v;
+        lib_sel = 0;
+        lib_scroll = lib_scroll_target = 0;
+        build_view();
+        go(SCR_LIBRARY);
+        ui_sound(SND_OK);
+    }
 }
 
 static void plat_input(void) {

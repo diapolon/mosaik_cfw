@@ -52,6 +52,7 @@ typedef struct {
                            in ARCADE_ROM (Dreamcast: Cores/deadcast/launch.sh) */
     bool nomenu;        /* "menu": false, l'emulatore ha un suo menu: niente menu di Mosaik (gamewatch) */
     char exts[8][12];
+    char maker[24], year[8];   /* "maker", "year": produttore e anno della console (layout galleria) */
     char bios[4][32];   /* "bios": basta uno di questi file in Bios/ (Sega CD: uno per regione) */
     int nexts, nbios, order;
     bool console, planned;

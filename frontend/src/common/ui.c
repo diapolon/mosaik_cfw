@@ -1079,6 +1079,7 @@ bool theme_load(theme_t *t, const char *root, const char *id, const char *varian
     t->pulse = json_bool(j, "animation.pulse", t->pulse);
     t->scanlines = json_bool(j, "effects.scanlines", false);
     t->waves = json_bool(j, "effects.waves", false);
+    t->stars = json_bool(j, "effects.stars", false);
     t->title_upper = json_bool(j, "title_uppercase", false);
     t->cover_fit = !strcmp(json_str(j, "media.cover_style", "fill"), "fit");
     t->show_marquee = json_bool(j, "media.marquee", false);
@@ -2047,10 +2048,43 @@ void ui_begin(void) {
     ui_background();
 }
 
-/* sfondo del tema: colore o sfumatura, immagine, onde */
+/* Cielo stellato (effects.stars): stelle fisse che scintillano piano sopra l'orizzonte; sotto,
+   la fascia del secondo colore di sfondo, che sale sfumata. */
+static void draw_stars(int horizon) {
+    enum { N = 170 };
+    static float sx[N], sy[N], ph[N], sz[N];
+    static bool init;
+    if (!init) {
+        unsigned s = 20261112u;
+        for (int i = 0; i < N; i++) {
+            s = s * 1103515245u + 12345u; sx[i] = (float)(s >> 9 & 0xFFFF) / 65535.0f;
+            s = s * 1103515245u + 12345u; sy[i] = (float)(s >> 9 & 0xFFFF) / 65535.0f;
+            s = s * 1103515245u + 12345u; ph[i] = (float)(s >> 9 & 0xFFFF) / 65535.0f;
+            s = s * 1103515245u + 12345u; sz[i] = (float)(s >> 9 & 0xFFFF) / 65535.0f;
+        }
+        init = true;
+    }
+    int unit = UI.h / 360 > 0 ? UI.h / 360 : 1;
+    for (int i = 0; i < N; i++) {
+        int x = (int)(sx[i] * UI.w), y = (int)(sy[i] * sy[i] * horizon);   /* più fitte in alto */
+        float tw = 0.55f + 0.45f * sinf((float)UI.t * (0.5f + ph[i] * 1.5f) + ph[i] * 6.28f);
+        float fade = y > horizon * 8 / 10 ? (float)(horizon - y) / (horizon * 2 / 10 + 1) : 1;
+        int a = (int)(255 * tw * (0.35f + 0.65f * sz[i]) * fade), d = sz[i] > 0.9f ? unit * 2 : unit;
+        if (a > 8) ui_rect(x, y, d, d, rgba(255, 255, 255, a > 255 ? 255 : a));
+    }
+}
+
+/* sfondo del tema: colore o sfumatura, immagine, onde, stelle */
 void ui_background(void) {
     theme_t *t = &UI.th;
-    if (t->bg2.r != t->bg.r || t->bg2.g != t->bg.g || t->bg2.b != t->bg.b) ui_vgradient(0, 0, UI.w, UI.h, t->bg, t->bg2);
+    if (t->stars) {   /* cielo scuro, orizzonte al 62%, fascia del secondo colore sotto */
+        int hz = UI.h * 62 / 100, fade = UI.h * 12 / 100;
+        SDL_SetRenderDrawColor(UI.ren, t->bg.r, t->bg.g, t->bg.b, 255);
+        SDL_RenderClear(UI.ren);
+        ui_vgradient(0, hz, UI.w, fade, t->bg, t->bg2);
+        ui_rect(0, hz + fade, UI.w, UI.h - hz - fade, t->bg2);
+        draw_stars(hz + fade / 2);
+    } else if (t->bg2.r != t->bg.r || t->bg2.g != t->bg.g || t->bg2.b != t->bg.b) ui_vgradient(0, 0, UI.w, UI.h, t->bg, t->bg2);
     else {
         SDL_SetRenderDrawColor(UI.ren, t->bg.r, t->bg.g, t->bg.b, 255);
         SDL_RenderClear(UI.ren);
