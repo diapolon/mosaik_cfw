@@ -1,5 +1,6 @@
 #include "appkit.h"
 #include "../common/json.h"
+#include "../common/platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,10 @@ bool app_start(int argc, char **argv, const char *id) {
     free(rp);
     if (!app_dir[0]) snprintf(app_dir, sizeof app_dir, "%s/Apps/%s", app_root, id);
     if (!ui_init(id, app_root, auto_script, 48000, true)) return false;
+    /* Altoparlante a riposo come nel launcher (Brick Pro, issue #4): senza, dentro le app restava
+       acceso e con la scheda al lavoro (Test della SD) il fruscio si sentiva sempre */
+    plat_amp_config(UI.set.speaker_rest);
+    UI.amp_auto = true;
     char p[1200];
     snprintf(p, sizeof p, "%s/lang/%s.json", app_dir, UI.set.lang);
     texts = json_load(p);

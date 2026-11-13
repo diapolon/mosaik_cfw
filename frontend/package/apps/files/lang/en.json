@@ -5,6 +5,7 @@
   "free": "%s free",
   "read_only_tag": "read-only",
   "read_only": "Files here can only be viewed",
+  "store_pkg": "Part of a Store package: remove it from the Store",
   "empty": "Empty folder",
   "quit": "Quit",
   "mark": "Mark",

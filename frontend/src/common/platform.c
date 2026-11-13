@@ -375,6 +375,15 @@ static void amp_set(bool on) {
 }
 
 void plat_amp_config(int method) {
+    static bool first = true;
+    if (first && method) {   /* stato reale sconosciuto (un'app chiusa a forza lo lascia spento): acceso */
+        first = false;
+        amp_method = method;
+        amp_set(true);
+        amp_t = amp_ms();
+        return;
+    }
+    first = false;
     if (method == amp_method) return;
     if (amp_off) amp_set(true);   /* il metodo cambia: prima si riaccende con quello vecchio */
     amp_method = method;

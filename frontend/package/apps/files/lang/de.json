@@ -5,6 +5,7 @@
   "free": "%s frei",
   "read_only_tag": "nur lesen",
   "read_only": "Hier können Dateien nur angesehen werden",
+  "store_pkg": "Gehört zu einem Store-Paket: im Store entfernen",
   "empty": "Leerer Ordner",
   "quit": "Beenden",
   "mark": "Markieren",

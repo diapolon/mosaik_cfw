@@ -33,6 +33,7 @@
 typedef struct {
     char name[256];
     bool dir, mark;
+    bool ro;               /* non si può modificare: cartella di sola lettura o pacchetto dello Store */
     long long size;
 } ent_t;
 
@@ -68,9 +69,57 @@ static bool in_writable(const char *rel) {
     return false;
 }
 
-/* si può modificare la voce rel (copiarla si può sempre): dentro una cartella scrivibile, e non
-   la cartella principale stessa */
-static bool can_modify(const char *rel) { return in_writable(rel) && strchr(rel, '/'); }
+/* File dei pacchetti installati dallo Store (righe "file " di System/pacchetti/<id>.txt): app,
+   temi, cornici. Non si cancellano, spostano o rinominano da qui, né le cartelle che li
+   contengono: lo Store li crederebbe ancora installati. Si tolgono dallo Store. */
+static char **pkg_files;
+static int npkg_files;
+
+static void pkg_load(void) {
+    for (int i = 0; i < npkg_files; i++) free(pkg_files[i]);
+    free(pkg_files);
+    pkg_files = NULL;
+    npkg_files = 0;
+    int cap = 0;
+    char d[1300];
+    snprintf(d, sizeof d, "%s/System/pacchetti", root);
+    DIR *dd = opendir(d);
+    struct dirent *e;
+    while (dd && (e = readdir(dd))) {
+        size_t l = strlen(e->d_name);
+        if (e->d_name[0] == '.' || l < 5 || strcmp(e->d_name + l - 4, ".txt")) continue;
+        char p[1600], line[1200];
+        snprintf(p, sizeof p, "%s/%s", d, e->d_name);
+        FILE *f = fopen(p, "r");
+        while (f && fgets(line, sizeof line, f)) {
+            if (strncmp(line, "file ", 5)) continue;
+            line[strcspn(line, "\r\n")] = 0;
+            if (npkg_files == cap) {
+                int nc = cap ? cap * 2 : 128;
+                char **np = realloc(pkg_files, (size_t)nc * sizeof *np);
+                if (!np) break;
+                pkg_files = np;
+                cap = nc;
+            }
+            char *s = strdup(line + 5);
+            if (s) pkg_files[npkg_files++] = s;
+        }
+        if (f) fclose(f);
+    }
+    if (dd) closedir(dd);
+}
+
+/* rel è un file di un pacchetto, o una cartella che ne contiene (confronto senza maiuscole: FAT) */
+static bool pkg_owned(const char *rel) {
+    size_t l = strlen(rel);
+    for (int i = 0; i < npkg_files; i++)
+        if (!strncasecmp(pkg_files[i], rel, l) && (pkg_files[i][l] == 0 || pkg_files[i][l] == '/')) return true;
+    return false;
+}
+
+/* si può modificare la voce rel (copiarla si può sempre): dentro una cartella scrivibile, non
+   la cartella principale stessa, e non parte di un pacchetto dello Store */
+static bool can_modify(const char *rel) { return in_writable(rel) && strchr(rel, '/') && !pkg_owned(rel); }
 
 static bool hidden(const char *dir_rel, const char *name) {
     if (name[0] == '.') return true;
@@ -94,6 +143,7 @@ static void reload(const char *keep) {
     char p[1300];
     full(p, sizeof p, cwd);
     nents = 0;
+    pkg_load();   /* lo Store può aver cambiato i pacchetti mentre l'app era chiusa */
     bool cut = false;   /* nome troppo lungo o memoria finita: l'elenco non è intero e si dice */
     DIR *d = opendir(p);
     struct dirent *e;
@@ -115,6 +165,11 @@ static void reload(const char *keep) {
         snprintf(x->name, sizeof x->name, "%s", e->d_name);
         x->dir = S_ISDIR(sb.st_mode);
         x->size = x->dir ? 0 : (long long)sb.st_size;
+        char rel[1300];
+        join(rel, sizeof rel, cwd, x->name);
+        /* nella cartella principale si colorano le cartelle in cui non si scrive (le nove
+           scrivibili non si cancellano, ma il loro contenuto sì); altrove, quello che non si modifica */
+        x->ro = cwd[0] ? !can_modify(rel) : !in_writable(rel);
     }
     if (d) closedir(d);
     if (cut) { ui_log("file: elenco di %s incompleto", cwd); ui_toast(FT("files.list_incomplete")); }
@@ -466,7 +521,15 @@ static void menu_open(void) {
     nmenu = 0;
     /* le voci di cwd si modificano se cwd sta dentro una cartella scrivibile (can_modify) */
     bool any = nents > 0, mod = false;
-    if (any) { char rel[1300]; join(rel, sizeof rel, cwd, ents[sel].name); mod = can_modify(rel); }
+    if (any) {   /* con più voci segnate, tutte devono potersi modificare */
+        mod = true;
+        bool marked = marked_count() > 0;
+        char rel[1300];
+        for (int i = 0; i < nents; i++)
+            if (marked ? ents[i].mark : i == sel) { join(rel, sizeof rel, cwd, ents[i].name); mod = mod && can_modify(rel); }
+        join(rel, sizeof rel, cwd, ents[sel].name);
+        if (!mod && in_writable(cwd) && pkg_owned(rel)) toast("files.store_pkg");
+    }
     if (any) menu_items[nmenu++] = A_COPY;
     if (mod) menu_items[nmenu++] = A_CUT;
     if (clip.n && in_writable(cwd)) menu_items[nmenu++] = A_PASTE;
@@ -842,7 +905,8 @@ static void list_draw(void) {
             bool on = i == sel;
             if (on) ui_rrect(mx - M(0.012f), ry, W + M(0.024f), rh, M(t->panel_radius), with_alpha(t->accent, 230));
             else if (e->mark) ui_rrect(mx - M(0.012f), ry, W + M(0.024f), rh, M(t->panel_radius), with_alpha(t->accent, 50));
-            color_t tc = on ? t->accent_text : t->text, dc = on ? t->accent_text : t->text_dim;
+            /* sola lettura (cartelle di sistema, pacchetti dello Store): nome più tenue */
+            color_t tc = on ? t->accent_text : e->ro ? t->text_dim : t->text, dc = on ? t->accent_text : t->text_dim;
             int is = fnh, ix = mx;
             if (e->mark) {   /* segnata: cerchio pieno con un punto */
                 ui_circle(ix + is / 2, ry + rh / 2, is / 2, on ? t->accent_text : t->accent);

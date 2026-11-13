@@ -346,6 +346,7 @@ int main(int argc, char **argv) {
     ui_log("musica: %d brani%s", ntracks, scan_cut ? " (elenco incompleto)" : "");
     if (scan_cut) ui_toast(FT("music.list_incomplete"));
     while (!quit) {
+        UI.amp_keep = cur >= 0 && !paused;   /* in riproduzione l'altoparlante resta acceso */
         ui_poll();
         if (UI.in.quit) break;
         UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch */

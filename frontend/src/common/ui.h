@@ -75,6 +75,8 @@ typedef struct {
     bool vol_bar;        /* chi disegna una barra del volume sua (runner): niente avviso a schermo */
     bool gray;           /* forme e testi in toni di grigio (Store: pacchetti non installati) */
     bool sd_failed;      /* SD che non risponde dopo un risveglio: niente più scritture (audit BUG-006) */
+    bool amp_auto;       /* app: altoparlante spento dopo 4 s di silenzio, come nel launcher (issue #4) */
+    bool amp_keep;       /* ... ma acceso finché c'è musica */
 } ui_t;
 
 extern ui_t UI;

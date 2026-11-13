@@ -1407,6 +1407,7 @@ static void auto_step(void) {
 }
 
 void ui_poll(void) {
+    if (UI.amp_auto) plat_amp_idle(UI.amp_keep);
     memset(UI.in.pressed, 0, sizeof UI.in.pressed);
     UI.in.any = false;
     SDL_Event ev;

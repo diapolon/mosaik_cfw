@@ -5,6 +5,7 @@
   "free": "%s livres",
   "read_only_tag": "só leitura",
   "read_only": "Aqui os ficheiros só podem ser vistos",
+  "store_pkg": "Faz parte de um pacote da Loja: remove-o a partir da Loja",
   "empty": "Pasta vazia",
   "quit": "Sair",
   "mark": "Marcar",
