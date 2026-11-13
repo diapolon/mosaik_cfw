@@ -985,8 +985,9 @@
   },
   "recover": {
     "title": "Operación a medias",
-    "body": "Una restauración o una instalación no terminó. Reintenta; si no pasa, apaga y revisa la tarjeta.",
+    "body": "Una restauración o una instalación no terminó. Reintenta; si no pasa puedes continuar igualmente, pero algunos archivos pueden estar a medias.",
     "retry": "Reintentar",
-    "off": "Apagar"
+    "off": "Apagar",
+    "go": "Continuar"
   }
 }

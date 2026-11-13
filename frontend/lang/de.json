@@ -985,8 +985,9 @@
   },
   "recover": {
     "title": "Unvollständiger Vorgang",
-    "body": "Eine Wiederherstellung oder Installation wurde nicht beendet. Erneut versuchen; sonst ausschalten und Karte prüfen.",
+    "body": "Eine Wiederherstellung oder Installation wurde nicht beendet. Erneut versuchen; sonst trotzdem fortfahren, einige Dateien können unvollständig sein.",
     "retry": "Wiederholen",
-    "off": "Ausschalten"
+    "off": "Ausschalten",
+    "go": "Fortfahren"
   }
 }

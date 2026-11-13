@@ -1165,25 +1165,6 @@ static bool rs_write_durable(const char *path, const char *data, size_t n) {
 }
 
 
-/* c'è ancora un ".nome.annulla" (la copia di un file di prima) sotto dir? */
-static bool rs_has_annulla(const char *dir, int depth) {
-    DIR *d = opendir(dir);
-    if (!d) return false;
-    bool found = false;
-    struct dirent *e;
-    while (!found && (e = readdir(d))) {
-        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
-        size_t l = strlen(e->d_name);
-        if (l > 8 && !strcmp(e->d_name + l - 8, ".annulla")) { found = true; break; }
-        char p[2600];
-        struct stat sb;
-        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
-        if (depth < 12 && lstat(p, &sb) == 0 && S_ISDIR(sb.st_mode)) found = rs_has_annulla(p, depth + 1);
-    }
-    closedir(d);
-    return found;
-}
-
 /* il giornale è intero? prima riga "ripristino N", poi proprio N righe di file (R39-02) */
 static bool restore_journal_valid(const char *t) {
     if (strncmp(t, "ripristino ", 11)) return false;
@@ -1241,21 +1222,11 @@ static bool restore_recover(void) {
     if (bad) { free(t); fprintf(stderr, "ripristino: giornale illeggibile, resta\n"); return false; }
     t[n] = 0;
     if (!restore_journal_valid(t)) {
-        /* non si può applicare: con una copia dei file di prima ancora in giro il ripristino era
-           a metà e resta bloccato; senza, niente era stato sostituito e il giornale si mette da parte */
-        static const char *const dirs[] = { "Saves", "Bios", "System", "Media", "Music", "Bezels", "Roms", "Linux", "Apps" };
-        bool half = false;
-        for (size_t i = 0; i < sizeof dirs / sizeof *dirs && !half; i++) {
-            char d[1300];
-            full_path(d, sizeof d, dirs[i]);
-            half = rs_has_annulla(d, 0);
-        }
-        char kept[1300];
-        full_path(kept, sizeof kept, "System/ripristino-giornale-guasto.txt");
-        bool moved = !half && rename(jp, kept) == 0;
-        fprintf(stderr, "ripristino: giornale guasto, %s\n", half ? "con file di prima ancora da rimettere: fermo" : moved ? "nessun file a metà: messo da parte" : "non spostato: fermo");
+        /* non si può applicare né sapere cosa era già stato scritto (un file nuovo non lascia una
+           copia di quello di prima): resta fermo finché non lo decide l'utente (R40-02) */
+        fprintf(stderr, "ripristino: giornale guasto: resta, fermo\n");
         free(t);
-        return moved;
+        return false;
     }
     bool done = strstr(t, "\nfatto\n") != NULL, ok = restore_journal_apply(t, done);
     free(t);
@@ -1273,6 +1244,18 @@ bool fs_restore_recover(const char *dir) {
     if (thr_on) return true;   /* il server è acceso: la cartella è già la sua */
     snprintf(root, sizeof root, "%s", dir);
     return restore_recover();
+}
+
+/* scelta dell'utente: il giornale irrisolto si mette da parte in ripristino-giornale-guasto.txt */
+bool fs_restore_force(const char *dir) {
+    if (!thr_on) snprintf(root, sizeof root, "%s", dir);
+    char jp[1200], kept[1300];
+    full_path(jp, sizeof jp, RESTORE_JOURNAL);
+    full_path(kept, sizeof kept, "System/ripristino-giornale-guasto.txt");
+    bool moved = rename(jp, kept) == 0 || errno == ENOENT;
+    fprintf(stderr, "ripristino: giornale messo da parte per scelta dell'utente: %s\n", moved ? "fatto" : strerror(errno));
+    sync();
+    return moved;
 }
 
 static const zent_t *dup_z;

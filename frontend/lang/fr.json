@@ -985,8 +985,9 @@
   },
   "recover": {
     "title": "Opération inachevée",
-    "body": "Une restauration ou une installation ne s'est pas terminée. Réessaie ; sinon éteins et vérifie la carte.",
+    "body": "Une restauration ou une installation ne s'est pas terminée. Réessaie ; sinon tu peux continuer quand même, mais des fichiers peuvent être incomplets.",
     "retry": "Réessayer",
-    "off": "Éteindre"
+    "off": "Éteindre",
+    "go": "Continuer"
   }
 }

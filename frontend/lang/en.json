@@ -985,8 +985,9 @@
   },
   "recover": {
     "title": "Unfinished operation",
-    "body": "A restore or an installation did not finish. Try again; if it keeps failing, power off and check the card.",
+    "body": "A restore or an installation did not finish. Try again; if it keeps failing you can continue anyway, but some files may be incomplete.",
     "retry": "Retry",
-    "off": "Power off"
+    "off": "Power off",
+    "go": "Continue"
   }
 }

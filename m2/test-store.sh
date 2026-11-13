@@ -32,6 +32,7 @@ static int find(const char *id) { for (int i = 0; i < store_count(); i++) if (!s
 int main(int c, char **v) {
     const char *root = v[1], *cmd = v[2];
     if (!strcmp(cmd, "recover")) { puts(store_recover(root) ? "chiuso" : "in sospeso"); return 0; }
+    if (!strcmp(cmd, "force")) { puts(store_recover_force(root) ? "messo da parte" : "errore"); return 0; }
     if (!strcmp(cmd, "pending")) { printf("%d\n", store_restore_pending(root)); return 0; }
     if (!strcmp(cmd, "restore")) {
         store_open(root, 0, true);
@@ -155,7 +156,11 @@ for n in 1 2 3 4 5 6 7 8; do   # corrente che manca a ogni passo: al riavvio si 
     [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && pass=$((pass+1)) || echo "    interruzione $n: $(cd sd && find . -name '*.annulla' -o -name '*.part' -o -name 'store-giornale.txt' | head -3)"
 done
 check "interruzione a ogni passo e riavvio: v2 intatta" "$tot" "$pass"
-check "giornale senza intestazione: messo da parte, non cancellato" "si" "$(: > sd/System/store-giornale.txt; ./t $R recover >/dev/null 2>&1; [ -e sd/System/store-giornale-guasto.txt ] && rm sd/System/store-giornale-guasto.txt && [ "$(snap)" = "$V2" ] && [ ! -e sd/System/store-giornale.txt ] && echo si || echo no)"
+# giornale guasto senza copie dei file di prima (un pacchetto nuovo non ne lascia): resta fermo
+# lo stesso, finché non lo decide l'utente (verifica audit R40-02)
+: > sd/System/store-giornale.txt
+check "giornale vuoto, nessuna copia di prima: resta e Store fermo" "in sospeso si 5 6" "$(./t $R recover 2>/dev/null) $([ -e sd/System/store-giornale.txt ] && echo si || echo no) $(./t $R install fbneo 2>/dev/null | cut -d' ' -f1-2)"
+check "l'utente prosegue: giornale messo da parte, Store di nuovo libero" "messo da parte si chiuso si" "$(./t $R force 2>/dev/null) $([ -e sd/System/store-giornale-guasto.txt ] && echo si || echo no) $(./t $R recover 2>/dev/null) $(rm -f sd/System/store-giornale-guasto.txt; [ "$(snap)" = "$V2" ] && echo si || echo no)"
 # giornale rovinato con un'installazione a metà (verifica audit R39-02): lo Store resta fermo
 STORE_STOP_AT=3 ./t $R install fbneo >/dev/null 2>&1 || true
 cp sd/System/store-giornale.txt giornale-buono.txt

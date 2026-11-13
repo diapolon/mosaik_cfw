@@ -456,16 +456,18 @@ static void apps_scan(void) {
     ui_log("app trovate: %d", napps);
 }
 
+static bool rec_pending;   /* un ripristino o un'installazione non ancora richiusi: niente scritture, niente giochi */
 static void reload_games(void) {
     apps_scan();
     games_free(games, ngames);
     emulators_load(UI.root);
+    games_no_write = rec_pending;   /* operazione a metà non richiusa: si legge soltanto (R40-01) */
     ngames = games_scan(UI.root, &games, UI.set.show_missing);
     ui_mark("lettura dei giochi");
     /* salvataggi delle console da Saves/<core> a Saves/<console> (issue #5): una volta per
        avvio, prima di cercare la partita da riprendere e gli slot */
     static bool split_done;
-    if (!split_done) { saves_split(UI.root, games, ngames); split_done = true; }
+    if (!split_done && !rec_pending) { saves_split(UI.root, games, ngames); split_done = true; }
     games_mark_lists(UI.root, games, ngames);
     romcheck_load(UI.root, games, ngames);
     mark_duplicates();
@@ -4775,13 +4777,21 @@ static bool rec_open, rec_fs_bad, rec_st_bad;
 static int rec_sel;
 static void reload_games(void);
 static void rec_input(void) {
-    int r = ui_popup_input(&rec_sel, 2);
-    if (r == 1) { ui_log("operazione a metà: spengo"); power_off(); return; }
-    if (r != 0) return;
+    int r = ui_popup_input(&rec_sel, 3);
+    if (r == 2) { ui_log("operazione a metà: spengo"); power_off(); return; }
+    if (r != 0 && r != 1) return;
     if (rec_fs_bad) rec_fs_bad = !fs_restore_recover(UI.root);
     if (rec_st_bad) rec_st_bad = !store_recover(UI.root);
-    if (rec_fs_bad || rec_st_bad) { ui_log("operazione a metà: ancora non chiusa"); ui_sound(SND_ERROR); return; }
+    if (r == 0 && (rec_fs_bad || rec_st_bad)) { ui_log("operazione a metà: ancora non chiusa"); ui_sound(SND_ERROR); return; }
+    if (r == 1 && (rec_fs_bad || rec_st_bad)) {
+        /* scelta dell'utente: il giornale si mette da parte e si va avanti; i file a metà restano */
+        ui_log("operazione a metà: l'utente prosegue lo stesso");
+        if (rec_fs_bad) fs_restore_force(UI.root);
+        if (rec_st_bad) store_recover_force(UI.root);
+        rec_fs_bad = rec_st_bad = false;
+    }
     ui_log("operazione a metà: chiusa, rileggo impostazioni e giochi");
+    rec_pending = false;
     settings_load(&UI.set, UI.root);   /* il ripristino può averle rimesse */
     reload_games();
     rec_open = false;
@@ -4799,8 +4809,8 @@ static void rec_draw(void) {
     ui_text(UI.f_title, T("recover.title"), x + pad, y + pad, rgba(230, 130, 20, 255), ALIGN_LEFT);
     int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
     for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
-    const char *label[2] = { T("recover.retry"), T("recover.off") };
-    ui_popup_buttons(x, y, w, h, label, 2, rec_sel, -1);
+    const char *label[3] = { T("recover.retry"), T("recover.go"), T("recover.off") };
+    ui_popup_buttons(x, y, w, h, label, 3, rec_sel, -1);
 }
 static int rdy_sel = 2;
 
@@ -7645,7 +7655,11 @@ int main(int argc, char **argv) {
     if (!UI.set.wifi) wifi_enable(false);   /* Mac: il Wi-Fi simulato segue l'impostazione (sulla console lo fa system-init) */
 #endif
     ui_busy(T("common.loading"), 0);   /* subito qualcosa a schermo mentre si caricano i giochi */
-    if (!auto_script && consume_resume()) {
+    /* le operazioni rimaste a metà si richiudono prima di tutto, anche della ripresa dell'ultima
+       partita: con una non richiusa non si riprende e non si scrive niente (verifica audit R40-01) */
+    rec_st_bad = !store_recover(UI.root);
+    rec_pending = rec_fs_bad || rec_st_bad || getenv("ARCADE_TEST_RECOVER") != NULL;
+    if (!auto_script && !rec_pending && consume_resume()) {
         ui_log("riprendo l'ultima partita");
         /* il sistema è arrivato fin qui: vale come prima schermata per l'aggiornamento */
         update_confirm_boot(UI.root);
@@ -7657,8 +7671,7 @@ int main(int argc, char **argv) {
     nthemes = theme_list(UI.root, theme_ids, theme_names, 16);
     nlangs = lang_list(UI.root, lang_codes, lang_names, 16);
     nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
-    rec_st_bad = !store_recover(UI.root);   /* un'installazione dello Store interrotta: prima di leggere i giochi */
-    rec_open = rec_fs_bad || rec_st_bad || getenv("ARCADE_TEST_RECOVER") != NULL;
+    rec_open = rec_pending;
     if (rec_open) ui_log("avvio: %s non chiuso, si chiede di riprovare", rec_fs_bad ? "ripristino del backup" : "Store");
     reload_games();
     ui_mark("giochi pronti");

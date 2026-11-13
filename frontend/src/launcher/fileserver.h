@@ -77,3 +77,5 @@ bool fs_backup_import(const char *dir, const char *zip, int parts);
 /* all'avvio: chiude o annulla un ripristino interrotto (System/ripristino-giornale.txt);
    false se il giornale resta e non si può ancora ripristinare altro */
 bool fs_restore_recover(const char *dir);
+/* l'utente sceglie di proseguire: il giornale irrisolto va in ripristino-giornale-guasto.txt */
+bool fs_restore_force(const char *dir);

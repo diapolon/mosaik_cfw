@@ -198,6 +198,7 @@ const char *update_current(void) { return "0.0.0"; }
 int main(int argc, char **argv) {
     fs_backup_t bk;
     if (argc == 3 && !strcmp(argv[2], "recover")) { puts(fs_restore_recover(argv[1]) ? "chiuso" : "in sospeso"); return 0; }
+    if (argc == 3 && !strcmp(argv[2], "force")) { puts(fs_restore_force(argv[1]) ? "messo da parte" : "errore"); return 0; }
     if (argc < 3 || !fs_backup_info(argv[2], &bk)) { puts("non un backup"); return 1; }
     printf("%d %s\n", bk.files, fs_backup_import(argv[1], argv[2], argc > 3 ? atoi(argv[3]) : FS_PARTS_ALL) ? "importato" : "errore");
     return 0;
@@ -274,7 +275,8 @@ check "giornale vuoto e file a metà: resta" "in sospeso" "$(./imp $W/sd recover
 cp rg-buono.txt sd/System/ripristino-giornale.txt
 check "rimesso il giornale intero: tutto torna com'era" "chiuso $PRIMA 0" "$(./imp $W/sd recover 2>/dev/null) $(snapd) $(avanzi)"
 : > sd/System/ripristino-giornale.txt
-check "giornale vuoto senza file a metà: messo da parte" "chiuso si" "$(./imp $W/sd recover 2>/dev/null) $([ -e sd/System/ripristino-giornale-guasto.txt ] && echo si || echo no)"
+check "giornale vuoto senza copie di prima: resta fermo lo stesso (R40-02)" "in sospeso errore" "$(./imp $W/sd recover 2>/dev/null) $(./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2)"
+check "l'utente prosegue: giornale messo da parte, si ripristina di nuovo" "messo da parte si chiuso" "$(./imp $W/sd force 2>/dev/null) $([ -e sd/System/ripristino-giornale-guasto.txt ] && echo si || echo no) $(./imp $W/sd recover 2>/dev/null)"
 rm -f sd/System/ripristino-giornale-guasto.txt
 mkdir sd/System/ripristino-giornale.txt
 check "giornale illeggibile: resta e nessun altro ripristino" "in sospeso errore si" "$(./imp $W/sd recover 2>/dev/null) $(./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2) $([ -d sd/System/ripristino-giornale.txt ] && echo si || echo no)"

@@ -985,8 +985,9 @@
   },
   "recover": {
     "title": "Operação a meio",
-    "body": "Um restauro ou uma instalação não terminou. Tenta de novo; se não passar, desliga e verifica o cartão.",
+    "body": "Um restauro ou uma instalação não terminou. Tenta de novo; se não passar podes continuar na mesma, mas alguns ficheiros podem estar a meio.",
     "retry": "Repetir",
-    "off": "Desligar"
+    "off": "Desligar",
+    "go": "Continuar"
   }
 }

@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.41
+it Operazione rimasta a metà: l'avviso arriva prima di riprendere l'ultima partita, con Prosegui
+en Unfinished operation: the notice comes before resuming the last game, with Continue
+
 0.9.40
 it Esplora file nello Store (cartella App): copia, sposta, rinomina ed estrae zip sulla console
 en Files in the Store (Apps folder): copy, move, rename and extract zips on the console

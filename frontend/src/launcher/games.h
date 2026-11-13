@@ -70,6 +70,8 @@ int emulators_load(const char *root);
 const emulator_t *emulator_find(const char *id);
 
 /* include_missing: aggiunge i giochi del catalogo senza ROM (solo i "parent", non i cloni) */
+/* true: games_scan non scrive i registri delle chiavi (un ripristino non ancora richiuso) */
+extern bool games_no_write;
 int games_scan(const char *root, game_t **out, bool include_missing);
 void games_free(game_t *g, int n);
 void games_mark_lists(const char *root, game_t *g, int n);

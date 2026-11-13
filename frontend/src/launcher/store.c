@@ -605,25 +605,6 @@ static bool journal_apply(const char *text, bool done) {
 }
 
 
-/* c'è ancora un ".nome.annulla" (la copia di un file di prima) sotto dir? */
-static bool st_has_annulla(const char *dir, int depth) {
-    DIR *d = opendir(dir);
-    if (!d) return false;
-    bool found = false;
-    struct dirent *e;
-    while (!found && (e = readdir(d))) {
-        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
-        size_t l = strlen(e->d_name);
-        if (l > 8 && !strcmp(e->d_name + l - 8, ".annulla")) { found = true; break; }
-        char p[2600];
-        struct stat sb;
-        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
-        if (depth < 12 && lstat(p, &sb) == 0 && S_ISDIR(sb.st_mode)) found = st_has_annulla(p, depth + 1);
-    }
-    closedir(d);
-    return found;
-}
-
 /* Il giornale è intero? Intestazione, riga del registro e, da quando c'è, il conto delle righe
    dei file ("righe N"); quelli scritti prima non l'hanno e valgono se hanno il resto. */
 static bool journal_valid(const char *t) {
@@ -677,23 +658,12 @@ bool store_recover(const char *root) {
     /* il giornale si scrive tutto insieme (write_durable): senza la riga "pacchetto" non è uno
        scritto a metà ma un file guasto. Si mette da parte, intero, per capire cos'è successo */
     if (!journal_valid(t)) {
-        /* Non si può applicare. Se in giro c'è ancora la copia di un file di prima (.annulla),
-           un'installazione era a metà e non si sa quale: lo Store resta fermo e niente si tocca
-           (R39-02). Senza copie niente era stato sostituito: il giornale si mette da parte. */
-        static const char *const dirs[] = { "Cores", "Emulators", "Dats", "Apps", "Themes", "Filters", "Bezels", "System/pacchetti" };
-        bool half = false;
-        for (size_t i = 0; i < sizeof dirs / sizeof *dirs && !half; i++) {
-            char d[1300];
-            snprintf(d, sizeof d, "%s/%s", root_dir, dirs[i]);
-            half = st_has_annulla(d, 0);
-        }
-        char kept[1300];
-        snprintf(kept, sizeof kept, "%s/System/store-giornale-guasto.txt", root_dir);
-        bool moved = !half && rename(jp, kept) == 0;
-        ui_log("store: giornale guasto, %s", half ? "con file di prima ancora da rimettere: Store fermo"
-               : moved ? "nessun file a metà: messo da parte in store-giornale-guasto.txt" : "non spostato: Store fermo");
+        /* Non si può applicare, e non si può sapere cosa era già stato scritto (un pacchetto nuovo
+           non lascia copie dei file di prima): lo Store resta fermo finché non lo decide l'utente
+           con store_recover_force (verifica audit R40-02) */
+        ui_log("store: giornale dell'installazione guasto: resta, Store fermo");
         free(t);
-        return moved;
+        return false;
     }
     bool done = strstr(t, "\nfatto\n") != NULL, ok = journal_apply(t, done);
     if (ok) {
@@ -705,6 +675,20 @@ bool store_recover(const char *root) {
     free(t);
     atomic_store(&changed, true);
     return ok;
+}
+
+/* Scelta dell'utente ("Prosegui lo stesso"): il giornale che non si riesce ad applicare si mette
+   da parte, intero, in store-giornale-guasto.txt. I file a metà restano come sono: il pacchetto
+   coinvolto va installato di nuovo. false se non si riesce nemmeno a spostarlo. */
+bool store_recover_force(const char *root) {
+    if (root != root_dir) snprintf(root_dir, sizeof root_dir, "%s", root);
+    char jp[1200], kept[1300];
+    journal_path(jp, sizeof jp);
+    snprintf(kept, sizeof kept, "%s/System/store-giornale-guasto.txt", root_dir);
+    bool moved = rename(jp, kept) == 0 || errno == ENOENT;
+    ui_log("store: giornale messo da parte per scelta dell'utente: %s", moved ? "fatto" : strerror(errno));
+    sync();
+    return moved;
 }
 
 /* Installa lo zip di un pacchetto: pacchetto.json dice id, versione e file. Prima si scrivono

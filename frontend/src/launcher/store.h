@@ -77,6 +77,8 @@ void store_refresh(void);
 /* rimette i file di un'installazione interrotta (o la conclude): una volta all'avvio */
 /* true se non resta nessuna installazione interrotta da chiudere; false: lo Store non scrive */
 bool store_recover(const char *root);
+/* l'utente sceglie di proseguire: il giornale irrisolto va in store-giornale-guasto.txt */
+bool store_recover_force(const char *root);
 bool store_offline_find(const char *root, char *path, int pn, char *name, int nn, char *label, int ln);
 /* SE_NONE se installato; SE_UNSIGNED se il pacchetto non è in un catalogo firmato (quello sulla
    scheda, o store.json e store.sig copiati accanto allo zip); SE_VERIFY se l'impronta non torna */

@@ -372,6 +372,8 @@ static bool reg_save(const char *file, reg_t *reg, game_t *g, int n, const char 
 
 /* false: le chiavi non sono certe (memoria, registro illeggibile) e i giochi di questo emulatore
    non vanno mostrati, perché partirebbero con i salvataggi di un altro. reg NULL: senza registro. */
+bool games_no_write;   /* true: la scansione non scrive i registri (recovery irrisolto, R40-01) */
+
 static bool assign_keys(game_t *g, int n, const char *dir, const char *regfile) {
     if (n <= 0) return true;
     keyref_t *r = malloc(sizeof *r * (size_t)n);
@@ -438,7 +440,7 @@ static bool assign_keys(game_t *g, int n, const char *dir, const char *regfile) 
     }
     /* registro non scritto: le ROM già registrate hanno la chiave di sempre e si giocano; quelle
        nuove aspettano, perché al prossimo avvio la loro chiave potrebbe essere un'altra */
-    if (regfile && !reg_save(regfile, &reg, g, n, dir, dl, old, oldlen))
+    if (regfile && !games_no_write && !reg_save(regfile, &reg, g, n, dir, dl, old, oldlen))
         for (int i = 0; i < n; i++) if (!r[i].fixed) r[i].g->key_unsaved = true;
     free(r);
     free(old);
