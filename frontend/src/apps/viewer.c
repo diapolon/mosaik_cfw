@@ -489,7 +489,10 @@ static SDL_Surface *th_comic(const char *path) {
         char *buf = malloc(sz);
         long w = 0, h = 0;
         bool got = buf && zip_entry(f, &z[best], NULL, buf, sz);
-        if (got && th_size_ok(img_dims((unsigned char *)buf, z[best].usize, &w, &h), w, h))
+        /* prima le misure, poi il controllo: nella stessa chiamata il C non dice in che ordine
+           si valutano gli argomenti, e w e h potevano arrivare ancora a zero (audit A56-004) */
+        bool known = got && img_dims((unsigned char *)buf, z[best].usize, &w, &h);
+        if (th_size_ok(known, w, h))
             s = IMG_Load_RW(SDL_RWFromConstMem(buf, (int)z[best].usize), 1);
         free(buf);
     }
@@ -520,14 +523,31 @@ static void th_cache_path(const char *path, char *out, size_t n) {
     snprintf(out, n, "%s/miniature/%016llx.png", app_dir, hsh);
 }
 
+/* Voci tenute: quelle a schermo più "screens" schermate prima e dopo. Il thread prepara fino a
+   TH_AHEAD, le texture oltre TH_KEEP si liberano (tornano dalla cache su disco): così la memoria
+   resta di poche schermate, qualunque sia la cartella. Si chiama con th_mx preso. */
+#define TH_AHEAD 1
+#define TH_KEEP 2
+static void th_window(int screens, int *lo, int *hi) {
+    if (th_first < 0 || th_n <= 0) { *lo = 0; *hi = -1; return; }
+    int page = th_last - th_first + 1;
+    *lo = th_first - screens * page;
+    *hi = th_last + screens * page;
+    if (*lo < 0) *lo = 0;
+    if (*hi > th_n - 1) *hi = th_n - 1;
+}
+
 static void *th_worker(void *arg) {
     (void)arg;
     pthread_mutex_lock(&th_mx);
     while (!th_quit) {
         int pick = -1;
-        /* prima quelle a schermo, poi le altre della cartella */
+        /* prima quelle a schermo, poi una schermata prima e una dopo: non tutta la cartella, che
+           con migliaia di immagini riempiva la memoria (audit A56-005) */
+        int lo, hi;
+        th_window(TH_AHEAD, &lo, &hi);
         for (int i = th_first; i <= th_last && i < th_n && pick < 0; i++) if (i >= 0 && th_items[i].state == TH_NONE && !ents[i].dir) pick = i;
-        for (int i = 0; i < th_n && pick < 0; i++) if (th_items[i].state == TH_NONE && !ents[i].dir) pick = i;
+        for (int i = lo; i <= hi && pick < 0; i++) if (th_items[i].state == TH_NONE && !ents[i].dir) pick = i;
         if (pick < 0) { pthread_cond_wait(&th_cv, &th_mx); continue; }
         th_items[pick].state = TH_BUSY;
         unsigned gen = th_gen;
@@ -536,7 +556,7 @@ static void *th_worker(void *arg) {
         snprintf(path, sizeof path, "%s/%s", th_dir, ents[pick].name);
         pthread_mutex_unlock(&th_mx);
         th_cache_path(path, cache, sizeof cache);
-        SDL_Surface *s = IMG_Load(cache);
+        SDL_Surface *s = th_image(cache);   /* con gli stessi controlli: la cartella è sulla scheda */
         if (!s) {
             s = th_scale(comic ? th_comic(path) : th_image(path));
             if (s) {   /* nella cache, passando da un file provvisorio */
@@ -573,8 +593,32 @@ static void th_reset(void) {
     pthread_mutex_unlock(&th_mx);
 }
 
+/* La cache su disco non cresce senza fine: oltre TH_CACHE_MAX miniature (circa 100 MB) si
+   svuota all'avvio e si rifà mentre si guarda. */
+#define TH_CACHE_MAX 3000
+static void th_cache_trim(void) {
+    char d[1200], p[1500];
+    snprintf(d, sizeof d, "%s/miniature", app_dir);
+    DIR *dr = opendir(d);
+    if (!dr) return;
+    int n = 0;
+    struct dirent *e;
+    while ((e = readdir(dr))) if (e->d_name[0] != '.') n++;
+    if (n > TH_CACHE_MAX) {
+        rewinddir(dr);
+        while ((e = readdir(dr))) {
+            if (e->d_name[0] == '.') continue;
+            snprintf(p, sizeof p, "%s/%s", d, e->d_name);
+            remove(p);
+        }
+        ui_log("miniature: %d nella cache, svuotata", n);
+    }
+    closedir(dr);
+}
+
 static void th_start(void) {
     if (th_on) return;
+    th_cache_trim();
     th_on = pthread_create(&th_thr, NULL, th_worker, NULL) == 0;
 }
 
@@ -591,7 +635,21 @@ static void th_stop(void) {
 /* a ogni fotogramma: le voci a schermo, e le superfici pronte diventano texture */
 static void th_frame(int first, int last) {
     pthread_mutex_lock(&th_mx);
-    if (first != th_first || last != th_last) { th_first = first; th_last = last; pthread_cond_signal(&th_cv); }
+    if (first != th_first || last != th_last) {
+        th_first = first;
+        th_last = last;
+        pthread_cond_signal(&th_cv);
+        int lo, hi;
+        th_window(TH_KEEP, &lo, &hi);
+        for (int i = 0; i < th_n; i++)   /* lontane dallo schermo: via, le riporta la cache */
+            if ((i < lo || i > hi) && (th_items[i].state == TH_TEX || th_items[i].state == TH_SURF)) {
+                if (th_items[i].tex) SDL_DestroyTexture(th_items[i].tex);
+                if (th_items[i].surf) SDL_FreeSurface(th_items[i].surf);
+                th_items[i].tex = NULL;
+                th_items[i].surf = NULL;
+                th_items[i].state = TH_NONE;
+            }
+    }
     for (int i = 0; i < th_n; i++)
         if (th_items[i].state == TH_SURF) {
             th_items[i].tex = SDL_CreateTextureFromSurface(UI.ren, th_items[i].surf);
