@@ -291,10 +291,32 @@ for pk in catalog["packages"] + catalog["packages2"]:
             sys.exit(f"errore: {rel} sta sia in {owner[k]} sia in {pk['id']}")
         owner[k] = pk["id"]
 
-# ordine delle piattaforme (campo "order" degli emulatori): prima gli arcade, poi le console
+# Ordine nello Store, che segue quello del catalogo anche sui sistemi vecchi. Arcade nell'ordine
+# delle piattaforme (campo "order"); console e computer per marca, in ordine alfabetico, poi per
+# anno di uscita: un pacchetto con più console prende la più vecchia. Marca e anno sono quelli della
+# tabella "known" di frontend/src/launcher/games.c (o "maker" e "year" nel JSON dell'emulatore);
+# ScummVM, che non è una marca, va in fondo ai computer. Il resto (app, temi...) per nome.
+known = {m.group(1): (m.group(2), m.group(3)) for m in re.finditer(
+    r'\{ "([a-z0-9_]+)", "([^"]*)", "([0-9]*)" \}', open(os.path.join(top, "frontend", "src", "launcher", "games.c"), encoding="utf-8").read())}
+def emu_json(pk, e):
+    return json.load(open(os.path.join(args.src, pk["id"], "Emulators", e + ".json")))
 def order(pk):
-    return min((json.load(open(os.path.join(args.src, pk["id"], "Emulators", e + ".json"))).get("order", 100) for e in pk["emulators"]), default=100)
-catalog["packages"].sort(key=lambda pk: (order(pk), pk["name"].lower()))
+    return min((emu_json(pk, e).get("order", 100) for e in pk["emulators"]), default=100)
+def maker_year(pk):
+    best = None
+    for e in pk["emulators"]:
+        j = emu_json(pk, e)
+        mk, yr = known.get(e, ("", ""))
+        mk, yr = j.get("maker", mk), str(j.get("year", yr))
+        k = (int(yr) if yr.isdigit() else 9999, mk)
+        best = k if best is None or k < best else best
+    return best or (9999, "")
+def sort_key(pk):
+    if pk["category"] in ("console", "computer"):
+        year, mk = maker_year(pk)
+        return (0, mk == "ScummVM", mk.lower(), year, pk["name"].lower())
+    return (order(pk), False, "", 0, pk["name"].lower())
+catalog["packages"].sort(key=sort_key)
 catalog["packages2"].sort(key=lambda pk: pk["name"].lower())
 text = (json.dumps(catalog, ensure_ascii=False, indent=1) + "\n").encode()
 with tempfile.NamedTemporaryFile() as t:
