@@ -11,6 +11,7 @@
 
    Sul Mac: build/sdtest --root sdcard --app package/apps/sdtest [--auto "..."] */
 #include "appkit.h"
+#include "../common/platform.h"
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -339,7 +340,17 @@ int main(int argc, char **argv) {
     if (!cleanup()) ui_toast(FT("sdtest.cleanup_failed"));   /* avanzi di una prova interrotta da uno spegnimento */
     space();
     last_load();
+    /* Durante la prova l'audio tace del tutto, come nel launcher durante i lavori sulla scheda: con
+       la SD al lavoro la Brick Pro fruscia (issue #4), e il clic di A teneva acceso l'altoparlante
+       per i primi 4 s della scrittura. Si spegne appena finito il clic, si riaccende alla fine. */
+    Uint32 mute_at = 0;
+    bool muted = false;
     while (!quit) {
+        if (mute_at && job.phase != PH_IDLE && job.phase != PH_DONE && SDL_GetTicks() >= mute_at) {
+            mute_at = 0;
+            muted = true;
+            plat_audio_mute();
+        }
         ui_poll();
         if (UI.in.quit) break;
         UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch */
@@ -347,7 +358,7 @@ int main(int argc, char **argv) {
         int ph = job.phase;
         if (ph == PH_IDLE && confirm_open) {
             int r = ui_popup_input(&confirm_sel, 2);
-            if (r == 1) { confirm_open = false; ui_sound(SND_OK); start(true); }
+            if (r == 1) { confirm_open = false; ui_sound(SND_OK); start(true); mute_at = SDL_GetTicks() + 300; }
             else if (r == 0 || r == -2) { confirm_open = false; ui_sound(SND_BACK); }
         } else if (ph == PH_IDLE) {
             if (in->pressed[BTN_UP] || in->pressed[BTN_DOWN]) { sel = !sel; ui_sound(SND_MOVE); }
@@ -360,10 +371,12 @@ int main(int argc, char **argv) {
                 else if (sel == 1 && !charging && bat >= 0 && bat < 50) { ui_toast(FT("sdtest.charge")); ui_sound(SND_ERROR); }
                 else if (card_free < (sel == 1 ? 1LL << 30 : QUICK_BYTES) + RESERVE) { ui_toast(FT("sdtest.no_space")); ui_sound(SND_ERROR); }
                 else if (sel == 1) { confirm_open = true; confirm_sel = 0; ui_sound(SND_OK); }   /* prima l'avviso */
-                else { ui_sound(SND_OK); start(false); }
+                else { ui_sound(SND_OK); start(false); mute_at = SDL_GetTicks() + 300; }
             }
         } else if (ph == PH_DONE) {
             if (thr_on) { pthread_join(thr, NULL); thr_on = false; }
+            mute_at = 0;
+            if (muted) { muted = false; plat_audio_unmute(); }   /* prima dei suoni della fine */
             if (job.cancel) { ui_toast(FT("sdtest.stopped")); snprintf(last, sizeof last, "%s", ""); last_load(); }
             else if (job.no_space) { ui_toast(FT("sdtest.no_space")); ui_sound(SND_ERROR); last_load(); }
             else if (job.error) { snprintf(last, sizeof last, "%s", FT("sdtest.error")); last_save(last); }
@@ -378,6 +391,7 @@ int main(int argc, char **argv) {
         if (job.phase == PH_IDLE) { draw_idle(); if (confirm_open) draw_confirm(); } else draw_run();
         ui_end();
     }
+    if (muted) plat_audio_unmute();   /* uscita a prova in corso (chiusura da gamewatch): l'audio torna */
     app_exit_begin();
     if (thr_on) { job.cancel = true; pthread_join(thr, NULL); }
     app_quit();
