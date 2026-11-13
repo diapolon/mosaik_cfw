@@ -28,7 +28,8 @@
     "sdgrow",
     "diag",
     "freedoom",
-    "mrboom"
+    "mrboom",
+    "devilutionx"
   ],
   "tested": {
     "fbneo": [
@@ -67,6 +68,7 @@
     "scraper": "0.9.48",
     "filtri-shader": "0.9.51",
     "freedoom": "0.9.58",
-    "mrboom": "0.9.58"
+    "mrboom": "0.9.58",
+    "devilutionx": "0.9.58"
   }
 }

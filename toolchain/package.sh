@@ -206,6 +206,13 @@ if [ -f "$DIST/cores/mrboom_libretro.so" ]; then
     cp "$DIST/cores/mrboom_libretro.so" "$PKG/mrboom/Linux/MrBoom/"
     cp "$TOP/deps/mrboom-libretro/LICENSE" "$PKG/mrboom/Linux/MrBoom/LICENSE-mrboom.txt"
 fi
+# Diablo con DevilutionX (toolchain/build-devilutionx.sh), senza i dati del gioco
+if [ -f "$DIST/linux/devilutionx/devilutionx" ]; then
+    mkdir -p "$PKG/devilutionx"
+    cp -R "$FE/package/linux/devilutionx/Linux" "$PKG/devilutionx/"
+    cp "$DIST/linux/devilutionx/devilutionx" "$DIST/linux/devilutionx/devilutionx.mpq" "$DIST/linux/devilutionx/LICENSE-devilutionx.md" "$PKG/devilutionx/Linux/Diablo/"
+    chmod +x "$PKG/devilutionx/Linux/Diablo/devilutionx" "$PKG/devilutionx/Linux/Diablo/launch.sh"
+fi
 # temi: nel sistema solo Tessera (frontend/themes) e i font condivisi; gli altri sono nello Store
 # (0.9.55). Non dalla SD simulata del Mac, dove ci sono anche quelli dello Store
 mkdir -p "$DATA/Themes"

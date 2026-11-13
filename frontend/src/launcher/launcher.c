@@ -4257,11 +4257,12 @@ static void sto_draw(void) {
                 }
                 sto_cat_art(ci, &c, &em);
                 snprintf(title, sizeof title, "store.cat_%s", STO_CATS[ci]);
-                bool apps_cat = !strcmp(STO_CATS[ci], "apps") || !strcmp(STO_CATS[ci], "linux"), theme_cat = !strcmp(STO_CATS[ci], "themes");
+                bool apps_cat = !strcmp(STO_CATS[ci], "apps"), theme_cat = !strcmp(STO_CATS[ci], "themes"), games_cat = !strcmp(STO_CATS[ci], "linux");
                 bool bezel_cat = !strcmp(STO_CATS[ci], "bezels") || !strcmp(STO_CATS[ci], "filters");   /* "N pacchetti" */
                 const char *ck = bezel_cat ? (cnt == 1 ? "store.count1_bezels" : "store.count_bezels")
                                : theme_cat ? (cnt == 1 ? "store.count1_themes" : "store.count_themes")
-                               : apps_cat ? (cnt == 1 ? "store.count1_apps" : "store.count_apps") : (cnt == 1 ? "store.count1" : "store.count");
+                               : apps_cat ? (cnt == 1 ? "store.count1_apps" : "store.count_apps")
+                               : games_cat ? (cnt == 1 ? "store.count1_games" : "store.count_games") : (cnt == 1 ? "store.count1" : "store.count");
                 if (cnt) snprintf(sub, sizeof sub, T(ck), cnt);
                 else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
                 char badge[48] = "";
@@ -4279,8 +4280,10 @@ static void sto_draw(void) {
                 if (p.experimental) {   /* non ancora provato sulle console: etichetta arancione a sinistra, sempre */
                     const char *ex = T("store.experimental");
                     int bw = ui_text_w(fs, ex) + M(0.02f), bh = TTF_FontHeight(fs) + M(0.006f);
-                    ui_rrect(x + M(0.008f), yy + M(0.008f), bw, bh, bh / 2, rgba(230, 130, 20, 255));
-                    ui_text(fs, ex, x + M(0.008f) + bw / 2, yy + M(0.011f), rgba(255, 255, 255, 255), ALIGN_CENTER);
+                    /* con l'etichetta Aggiorna a destra, nei riquadri stretti si toccavano: una riga sotto */
+                    int ey = yy + M(0.008f) + (sto_badge(&p)[0] ? bh + M(0.006f) : 0);
+                    ui_rrect(x + M(0.008f), ey, bw, bh, bh / 2, rgba(230, 130, 20, 255));
+                    ui_text(fs, ex, x + M(0.008f) + bw / 2, ey + M(0.003f), rgba(255, 255, 255, 255), ALIGN_CENTER);
                 }
             }
         }

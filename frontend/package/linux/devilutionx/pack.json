@@ -1,0 +1,30 @@
+{
+  "version": "1.5.5",
+  "color": "#6B1F1F",
+  "texts": {
+    "it": {
+      "title": "Diablo",
+      "description": "Diablo con DevilutionX: copia DIABDAT.MPQ del gioco in Linux/Diablo"
+    },
+    "en": {
+      "title": "Diablo",
+      "description": "Diablo with DevilutionX: copy the game's DIABDAT.MPQ to Linux/Diablo"
+    },
+    "es": {
+      "title": "Diablo",
+      "description": "Diablo con DevilutionX: copia DIABDAT.MPQ del juego en Linux/Diablo"
+    },
+    "fr": {
+      "title": "Diablo",
+      "description": "Diablo avec DevilutionX : copiez DIABDAT.MPQ du jeu dans Linux/Diablo"
+    },
+    "de": {
+      "title": "Diablo",
+      "description": "Diablo mit DevilutionX: DIABDAT.MPQ des Spiels nach Linux/Diablo kopieren"
+    },
+    "pt": {
+      "title": "Diablo",
+      "description": "Diablo com DevilutionX: copia DIABDAT.MPQ do jogo para Linux/Diablo"
+    }
+  }
+}

@@ -71,7 +71,8 @@ PACKAGES = {
     "diag": ("Diagnostics", None, "apps"),
     # giochi Linux (0.9.58): nome, versione, colore e testi da frontend/package/linux/<id>/pack.json
     "freedoom": ("Freedoom", None, "linux"),
-    "mrboom": ("Mr.Boom", None, "linux"),   # allarga la SD (issue #7)   # senza launch.sh: lo avvia il launcher (0.9.48)
+    "mrboom": ("Mr.Boom", None, "linux"),
+    "devilutionx": ("Diablo", None, "linux"),   # allarga la SD (issue #7)   # senza launch.sh: lo avvia il launcher (0.9.48)
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/", "Linux/")
