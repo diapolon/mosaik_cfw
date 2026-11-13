@@ -1,7 +1,16 @@
 {
   // Onda: categorie in orizzontale e giochi in verticale, sfondo a gradiente con onde animate.
   "name": "Onda",
-  "author": "Prototipo",
+  "version": "1.0",
+  "texts": {
+    "it": { "title": "Onda", "description": "Categorie in orizzontale e giochi in verticale, con onde animate sullo sfondo" },
+    "en": { "title": "Wave", "description": "Categories across and games down, with animated waves in the background" },
+    "es": { "title": "Ola", "description": "Categorías en horizontal y juegos en vertical, con olas animadas de fondo" },
+    "fr": { "title": "Vague", "description": "Catégories à l'horizontale et jeux à la verticale, avec des vagues animées en fond" },
+    "de": { "title": "Welle", "description": "Kategorien quer und Spiele untereinander, mit animierten Wellen im Hintergrund" },
+    "pt": { "title": "Onda", "description": "Categorias na horizontal e jogos na vertical, com ondas animadas no fundo" }
+  },
+  "author": "Mosaik",
   "title": "Mosaik",
   "layout": "bar",
   "sound_style": "soft",

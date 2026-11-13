@@ -1,7 +1,16 @@
 {
   // Cabinato: elenco giochi con anteprima, colori neon e scanline, suoni da sala giochi.
   "name": "Cabinato",
-  "author": "Prototipo",
+  "version": "1.0",
+  "texts": {
+    "it": { "title": "Cabinato", "description": "Elenco come in sala giochi, con il riquadro del gioco scelto e i colori al neon" },
+    "en": { "title": "Cabinet", "description": "A list like in the arcade, with the chosen game's picture and neon colours" },
+    "es": { "title": "Recreativa", "description": "Una lista como en los salones recreativos, con la imagen del juego elegido y colores neón" },
+    "fr": { "title": "Borne", "description": "Une liste comme dans une salle d'arcade, avec l'image du jeu choisi et des couleurs néon" },
+    "de": { "title": "Automat", "description": "Eine Liste wie in der Spielhalle, mit dem Bild des gewählten Spiels und Neonfarben" },
+    "pt": { "title": "Arcada", "description": "Uma lista como num salão de jogos, com a imagem do jogo escolhido e cores néon" }
+  },
+  "author": "Mosaik",
   "title": "Mosaik",
   "title_uppercase": true,
   "layout": "list",

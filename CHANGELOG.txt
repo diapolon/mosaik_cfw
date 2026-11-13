@@ -6,6 +6,8 @@
 0.9.55
 it Collezioni automatiche: Da finire, Partite brevi, Due giocatori, Mai giocati
 en Automatic collections: To finish, Quick sessions, Two players, Never played
+it Nel sistema resta il tema Tessera: Onda e Cabinato passano nello Store
+en The system keeps the Tessera theme: Onda and Cabinato move to the Store
 
 0.9.54
 it Frammenti recuperati dal controllo della scheda (FSCK0000.REC): avviso con Cancella

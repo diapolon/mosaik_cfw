@@ -178,7 +178,12 @@ for f in "$FE"/package/filters/*/; do
     mkdir -p "$PKG/filtri-$id"
     cp -R "$f/Filters" "$PKG/filtri-$id/"
 done
-cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Bezels" "$DATA/"
+# temi: nel sistema solo Tessera (frontend/themes) e i font condivisi; gli altri sono nello Store
+# (0.9.55). Non dalla SD simulata del Mac, dove ci sono anche quelli dello Store
+mkdir -p "$DATA/Themes"
+cp -RL "$FE/sdcard/Themes/_shared" "$DATA/Themes/"
+cp -R "$FE/themes/." "$DATA/Themes/"
+cp -RL "$FE/sdcard/Bezels" "$DATA/"
 # i filtri dal repository, non dalla SD simulata del Mac: lì possono esserci anche quelli dello Store
 mkdir -p "$DATA/Filters"
 cp -R "$FE/filters/." "$DATA/Filters/"

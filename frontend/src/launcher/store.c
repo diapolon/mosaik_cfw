@@ -378,8 +378,9 @@ static void compute_states(entry_t *e, int n) {
             snprintf(p, sizeof p, "%s/Emulators/%s.json", root_dir, e[i].emus[k]);
             all = stat(p, &sb) == 0;
         }
-        /* filtri arrivati con il sistema fino alla 0.9.50 (gli shader): ci sono già tutti i file */
-        if (!strcmp(e[i].p.category, "filters") && e[i].nfiles > 0) {
+        /* filtri e temi arrivati con il sistema (gli shader fino alla 0.9.50, Onda e Cabinato fino
+           alla 0.9.54): ci sono già tutti i file */
+        if ((!strcmp(e[i].p.category, "filters") || !strcmp(e[i].p.category, "themes")) && e[i].nfiles > 0) {
             all = true;
             for (int k = 0; all && k < e[i].nfiles; k++) {
                 char p[1200];
