@@ -1302,6 +1302,7 @@ static void power_off_from_game(void) {
 static struct { char core[64], key[200], title[256], label[64], img[1300]; bool res, current; long long when; int rot; } swr[SWR_MAX];
 static int nswr, swr_sel;
 static bool swr_open, switching;
+static bool switch_saved, switch_failed;   /* stato già salvato prima del cambio; salvataggio non riuscito */
 
 static void swr_load(void) {
     nswr = 0;
@@ -1343,7 +1344,17 @@ static void swr_input(void) {
     if (!in->pressed[BTN_A]) return;
     if (swr[swr_sel].current) { swr_open = false; menu_open = false; ui_sound(SND_OK); return; }   /* è questo: si riprende */
     /* un core che non sa salvare lo stato perde la partita: prima si chiede */
+    switch_failed = false;
     if (!core.serialize_size || core.serialize_size() == 0) { swr_ask(); return; }
+    /* lo stato si salva prima di uscire e si controlla: se non riesce (scheda piena o in errore)
+       si resta nel gioco e si chiede se lasciare la partita (audit A56-002) */
+    if (!state_save(true)) {
+        ui_log("cambio gioco: stato non salvato, chiedo prima di uscire");
+        switch_failed = true;
+        swr_ask();
+        return;
+    }
+    switch_saved = true;
     swr_go();
 }
 
@@ -1353,7 +1364,7 @@ static void swr_go(void) {
     FILE *f = fopen(p, "w");
     bool ok = f && fprintf(f, "%s\t%s\n", swr[swr_sel].core, swr[swr_sel].key) > 0;
     if (f && fclose(f) != 0) ok = false;
-    if (!ok) { remove(p); ui_toast(T("common.launch_error")); ui_sound(SND_ERROR); return; }
+    if (!ok) { remove(p); switch_saved = false; ui_toast(T("common.launch_error")); ui_sound(SND_ERROR); return; }
     ui_log("cambio gioco: verso %s", swr[swr_sel].title);
     switching = true;
     exit_code = EXIT_MENU;
@@ -2289,7 +2300,7 @@ int main(int argc, char **argv) {
         if (menu_open && swr_open) swr_draw();
         else if (menu_open) menu_draw();
         if (ask_kind == ASK_OVERWRITE) ui_confirm_draw(T("confirm.overwrite_title"), T("confirm.overwrite_body"), T("common.cancel"), T("saves.save"), ask_kind_sel);
-        if (ask_kind == ASK_SWITCH) ui_confirm_draw(T("switch.lose_title"), T("switch.lose_body"), T("common.cancel"), T("switch.go"), ask_kind_sel);
+        if (ask_kind == ASK_SWITCH) ui_confirm_draw(T("switch.lose_title"), T(switch_failed ? "switch.fail_body" : "switch.lose_body"), T("common.cancel"), T("switch.go"), ask_kind_sel);
         if (ask_kind == ASK_RESTART) ui_confirm_draw(T("confirm.restart_title"), T("confirm.restart_body"), T("common.cancel"), T("game.reset"), ask_kind_sel);
         if (ask_kind == ASK_CONTROLS) ui_confirm_draw(T("confirm.controls_title"), T("confirm.controls_body"), T("common.cancel"), T("confirm.restore"), ask_kind_sel);
         if (suspend_ask) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
@@ -2323,7 +2334,8 @@ int main(int argc, char **argv) {
     }
     /* uscendo al menu (menu in gioco o HOME) la partita va nel salvataggio automatico, se
        l'impostazione è accesa: in home la si riprende con "Riprendi" */
-    if (exit_code == EXIT_MENU && (UI.set.autosave_exit || switching) && state_save(true)) ui_log("salvataggio automatico all'uscita");
+    /* cambio gioco: lo stato è già salvato (swr_input), un secondo giro ruoterebbe di nuovo i salvataggi */
+    if (exit_code == EXIT_MENU && (UI.set.autosave_exit || switching) && !switch_saved && state_save(true)) ui_log("salvataggio automatico all'uscita");
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
     ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : "common.leaving"), 0.35);
     stats_update();

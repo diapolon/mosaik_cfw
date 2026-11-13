@@ -1010,6 +1010,7 @@
   "switch": {
     "lose_title": "¿Dejar la partida?",
     "lose_body": "Este emulador no puede guardar dónde estás: al cambiar de juego se pierde la partida. Las partidas guardadas del juego se conservan.",
+    "fail_body": "No se pudo guardar el punto en el que estás (tarjeta llena o con errores): al cambiar de juego se pierde la partida. Las partidas guardadas del juego se conservan.",
     "go": "Cambiar",
     "title": "Cambiar de juego",
     "none": "No hay partidas recientes",

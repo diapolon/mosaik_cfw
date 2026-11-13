@@ -1010,6 +1010,7 @@
   "switch": {
     "lose_title": "Quitter la partie ?",
     "lose_body": "Cet émulateur ne sait pas sauvegarder l'endroit où vous êtes : en changeant de jeu la partie est perdue. Les sauvegardes du jeu restent.",
+    "fail_body": "Impossible d'enregistrer l'endroit où vous êtes (carte pleine ou en erreur) : en changeant de jeu, la partie est perdue. Les sauvegardes du jeu sont conservées.",
     "go": "Changer",
     "title": "Changer de jeu",
     "none": "Aucune partie récente",

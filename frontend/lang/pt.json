@@ -1010,6 +1010,7 @@
   "switch": {
     "lose_title": "Sair do jogo?",
     "lose_body": "Este emulador não consegue guardar onde estás: ao mudar de jogo perdes a sessão. Os jogos guardados ficam.",
+    "fail_body": "Não foi possível guardar o ponto onde estás (cartão cheio ou com erros): ao mudar de jogo perdes a partida. Os jogos guardados do jogo mantêm-se.",
     "go": "Mudar",
     "title": "Mudar de jogo",
     "none": "Nenhum jogo recente",

@@ -1010,6 +1010,7 @@
   "switch": {
     "lose_title": "Spiel verlassen?",
     "lose_body": "Dieser Emulator kann den Spielstand nicht sichern: Beim Wechsel geht die Sitzung verloren. Die Spielstände des Spiels bleiben.",
+    "fail_body": "Die aktuelle Stelle konnte nicht gespeichert werden (Karte voll oder fehlerhaft): Beim Spielwechsel geht diese Sitzung verloren. Spielstände im Spiel bleiben erhalten.",
     "go": "Wechseln",
     "title": "Spiel wechseln",
     "none": "Keine letzten Spiele",

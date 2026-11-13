@@ -1010,6 +1010,7 @@
   "switch": {
     "lose_title": "Lasciare la partita?",
     "lose_body": "Questo emulatore non sa salvare il punto in cui sei: cambiando gioco la partita si perde. I salvataggi del gioco restano.",
+    "fail_body": "Non è stato possibile salvare il punto in cui sei (scheda piena o in errore): cambiando gioco la partita si perde. I salvataggi del gioco restano.",
     "go": "Cambia",
     "title": "Cambia gioco",
     "none": "Nessuna partita recente",
