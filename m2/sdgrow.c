@@ -248,6 +248,9 @@ int main(int argc, char **argv) {
     if (new_cl > cap) new_cl = cap;
     if (new_cl * spc < old_cl * spc + MIN_GAIN) {
         if (!changed) printf("niente da fare: FAT già alla misura possibile (%" PRIu64 " MB)\n", (uint64_t)tot / 2048);
+        if (dry)   /* prova dall'app: le misure, per capire una scheda rimasta piccola (issue #7) */
+            printf("disco %" PRIu64 " MB, partizione nella GPT %" PRIu64 " MB (settori %" PRIu64 "-%" PRIu64 "), FAT %" PRIu64 " MB, massimo del FAT %" PRIu64 " MB\n",
+                   total / 2048, psize / 2048, pfirst, plast, (uint64_t)tot / 2048, (data + cap * spc) / 2048);
         free(e);
         close(fd);
         return changed ? 0 : 1;

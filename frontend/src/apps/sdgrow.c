@@ -80,6 +80,9 @@ static int run_sdgrow(const char *opt, char *out, size_t n) {
     if (!disk[0]) { snprintf(out, n, "sdgrow: scheda non trovata"); return 2; }
     int pf[2];
     if (pipe(pf) != 0) return 2;
+    /* quello che il programma ha ancora da scrivere (i messaggi di SDL) non va copiato nel figlio:
+       finiva nel riquadro al posto della risposta di sdgrow (issue #7) */
+    fflush(NULL);
     pid_t pid = fork();
     if (pid < 0) { close(pf[0]); close(pf[1]); return 2; }
     if (pid == 0) {
@@ -94,10 +97,15 @@ static int run_sdgrow(const char *opt, char *out, size_t n) {
         _exit(rc);
     }
     close(pf[1]);
+    /* si legge tutto: se la risposta è lunga, conta la fine (dove sdgrow dice l'esito) */
+    static char all[16384];
     size_t got = 0;
     ssize_t r;
-    while (got + 1 < n && (r = read(pf[0], out + got, n - 1 - got)) > 0) got += (size_t)r;
-    out[got] = 0;
+    char sink[1024];
+    while ((r = read(pf[0], got + 1 < sizeof all ? all + got : sink, got + 1 < sizeof all ? sizeof all - 1 - got : sizeof sink)) > 0)
+        if (got + 1 < sizeof all) got += (size_t)r;
+    all[got] = 0;
+    snprintf(out, n, "%s", got >= n ? all + got - (n - 1) : all);
     close(pf[0]);
     int st = 0;
     waitpid(pid, &st, 0);
@@ -118,6 +126,13 @@ static void check(void) {
     find_card();
     verdict = run_sdgrow("-n", detail, sizeof detail);
     if (verdict > 2) verdict = 2;
+    /* "niente da fare" ma la partizione che il sistema vede è molto più piccola della scheda: non
+       è tutto a posto (issue #7, scheda da 58 GB con la partizione a 2 GB). Lo si dice, con le
+       misure di sdgrow, per capire il perché. */
+    if (verdict == 1 && card_bytes > 0 && part_bytes > 0 && card_bytes - part_bytes > (1LL << 30)) {
+        ui_log("sd: sdgrow non vede nulla da fare, ma la partizione è %lld MB su %lld MB", part_bytes >> 20, card_bytes >> 20);
+        verdict = 2;
+    }
 }
 
 /* ------------------------------------------------------------ disegno */
