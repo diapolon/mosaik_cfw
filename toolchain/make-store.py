@@ -314,8 +314,8 @@ def maker_year(pk):
 def sort_key(pk):
     if pk["category"] in ("console", "computer"):
         year, mk = maker_year(pk)
-        return (0, mk == "ScummVM", mk.lower(), year, pk["name"].lower())
-    return (order(pk), False, "", 0, pk["name"].lower())
+        return (500 if pk["category"] == "console" else 600, mk == "ScummVM", mk.lower(), year, pk["name"].lower())
+    return (order(pk), False, "", 0, pk["name"].lower())   # le altre cartelle prima, come sempre
 catalog["packages"].sort(key=sort_key)
 catalog["packages2"].sort(key=lambda pk: pk["name"].lower())
 text = (json.dumps(catalog, ensure_ascii=False, indent=1) + "\n").encode()
