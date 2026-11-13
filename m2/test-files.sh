@@ -164,9 +164,26 @@ int main(void) {
     ram[5] = 'q'; fail_rename_to = p; sram_save(); fail_rename_to = NULL;
     same("sostituzione fallita: resta il file di prima", get(p), "AB");
     snprintf(q, sizeof q, "%s.tmp", p); same("nessun provvisorio", get(q), "(manca)");
-    sram_save();
+    snprintf(q, sizeof q, "%s.orig", p); same("file più corto: l'originale resta in .srm.orig (R06)", get(q), "AB");
+    put(q, "AB"); sram_save();
     { char b[8] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 6, f) != 6) b[5] = 0; fclose(f); }
       same("al tentativo dopo si scrive", b[5] == 'q' ? "q" : "vecchio", "q"); }
+    same(".srm.orig non riscritto", get(q), "AB");
+    ram[6] = 'r'; sram_save();
+    same("e non riscritto ai salvataggi successivi", get(q), "AB");
+    remove(q);
+    put(p, "0123456789abcdefXYZ"); memset(ram, 0, sizeof ram); FORGET();
+    sram_load();
+    same("file più lungo: si carica la parte che serve", (char[]){ (char)ram[0], (char)ram[15], 0 }, "0f");
+    ram[0] = 'L'; sram_save();
+    same("… e l'originale intero resta in .srm.orig", get(q), "0123456789abcdefXYZ");
+    remove(q); remove(p); mkdir(p, 0755);
+    memset(ram, 'k', sizeof ram); FORGET();
+    sram_load();
+    same("file illeggibile: memoria del gioco non toccata", (char[]){ (char)ram[0], (char)ram[15], 0 }, "kk");
+    ram[0] = 'N'; sram_save();
+    { struct stat st_; same("… e non si scrive sopra senza averlo messo da parte", stat(p, &st_) == 0 && S_ISDIR(st_.st_mode) ? "intatto" : "cambiato", "intatto"); }
+    rmdir(p); FORGET(); memset(ram, 0, sizeof ram); sram_load(); ram[0] = 'Z'; ram[1] = 'e'; ram[2] = 'l'; ram[5] = 'q'; sram_save();
     mem_size = NULL; mem_data = NULL; FORGET();
     sram_load(); sram_save();
     puts("  ok: core senza memoria a batteria (FBNeo, MAME): niente da fare");

@@ -16,6 +16,17 @@ int main(int c, char **v) {
     settings_t s;
     settings_defaults(&s);
     settings_load(&s, v[1]);
+    if (c > 2) {   /* audit A08: nomi con " \\ e caratteri di controllo, scritti e riletti uguali */
+        snprintf(s.theme, sizeof s.theme, "%s", "tema \"x\" \\ y");
+        snprintf(s.filter, sizeof s.filter, "%s", "f\tz");
+        snprintf(s.tz, sizeof s.tz, "%s", "Europe/Rome");
+        settings_t r;
+        if (!settings_save(&s, v[1])) { puts("save fallito"); return 1; }
+        settings_defaults(&r);
+        bool ok = settings_load(&r, v[1]);
+        printf("%s|%s|%s|%s\n", ok ? "letto" : "ILLEGGIBILE", r.theme, r.filter, r.tz);
+        return 0;
+    }
     printf("%d %d %d %d %d %d %d %d %d %d %s\n", s.sort_mode, s.cpu_profile, s.saver, s.aspect, s.brightness, s.volume, s.dup_mode, s.autosleep_min, s.autosuspend_min, s.log_level, s.filter);
     const char *bad[] = { "{\"a\":\"\\", "[-]", "-", "{\"x\":-}", NULL };
     for (int i = 0; bad[i]; i++) json_free(json_parse(bad[i]));
@@ -35,4 +46,6 @@ expect "$(try '{"sort":-1,"cpu_profile":-1,"screensaver":-1,"aspect":-7,"brightn
 expect "$(try '{"filter":1e300}')" "$D nitido" "filtro numerico enorme"
 expect "$(try '{"filter":2}')" "$D scanline" "filtro numerico valido"
 expect "$(try '{"sort":3,"cpu_profile":2,"debug_level":3}')" "3 2 0 0 8 12 1 0 5 3 nitido" "valori validi"
+printf '{}' > System/settings.json
+expect "$(./t . salva)" "letto|tema \"x\" \\ y|f	z|Europe/Rome" "nomi con virgolette, barre e tab: file scritto valido e riletto uguale (A08)"
 echo "TUTTO OK"

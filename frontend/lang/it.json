@@ -610,6 +610,7 @@
     "refresh": "Cerca",
     "forgot": "Rete dimenticata: %s",
     "joining": "Collegamento a %s…",
+    "bad_psk": "La password Wi-Fi va da 8 a 63 caratteri, senza lettere accentate",
     "password_for": "Password di %s",
     "short": "La password deve avere almeno 8 caratteri",
     "error": "Collegamento non riuscito: controlla la password e riprova",

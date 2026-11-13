@@ -196,3 +196,21 @@ bool json_bool(jval *obj, const char *path, bool def) {
     jval *v = json_get(obj, path);
     return v && (v->t == J_BOOL || v->t == J_NUM) ? v->n != 0 : def;
 }
+
+const char *json_esc(const char *s, char *buf, size_t n) {
+    size_t o = 0;
+    if (!n) return buf;
+    for (; s && *s; s++) {
+        unsigned char c = (unsigned char)*s;
+        char e[8];
+        if (c == '"' || c == '\\') snprintf(e, sizeof e, "\\%c", c);
+        else if (c < 0x20) snprintf(e, sizeof e, "\\u%04x", c);
+        else { e[0] = (char)c; e[1] = 0; }
+        size_t l = strlen(e);
+        if (o + l >= n) break;   /* mai a metà di un escape */
+        memcpy(buf + o, e, l);
+        o += l;
+    }
+    buf[o] = 0;
+    return buf;
+}

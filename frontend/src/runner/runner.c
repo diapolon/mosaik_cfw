@@ -136,6 +136,27 @@ static void game_file(char *out, size_t n, const char *ext) {
     snprintf(out, n, "%s/%s.%s", save_dir, rom_name, ext);
 }
 
+/* copia passando da un file provvisorio: la destinazione o è quella di prima o è completa */
+static bool copy_whole(const char *from, const char *to) {
+    char t[1500], buf[65536];
+    snprintf(t, sizeof t, "%s.tmp", to);
+    FILE *in = fopen(from, "rb");
+    if (!in) return false;
+    FILE *out = fopen(t, "wb");
+    bool ok = out != NULL;
+    size_t n;
+    while (ok && (n = fread(buf, 1, sizeof buf, in)) > 0) ok = fwrite(buf, 1, n, out) == n;
+    ok = ok && !ferror(in);
+    if (out) {
+        ok = fflush(out) == 0 && fsync(fileno(out)) == 0 && ok;
+        if (fclose(out) != 0) ok = false;
+    }
+    fclose(in);
+    ok = ok && durable_replace(t, to) == 0;
+    if (!ok) remove(t);
+    return ok;
+}
+
 /* ------------------------------------------------- salvataggi a batteria */
 /* La memoria che la cartuccia tiene con la pila (Zelda, Phantasy Star...) va in
    Saves/<core>/<rom>.srm, l'orologio della cartuccia (Pokémon Oro, Argento, Cristallo) in
@@ -149,7 +170,8 @@ static struct {
     const char *ext;
     unsigned char *copy;   /* contenuto già sulla scheda */
     size_t len;
-} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0 }, { RETRO_MEMORY_RTC, "rtc", NULL, 0 } };
+    bool keep;             /* file di misura diversa o illeggibile: copia in .orig prima di riscriverlo */
+} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0, false }, { RETRO_MEMORY_RTC, "rtc", NULL, 0, false } };
 enum { NBATT = sizeof batt / sizeof batt[0] };
 
 static void sram_load(void) {
@@ -161,11 +183,29 @@ static void sram_load(void) {
         batt[b].len = len;
         char p[1200];
         game_file(p, sizeof p, batt[b].ext);
+        batt[b].keep = false;
+        /* Prima in un buffer a parte: un file che non si legge non tocca la memoria del gioco.
+           Un file di misura diversa (troncato, o di un altro emulatore) si carica per la parte che
+           c'è, come fa RetroArch, ma l'originale resta in <rom>.<ext>.orig prima di essere
+           riscritto (audit R06) */
         FILE *f = fopen(p, "rb");
         if (f) {
-            size_t n = fread(m, 1, len, f);
+            unsigned char *tmp = malloc(len + 1);
+            size_t n = tmp ? fread(tmp, 1, len + 1, f) : 0;
+            bool bad = !tmp || ferror(f);
             fclose(f);
-            ui_log("salvataggio a batteria (.%s): %zu di %zu byte letti", batt[b].ext, n, len);
+            if (bad) {
+                batt[b].keep = true;
+                ui_log("salvataggio a batteria (.%s) illeggibile: non caricato, l'originale resterà in .%s.orig", batt[b].ext, batt[b].ext);
+            } else if (n) {
+                memcpy(m, tmp, n > len ? len : n);
+                batt[b].keep = n != len;
+                if (n != len)
+                    ui_log("salvataggio a batteria (.%s) di misura diversa (%s di %zu byte): caricato, l'originale resterà in .%s.orig",
+                           batt[b].ext, n > len ? "più" : "meno", len, batt[b].ext);
+                else ui_log("salvataggio a batteria (.%s): %zu byte letti", batt[b].ext, n);
+            }
+            free(tmp);
         }
         memcpy(batt[b].copy, m, len);
     }
@@ -178,6 +218,12 @@ static void sram_save(void) {
         if (!m || !memcmp(m, batt[b].copy, batt[b].len)) continue;
         char p[1200], t[1300];
         game_file(p, sizeof p, batt[b].ext);
+        if (batt[b].keep) {   /* l'originale da parte una volta sola: non si riscrive una copia già fatta */
+            char o[1300];
+            snprintf(o, sizeof o, "%s.orig", p);
+            if (access(p, F_OK) == 0 && access(o, F_OK) != 0 && !copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
+            batt[b].keep = false;
+        }
         snprintf(t, sizeof t, "%s.tmp", p);
         FILE *f = fopen(t, "wb");
         bool ok = f && fwrite(m, 1, batt[b].len, f) == batt[b].len;
@@ -805,26 +851,6 @@ static void state_path(char *out, size_t n, bool autosave) {
     game_file(out, n, save_ext[autosave ? SAVE_AUTO : gcfg.slot]);
 }
 
-/* copia passando da un file provvisorio: la destinazione o è quella di prima o è completa */
-static bool copy_whole(const char *from, const char *to) {
-    char t[1500], buf[65536];
-    snprintf(t, sizeof t, "%s.tmp", to);
-    FILE *in = fopen(from, "rb");
-    if (!in) return false;
-    FILE *out = fopen(t, "wb");
-    bool ok = out != NULL;
-    size_t n;
-    while (ok && (n = fread(buf, 1, sizeof buf, in)) > 0) ok = fwrite(buf, 1, n, out) == n;
-    ok = ok && !ferror(in);
-    if (out) {
-        ok = fflush(out) == 0 && fsync(fileno(out)) == 0 && ok;
-        if (fclose(out) != 0) ok = false;
-    }
-    fclose(in);
-    ok = ok && durable_replace(t, to) == 0;
-    if (!ok) remove(t);
-    return ok;
-}
 
 /* Il salvataggio automatico di prima resta come copia, con la sua anteprima. Si copia e non si
    rinomina: così quello in uso c'è sempre, anche se la scrittura del nuovo non va a buon fine. */

@@ -29,5 +29,6 @@ void wifi_enable(bool on);                       /* avvia o ferma il servizio, s
 const wifi_status_t *wifi_status(bool refresh);  /* refresh: rilegge subito; altrimenti ogni 2 s */
 void wifi_scan(void);                            /* chiede una ricerca; i risultati arrivano dopo */
 int wifi_networks(wifi_net_t *out, int max);     /* ordinate: collegata, salvate, segnale */
+bool wifi_psk_valid(const char *psk);   /* 8-63 caratteri stampabili */
 bool wifi_connect(const char *ssid, const char *psk);   /* psk NULL: rete aperta o salvata */
 bool wifi_forget(const char *ssid);

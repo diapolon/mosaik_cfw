@@ -1,6 +1,7 @@
 /* Lettore JSON minimale: abbastanza per temi e impostazioni. */
 #pragma once
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef enum { J_NULL, J_BOOL, J_NUM, J_STR, J_ARR, J_OBJ } jtype;
 
@@ -25,3 +26,7 @@ int json_int(jval *obj, const char *path, int def);
 int json_to_int(double d, int def);
 const char *json_str(jval *obj, const char *path, const char *def);
 bool json_bool(jval *obj, const char *path, bool def);
+
+/* s pronta da mettere fra virgolette in un file JSON (\" \\ e caratteri di controllo); buf, n
+   almeno 6 volte la lunghezza più uno per non tagliare. Restituisce buf */
+const char *json_esc(const char *s, char *buf, size_t n);

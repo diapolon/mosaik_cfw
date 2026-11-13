@@ -3255,6 +3255,7 @@ static void wpanel_start(void) {
 
 static void wifi_join(const char *ssid, const char *psk) {
     char m[160];
+    if (psk && !wifi_psk_valid(psk)) { ui_toast(T("wifi.bad_psk")); ui_sound(SND_ERROR); return; }
     if (wifi_connect(ssid, psk)) { snprintf(m, sizeof m, T("wifi.joining"), ssid); ui_sound(SND_OK); }
     else { snprintf(m, sizeof m, "%s", T("wifi.error")); ui_sound(SND_ERROR); }
     ui_toast(m);

@@ -610,6 +610,7 @@
     "refresh": "Suchen",
     "forgot": "Netz vergessen: %s",
     "joining": "Verbinde mit %s…",
+    "bad_psk": "Das WLAN-Passwort braucht 8 bis 63 Zeichen, ohne Umlaute oder Akzente",
     "password_for": "Passwort für %s",
     "short": "Das Passwort braucht mindestens 8 Zeichen",
     "error": "Keine Verbindung: prüfe das Passwort und versuche es erneut",

@@ -610,6 +610,7 @@
     "refresh": "Procurar",
     "forgot": "Rede esquecida: %s",
     "joining": "A ligar a %s…",
+    "bad_psk": "A palavra-passe Wi-Fi deve ter de 8 a 63 caracteres, sem acentos",
     "password_for": "Palavra-passe de %s",
     "short": "A palavra-passe precisa de pelo menos 8 caracteres",
     "error": "Não foi possível ligar: verifica a palavra-passe e tenta de novo",

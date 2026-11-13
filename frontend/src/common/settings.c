@@ -161,6 +161,10 @@ bool settings_save(const settings_t *s, const char *root) {
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
     FILE *f = fopen(tmp, "w");
     if (!f) return false;
+    /* i nomi (tema, filtro, lingua...) vengono da file e cartelle: con escaping un " o un \
+       nel nome non rendono il file illeggibile (audit A08) */
+    char e_theme[6 * sizeof s->theme + 1], e_var[6 * sizeof s->variant + 1], e_dev[6 * sizeof s->device + 1],
+         e_lang[6 * sizeof s->lang + 1], e_filter[6 * sizeof s->filter + 1], e_tz[6 * sizeof s->tz + 1];
     int written = fprintf(f,
             "{\n"
             "  \"theme\": \"%s\",\n"
@@ -200,11 +204,12 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"home_size\": %d,\n"
             "  \"debug_level\": %d\n"
             "}\n",
-            s->theme, s->variant, s->device, s->lang, s->brightness, s->volume, s->cpu_profile,
-            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, s->filter, s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
+            json_esc(s->theme, e_theme, sizeof e_theme), json_esc(s->variant, e_var, sizeof e_var),
+            json_esc(s->device, e_dev, sizeof e_dev), json_esc(s->lang, e_lang, sizeof e_lang), s->brightness, s->volume, s->cpu_profile,
+            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, json_esc(s->filter, e_filter, sizeof e_filter), s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->autosave_exit ? "true" : "false",
             s->box_covers ? "true" : "false", s->speaker_rest,
-            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, s->tz, s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
+            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, json_esc(s->tz, e_tz, sizeof e_tz), s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
     bool ok = written > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
     /* solo un file scritto per intero prende il posto del precedente */

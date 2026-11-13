@@ -24,6 +24,14 @@ static int cmp_net(const void *a, const void *b) {
 static wifi_status_t st;
 static double st_time = -10;
 
+/* passphrase WPA: 8-63 caratteri da 32 a 126 (il resto wpa_supplicant lo rifiuta) */
+bool wifi_psk_valid(const char *psk) {
+    size_t n = strlen(psk);
+    if (n < 8 || n > 63) return false;
+    for (size_t i = 0; i < n; i++) if ((unsigned char)psk[i] < 32 || (unsigned char)psk[i] > 126) return false;
+    return true;
+}
+
 #if defined(TRIMUI_DEVICE) || defined(R36S_DEVICE)
 /* ------------------------------------------------------------ console: wpa_cli */
 #include <fcntl.h>
@@ -282,28 +290,39 @@ int wifi_networks(wifi_net_t *out, int max) {
     return n;
 }
 
+/* Una rete aggiunta qui e non configurata fino in fondo si toglie: altrimenti resta in
+   wpa_supplicant senza password o senza nome, e finisce in wifi.conf al primo salvataggio
+   (audit dell'8 novembre). La password va fra virgolette: wpa_supplicant prende tutto fino
+   all'ultima, quindi anche le virgolette nel mezzo; si rifiutano solo i caratteri che una
+   passphrase WPA non può avere (fuori da 32-126) e le misure fuori da 8-63. */
 bool wifi_connect(const char *ssid, const char *psk) {
     char buf[256], id[16] = "", hex[80] = "", q[160];
+    if (psk && !wifi_psk_valid(psk)) return false;
     saved_t sv[32];
     int nsv = saved_list(sv, 32);
+    bool added = false;
     for (int s = 0; s < nsv; s++) if (!strcmp(sv[s].ssid, ssid)) snprintf(id, sizeof id, "%d", sv[s].id);
     if (!id[0]) {
         if (!wpa(buf, sizeof buf, "add_network", NULL)) return false;
         snprintf(id, sizeof id, "%d", atoi(buf));
+        added = true;
         /* il nome in esadecimale: va bene qualunque carattere */
         for (size_t i = 0; ssid[i] && i < 32; i++) snprintf(hex + 2 * i, 3, "%02x", (unsigned char)ssid[i]);
-        if (!wpa(buf, sizeof buf, "set_network", id, "ssid", hex, NULL) || !wpa_ok(buf)) return false;
-        if (!psk && !wpa(buf, sizeof buf, "set_network", id, "key_mgmt", "NONE", NULL)) return false;
+        if (!wpa(buf, sizeof buf, "set_network", id, "ssid", hex, NULL) || !wpa_ok(buf)) goto fail;
+        if (!psk && (!wpa(buf, sizeof buf, "set_network", id, "key_mgmt", "NONE", NULL) || !wpa_ok(buf))) goto fail;
     }
     if (psk) {
         snprintf(q, sizeof q, "\"%s\"", psk);
-        if (!wpa(buf, sizeof buf, "set_network", id, "psk", q, NULL) || !wpa_ok(buf)) return false;
+        if (!wpa(buf, sizeof buf, "set_network", id, "psk", q, NULL) || !wpa_ok(buf)) goto fail;
     }
     wpa(buf, sizeof buf, "enable_network", id, NULL);
-    if (!wpa(buf, sizeof buf, "select_network", id, NULL) || !wpa_ok(buf)) return false;
+    if (!wpa(buf, sizeof buf, "select_network", id, NULL) || !wpa_ok(buf)) goto fail;
     pending = true;
     st_time = -10;
     return true;
+fail:
+    if (added) wpa(buf, sizeof buf, "remove_network", id, NULL);
+    return false;
 }
 
 bool wifi_forget(const char *ssid) {
