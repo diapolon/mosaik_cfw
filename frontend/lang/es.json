@@ -988,6 +988,7 @@
     "body": "Una restauración o una instalación no terminó. Reintenta; si no pasa puedes continuar igualmente, pero algunos archivos pueden estar a medias.",
     "retry": "Reintentar",
     "off": "Apagar",
-    "go": "Continuar"
+    "go": "Continuar",
+    "stuck": "No se puede continuar: apaga y revisa la tarjeta"
   }
 }

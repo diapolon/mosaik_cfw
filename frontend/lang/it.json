@@ -988,6 +988,7 @@
     "body": "Un ripristino o un'installazione non si è concluso. Riprova; se non passa puoi proseguire lo stesso, ma alcuni file possono essere a metà.",
     "retry": "Riprova",
     "off": "Spegni",
-    "go": "Prosegui"
+    "go": "Prosegui",
+    "stuck": "Non riesco a proseguire: spegni e controlla la scheda"
   }
 }

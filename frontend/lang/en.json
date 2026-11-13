@@ -988,6 +988,7 @@
     "body": "A restore or an installation did not finish. Try again; if it keeps failing you can continue anyway, but some files may be incomplete.",
     "retry": "Retry",
     "off": "Power off",
-    "go": "Continue"
+    "go": "Continue",
+    "stuck": "Can't continue: power off and check the card"
   }
 }

@@ -988,6 +988,7 @@
     "body": "Eine Wiederherstellung oder Installation wurde nicht beendet. Erneut versuchen; sonst trotzdem fortfahren, einige Dateien können unvollständig sein.",
     "retry": "Wiederholen",
     "off": "Ausschalten",
-    "go": "Fortfahren"
+    "go": "Fortfahren",
+    "stuck": "Fortfahren nicht möglich: ausschalten und Karte prüfen"
   }
 }

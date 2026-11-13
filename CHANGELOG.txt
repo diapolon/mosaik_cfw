@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.42
+it Operazione rimasta a metà: Prosegui non chiude la finestra se non può mettere da parte il giornale
+en Unfinished operation: Continue keeps the window open if it cannot set the journal aside
+
 0.9.41
 it Operazione rimasta a metà: l'avviso arriva prima di riprendere l'ultima partita, con Prosegui
 en Unfinished operation: the notice comes before resuming the last game, with Continue

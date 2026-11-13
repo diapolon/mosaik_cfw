@@ -160,6 +160,9 @@ check "interruzione a ogni passo e riavvio: v2 intatta" "$tot" "$pass"
 # lo stesso, finché non lo decide l'utente (verifica audit R40-02)
 : > sd/System/store-giornale.txt
 check "giornale vuoto, nessuna copia di prima: resta e Store fermo" "in sospeso si 5 6" "$(./t $R recover 2>/dev/null) $([ -e sd/System/store-giornale.txt ] && echo si || echo no) $(./t $R install fbneo 2>/dev/null | cut -d' ' -f1-2)"
+mkdir sd/System/store-giornale-guasto.txt; echo x > sd/System/store-giornale-guasto.txt/occupato
+check "il giornale non si riesce a mettere da parte: errore e resta (R41-01)" "errore si in sospeso" "$(./t $R force 2>/dev/null) $([ -e sd/System/store-giornale.txt ] && echo si || echo no) $(./t $R recover 2>/dev/null)"
+rm -rf sd/System/store-giornale-guasto.txt
 check "l'utente prosegue: giornale messo da parte, Store di nuovo libero" "messo da parte si chiuso si" "$(./t $R force 2>/dev/null) $([ -e sd/System/store-giornale-guasto.txt ] && echo si || echo no) $(./t $R recover 2>/dev/null) $(rm -f sd/System/store-giornale-guasto.txt; [ "$(snap)" = "$V2" ] && echo si || echo no)"
 # giornale rovinato con un'installazione a metà (verifica audit R39-02): lo Store resta fermo
 STORE_STOP_AT=3 ./t $R install fbneo >/dev/null 2>&1 || true

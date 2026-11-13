@@ -988,6 +988,7 @@
     "body": "Une restauration ou une installation ne s'est pas terminée. Réessaie ; sinon tu peux continuer quand même, mais des fichiers peuvent être incomplets.",
     "retry": "Réessayer",
     "off": "Éteindre",
-    "go": "Continuer"
+    "go": "Continuer",
+    "stuck": "Impossible de continuer : éteins et vérifie la carte"
   }
 }

@@ -4783,14 +4783,25 @@ static void rec_input(void) {
     if (rec_fs_bad) rec_fs_bad = !fs_restore_recover(UI.root);
     if (rec_st_bad) rec_st_bad = !store_recover(UI.root);
     if (r == 0 && (rec_fs_bad || rec_st_bad)) { ui_log("operazione a metà: ancora non chiusa"); ui_sound(SND_ERROR); return; }
-    if (r == 1 && (rec_fs_bad || rec_st_bad)) {
-        /* scelta dell'utente: il giornale si mette da parte e si va avanti; i file a metà restano */
-        ui_log("operazione a metà: l'utente prosegue lo stesso");
-        if (rec_fs_bad) fs_restore_force(UI.root);
-        if (rec_st_bad) store_recover_force(UI.root);
-        rec_fs_bad = rec_st_bad = false;
+    bool forced = false;
+    if (r == 1 && (rec_fs_bad || rec_st_bad || getenv("ARCADE_TEST_RECOVER_STUCK"))) {
+        /* scelta dell'utente: il giornale si mette da parte e si va avanti; i file a metà restano.
+           Ognuno dei due per conto suo: se un giornale non si riesce a spostare resta in sospeso e
+           la finestra non si chiude (verifica audit R41-01) */
+        if (rec_fs_bad) rec_fs_bad = !fs_restore_force(UI.root);
+        if (rec_st_bad) rec_st_bad = !store_recover_force(UI.root);
+        if (getenv("ARCADE_TEST_RECOVER_STUCK")) rec_st_bad = true;   /* prove sul Mac */
+        if (rec_fs_bad || rec_st_bad) {
+            ui_log("operazione a metà: giornale non messo da parte (%s%s), resta il blocco",
+                   rec_fs_bad ? "ripristino" : "", rec_st_bad ? (rec_fs_bad ? ", Store" : "Store") : "");
+            ui_toast(T("recover.stuck"));
+            ui_sound(SND_ERROR);
+            return;
+        }
+        forced = true;
     }
-    ui_log("operazione a metà: chiusa, rileggo impostazioni e giochi");
+    ui_log(forced ? "operazione a metà: non richiusa, si prosegue per scelta dell'utente; rileggo impostazioni e giochi"
+                  : "operazione a metà: chiusa, rileggo impostazioni e giochi");
     rec_pending = false;
     settings_load(&UI.set, UI.root);   /* il ripristino può averle rimesse */
     reload_games();

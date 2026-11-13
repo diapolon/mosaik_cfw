@@ -276,6 +276,9 @@ cp rg-buono.txt sd/System/ripristino-giornale.txt
 check "rimesso il giornale intero: tutto torna com'era" "chiuso $PRIMA 0" "$(./imp $W/sd recover 2>/dev/null) $(snapd) $(avanzi)"
 : > sd/System/ripristino-giornale.txt
 check "giornale vuoto senza copie di prima: resta fermo lo stesso (R40-02)" "in sospeso errore" "$(./imp $W/sd recover 2>/dev/null) $(./imp $W/sd r2.zip 2>/dev/null | cut -d' ' -f2)"
+mkdir sd/System/ripristino-giornale-guasto.txt; echo x > sd/System/ripristino-giornale-guasto.txt/occupato
+check "il giornale non si riesce a mettere da parte: errore e resta (R41-01)" "errore si in sospeso" "$(./imp $W/sd force 2>/dev/null) $([ -e sd/System/ripristino-giornale.txt ] && echo si || echo no) $(./imp $W/sd recover 2>/dev/null)"
+rm -rf sd/System/ripristino-giornale-guasto.txt
 check "l'utente prosegue: giornale messo da parte, si ripristina di nuovo" "messo da parte si chiuso" "$(./imp $W/sd force 2>/dev/null) $([ -e sd/System/ripristino-giornale-guasto.txt ] && echo si || echo no) $(./imp $W/sd recover 2>/dev/null)"
 rm -f sd/System/ripristino-giornale-guasto.txt
 mkdir sd/System/ripristino-giornale.txt
