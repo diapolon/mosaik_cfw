@@ -1000,5 +1000,16 @@
     "off": "Éteindre",
     "go": "Continuer",
     "stuck": "Impossible de continuer : éteins et vérifie la carte"
+  },
+  "switch": {
+    "lose_title": "Quitter la partie ?",
+    "lose_body": "Cet émulateur ne sait pas sauvegarder l'endroit où vous êtes : en changeant de jeu la partie est perdue. Les sauvegardes du jeu restent.",
+    "go": "Changer",
+    "title": "Changer de jeu",
+    "none": "Aucune partie récente",
+    "from_start": "repart du début",
+    "no_resume": "sans reprise : repart du début",
+    "current": "En cours",
+    "menu": "Changer de jeu"
   }
 }

@@ -1000,5 +1000,16 @@
     "off": "Spegni",
     "go": "Prosegui",
     "stuck": "Non riesco a proseguire: spegni e controlla la scheda"
+  },
+  "switch": {
+    "lose_title": "Lasciare la partita?",
+    "lose_body": "Questo emulatore non sa salvare il punto in cui sei: cambiando gioco la partita si perde. I salvataggi del gioco restano.",
+    "go": "Cambia",
+    "title": "Cambia gioco",
+    "none": "Nessuna partita recente",
+    "from_start": "riparte da capo",
+    "no_resume": "senza ripresa: riparte da capo",
+    "current": "In corso",
+    "menu": "Cambia gioco"
   }
 }

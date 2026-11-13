@@ -1000,5 +1000,16 @@
     "off": "Power off",
     "go": "Continue",
     "stuck": "Can't continue: power off and check the card"
+  },
+  "switch": {
+    "lose_title": "Leave this game?",
+    "lose_body": "This emulator can't save where you are: switching game loses this session. The game's own saves stay.",
+    "go": "Switch",
+    "title": "Switch game",
+    "none": "No recent games",
+    "from_start": "starts from the beginning",
+    "no_resume": "no resume: starts from the beginning",
+    "current": "Playing",
+    "menu": "Switch game"
   }
 }

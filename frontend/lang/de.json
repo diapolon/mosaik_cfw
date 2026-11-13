@@ -1000,5 +1000,16 @@
     "off": "Ausschalten",
     "go": "Fortfahren",
     "stuck": "Fortfahren nicht möglich: ausschalten und Karte prüfen"
+  },
+  "switch": {
+    "lose_title": "Spiel verlassen?",
+    "lose_body": "Dieser Emulator kann den Spielstand nicht sichern: Beim Wechsel geht die Sitzung verloren. Die Spielstände des Spiels bleiben.",
+    "go": "Wechseln",
+    "title": "Spiel wechseln",
+    "none": "Keine letzten Spiele",
+    "from_start": "beginnt von vorn",
+    "no_resume": "ohne Fortsetzen: beginnt von vorn",
+    "current": "Läuft",
+    "menu": "Spiel wechseln"
   }
 }

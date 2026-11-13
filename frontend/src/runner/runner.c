@@ -1149,9 +1149,9 @@ static void draw_game(void) {
 /* Tre pagine con la stessa grafica: principale, opzioni del gioco (core), comandi. */
 
 enum { PAGE_MAIN, PAGE_OPTIONS, PAGE_CONTROLS, PAGE_SHADER, PAGE_SAVES, PAGE_HOTKEYS };
-enum { MI_RESUME, MI_SAVE, MI_LOAD, MI_SAVES, MI_DISC, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS, MI_HOTKEYS,
+enum { MI_RESUME, MI_SWITCH, MI_SAVE, MI_LOAD, MI_SAVES, MI_DISC, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS, MI_HOTKEYS,
        MI_RESET, MI_EXIT, MI_COUNT };
-static const char *main_keys[MI_COUNT] = { "game.resume", "game.save_state", "game.load_state", "saves.title", "game.disc", "game.aspect",
+static const char *main_keys[MI_COUNT] = { "game.resume", "switch.menu", "game.save_state", "game.load_state", "saves.title", "game.disc", "game.aspect",
                                            "game.filter", "game.bezel", "game.rotation", "game.cpu", "game.shader_params", "game.options", "game.controls", "hotkey.page",
                                            "game.reset", "game.exit" };
 static const char *cpu_names[] = { "cpu.auto", "cpu.min", "cpu.save", "cpu.balanced", "cpu.perf" };
@@ -1293,6 +1293,140 @@ static void power_off_from_game(void) {
     exit_code = EXIT_POWEROFF;
 }
 
+/* ------------------------------------------------------- cambio gioco
+   Le ultime partite (System/cambio.tsv, scritto dal launcher a ogni avvio), in una fila con
+   l'immagine del salvataggio automatico. Scegliendone un'altra la partita in corso va nel
+   salvataggio automatico (anche con l'impostazione spenta: "Riprendi" deve trovarla) e il
+   launcher, letto System/cambio.txt, avvia subito quella scelta. */
+#define SWR_MAX 8
+static struct { char core[64], key[200], title[256], label[64], img[1300]; bool res, current; long long when; int rot; } swr[SWR_MAX];
+static int nswr, swr_sel;
+static bool swr_open, switching;
+
+static void swr_load(void) {
+    nswr = 0;
+    char p[1200], line[2400];
+    snprintf(p, sizeof p, "%s/System/cambio.tsv", root);
+    FILE *f = fopen(p, "r");
+    while (f && nswr < SWR_MAX && fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        char *fl[8] = { 0 };
+        int n = 0;
+        for (char *c = line; c && n < 8; n++) { fl[n] = c; c = strchr(c, '\t'); if (c) *c++ = 0; }
+        if (n < 8) continue;
+        snprintf(swr[nswr].core, sizeof swr[0].core, "%s", fl[0]);
+        snprintf(swr[nswr].key, sizeof swr[0].key, "%s", fl[1]);
+        snprintf(swr[nswr].title, sizeof swr[0].title, "%s", fl[2]);
+        snprintf(swr[nswr].label, sizeof swr[0].label, "%s", fl[3]);
+        swr[nswr].res = atoi(fl[4]) != 0;
+        snprintf(swr[nswr].img, sizeof swr[0].img, "%s", strcmp(fl[5], "-") ? fl[5] : "");
+        swr[nswr].when = atoll(fl[6]);
+        swr[nswr].rot = atoi(fl[7]) & 3;
+        /* il gioco in corso (chiave uguale; per le console anche la console) va davanti */
+        swr[nswr].current = !strcmp(swr[nswr].key, rom_name) && (!system_id[0] || !strcmp(swr[nswr].core, system_id));
+        nswr++;
+    }
+    if (f) fclose(f);
+    for (int i = 1; i < nswr; i++)
+        if (swr[i].current) { __typeof__(swr[0]) c = swr[i]; memmove(&swr[1], &swr[0], sizeof swr[0] * (size_t)i); swr[0] = c; break; }
+}
+
+static void swr_go(void);
+static void swr_ask(void);
+
+static void swr_input(void) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_LEFT] && swr_sel > 0) { swr_sel--; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_RIGHT] && swr_sel < nswr - 1) { swr_sel++; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { swr_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_MENU]) { swr_open = false; menu_open = false; ui_sound(SND_BACK); return; }
+    if (!in->pressed[BTN_A]) return;
+    if (swr[swr_sel].current) { swr_open = false; menu_open = false; ui_sound(SND_OK); return; }   /* è questo: si riprende */
+    /* un core che non sa salvare lo stato perde la partita: prima si chiede */
+    if (!core.serialize_size || core.serialize_size() == 0) { swr_ask(); return; }
+    swr_go();
+}
+
+static void swr_go(void) {
+    char p[1200];
+    snprintf(p, sizeof p, "%s/System/cambio.txt", root);
+    FILE *f = fopen(p, "w");
+    bool ok = f && fprintf(f, "%s\t%s\n", swr[swr_sel].core, swr[swr_sel].key) > 0;
+    if (f && fclose(f) != 0) ok = false;
+    if (!ok) { remove(p); ui_toast(T("common.launch_error")); ui_sound(SND_ERROR); return; }
+    ui_log("cambio gioco: verso %s", swr[swr_sel].title);
+    switching = true;
+    exit_code = EXIT_MENU;
+    ui_sound(SND_OK);
+}
+
+static void swr_image(int k, int x, int y, int w, int h, int r) {
+    theme_t *t = &UI.th;
+    SDL_Texture *img = swr[k].img[0] ? ui_image(swr[k].img) : NULL;
+    if (img && swr[k].rot) {
+        int tw, th;
+        SDL_QueryTexture(img, NULL, NULL, &tw, &th);
+        bool odd = swr[k].rot & 1;
+        float vw = (float)(odd ? th : tw), vh = (float)(odd ? tw : th), sc = fminf(w / vw, h / vh);
+        int dw = (int)(vw * sc), dh = (int)(vh * sc), rw = odd ? dh : dw, rh = odd ? dw : dh;
+        ui_rrect(x, y, w, h, r, rgba(14, 14, 18, 255));
+        SDL_Rect d = { x + (w - rw) / 2, y + (h - rh) / 2, rw, rh };
+        SDL_RenderCopyEx(UI.ren, img, NULL, &d, -90.0 * swr[k].rot, NULL, SDL_FLIP_NONE);
+    } else if (img && swr[k].res) ui_image_fill(img, x, y, w, h, r);
+    else if (img) { ui_rrect(x, y, w, h, r, rgba(14, 14, 18, 255)); ui_image_fit(img, x, y, w, h); }
+    else {
+        ui_rrect(x, y, w, h, r, with_alpha(t->text, 40));
+        char fit[120];
+        ui_text_fit(UI.f_small, swr[k].title, w - M(0.03f), fit, sizeof fit);
+        ui_text(UI.f_small, fit, x + w / 2, y + h / 2 - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_CENTER);
+    }
+}
+
+static void swr_draw(void) {
+    theme_t *t = &UI.th;
+    ui_background();   /* schermata piena nei colori del tema, come nel launcher */
+    int cw = UI.w * 34 / 100, ch = cw * 3 / 4, gap = M(0.035f), r = M(t->panel_radius) * 2;
+    int cy = UI.h * 18 / 100, cx = UI.w / 2 - cw / 2;
+    ui_text(UI.f_title, T("switch.title"), M(t->margin), M(0.03f), t->text, ALIGN_LEFT);
+    if (!nswr) {
+        ui_text(UI.f_normal, T("switch.none"), UI.w / 2, UI.h / 2, t->text_dim, ALIGN_CENTER);
+        return;
+    }
+    for (int k = 0; k < nswr; k++) {
+        int x = cx + (k - swr_sel) * (cw + gap);
+        if (x + cw < 0 || x > UI.w) continue;
+        bool on = k == swr_sel;
+        int w = on ? cw : cw * 80 / 100, h = on ? ch : ch * 80 / 100, xx = x + (cw - w) / 2, yy = cy + (ch - h) / 2;
+        swr_image(k, xx, yy, w, h, r);
+        if (on) ui_rborder(xx - M(0.006f), yy - M(0.006f), w + M(0.012f), h + M(0.012f), r + M(0.006f), M(0.005f), t->accent);
+        else ui_rrect(xx, yy, w, h, r, with_alpha(t->bg, 110));
+        if (swr[k].current) {   /* etichetta "In corso" */
+            const char *c = T("switch.current");
+            int bw = ui_text_w(UI.f_small, c) + M(0.02f), bh = TTF_FontHeight(UI.f_small) + M(0.006f);
+            ui_rrect(xx + M(0.01f), yy + M(0.01f), bw, bh, bh / 2, t->accent);
+            ui_text(UI.f_small, c, xx + M(0.01f) + bw / 2, yy + M(0.013f), t->accent_text, ALIGN_CENTER);
+        }
+    }
+    int ty = cy + ch + M(0.05f);
+    char fit[300], sub[300];
+    ui_text_fit(UI.f_title, swr[swr_sel].title, UI.w - 2 * M(t->margin), fit, sizeof fit);
+    ui_text(UI.f_title, fit, UI.w / 2, ty, t->text, ALIGN_CENTER);
+    ty += TTF_FontHeight(UI.f_title) + M(0.01f);
+    if (swr[swr_sel].res) {
+        char w[64], a[160];
+        time_t when = (time_t)swr[swr_sel].when;
+        struct tm tm;
+        localtime_r(&when, &tm);
+        strftime(w, sizeof w, "%d/%m %H:%M", &tm);
+        snprintf(a, sizeof a, T("home.autosave"), w);
+        snprintf(sub, sizeof sub, "%s · %s", swr[swr_sel].label, a);
+    } else snprintf(sub, sizeof sub, "%s · %s", swr[swr_sel].label, T("switch.from_start"));
+    ui_text_fit(UI.f_normal, sub, UI.w - 2 * M(t->margin), fit, sizeof fit);
+    ui_text(UI.f_normal, fit, UI.w / 2, ty, t->text_dim, ALIGN_CENTER);
+    const char *hk[] = { "A", T(swr[swr_sel].current || swr[swr_sel].res ? "home.resume" : "common.play"), "B", T("common.back") };
+    ui_hints(hk, 4);
+}
+
 /* voci del menu senza effetto per questo gioco: in grigio */
 static bool row_disabled(int i) {
     return page == PAGE_MAIN && ((i == MI_SHADER && !glsh_param_count()) || (i == MI_OPTIONS && !noptv) || (i == MI_DISC && disk_count() < 2));
@@ -1369,7 +1503,7 @@ static void open_page(int p) {
 }
 
 /* azioni che fanno perdere qualcosa: si chiede conferma, con Annulla già selezionato */
-enum { ASK_NONE, ASK_RESTART, ASK_CONTROLS, ASK_OVERWRITE };
+enum { ASK_NONE, ASK_RESTART, ASK_CONTROLS, ASK_OVERWRITE, ASK_SWITCH };
 static int ask_kind, ask_kind_sel, ask_row;
 
 static void ask_start(int kind) {
@@ -1377,6 +1511,7 @@ static void ask_start(int kind) {
     ask_kind_sel = 0;
     ui_sound(SND_OK);
 }
+static void swr_ask(void) { ask_start(ASK_SWITCH); }
 
 /* ----------------------------------------- pagina Salvataggi */
 
@@ -1666,6 +1801,7 @@ static void menu_input(void) {
     if (row_disabled(*s)) { ui_sound(SND_ERROR); return; }
     switch (*s) {
     case MI_RESUME: menu_open = false; break;
+    case MI_SWITCH: swr_load(); swr_sel = nswr > 1 ? 1 : 0; swr_open = true; break;   /* sull'ultima partita prima di questa */
     case MI_SAVE: ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed")); break;
     case MI_LOAD:
         if (state_load(false)) { ui_toast(T("game.state_loaded")); menu_open = false; }
@@ -1695,7 +1831,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
         if (i == MI_ROTATE) snprintf(value, vn, "%s", T(rotate_names[rot_index()]));
         if (i == MI_CPU) snprintf(value, vn, "%s", T(cpu_names[gcfg.cpu % 5]));
         if (i == MI_DISC) { if (disk_count() > 1) snprintf(value, vn, "%u / %u", disk.get_image_index() + 1, disk_count()); else snprintf(value, vn, "-"); }
-        *sub = i == MI_OPTIONS || i == MI_CONTROLS || i == MI_SHADER || i == MI_SAVES || i == MI_HOTKEYS;
+        *sub = i == MI_SWITCH || i == MI_OPTIONS || i == MI_CONTROLS || i == MI_SHADER || i == MI_SAVES || i == MI_HOTKEYS;
     } else if (page == PAGE_SAVES) {
         time_t when;
         if (i < NSLOTS) {
@@ -1943,7 +2079,9 @@ static void battery_watch(void) {
 }
 
 static void ask_do(int kind) {
-    if (kind == ASK_OVERWRITE) {
+    if (kind == ASK_SWITCH) {
+        swr_go();
+    } else if (kind == ASK_OVERWRITE) {
         saves_write(ask_row);
     } else if (kind == ASK_RESTART) {
         core.reset();
@@ -2123,6 +2261,8 @@ int main(int argc, char **argv) {
             scroll[PAGE_MAIN] = hl[PAGE_MAIN] = 0;
             if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
             ui_sound(SND_OK);
+        } else if (menu_open && swr_open) {
+            swr_input();
         } else if (menu_open) {
             menu_input();
         }
@@ -2146,8 +2286,10 @@ int main(int argc, char **argv) {
         Uint64 pf1 = SDL_GetPerformanceCounter();
         ui_begin();
         draw_game();
-        if (menu_open) menu_draw();
+        if (menu_open && swr_open) swr_draw();
+        else if (menu_open) menu_draw();
         if (ask_kind == ASK_OVERWRITE) ui_confirm_draw(T("confirm.overwrite_title"), T("confirm.overwrite_body"), T("common.cancel"), T("saves.save"), ask_kind_sel);
+        if (ask_kind == ASK_SWITCH) ui_confirm_draw(T("switch.lose_title"), T("switch.lose_body"), T("common.cancel"), T("switch.go"), ask_kind_sel);
         if (ask_kind == ASK_RESTART) ui_confirm_draw(T("confirm.restart_title"), T("confirm.restart_body"), T("common.cancel"), T("game.reset"), ask_kind_sel);
         if (ask_kind == ASK_CONTROLS) ui_confirm_draw(T("confirm.controls_title"), T("confirm.controls_body"), T("common.cancel"), T("confirm.restore"), ask_kind_sel);
         if (suspend_ask) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
@@ -2181,7 +2323,7 @@ int main(int argc, char **argv) {
     }
     /* uscendo al menu (menu in gioco o HOME) la partita va nel salvataggio automatico, se
        l'impostazione è accesa: in home la si riprende con "Riprendi" */
-    if (exit_code == EXIT_MENU && UI.set.autosave_exit && state_save(true)) ui_log("salvataggio automatico all'uscita");
+    if (exit_code == EXIT_MENU && (UI.set.autosave_exit || switching) && state_save(true)) ui_log("salvataggio automatico all'uscita");
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
     ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : "common.leaving"), 0.35);
     stats_update();

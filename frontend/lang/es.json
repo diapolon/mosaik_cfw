@@ -1000,5 +1000,16 @@
     "off": "Apagar",
     "go": "Continuar",
     "stuck": "No se puede continuar: apaga y revisa la tarjeta"
+  },
+  "switch": {
+    "lose_title": "¿Dejar la partida?",
+    "lose_body": "Este emulador no puede guardar dónde estás: al cambiar de juego se pierde la partida. Las partidas guardadas del juego se conservan.",
+    "go": "Cambiar",
+    "title": "Cambiar de juego",
+    "none": "No hay partidas recientes",
+    "from_start": "empieza desde el principio",
+    "no_resume": "sin reanudar: empieza desde el principio",
+    "current": "En curso",
+    "menu": "Cambiar de juego"
   }
 }

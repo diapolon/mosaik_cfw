@@ -1000,5 +1000,16 @@
     "off": "Desligar",
     "go": "Continuar",
     "stuck": "Não é possível continuar: desliga e verifica o cartão"
+  },
+  "switch": {
+    "lose_title": "Sair do jogo?",
+    "lose_body": "Este emulador não consegue guardar onde estás: ao mudar de jogo perdes a sessão. Os jogos guardados ficam.",
+    "go": "Mudar",
+    "title": "Mudar de jogo",
+    "none": "Nenhum jogo recente",
+    "from_start": "começa do início",
+    "no_resume": "sem retomar: começa do início",
+    "current": "A jogar",
+    "menu": "Mudar de jogo"
   }
 }

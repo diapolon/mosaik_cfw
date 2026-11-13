@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.52
+it Cambia gioco: Select nella home o la voce nel menu del gioco, con le ultime partite
+en Switch game: Select on the home screen or the item in the game menu, with your last games
+it Si riprende dal salvataggio automatico, senza passare dal menu
+en Games resume from their autosave, without going through the menu
+it Altoparlante a riposo anche nelle app (Brick Pro)
+en Speaker at rest also inside the apps (Brick Pro)
+
 0.9.51
 it Nuova cartella Filtri nello Store: i filtri shader diventano un pacchetto
 en New Filters folder in the Store: the shader filters become a package

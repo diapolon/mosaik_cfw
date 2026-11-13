@@ -562,6 +562,8 @@ static bool have_games(void) {
     return false;
 }
 
+static void sw_write_list(const game_t *g);
+
 static void launch_ex(game_t *g, bool resume) {
     char path[1100], core[1100];
     if (g->key_unsaved) {   /* la sua chiave non è nel registro: partirebbe con salvataggi non suoi (R39-01) */
@@ -591,6 +593,7 @@ static void launch_ex(game_t *g, bool resume) {
             return;
         }
     }
+    if (strcmp(g->core, "app")) sw_write_list(g);   /* elenco per "Cambia gioco" nel runner */
     if (strcmp(g->core, "app")) games_add_recent(UI.root, g);          /* le app non sono giochi */
     if (sh) write_linux_env(g);
     if (xscript[0]) {
@@ -1219,6 +1222,207 @@ static void home_image(int gi, int x, int y, int w, int h, int r) {
         SDL_RenderCopyEx(UI.ren, shot, NULL, &d, -90.0 * resume_rot, NULL, SDL_FLIP_NONE);
     } else if (shot) ui_image_fill(shot, x, y, w, h, r);
     else cover_box(&games[gi], x, y, w, h, r);
+}
+
+/* ------------------------------------------------------- cambio gioco
+   Le ultime partite in una fila, con l'immagine del salvataggio automatico: A riprende (o avvia
+   da capo chi non ha un salvataggio automatico o non lo sa fare: giochi Linux, emulatori a sé).
+   Si apre con Select nella home e dal menu del gioco nel runner, che legge l'elenco preparato
+   qui a ogni avvio (System/cambio.tsv) e chiede il gioco scelto con System/cambio.txt. */
+#define SW_MAX 8
+static bool sw_open;
+static int sw_n, sw_sel, sw_g[SW_MAX];
+static bool sw_res[SW_MAX];
+static time_t sw_when[SW_MAX];
+static char sw_png[SW_MAX][1300];
+static int sw_rot[SW_MAX];
+
+/* il gioco passa dal runner, che sa riprendere da un salvataggio automatico */
+static bool sw_runner_game(const game_t *g) {
+    if (!strcmp(g->core, "linux") || !strcmp(g->core, "app")) return false;
+    const emulator_t *e = emulator_find(g->core);
+    return !(e && e->launch[0]);
+}
+
+/* salvataggio automatico del gioco: immagine, data e rotazione; false se non c'è */
+static bool sw_autosave(const game_t *g, char *png, size_t pn, time_t *when, int *rot) {
+    if (!sw_runner_game(g) || g->missing) return false;
+    char base[1200], core[80], st[1300];
+    struct stat sb;
+    save_base(g, base, sizeof base, core, sizeof core);
+    snprintf(st, sizeof st, "%s/%s.auto.state", base, g->key);
+    if (stat(st, &sb) != 0 || sb.st_size <= 0) return false;
+    *when = sb.st_mtime;
+    snprintf(png, pn, "%s.png", st);
+    char rp[1400];
+    snprintf(rp, sizeof rp, "%s.rot", st);
+    FILE *rf = fopen(rp, "r");
+    *rot = 0;
+    if (rf) { if (fscanf(rf, "%d", rot) != 1) *rot = 0; fclose(rf); }
+    *rot &= 3;
+    return true;
+}
+
+/* le ultime partite in ordine (first: il gioco da mettere davanti, -1 nessuno) */
+static void sw_build(int first) {
+    sw_n = 0;
+    for (int rank = 0; rank <= 64 && sw_n < SW_MAX; rank++)
+        for (int i = 0; i < ngames && sw_n < SW_MAX; i++) {
+            const game_t *g = &games[i];
+            bool take = rank == 0 ? i == first : g->recent == rank && i != first;
+            if (!take || g->missing || !strcmp(g->core, "app")) continue;
+            int k = sw_n++;
+            sw_g[k] = i;
+            sw_png[k][0] = 0;
+            sw_res[k] = sw_autosave(g, sw_png[k], sizeof sw_png[k], &sw_when[k], &sw_rot[k]);
+            if (rank) break;
+        }
+}
+
+static void sw_show(void) {
+    sw_build(-1);
+    if (!sw_n) { ui_toast(T("switch.none")); ui_sound(SND_ERROR); return; }
+    sw_sel = 0;
+    sw_open = true;
+    ui_sound(SND_OK);
+}
+
+/* immagine di un riquadro: il punto in cui si era rimasti, altrimenti la copertina */
+static void sw_image(int k, int x, int y, int w, int h, int r) {
+    SDL_Texture *shot = sw_res[k] ? ui_image(sw_png[k]) : NULL;
+    if (shot && sw_rot[k]) {
+        int tw, th;
+        SDL_QueryTexture(shot, NULL, NULL, &tw, &th);
+        bool odd = sw_rot[k] & 1;
+        float vw = (float)(odd ? th : tw), vh = (float)(odd ? tw : th), sc = fminf(w / vw, h / vh);
+        int dw = (int)(vw * sc), dh = (int)(vh * sc), rw = odd ? dh : dw, rh = odd ? dw : dh;
+        ui_rrect(x, y, w, h, r, rgba(14, 14, 18, 255));
+        SDL_Rect d = { x + (w - rw) / 2, y + (h - rh) / 2, rw, rh };
+        SDL_RenderCopyEx(UI.ren, shot, NULL, &d, -90.0 * sw_rot[k], NULL, SDL_FLIP_NONE);
+    } else if (shot) ui_image_fill(shot, x, y, w, h, r);
+    else cover_box(&games[sw_g[k]], x, y, w, h, r);
+}
+
+static void sw_input(void) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_LEFT] && sw_sel > 0) { sw_sel--; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_RIGHT] && sw_sel < sw_n - 1) { sw_sel++; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B] || in->pressed[BTN_SELECT]) { sw_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_A]) { sw_open = false; launch_ex(&games[sw_g[sw_sel]], sw_res[sw_sel]); }
+}
+
+static void sw_draw(void) {
+    theme_t *t = &UI.th;
+    ui_background();   /* schermata piena: sotto non deve trasparire la home */
+    ui_topbar(T("switch.title"));
+    int cw = UI.w * 34 / 100, ch = cw * 3 / 4, gap = M(0.035f), r = M(t->panel_radius) * 2;
+    int cy = UI.h * 22 / 100, cx = UI.w / 2 - cw / 2;
+    for (int k = 0; k < sw_n; k++) {
+        int x = cx + (k - sw_sel) * (cw + gap);
+        if (x + cw < 0 || x > UI.w) continue;
+        bool on = k == sw_sel;
+        int w = on ? cw : cw * 80 / 100, h = on ? ch : ch * 80 / 100, xx = x + (cw - w) / 2, yy = cy + (ch - h) / 2;
+        if (on) ui_shadow(xx, yy + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+        sw_image(k, xx, yy, w, h, r);
+        if (on) ui_rborder(xx - M(0.006f), yy - M(0.006f), w + M(0.012f), h + M(0.012f), r + M(0.006f), M(0.005f), t->accent);
+        else ui_rrect(xx, yy, w, h, r, with_alpha(t->bg, 110));
+    }
+    const game_t *g = &games[sw_g[sw_sel]];
+    int ty = cy + ch + M(0.05f);
+    char fit[200], sub[200];
+    ui_text_fit(UI.f_title, g->title, UI.w - 2 * M(t->margin), fit, sizeof fit);
+    ui_text(UI.f_title, fit, UI.w / 2, ty, t->text, ALIGN_CENTER);
+    ty += TTF_FontHeight(UI.f_title) + M(0.01f);
+    if (sw_res[sw_sel]) {
+        char w[48], a[96];
+        when_text(sw_when[sw_sel], w, sizeof w);
+        snprintf(a, sizeof a, T("home.autosave"), w);
+        snprintf(sub, sizeof sub, "%s · %s", games_core_label(g->core), a);
+    } else snprintf(sub, sizeof sub, "%s · %s", games_core_label(g->core), T(sw_runner_game(g) ? "switch.from_start" : "switch.no_resume"));
+    ui_text_fit(UI.f_normal, sub, UI.w - 2 * M(t->margin), fit, sizeof fit);
+    ui_text(UI.f_normal, fit, UI.w / 2, ty, t->text_dim, ALIGN_CENTER);
+    const char *h[] = { "A", T(sw_res[sw_sel] ? "home.resume" : "common.play"), "B", T("common.back") };
+    ui_hints(h, 4);
+}
+
+/* percorso dell'immagine che media_image_ex mostrerebbe (per il runner, che non conosce i temi) */
+static bool sw_cover_path(const game_t *g, char *out, size_t n) {
+    if (!strcmp(g->core, "linux")) {
+        snprintf(out, n, "%.*s/cover.png", (int)(strrchr(g->path, '/') - g->path), g->path);
+        return access(out, R_OK) == 0;
+    }
+    bool console = core_console(g->core);
+    const char *types[8];
+    int nt = 0;
+    if (UI.set.box_covers && console) types[nt++] = "box";
+    for (int i = 0; i < UI.th.ncover && nt < 8; i++) types[nt++] = UI.th.cover_types[i];
+    for (int i = 0; i < nt; i++) {
+        if (console) { snprintf(out, n, "%s/Media/%s/%s/%s.png", UI.root, types[i], g->core, g->name); if (access(out, R_OK) == 0) return true; }
+        snprintf(out, n, "%s/Media/%s/%s.png", UI.root, types[i], g->name);
+        if (access(out, R_OK) == 0) return true;
+    }
+    snprintf(out, n, "%s/Media/%s/%s.png", UI.root, g->core, g->name);
+    return access(out, R_OK) == 0;
+}
+
+/* System/cambio.tsv: il gioco che parte e le altre ultime partite, per "Cambia gioco" nel menu del
+   runner. Una riga per gioco: core, chiave, titolo, console, ripresa (0/1), immagine (o "-"),
+   data del salvataggio automatico, rotazione. Mai tab nei campi. */
+static void sw_put(FILE *f, const char *s) { for (; *s; s++) fputc(*s == '\t' || *s == '\n' || *s == '\r' ? ' ' : *s, f); }
+static void sw_write_list(const game_t *g) {
+    int first = g >= games && g < games + ngames ? (int)(g - games) : -1;
+    sw_build(first);
+    char p[1100], tmp[1200];
+    snprintf(p, sizeof p, "%s/System/cambio.tsv", UI.root);
+    snprintf(tmp, sizeof tmp, "%s.tmp", p);
+    FILE *f = fopen(tmp, "w");
+    if (!f) return;
+    for (int k = 0; k < sw_n; k++) {
+        const game_t *x = &games[sw_g[k]];
+        char img[1300];
+        if (!sw_res[k] && !sw_cover_path(x, img, sizeof img)) snprintf(img, sizeof img, "-");
+        sw_put(f, x->core); fputc('\t', f);
+        sw_put(f, x->key[0] ? x->key : x->name); fputc('\t', f);
+        sw_put(f, x->title); fputc('\t', f);
+        sw_put(f, games_core_label(x->core)); fputc('\t', f);
+        fprintf(f, "%d\t", sw_res[k] ? 1 : 0);
+        sw_put(f, sw_res[k] ? sw_png[k] : img);
+        fprintf(f, "\t%lld\t%d\n", (long long)(sw_res[k] ? sw_when[k] : 0), sw_res[k] ? sw_rot[k] : 0);
+    }
+    bool ok = !ferror(f);
+    if (fclose(f) != 0) ok = false;
+    if (ok) rename(tmp, p); else remove(tmp);   /* solo un aiuto al menu del gioco: niente fsync */
+}
+
+/* Il runner ha chiesto un altro gioco ("Cambia gioco"): System/cambio.txt con core e chiave.
+   Si avvia subito, come la ripresa all'accensione, dal salvataggio automatico se c'è. */
+static bool consume_switch(void) {
+    char p[1100], line[600];
+    snprintf(p, sizeof p, "%s/System/cambio.txt", UI.root);
+    FILE *f = fopen(p, "r");
+    if (!f) return false;
+    bool got = fgets(line, sizeof line, f) != NULL;
+    fclose(f);
+    unlink(p);
+    if (!got) return false;
+    line[strcspn(line, "\r\n")] = 0;
+    char *tab = strchr(line, '\t');
+    if (!tab) return false;
+    *tab = 0;
+    const char *core = line, *key = tab + 1;
+    for (int i = 0; i < ngames; i++) {
+        game_t *g = &games[i];
+        if (strcmp(g->core, core) || strcmp(g->key[0] ? g->key : g->name, key) || g->missing) continue;
+        char png[1300];
+        time_t when;
+        int rot;
+        bool res = sw_autosave(g, png, sizeof png, &when, &rot);
+        ui_log("cambio gioco: %s (%s)", g->title, res ? "ripresa" : "da capo");
+        launch_ex(g, res);   /* esce se l'avvio riesce */
+        return false;
+    }
+    ui_log("cambio gioco: %s/%s non trovato", core, key);
+    return false;
 }
 
 /* simboli dei pulsanti rotondi della home di Tessera */
@@ -6379,7 +6583,7 @@ static bool rst_all;
 static const char *const RST_SYSTEM[] = { "settings.json", "favorites.txt", "recent.txt", "hidden.txt", "core-options.txt",
                                           "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "wifi.conf",
                                           "fileserver-browsers.txt", "resume.txt", "next.txt", "next.env", "backup-visti.txt",
-                                          "menu-rotazione", "scrape-scelta.txt", NULL };
+                                          "menu-rotazione", "scrape-scelta.txt", "cambio.tsv", "cambio.txt", NULL };
 static const char *const RST_SYSTEM_ALL[] = { "stats.tsv", "romcheck.tsv", NULL };
 /* cartelle svuotate da "Cancella tutto"; in Roms restano le cartelle degli emulatori e LEGGIMI.txt */
 static const char *const RST_DIRS[] = { "Bios", "Saves", "Media", "Music", "Linux", "Apps", NULL };
@@ -7859,6 +8063,10 @@ int main(int argc, char **argv) {
     if (rec_open) ui_log("avvio: %s non chiuso, si chiede di riprovare", rec_fs_bad ? "ripristino del backup" : "Store");
     reload_games();
     ui_mark("giochi pronti");
+    /* "Cambia gioco" dal menu del runner: si avvia il gioco scelto senza mostrare il menu
+       (prima la musica non parte); con un'operazione a metà si resta qui (rec_pending) */
+    if (!auto_script && !rec_pending) consume_switch();
+    else { char cp[1100]; snprintf(cp, sizeof cp, "%s/System/cambio.txt", UI.root); unlink(cp); }
     music_init(UI.root);
     plat_amp_config(UI.set.speaker_rest);   /* fruscio della Brick Pro (issue #4) */
     ui_mark("musica");
@@ -7959,6 +8167,8 @@ int main(int argc, char **argv) {
         else if (sdinfo_open) sdinfo_input();
         else if (support_open) support_input();
         else if (fsrv_open) fsrv_input();
+        else if (sw_open) sw_input();
+        else if (screen == SCR_HOME && UI.in.pressed[BTN_SELECT]) sw_show();   /* cambio gioco, in tutti i temi */
         else if (screen == SCR_HOME) home_input();
         else if (screen == SCR_LIBRARY) library_input();
         else if (screen == SCR_DETAIL) detail_input();
@@ -8019,6 +8229,7 @@ int main(int argc, char **argv) {
         if (support_open) support_draw();
         if (fsrv_open) fsrv_draw();
         if (fpanel_open) fpanel_draw();
+        if (sw_open) sw_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
         if (gp_open) gp_draw();
         if (cp_open) cp_draw();
