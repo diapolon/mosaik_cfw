@@ -867,6 +867,16 @@ static void icon(int x, int y, int s, bool dir, color_t c) {
     }
 }
 
+/* lucchetto delle voci in sola lettura: arco sopra, corpo pieno con il foro */
+static void lock_icon(int x, int y, int s, color_t c, color_t bg) {
+    int bw = s * 3 / 4, bh = s * 11 / 20, bx = x + (s - bw) / 2, by = y + s - bh, ar = bw * 2 / 5, th = s / 11 + 1;
+    ui_ring(x + s / 2, by, ar, th, c);                              /* arco: la metà sotto sparisce nel corpo */
+    ui_rect(x + s / 2 - ar, by - 1, th, bh / 3 + 1, c);              /* le due gambe dell'arco */
+    ui_rect(x + s / 2 + ar - th, by - 1, th, bh / 3 + 1, c);
+    ui_rrect(bx, by, bw, bh, s / 10, c);
+    ui_rect(x + s / 2 - s / 24 - 1, by + bh / 4, s / 12 + 2, bh / 2, bg);   /* il foro della chiave */
+}
+
 static void list_draw(void) {
     theme_t *t = &UI.th;
     int mx = M(t->margin), W = UI.w - 2 * mx;
@@ -906,17 +916,22 @@ static void list_draw(void) {
             if (on) ui_rrect(mx - M(0.012f), ry, W + M(0.024f), rh, M(t->panel_radius), with_alpha(t->accent, 230));
             else if (e->mark) ui_rrect(mx - M(0.012f), ry, W + M(0.024f), rh, M(t->panel_radius), with_alpha(t->accent, 50));
             /* sola lettura (cartelle di sistema, pacchetti dello Store): nome più tenue */
-            color_t tc = on ? t->accent_text : e->ro ? t->text_dim : t->text, dc = on ? t->accent_text : t->text_dim;
+            color_t tc = on ? t->accent_text : e->ro ? with_alpha(t->text_dim, 170) : t->text, dc = on ? t->accent_text : t->text_dim;
             int is = fnh, ix = mx;
             if (e->mark) {   /* segnata: cerchio pieno con un punto */
                 ui_circle(ix + is / 2, ry + rh / 2, is / 2, on ? t->accent_text : t->accent);
                 ui_circle(ix + is / 2, ry + rh / 2, is / 5, on ? t->accent : t->accent_text);
-            } else icon(ix, ry + (rh - is) / 2, is, e->dir, on ? t->accent_text : e->dir ? t->accent : t->text_dim);
+            } else icon(ix, ry + (rh - is) / 2, is, e->dir, on ? t->accent_text : e->ro ? with_alpha(t->text_dim, 120) : e->dir ? t->accent : t->text_dim);
             char right[48];
             if (e->dir) snprintf(right, sizeof right, "%s", "");
             else app_size(e->size, right, sizeof right);
             int rw = ui_text_w(fs, right);
             ui_text(fs, right, mx + W, ry + (rh - fsh) / 2, dc, ALIGN_RIGHT);
+            if (e->ro) {   /* sola lettura: lucchetto a destra, prima della misura */
+                int ls = fsh;
+                rw += ls + M(0.015f);
+                lock_icon(mx + W - rw, ry + (rh - ls) / 2, ls, on ? t->accent_text : t->text_dim, on ? t->accent : t->bg);
+            }
             ui_text_fit(fn, e->name, W - is - M(0.03f) - rw - M(0.03f), fit, sizeof fit);
             ui_text(fn, fit, ix + is + M(0.02f), ry + (rh - fnh) / 2, tc, ALIGN_LEFT);
         }
