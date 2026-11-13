@@ -12,6 +12,8 @@
 #include "appkit.h"
 #include "../launcher/zipread.h"
 #include <SDL_image.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -74,7 +76,7 @@ static void full(char *out, size_t n, const char *rel) {
     else snprintf(out, n, "%s", app_root);
 }
 
-static void reload(const char *keep) {
+static void reload_raw(const char *keep) {
     char p[1300];
     full(p, sizeof p, cwd);
     nents = 0;
@@ -109,6 +111,16 @@ static void reload(const char *keep) {
     if (sel >= nents) sel = nents ? nents - 1 : 0;
     for (int i = 0; keep && i < nents; i++)
         if (!strcmp(ents[i].name, keep)) { sel = i; break; }
+}
+
+static void th_reset(void);
+static pthread_mutex_t th_mx;
+/* il thread delle miniature legge ents: si cambia solo con il suo lucchetto */
+static void reload(const char *keep) {
+    pthread_mutex_lock(&th_mx);
+    reload_raw(keep);
+    pthread_mutex_unlock(&th_mx);
+    th_reset();
 }
 
 /* l'ultima cartella aperta, per ripartire da lì */
@@ -423,6 +435,190 @@ static void view_draw(void) {
     }
 }
 
+/* ------------------------------------------------------------ miniature
+   Vista a icone: le miniature si preparano in un thread, prima quelle a schermo, e si tengono in
+   Apps/viewer/miniature/<impronta>.png (percorso, misura e data del file), così la seconda volta
+   arrivano subito. Il thread produce superfici; le texture le fa il thread principale, l'unico
+   che può usare il renderer. Cambiando cartella si ricomincia (gen). */
+#define THUMB 256
+enum { TH_NONE, TH_BUSY, TH_SURF, TH_TEX, TH_FAIL };
+static struct thumb { int state; SDL_Surface *surf; SDL_Texture *tex; } *th_items;
+static int th_n, th_first, th_last;    /* voci della cartella, quelle a schermo */
+static unsigned th_gen;
+static char th_dir[1300];
+static pthread_t th_thr;
+static bool th_on;
+static atomic_bool th_quit;
+static pthread_mutex_t th_mx = PTHREAD_MUTEX_INITIALIZER;   /* dichiarato prima di reload */
+static pthread_cond_t th_cv = PTHREAD_COND_INITIALIZER;
+static bool grid;                        /* vista a icone */
+
+/* misure note ed entro i limiti (come size_ok, senza toccare lo stato della pagina aperta) */
+static bool th_size_ok(bool known, long w, long h) { return known && w > 0 && h > 0 && w <= 30000 && h <= 30000 && w * h <= MAX_PIXELS; }
+
+/* rimpicciolita dentro THUMB x THUMB; libera s */
+static SDL_Surface *th_scale(SDL_Surface *s) {
+    if (!s) return NULL;
+    SDL_Surface *c = SDL_ConvertSurfaceFormat(s, SDL_PIXELFORMAT_ARGB8888, 0);
+    SDL_FreeSurface(s);
+    if (!c) return NULL;
+    double k = c->w > c->h ? (double)THUMB / c->w : (double)THUMB / c->h;
+    if (k >= 1) return c;
+    int w = (int)(c->w * k), h = (int)(c->h * k);
+    SDL_Surface *d = SDL_CreateRGBSurfaceWithFormat(0, w > 0 ? w : 1, h > 0 ? h : 1, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (d && SDL_BlitScaled(c, NULL, d, NULL) != 0) { SDL_FreeSurface(d); d = NULL; }
+    SDL_FreeSurface(c);
+    return d;
+}
+
+/* prima pagina di un .cbz (ordine naturale) */
+static SDL_Surface *th_comic(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
+    zent_t *z = NULL;
+    int n = zip_dir(f, &z), best = -1;
+    for (int i = 0; i < n; i++) {
+        const char *b = strrchr(z[i].name, '/');
+        b = b ? b + 1 : z[i].name;
+        if (b[0] == '.' || !is_image(z[i].name)) continue;
+        if (best < 0 || natcmp(z[i].name, z[best].name) < 0) best = i;
+    }
+    SDL_Surface *s = NULL;
+    if (best >= 0 && z[best].usize < (64u << 20)) {
+        size_t sz = (size_t)z[best].usize + 1;
+        char *buf = malloc(sz);
+        long w = 0, h = 0;
+        bool got = buf && zip_entry(f, &z[best], NULL, buf, sz);
+        if (got && th_size_ok(img_dims((unsigned char *)buf, z[best].usize, &w, &h), w, h))
+            s = IMG_Load_RW(SDL_RWFromConstMem(buf, (int)z[best].usize), 1);
+        free(buf);
+    }
+    free(z);
+    fclose(f);
+    return s;
+}
+
+static SDL_Surface *th_image(const char *path) {
+    unsigned char head[65536];
+    struct stat sb;
+    FILE *f = fopen(path, "rb");
+    size_t hn = f ? fread(head, 1, sizeof head, f) : 0;
+    long w = 0, h = 0;
+    bool known = hn >= 4 && head[0] == 0xFF && head[1] == 0xD8 ? jpeg_dims_file(f, &w, &h) : img_dims(head, hn, &w, &h);
+    if (f) fclose(f);
+    if (stat(path, &sb) != 0 || sb.st_size >= (64 << 20) || !th_size_ok(known, w, h)) return NULL;
+    return IMG_Load(path);
+}
+
+/* file della cache: impronta FNV-1a di percorso, misura e data */
+static void th_cache_path(const char *path, char *out, size_t n) {
+    struct stat sb;
+    char key[1700];
+    snprintf(key, sizeof key, "%s|%lld|%lld", path, stat(path, &sb) == 0 ? (long long)sb.st_size : 0LL, stat(path, &sb) == 0 ? (long long)sb.st_mtime : 0LL);
+    unsigned long long hsh = 1469598103934665603ULL;
+    for (const char *c = key; *c; c++) { hsh ^= (unsigned char)*c; hsh *= 1099511628211ULL; }
+    snprintf(out, n, "%s/miniature/%016llx.png", app_dir, hsh);
+}
+
+static void *th_worker(void *arg) {
+    (void)arg;
+    pthread_mutex_lock(&th_mx);
+    while (!th_quit) {
+        int pick = -1;
+        /* prima quelle a schermo, poi le altre della cartella */
+        for (int i = th_first; i <= th_last && i < th_n && pick < 0; i++) if (i >= 0 && th_items[i].state == TH_NONE && !ents[i].dir) pick = i;
+        for (int i = 0; i < th_n && pick < 0; i++) if (th_items[i].state == TH_NONE && !ents[i].dir) pick = i;
+        if (pick < 0) { pthread_cond_wait(&th_cv, &th_mx); continue; }
+        th_items[pick].state = TH_BUSY;
+        unsigned gen = th_gen;
+        char path[1600], cache[1300];
+        bool comic = is_comic(ents[pick].name);
+        snprintf(path, sizeof path, "%s/%s", th_dir, ents[pick].name);
+        pthread_mutex_unlock(&th_mx);
+        th_cache_path(path, cache, sizeof cache);
+        SDL_Surface *s = IMG_Load(cache);
+        if (!s) {
+            s = th_scale(comic ? th_comic(path) : th_image(path));
+            if (s) {   /* nella cache, passando da un file provvisorio */
+                char tmp[1400], d[1200];
+                snprintf(d, sizeof d, "%s/miniature", app_dir);
+                mkdir(d, 0755);
+                snprintf(tmp, sizeof tmp, "%s.tmp", cache);
+                if (IMG_SavePNG(s, tmp) == 0) rename(tmp, cache); else remove(tmp);
+            }
+        }
+        pthread_mutex_lock(&th_mx);
+        if (gen != th_gen || pick >= th_n) { if (s) SDL_FreeSurface(s); continue; }   /* cartella cambiata */
+        th_items[pick].surf = s;
+        th_items[pick].state = s ? TH_SURF : TH_FAIL;
+    }
+    pthread_mutex_unlock(&th_mx);
+    return NULL;
+}
+
+/* nuova cartella: miniature di prima via, il thread riparte da capo */
+static void th_reset(void) {
+    pthread_mutex_lock(&th_mx);
+    for (int i = 0; i < th_n; i++) {
+        if (th_items[i].surf) SDL_FreeSurface(th_items[i].surf);
+        if (th_items[i].tex) SDL_DestroyTexture(th_items[i].tex);
+    }
+    free(th_items);
+    th_items = nents ? calloc((size_t)nents, sizeof *th_items) : NULL;
+    th_n = th_items ? nents : 0;
+    th_gen++;
+    th_first = th_last = -1;
+    full(th_dir, sizeof th_dir, cwd);
+    pthread_cond_signal(&th_cv);
+    pthread_mutex_unlock(&th_mx);
+}
+
+static void th_start(void) {
+    if (th_on) return;
+    th_on = pthread_create(&th_thr, NULL, th_worker, NULL) == 0;
+}
+
+static void th_stop(void) {
+    if (!th_on) return;
+    pthread_mutex_lock(&th_mx);
+    th_quit = true;
+    pthread_cond_signal(&th_cv);
+    pthread_mutex_unlock(&th_mx);
+    pthread_join(th_thr, NULL);
+    th_on = false;
+}
+
+/* a ogni fotogramma: le voci a schermo, e le superfici pronte diventano texture */
+static void th_frame(int first, int last) {
+    pthread_mutex_lock(&th_mx);
+    if (first != th_first || last != th_last) { th_first = first; th_last = last; pthread_cond_signal(&th_cv); }
+    for (int i = 0; i < th_n; i++)
+        if (th_items[i].state == TH_SURF) {
+            th_items[i].tex = SDL_CreateTextureFromSurface(UI.ren, th_items[i].surf);
+            if (th_items[i].tex) SDL_SetTextureScaleMode(th_items[i].tex, SDL_ScaleModeLinear);
+            SDL_FreeSurface(th_items[i].surf);
+            th_items[i].surf = NULL;
+            th_items[i].state = th_items[i].tex ? TH_TEX : TH_FAIL;
+        }
+    pthread_mutex_unlock(&th_mx);
+}
+
+/* vista scelta, ricordata accanto al programma */
+static void grid_save(void) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/vista.txt", app_dir);
+    FILE *f = fopen(p, "w");
+    if (f) { fputs(grid ? "icone\n" : "elenco\n", f); fclose(f); }
+}
+
+static void grid_load(void) {
+    char p[1100], v[16] = "";
+    snprintf(p, sizeof p, "%s/vista.txt", app_dir);
+    FILE *f = fopen(p, "r");
+    if (f) { if (!fgets(v, sizeof v, f)) v[0] = 0; fclose(f); }
+    grid = !strncmp(v, "icone", 5);
+}
+
 /* ------------------------------------------------------------ elenco */
 
 static int rows_visible(int *top_y, int *row_h) {
@@ -449,6 +645,8 @@ static void icon(int x, int y, int s, const ent_t *e, color_t c, color_t bg) {
     }
 }
 
+static void grid_draw(void);
+
 static void list_draw(void) {
     theme_t *t = &UI.th;
     int mx = M(t->margin), W = UI.w - 2 * mx;
@@ -465,7 +663,8 @@ static void list_draw(void) {
     ui_text_fit(fn, path, W, fit, sizeof fit);
     ui_text(fn, fit, mx, py, t->accent, ALIGN_LEFT);
     int top_y, rh, vis = rows_visible(&top_y, &rh);
-    if (!nents) {
+    if (nents && grid) grid_draw();
+    else if (!nents) {
         int ny = top_y + rh;
         char lines[3][160];
         int n = ui_wrap(fn, FT("viewer.empty"), W, lines, 3);
@@ -495,8 +694,58 @@ static void list_draw(void) {
             ui_rrect(UI.w - mx / 2 - M(0.004f), sy, M(0.006f), sh, M(0.003f), with_alpha(t->text_dim, 120));
         }
     }
-    const char *h[] = { "B", cwd[0] ? T("common.back") : FT("viewer.quit"), NULL, "A", FT("viewer.open"), NULL };
-    ui_keybar(h, nents ? 6 : 3);
+    const char *h[] = { "B", cwd[0] ? T("common.back") : FT("viewer.quit"), NULL, "Y", FT(grid ? "viewer.as_list" : "viewer.as_icons"), NULL,
+                        "A", FT("viewer.open"), NULL };
+    ui_keybar(h, nents ? 9 : 3);
+}
+
+/* griglia: colonne, misure del riquadro e righe a schermo */
+static int grid_geom(int *cols, int *tile, int *cell_h, int *top_y) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), W = UI.w - 2 * mx;
+    int y = M(t->topbar_h) + M(0.02f) + TTF_FontHeight(UI.f_normal) + M(0.025f), bottom = UI.h - ui_keybar_h() - M(0.01f);
+    *cols = UI.w >= UI.h * 3 / 2 ? 5 : 4;
+    int gap = M(0.02f);
+    *tile = (W - gap * (*cols - 1)) / *cols;
+    *cell_h = *tile * 3 / 4 + TTF_FontHeight(UI.f_small) + M(0.03f);
+    *top_y = y;
+    int rows = (bottom - y) / *cell_h;
+    return rows > 0 ? rows : 1;
+}
+
+static void grid_draw(void) {
+    theme_t *t = &UI.th;
+    int mx = M(t->margin), gap = M(0.02f), cols, tw0, ch, top_y, rows = grid_geom(&cols, &tw0, &ch, &top_y);
+    int first_row = (int)scroll;
+    if (sel / cols < first_row) first_row = sel / cols;
+    if (sel / cols >= first_row + rows) first_row = sel / cols - rows + 1;
+    scroll = (float)first_row;
+    int first = first_row * cols, last = first + rows * cols - 1;
+    th_frame(first, last);
+    int r = M(t->panel_radius), fsh = TTF_FontHeight(UI.f_small), th_h = tw0 * 3 / 4;
+    char fit[300];
+    for (int i = first; i <= last && i < nents; i++) {
+        int col = (i - first) % cols, row = (i - first) / cols;
+        int x = mx + col * (tw0 + gap), y = top_y + row * ch;
+        bool on = i == sel;
+        ent_t *e = &ents[i];
+        SDL_Texture *tx = i < th_n && th_items[i].state == TH_TEX ? th_items[i].tex : NULL;
+        ui_rrect(x, y, tw0, th_h, r, with_alpha(t->text, 22));
+        if (tx) ui_image_fit(tx, x, y, tw0, th_h);
+        else {   /* cartella, o il simbolo finché la miniatura non c'è (o non si può fare) */
+            int is = th_h / 2;
+            icon(x + (tw0 - is) / 2, y + (th_h - is) / 2, is, e, e->dir ? t->accent : with_alpha(t->text_dim, 150), t->bg);
+        }
+        if (on) ui_rborder(x - M(0.005f), y - M(0.005f), tw0 + M(0.01f), th_h + M(0.01f), r + M(0.005f), M(0.005f), t->accent);
+        ui_text_fit(UI.f_small, e->name, tw0, fit, sizeof fit);
+        ui_text(UI.f_small, fit, x + tw0 / 2, y + th_h + M(0.008f), on ? t->accent : t->text, ALIGN_CENTER);
+        (void)fsh;
+    }
+    int nrows = (nents + cols - 1) / cols;
+    if (nrows > rows) {
+        int bh = rows * ch, sh = bh * rows / nrows, sy = top_y + (bh - sh) * first_row / (nrows - rows);
+        ui_rrect(UI.w - mx / 2 - M(0.004f), sy, M(0.006f), sh, M(0.003f), with_alpha(t->text_dim, 120));
+    }
 }
 
 static bool quit;
@@ -504,10 +753,21 @@ static bool quit;
 static void list_input(void) {
     input_t *in = &UI.in;
     int top_y, rh, vis = rows_visible(&top_y, &rh), old = sel;
-    if (in->pressed[BTN_UP] && nents) sel = (sel + nents - 1) % nents;
-    if (in->pressed[BTN_DOWN] && nents) sel = (sel + 1) % nents;
-    if (in->pressed[BTN_L] || in->pressed[BTN_LEFT]) sel = sel - vis < 0 ? 0 : sel - vis;
-    if (in->pressed[BTN_R] || in->pressed[BTN_RIGHT]) sel = sel + vis >= nents ? (nents ? nents - 1 : 0) : sel + vis;
+    if (in->pressed[BTN_Y]) { grid = !grid; scroll = 0; grid_save(); ui_sound(SND_OK); }
+    if (grid) {   /* a icone: le frecce si muovono nella griglia, L e R di una schermata */
+        int cols, tw0, ch, ty, rows = grid_geom(&cols, &tw0, &ch, &ty);
+        if (in->pressed[BTN_LEFT] && sel > 0) sel--;
+        if (in->pressed[BTN_RIGHT] && sel + 1 < nents) sel++;
+        if (in->pressed[BTN_UP] && sel - cols >= 0) sel -= cols;
+        if (in->pressed[BTN_DOWN] && nents) sel = sel + cols < nents ? sel + cols : (sel / cols < (nents - 1) / cols ? nents - 1 : sel);
+        if (in->pressed[BTN_L]) sel = sel - cols * rows < 0 ? 0 : sel - cols * rows;
+        if (in->pressed[BTN_R]) sel = sel + cols * rows >= nents ? (nents ? nents - 1 : 0) : sel + cols * rows;
+    } else {
+        if (in->pressed[BTN_UP] && nents) sel = (sel + nents - 1) % nents;
+        if (in->pressed[BTN_DOWN] && nents) sel = (sel + 1) % nents;
+        if (in->pressed[BTN_L] || in->pressed[BTN_LEFT]) sel = sel - vis < 0 ? 0 : sel - vis;
+        if (in->pressed[BTN_R] || in->pressed[BTN_RIGHT]) sel = sel + vis >= nents ? (nents ? nents - 1 : 0) : sel + vis;
+    }
     if (sel != old) ui_sound(SND_MOVE);
     if (in->pressed[BTN_MENU]) { quit = true; return; }
     if (in->pressed[BTN_B]) {
@@ -541,6 +801,8 @@ int main(int argc, char **argv) {
     if (!app_start(argc, argv, "viewer")) return 1;
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     last_load();
+    grid_load();
+    th_start();
     reload(NULL);
     while (!quit) {
         ui_poll();
@@ -552,6 +814,7 @@ int main(int argc, char **argv) {
         ui_end();
     }
     app_exit_begin();
+    th_stop();
     pages_close();
     app_quit();
     return 0;

@@ -5,6 +5,8 @@
   "empty": "Não há imagens aqui. As imagens (PNG, JPG) e as BD .cbz podem estar em qualquer pasta, por exemplo Media.",
   "quit": "Sair",
   "open": "Abrir",
+  "as_icons": "Ícones",
+  "as_list": "Lista",
   "bad_comic": "BD ilegível",
   "load_failed": "Imagem ilegível",
   "too_big": "Imagem demasiado grande"

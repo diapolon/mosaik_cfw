@@ -5,6 +5,8 @@
   "empty": "Aucune image ici. Les images (PNG, JPG) et les BD .cbz peuvent être dans n'importe quel dossier, par exemple Media.",
   "quit": "Quitter",
   "open": "Ouvrir",
+  "as_icons": "Icônes",
+  "as_list": "Liste",
   "bad_comic": "BD illisible",
   "load_failed": "Image illisible",
   "too_big": "Image trop grande"

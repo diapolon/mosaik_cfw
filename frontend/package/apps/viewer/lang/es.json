@@ -5,6 +5,8 @@
   "empty": "No hay imágenes aquí. Las imágenes (PNG, JPG) y los cómics .cbz pueden estar en cualquier carpeta, por ejemplo Media.",
   "quit": "Salir",
   "open": "Abrir",
+  "as_icons": "Iconos",
+  "as_list": "Lista",
   "bad_comic": "Cómic ilegible",
   "load_failed": "Imagen ilegible",
   "too_big": "Imagen demasiado grande"
