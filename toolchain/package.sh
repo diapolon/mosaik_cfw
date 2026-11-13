@@ -169,7 +169,18 @@ for b in "$FE"/package/bezels/*/; do
     mkdir -p "$PKG/cornici-$id"
     cp -R "$b/Bezels" "$PKG/cornici-$id/"
 done
-cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Filters" "$FE/sdcard/Bezels" "$DATA/"
+# filtri dello Store: ogni serie di frontend/package/filters è un pacchetto (Filters/<id>), con
+# la descrizione in pack.json; nel sistema restano i filtri semplici di frontend/filters (0.9.51)
+for f in "$FE"/package/filters/*/; do
+    [ -d "$f/Filters" ] || continue
+    id=$(basename "$f")
+    mkdir -p "$PKG/filtri-$id"
+    cp -R "$f/Filters" "$PKG/filtri-$id/"
+done
+cp -RL "$FE/sdcard/Themes" "$FE/sdcard/Bezels" "$DATA/"
+# i filtri dal repository, non dalla SD simulata del Mac: lì possono esserci anche quelli dello Store
+mkdir -p "$DATA/Filters"
+cp -R "$FE/filters/." "$DATA/Filters/"
 mkdir -p "$DATA/Lang" "$DATA/Emulators" "$DATA/Dats"
 cp "$FE/lang/"*.json "$DATA/Lang/"
 # Emulators e Dats restano vuoti: li riempiono i pacchetti dello Store. Gli altri indici li

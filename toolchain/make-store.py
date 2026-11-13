@@ -110,6 +110,26 @@ def bezel_info(pid, root):
     return name, str(meta.get("version", "1.0")), [meta["color"]] if meta.get("color") else [], texts, [c[1] for c in sorted(consoles)]
 
 
+def filter_info(pid, root):
+    """(nome, versione, colori, testi, filtri) di un pacchetto Filtri, altrimenti None. I filtri
+    sono in frontend/package/filters/<serie>/Filters/<id>, la descrizione in pack.json accanto.
+    Nel sistema restano i filtri semplici (frontend/filters); qui gli shader GLSL e quelli nuovi."""
+    if not pid.startswith("filtri-") or sorted(os.listdir(root)) != ["Filters"]:
+        return None
+    pj = os.path.join(top, "frontend", "package", "filters", pid[7:], "pack.json")
+    if not os.path.exists(pj):
+        return None
+    meta = json.load(open(pj, encoding="utf-8"))
+    texts = meta.get("texts") or {}
+    name = (texts.get("en") or {}).get("title", pid)
+    names = []
+    for fid in sorted(os.listdir(os.path.join(root, "Filters"))):
+        fj = json.load(open(os.path.join(root, "Filters", fid, "filter.json"), encoding="utf-8"))
+        n = fj.get("name", fid)
+        names.append((fj.get("order", 100), (n.get("en") if isinstance(n, dict) else n) or fid))
+    return name, str(meta.get("version", "1.0")), [meta["color"]] if meta.get("color") else [], texts, [x[1] for x in sorted(names)]
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -146,12 +166,17 @@ for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
     theme = theme_info(root) if pid not in PACKAGES and os.path.isdir(root) else None
     bezel = bezel_info(pid, root) if pid not in PACKAGES and not theme and os.path.isdir(root) else None
+    if not bezel and pid not in PACKAGES and not theme and os.path.isdir(root):
+        bezel = filter_info(pid, root)   # i filtri si trattano come le cornici: serie con pack.json
+        is_filter = bezel is not None
+    else:
+        is_filter = False
     if (pid not in PACKAGES and not theme and not bezel) or not os.path.isdir(root):
         sys.exit(f"pacchetto sconosciuto: {pid}")
     if pid in PACKAGES:
         name, srcdir, category = PACKAGES[pid]
     else:
-        name, srcdir, category = (theme or bezel)[0], None, "themes" if theme else "bezels"
+        name, srcdir, category = (theme or bezel)[0], None, "themes" if theme else "filters" if is_filter else "bezels"
     files = []
     for d, _, names in os.walk(root):
         for n in names:

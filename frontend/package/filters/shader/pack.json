@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "color": "#2E7D6B",
+  "texts": {
+    "it": {
+      "title": "Shader",
+      "description": "Filtri che usano la grafica della console: pixel nitidi, CRT curvo, CRT con bagliore"
+    },
+    "en": {
+      "title": "Shaders",
+      "description": "Filters that use the console's graphics chip: sharp pixels, curved CRT, CRT with glow"
+    },
+    "es": {
+      "title": "Shaders",
+      "description": "Filtros que usan la gráfica de la consola: píxeles nítidos, CRT curvo, CRT con brillo"
+    },
+    "fr": {
+      "title": "Shaders",
+      "description": "Filtres qui utilisent la puce graphique de la console : pixels nets, CRT incurvé, CRT lumineux"
+    },
+    "de": {
+      "title": "Shader",
+      "description": "Filter für den Grafikchip der Konsole: scharfe Pixel, gewölbte Röhre, Röhre mit Leuchten"
+    },
+    "pt": {
+      "title": "Shaders",
+      "description": "Filtros que usam a gráfica da consola: píxeis nítidos, CRT curvo, CRT com brilho"
+    }
+  }
+}

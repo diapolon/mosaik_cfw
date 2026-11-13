@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.51
+it Nuova cartella Filtri nello Store: i filtri shader diventano un pacchetto
+en New Filters folder in the Store: the shader filters become a package
+it Nel sistema restano Nitido, Morbido, Scanline, Griglia LCD e CRT
+en Sharp, Smooth, Scanlines, LCD grid and CRT stay in the system
+
 0.9.50
 it Un salvataggio a batteria di misura diversa resta da parte in .srm.orig prima di essere riscritto
 en A battery save of a different size is kept as .srm.orig before being rewritten

@@ -3372,8 +3372,8 @@ static void wpanel_draw(void) {
    poi di tenere premuto A per 3 secondi, come Cancella tutto. */
 enum { SL_CATS, SL_PKGS };
 enum { SA_NONE, SA_ARCHIVE, SA_DELETE, SA_DELETE2 };
-static const char *const STO_CATS[] = { "arcade", "console", "computer", "apps", "themes", "bezels", "linux" };
-#define NSTO_CATS 7
+static const char *const STO_CATS[] = { "arcade", "console", "computer", "apps", "themes", "bezels", "filters", "linux" };
+#define NSTO_CATS 8
 static int sto_level, sto_cat, sto_sel, sto_cats[NSTO_CATS], nsto_cats;
 static int sto_items[64], nsto_items;
 static bool sto_detail, sto_job, sto_removing;
@@ -3415,6 +3415,15 @@ static void sto_start(void) {
 /* temi arrivati o tolti dallo Store: l'elenco delle impostazioni; se quello in uso non c'è più,
    si torna al predefinito */
 static void sto_themes_refresh(void) {
+    /* filtri arrivati o tolti: l'elenco delle impostazioni; quello scelto, se non c'è più, torna
+       Nitido (il runner farebbe lo stesso, ma le impostazioni mostrerebbero un nome che non c'è) */
+    nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
+    filter_t ft;
+    if (!filter_load(UI.root, UI.set.lang, UI.set.filter, &ft)) {
+        ui_log("filtro %s tolto: torno a Nitido", UI.set.filter);
+        snprintf(UI.set.filter, sizeof UI.set.filter, "%s", "nitido");
+        settings_save(&UI.set, UI.root);
+    }
     nthemes = theme_list(UI.root, theme_ids, theme_names, 16);
     char p[1200];
     snprintf(p, sizeof p, "%s/Themes/%s/theme.json", UI.root, UI.set.theme);
@@ -3435,8 +3444,9 @@ static void sto_leave(void) {
 static bool sto_is_app(const store_pkg_t *p) { return !strcmp(p->category, "apps"); }
 static bool sto_is_theme(const store_pkg_t *p) { return !strcmp(p->category, "themes"); }
 static bool sto_is_bezel(const store_pkg_t *p) { return !strcmp(p->category, "bezels"); }
+static bool sto_is_filter(const store_pkg_t *p) { return !strcmp(p->category, "filters"); }
 /* app, temi e cornici: niente giochi né salvataggi, quindi niente Archivia e una conferma sola */
-static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_theme(p) || sto_is_bezel(p); }
+static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_theme(p) || sto_is_bezel(p) || sto_is_filter(p); }
 
 /* pulsanti della scheda secondo lo stato del pacchetto */
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_ARCHIVE, SB_DELETE };
@@ -3570,8 +3580,8 @@ static void sto_size(long long b, char *out, size_t n) {
 /* l'immagine di una cartella: il cabinato, una console, il cassetto delle app, il portatile */
 static void sto_cat_art(int c, color_t *col, emulator_t *em) {
     memset(em, 0, sizeof *em);
-    static const char *const arts[] = { "", "", "pc", "@apps", "@themes", "@bezel:t", "@linux" };   /* Console: una console generica */
-    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x2E7D4F, 0x4B3C86, 0x9A4E2A, 0x2A6E78, 0x2F6B45 };
+    static const char *const arts[] = { "", "", "pc", "@apps", "@themes", "@bezel:t", "@filter", "@linux" };   /* Console: una console generica */
+    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x2E7D4F, 0x4B3C86, 0x9A4E2A, 0x2A6E78, 0x2E7D6B, 0x2F6B45 };
     snprintf(em->art, sizeof em->art, "%s", arts[c]);
     em->console = c == 1;
     *col = hexc(cols[c]);
@@ -3583,6 +3593,12 @@ static void sto_pkg_art(const store_pkg_t *p, color_t *col, emulator_t *em) {
         snprintf(em->art, sizeof em->art, "@app:%s", p->id);
         *col = !strcmp(p->id, "files") ? hexc(0x1F6E8C) : !strcmp(p->id, "viewer") ? hexc(0x8C4A1F)
              : !strcmp(p->id, "music") ? hexc(0x7A2E6E) : !strcmp(p->id, "sdtest") ? hexc(0x2E6B3E) : hexc(0x4B3C86);
+        return;
+    }
+    if (sto_is_filter(p)) {   /* filtri: un gioco a metà nitido e a metà con le righe */
+        snprintf(em->art, sizeof em->art, "@filter");
+        unsigned c1 = 0;
+        *col = sscanf(p->colors, "%6x", &c1) == 1 ? hexc(c1) : hexc(0x2E7D6B);
         return;
     }
     if (sto_is_bezel(p)) {   /* cornici: la forma del pacchetto (portatile, televisore, cabinato) */
@@ -3692,6 +3708,18 @@ static void sto_art(const emulator_t *em, color_t c, const char *label, int ax, 
         ui_rrect(gx, gy, gw, gh, r / 2, game);   /* il gioco: cielo, collina e sole */
         ui_rrect(gx, gy + gh * 2 / 3, gw, gh / 3, r / 2, hill);
         ui_circle(gx + gw * 3 / 4, gy + gh / 3, gh / 8 + 1, rgba(255, 220, 90, 255));
+    } else if (!strcmp(em->art, "@filter")) {   /* lo stesso gioco: a sinistra com'è, a destra con righe e bagliore */
+        int fw = s * 92 / 100, fh = fw * 3 / 4, fx = ax + (aw - fw) / 2, fy = ay + (ah - fh) / 2, r = fw / 14;
+        if (fx + fw > ax + aw) { fw = aw; fh = fw * 3 / 4; fx = ax; fy = ay + (ah - fh) / 2; }
+        ui_rrect(fx - r / 3, fy - r / 3, fw + r * 2 / 3, fh + r * 2 / 3, r, mix(c, rgba(0, 0, 0, 255), 0.5f));
+        ui_rrect(fx, fy, fw, fh, r / 2, rgba(0x3C, 0xB4, 0xE6, 255));
+        ui_rrect(fx, fy + fh * 2 / 3, fw, fh / 3, r / 2, rgba(0x5A, 0xC8, 0x6E, 255));
+        ui_circle(fx + fw / 4, fy + fh / 3, fh / 8 + 1, rgba(255, 220, 90, 255));
+        ui_circle(fx + fw * 3 / 4, fy + fh / 3, fh / 6 + 1, rgba(255, 236, 160, 160));   /* bagliore */
+        ui_circle(fx + fw * 3 / 4, fy + fh / 3, fh / 8 + 1, rgba(255, 220, 90, 255));
+        int step = fh / 9 > 2 ? fh / 9 : 2;
+        for (int yy = fy + step / 2; yy < fy + fh - 1; yy += step) ui_rect(fx + fw / 2, yy, fw / 2, step / 3 + 1, rgba(0, 0, 0, 90));
+        ui_rect(fx + fw / 2, fy, fw / 60 + 1, fh, white);   /* la linea che divide le due metà */
     } else if (!strncmp(em->art, "@app:", 5)) draw_icon_glyph(IC_APPS, ax + aw / 2, ay + ah / 2, s * 2 / 3, white, c);
     else draw_emu_art(em, c, label, ax, ay, aw, ah);
 }
@@ -3753,7 +3781,7 @@ static void sto_preview_draw(const store_pkg_t *pp, bool del) {
     char a[32];
     bool app = sto_no_data(&p);
     if (app) {   /* un'app o un tema: si toglie solo lui, i file della scheda restano */
-        row[nr].k = T(sto_is_theme(&p) ? "store.pv_theme" : sto_is_bezel(&p) ? "store.pv_bezels" : "store.pv_app");
+        row[nr].k = T(sto_is_theme(&p) ? "store.pv_theme" : sto_is_bezel(&p) ? "store.pv_bezels" : sto_is_filter(&p) ? "store.pv_filters" : "store.pv_app");
         sto_size(p.installed, row[nr].v, sizeof row[nr].v);
         row[nr++].gone = true;
         row[nr].k = T("store.pv_yourfiles");
@@ -3869,7 +3897,7 @@ static void sto_draw(void) {
                 sto_cat_art(ci, &c, &em);
                 snprintf(title, sizeof title, "store.cat_%s", STO_CATS[ci]);
                 bool apps_cat = !strcmp(STO_CATS[ci], "apps") || !strcmp(STO_CATS[ci], "linux"), theme_cat = !strcmp(STO_CATS[ci], "themes");
-                bool bezel_cat = !strcmp(STO_CATS[ci], "bezels");
+                bool bezel_cat = !strcmp(STO_CATS[ci], "bezels") || !strcmp(STO_CATS[ci], "filters");   /* "N pacchetti" */
                 const char *ck = bezel_cat ? (cnt == 1 ? "store.count1_bezels" : "store.count_bezels")
                                : theme_cat ? (cnt == 1 ? "store.count1_themes" : "store.count_themes")
                                : apps_cat ? (cnt == 1 ? "store.count1_apps" : "store.count_apps") : (cnt == 1 ? "store.count1" : "store.count");
