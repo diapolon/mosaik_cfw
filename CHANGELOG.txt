@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.57
+it Salvaschermo e sospensione si fermano solo mentre la console lavora
+en Screensaver and sleep pause only while the console is working
+it Le app dello Store si sospendono e si spengono da sole se lasciate ferme
+en Store apps go to sleep and power off by themselves when left idle
+it Cambia gioco esce solo se la partita è stata salvata
+en Switch game leaves only once your session has been saved
+it Correzioni: aggiornamento interrotto, Immagini e fumetti, Diagnostica, Spazio della SD
+en Fixes: interrupted update, Images and comics, Diagnostics, SD card space
+
 0.9.56
 it Disegni nuovi per ZX Spectrum, MSX, C64, DOS e Amiga
 en New drawings for ZX Spectrum, MSX, C64, DOS and Amiga
