@@ -1,0 +1,22 @@
+{
+ "sdgrow": {
+  "title": "SD card space",
+  "card": "Card: %s",
+  "part": "Mosaik partition: %s",
+  "free": "%s free of %s",
+  "can_title": "It can be expanded",
+  "can": "Mosaik uses only part of the card. Press A to expand the partition to the whole card; your files stay where they are.",
+  "full_title": "All good",
+  "full": "Mosaik already uses all the space on the card.",
+  "cannot_title": "It can't be expanded",
+  "cannot": "This card can't be expanded from here. The reason is written below: copy it into your report.",
+  "done_title": "Almost done",
+  "done": "The partition is expanded. Turn the console off and on again: at startup Mosaik finishes preparing the new space.",
+  "grow": "Expand",
+  "quit": "Quit",
+  "power_off": "Power off",
+  "ask_title": "Expand the partition?",
+  "ask_body": "The Mosaik partition will reach the end of the card. Files are not touched; to finish, turn the console off and on again.",
+  "failed": "Expansion failed"
+ }
+}

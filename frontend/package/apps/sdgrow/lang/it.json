@@ -1,0 +1,22 @@
+{
+ "sdgrow": {
+  "title": "Spazio della SD",
+  "card": "Scheda: %s",
+  "part": "Partizione di Mosaik: %s",
+  "free": "Libero %s su %s",
+  "can_title": "Si può allargare",
+  "can": "Mosaik usa solo una parte della scheda. Con A la partizione si allarga a tutta la scheda; i tuoi file restano dove sono.",
+  "full_title": "Tutto a posto",
+  "full": "Mosaik usa già tutto lo spazio della scheda.",
+  "cannot_title": "Non si può allargare",
+  "cannot": "Questa scheda non si può allargare da qui. Il motivo è scritto qui sotto: copialo nella segnalazione.",
+  "done_title": "Quasi fatto",
+  "done": "La partizione è allargata. Spegni e riaccendi la console: all'accensione Mosaik finisce di preparare lo spazio nuovo.",
+  "grow": "Allarga",
+  "quit": "Esci",
+  "power_off": "Spegni",
+  "ask_title": "Allargare la partizione?",
+  "ask_body": "La partizione di Mosaik arriva fino in fondo alla scheda. I file non si toccano; per finire bisogna spegnere e riaccendere la console.",
+  "failed": "Allargamento non riuscito"
+ }
+}

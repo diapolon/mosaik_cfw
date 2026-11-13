@@ -1,0 +1,22 @@
+{
+ "sdgrow": {
+  "title": "Espaço do cartão SD",
+  "card": "Cartão: %s",
+  "part": "Partição do Mosaik: %s",
+  "free": "%s livres de %s",
+  "can_title": "Pode ser alargada",
+  "can": "O Mosaik usa só uma parte do cartão. Com A a partição alarga-se a todo o cartão; os teus ficheiros ficam onde estão.",
+  "full_title": "Tudo certo",
+  "full": "O Mosaik já usa todo o espaço do cartão.",
+  "cannot_title": "Não pode ser alargada",
+  "cannot": "Este cartão não pode ser alargado daqui. O motivo está escrito abaixo: copia-o para o teu relatório.",
+  "done_title": "Quase pronto",
+  "done": "A partição está alargada. Desliga e volta a ligar a consola: ao arrancar o Mosaik acaba de preparar o espaço novo.",
+  "grow": "Alargar",
+  "quit": "Sair",
+  "power_off": "Desligar",
+  "ask_title": "Alargar a partição?",
+  "ask_body": "A partição do Mosaik vai até ao fim do cartão. Os ficheiros não são tocados; para acabar, desliga e volta a ligar a consola.",
+  "failed": "Não foi possível alargar"
+ }
+}

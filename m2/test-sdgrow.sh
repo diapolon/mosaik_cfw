@@ -63,6 +63,27 @@ for size in 2300M 4G 16G 64G 300G; do
     [ $rc -eq 1 ] && ok "seconda volta: niente da fare" || ko "seconda volta uscita $rc"
 done
 
+echo "--- dal sistema avviato: prova (-n) e sola GPT (-g), poi il FAT all'avvio dopo"
+cp --sparse=always base.img card.img; truncate -s 16G card.img
+cp --sparse=always card.img prima.img
+set +e; out=$(./sdgrow -n card.img); rc=$?; set -e
+[ $rc -eq 0 ] && ok "prova: si può allargare (0)" || ko "prova uscita $rc"
+echo "$out" | grep -q "partizione ARCADE" && echo "$out" | grep -q "FAT:" && ok "prova: dice partizione e FAT" || ko "prova: $out"
+cmp -s card.img prima.img && ok "prova: scheda non toccata" || ko "la prova ha scritto"
+set +e; out=$(./sdgrow -g card.img); rc=$?; set -e
+[ $rc -eq 3 ] && ok "sola GPT: riavvio necessario (3)" || ko "sola GPT uscita $rc: $out"
+END=$(sgdisk -i 4 card.img | sed -n "s/^Last sector: \([0-9]*\).*/\1/p")
+[ $END -eq $(( $(stat -c %s card.img) / 512 - 34 )) ] && ok "sola GPT: partizione fino in fondo" || ko "fine partizione $END"
+START=$(sgdisk -i 4 card.img | sed -n "s/^First sector: \([0-9]*\).*/\1/p")
+cmp -s -n 1048576 card.img prima.img $((START * 512)) $((START * 512)) && ok "sola GPT: FAT non toccato" || ko "la sola GPT ha scritto nel FAT"
+set +e; ./sdgrow -g card.img >/dev/null; rc=$?; set -e
+[ $rc -eq 3 ] && ok "sola GPT di nuovo: FAT ancora da allargare (3)" || ko "seconda sola GPT uscita $rc"
+set +e; ./sdgrow card.img - >/dev/null; rc=$?; set -e
+[ $rc -eq 0 ] && ok "avvio dopo: FAT allargato (0)" || ko "avvio dopo uscita $rc"
+check card.img 15
+set +e; ./sdgrow -n card.img >/dev/null; rc=$?; set -e
+[ $rc -eq 1 ] && ok "prova su scheda già allargata: niente da fare (1)" || ko "prova dopo uscita $rc"
+
 echo "--- limite della tabella (FAT preparato per 8 GB) su scheda da 16G, con fsck"
 truncate -s 8G fat8.img; mkfs.vfat -F 32 -s 64 -n ARCADE fat8.img >/dev/null
 python3 -I /trimui/m2/fatprep.py fat8.img 2200 >/dev/null

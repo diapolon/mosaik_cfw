@@ -18,8 +18,17 @@
  *
  * Uscita: 0 allargata, 1 niente da fare, 2 errore o schema non riconosciuto (nessuna modifica
  * pericolosa), 3 GPT allargata ma serve un riavvio prima del FAT.
+ *
+ * Dal sistema avviato (Impostazioni → Scheda e dati → Allarga la SD, dalla 0.9.53) il FAT è
+ * montato e non si tocca mai:
+ *   sdgrow -n DISCO     prova senza scrivere nulla: dice cosa farebbe o perché non si può
+ *                       (0 si può allargare, 1 niente da fare, 2 errore)
+ *   sdgrow -g DISCO     solo la GPT; 3 se al riavvio l'initramfs deve allargare il FAT, 1 niente
+ *                       da fare, 2 errore
  */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -38,8 +47,10 @@
 static int fd;
 
 /* la schermata compare solo se c'è davvero da lavorare */
+static int dry, gpt_only;   /* -n: niente scritture; -g: solo la GPT, mai il FAT */
 static void notify(void) {
     static int shown;
+    if (dry || gpt_only) return;   /* dal sistema avviato: lo schermo è del launcher */
     if (!shown++ && system("fbmsg show blu 0 'PREPARO LA SD' 'PRIMA ACCENSIONE' 2>/dev/null")) {}
 }
 
@@ -68,6 +79,7 @@ static void rd(uint64_t lba, void *buf, size_t n) {
     if (pread(fd, buf, n, (off_t)(lba * SEC)) != (ssize_t)n) die("lettura non riuscita");
 }
 static void wr(uint64_t lba, const void *buf, size_t n) {
+    if (dry) return;   /* prova: si calcola tutto, non si scrive nulla */
     if (pwrite(fd, buf, n, (off_t)(lba * SEC)) != (ssize_t)n) die("scrittura non riuscita");
 }
 
@@ -97,8 +109,14 @@ static uint64_t dev_sectors(int f) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2) { fprintf(stderr, "uso: sdgrow DISCO [PARTIZIONE]\n"); return 2; }
-    fd = open(argv[1], O_RDWR | O_SYNC);
+    while (argc > 1 && (!strcmp(argv[1], "-n") || !strcmp(argv[1], "-g"))) {
+        if (argv[1][1] == 'n') dry = 1; else gpt_only = 1;
+        argv++;
+        argc--;
+    }
+    if (argc < 2) { fprintf(stderr, "uso: sdgrow [-n|-g] DISCO [PARTIZIONE]\n"); return 2; }
+    if (dry || gpt_only) argc = 2;   /* la partizione montata non si apre: misura dalla GPT */
+    fd = open(argv[1], dry ? O_RDONLY : O_RDWR | O_SYNC);
     if (fd < 0) die("disco non apribile");
     uint64_t total = dev_sectors(fd);
     int changed = 0;
@@ -235,6 +253,12 @@ int main(int argc, char **argv) {
         return changed ? 0 : 1;
     }
     uint64_t new_tot = new_cl == cap ? data + new_cl * spc : lim;
+    if (dry || gpt_only) {   /* il FAT montato non si tocca: lo allarga l'initramfs al riavvio */
+        printf("FAT: %" PRIu64 " -> %" PRIu64 " MB%s\n", (uint64_t)tot / 2048, new_tot / 2048, dry ? "" : " al prossimo avvio");
+        free(e);
+        close(fd);
+        return dry ? 0 : 3;
+    }
 
     /* le voci dei cluster nuovi devono essere libere in tutte le copie della tabella */
     uint64_t from = (old_cl + 2) * 4, to = (new_cl + 2) * 4;

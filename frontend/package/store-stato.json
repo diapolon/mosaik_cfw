@@ -25,7 +25,8 @@
     "vb",
     "pcsx",
     "dosbox_pure",
-    "puae"
+    "puae",
+    "sdgrow"
   ],
   "tested": {
     "fbneo": [

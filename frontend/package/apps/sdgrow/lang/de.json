@@ -1,0 +1,22 @@
+{
+ "sdgrow": {
+  "title": "SD-Speicher",
+  "card": "Karte: %s",
+  "part": "Mosaik-Partition: %s",
+  "free": "%s frei von %s",
+  "can_title": "Erweiterbar",
+  "can": "Mosaik nutzt nur einen Teil der Karte. Mit A wird die Partition auf die ganze Karte erweitert; deine Dateien bleiben, wo sie sind.",
+  "full_title": "Alles in Ordnung",
+  "full": "Mosaik nutzt bereits den ganzen Platz der Karte.",
+  "cannot_title": "Nicht erweiterbar",
+  "cannot": "Diese Karte lässt sich hier nicht erweitern. Der Grund steht unten: kopiere ihn in deine Meldung.",
+  "done_title": "Fast fertig",
+  "done": "Die Partition ist erweitert. Schalte die Konsole aus und wieder ein: Beim Start bereitet Mosaik den neuen Platz fertig vor.",
+  "grow": "Erweitern",
+  "quit": "Beenden",
+  "power_off": "Ausschalten",
+  "ask_title": "Partition erweitern?",
+  "ask_body": "Die Mosaik-Partition reicht dann bis zum Ende der Karte. Dateien werden nicht verändert; zum Abschluss die Konsole aus- und wieder einschalten.",
+  "failed": "Erweitern fehlgeschlagen"
+ }
+}

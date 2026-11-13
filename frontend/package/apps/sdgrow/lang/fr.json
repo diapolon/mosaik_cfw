@@ -1,0 +1,22 @@
+{
+ "sdgrow": {
+  "title": "Espace de la SD",
+  "card": "Carte : %s",
+  "part": "Partition Mosaik : %s",
+  "free": "%s libres sur %s",
+  "can_title": "Elle peut être agrandie",
+  "can": "Mosaik n'utilise qu'une partie de la carte. Avec A la partition s'agrandit à toute la carte ; vos fichiers restent où ils sont.",
+  "full_title": "Tout va bien",
+  "full": "Mosaik utilise déjà tout l'espace de la carte.",
+  "cannot_title": "Impossible d'agrandir",
+  "cannot": "Cette carte ne peut pas être agrandie d'ici. La raison est écrite ci-dessous : copiez-la dans votre signalement.",
+  "done_title": "Presque fini",
+  "done": "La partition est agrandie. Éteignez et rallumez la console : au démarrage Mosaik finit de préparer le nouvel espace.",
+  "grow": "Agrandir",
+  "quit": "Quitter",
+  "power_off": "Éteindre",
+  "ask_title": "Agrandir la partition ?",
+  "ask_body": "La partition Mosaik ira jusqu'à la fin de la carte. Les fichiers ne sont pas touchés ; pour finir, éteignez et rallumez la console.",
+  "failed": "Agrandissement échoué"
+ }
+}

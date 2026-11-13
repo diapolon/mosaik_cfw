@@ -1,0 +1,35 @@
+{
+ "title": "SD card space",
+ "description": "Shows how much of the card Mosaik uses and, if it uses only part of it, expands it to the whole card.",
+ "author": "Mosaik",
+ "version": "1.0",
+ "env": {
+  "GAMEWATCH_NOMENU": "1"
+ },
+ "texts": {
+  "it": {
+   "title": "Spazio della SD",
+   "description": "Mostra quanto spazio della scheda usa Mosaik e, se ne usa solo una parte, la allarga a tutta la scheda."
+  },
+  "en": {
+   "title": "SD card space",
+   "description": "Shows how much of the card Mosaik uses and, if it uses only part of it, expands it to the whole card."
+  },
+  "de": {
+   "title": "SD-Speicher",
+   "description": "Zeigt, wie viel der Karte Mosaik nutzt, und erweitert es auf die ganze Karte, wenn nur ein Teil genutzt wird."
+  },
+  "es": {
+   "title": "Espacio de la SD",
+   "description": "Muestra cuánto de la tarjeta usa Mosaik y, si usa solo una parte, la amplía a toda la tarjeta."
+  },
+  "fr": {
+   "title": "Espace de la SD",
+   "description": "Montre combien de la carte Mosaik utilise et, s'il n'en utilise qu'une partie, l'agrandit à toute la carte."
+  },
+  "pt": {
+   "title": "Espaço do cartão SD",
+   "description": "Mostra quanto do cartão o Mosaik usa e, se usa só uma parte, alarga-o a todo o cartão."
+  }
+ }
+}

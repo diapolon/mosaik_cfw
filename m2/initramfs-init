@@ -86,6 +86,9 @@ GROW=1
 if [ -f /sys/class/block/$PN/partition ] && [ -b "$DISK" ]; then
     sdgrow "$DISK" "$P" > /tmp/sdgrow.txt 2>&1
     GROW=$?
+else
+    GROW=4   # partizione o disco non trovati: sdgrow non è partito
+    echo "sdgrow non avviato: partizione $P, disco $DISK" > /tmp/sdgrow.txt
 fi
 if [ $GROW = 3 ]; then
     # partizione allargata ma il kernel vede ancora la misura vecchia: il FAT si allarga al
@@ -122,6 +125,14 @@ case $FSCK in
     1) step "2b FAT: errori corretti (dettagli in Logs/fsck.txt)"; cp /tmp/fsck.txt /sd/Arcade/Logs/fsck.txt; sync ;;
     *) step "2b FAT: controllo non riuscito ($FSCK, dettagli in Logs/fsck.txt)"; cp /tmp/fsck.txt /sd/Arcade/Logs/fsck.txt; sync ;;
 esac
+# Allargamento: l'esito va sempre in Logs/sdgrow.txt, anche con il registro spento, quando la
+# scheda è stata allargata o non ci si è riusciti: chi resta con la partizione piccola (issue #7)
+# deve poter dire perché senza accendere prima il registro
+# (un errore che si ripete a ogni avvio non fa crescere il file oltre 20 KB)
+if [ $GROW != 1 ] && [ "$(wc -c < /sd/Arcade/Logs/sdgrow.txt 2>/dev/null || echo 0)" -lt 20000 ]; then
+    { echo "=== $(date) · esito $GROW (0 allargata, 2 errore, 4 non avviato)"; cat /tmp/sdgrow.txt; } >> /sd/Arcade/Logs/sdgrow.txt
+    sync
+fi
 case $GROW in
     0) step "2c SD allargata a tutta la scheda: $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
     1) ;;

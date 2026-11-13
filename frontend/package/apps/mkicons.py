@@ -53,7 +53,22 @@ def sdtest_icon(path):
     im.resize((256, 256), Image.LANCZOS).save(path)
 
 
+def sdgrow_icon(path):
+    S = 1024
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.polygon([(250, 96), (720, 96), (840, 216), (840, 928), (184, 928), (184, 162)], fill=ACCENT)   # scheda
+    for i in range(4):
+        d.rounded_rectangle([280 + i * 130, 150, 360 + i * 130, 330], radius=20, fill=LIGHT)      # contatti
+    W = (245, 248, 250)
+    d.rectangle([300, 600, 724, 660], fill=W)                                                      # freccia doppia
+    d.polygon([(250, 630), (380, 520), (380, 740)], fill=W)
+    d.polygon([(774, 630), (644, 520), (644, 740)], fill=W)
+    im.resize((256, 256), Image.LANCZOS).save(path)
+
+
 files_icon(os.path.join(D, "files", "icon.png"))
+sdgrow_icon(os.path.join(D, "sdgrow", "icon.png"))
 sdtest_icon(os.path.join(D, "sdtest", "icon.png"))
 music_icon(os.path.join(D, "music", "icon.png"))
 viewer_icon(os.path.join(D, "viewer", "icon.png"))

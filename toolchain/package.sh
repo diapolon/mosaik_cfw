@@ -153,6 +153,7 @@ app viewer
 app music
 app sdtest
 app scraper
+app sdgrow
 # temi dello Store: ogni cartella di frontend/package/themes è un pacchetto (Themes/<id>), i
 # tre temi di base restano nella cartella Arcade dell'immagine
 for t in "$FE"/package/themes/*/; do
