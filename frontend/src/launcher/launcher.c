@@ -5383,7 +5383,9 @@ static int upd_buttons(const update_status_t *s, const char **labels) {
 
 static void upd_input(void) {
     const update_status_t *s = update_status();
-    last_input = UI.t;   /* niente salvaschermo o spegnimento automatico durante l'aggiornamento */
+    /* niente salvaschermo o spegnimento automatico mentre cerca, scarica o installa; la finestra
+       che aspetta una scelta (pronto da installare con la batteria bassa) lascia riposare la console */
+    if (upd_busy()) last_input = UI.t;
     const char *labels[2];
     int n = upd_buttons(s, labels);
     if (upd_sel_phase != s->phase) { upd_sel_phase = s->phase; upd_sel = n - 1; }
@@ -8570,7 +8572,7 @@ int main(int argc, char **argv) {
         upd_audio();
         /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
         if (UI.t > 0.4) plat_audio_release();
-        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open
+        bool working = romcheck_open || scrape_open || upd_busy() || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open
                        /* lo Store solo mentre scarica o installa: lasciato aperto e fermo deve rallentare e
                           sospendersi come il resto (Brick Pro, 12 nov: 2 ore e mezza acceso, dal 62% all'11%) */
                        || (screen == SCR_STORE && store_status()->phase == ST_WORKING);
