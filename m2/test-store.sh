@@ -107,6 +107,12 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
         mkdir -p pkgsrc/tema-sole/Themes/sole
         printf '{\n  // prova\n  "name": "Sole", "version": "1.1",\n  "variants": { "a": { "accent": "#FFAA00" }, "b": { "accent": "#0066FF" } }\n}\n' > pkgsrc/tema-sole/Themes/sole/theme.json
     fi
+    if [ -n "$LINUXG" ]; then   # gioco Linux (0.9.58): cartella Linux, descrizione vera in frontend/package/linux/freedoom
+        mkdir -p pkgsrc/freedoom/Linux/Freedoom pkgsrc/freedoom/Linux/Freedoom2
+        printf '#!/bin/sh\necho doom\n' > pkgsrc/freedoom/Linux/Freedoom/launch.sh
+        echo wad1 > pkgsrc/freedoom/Linux/Freedoom/freedoom1.wad
+        echo wad2 > pkgsrc/freedoom/Linux/Freedoom2/freedoom2.wad
+    fi
     if [ -n "$CORNICI" ]; then   # cornici: la descrizione è quella vera, in frontend/package/bezels/tv/pack.json
         mkdir -p pkgsrc/cornici-tv/Bezels/nes
         echo tv > pkgsrc/cornici-tv/Bezels/nes/_mosaik.png
@@ -304,6 +310,26 @@ check "giornale illeggibile: installazione rifiutata, il giornale resta" "5 6 si
 check "… e niente è stato scritto" "no" "$([ -e sd/Bezels/nes/_mosaik.png ] && echo si || echo no)"
 rmdir sd/System/store-giornale.txt
 check "tolto l'ostacolo si installa di nuovo" "4 0 1" "$(./t $R install cornici-tv 2>/dev/null)"
+# giochi Linux (0.9.58): nel catalogo in "packages2", che i sistemi fino alla 0.9.57 non leggono
+printf '{"experimental": ["freedoom"], "min_system": {"freedoom": "0.9.58"}}' > stato.json
+STORE_STATO=$W/stato.json LINUXG=1 CORNICI=1 mk 4
+check "gioco Linux nell'elenco packages2, non in packages" "0 1" "$(python3 -c "import json;d=json.load(open('www/store.json'));print(sum(p['id']=='freedoom' for p in d['packages']),sum(p['id']=='freedoom' for p in d['packages2']))")"
+check "gioco Linux nel catalogo: nome, descrizione e cartella" "Freedoom|Free Doom with Crispy Doom: two complete games, Phase 1 and Phase 2|linux" "$(./t $R title freedoom 2>/dev/null)"
+check "gioco Linux: sistema minimo 0.9.58" "1||0.9.58|1" "$(./t $R stato freedoom 0.9.57 2>/dev/null)"
+check "gioco Linux installato" "4 0 1" "$(./t $R install freedoom 2>/dev/null)"
+check "file del gioco nella cartella Linux" "wad1 wad2" "$(cat sd/Linux/Freedoom/freedoom1.wad) $(cat sd/Linux/Freedoom2/freedoom2.wad)"
+mkdir -p sd/Saves/doom/crispy-doom; echo partita > sd/Saves/doom/crispy-doom/savegame.dsg
+echo mia > sd/Linux/Freedoom/note.txt
+check "gioco Linux tolto: partite e file dell'utente restano" "4 0 0 no partita mia" "$(./t $R delete freedoom 2>/dev/null) $([ -e sd/Linux/Freedoom2 ] && echo si || echo no) $(cat sd/Saves/doom/crispy-doom/savegame.dsg) $(cat sd/Linux/Freedoom/note.txt)"
+# lo stesso catalogo letto dallo Store della 0.9.57: deve vedere tutto il resto come prima
+if apk add -q git >/dev/null 2>&1 && git -c safe.directory='*' -C /trimui show v0.9.57:frontend/src/launcher/store.c > src/store-0957.c 2>/dev/null; then
+    gcc -O1 -D_GNU_SOURCE -DSTORE_TEST -DUPDATE_DEFAULT_URL='""' -Isrc -o t-0957 src/t.c src/store-0957.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl 2>/dev/null
+    NEW=$(./t $R list 2>/dev/null)
+    check "Store della 0.9.57: catalogo valido, gli stessi pacchetti senza il gioco Linux" "$(echo "$NEW" | sed 's/ freedoom:[0-9]//; s/^2 0 [0-9]*/2 0 X/')" "$(./t-0957 $R list 2>/dev/null | sed 's/^2 0 [0-9]*/2 0 X/')"
+    check "Store della 0.9.57: il gioco Linux non c'è" "manca" "$(./t-0957 $R title freedoom 2>/dev/null)"
+else
+    echo "  (senza git: niente prova con lo Store della 0.9.57)"
+fi
 kill $SRV
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

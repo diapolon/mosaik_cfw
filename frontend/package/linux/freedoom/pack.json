@@ -1,0 +1,30 @@
+{
+  "version": "0.13.0",
+  "color": "#8E2A2A",
+  "texts": {
+    "it": {
+      "title": "Freedoom",
+      "description": "Doom libero con Crispy Doom: Fase 1 e Fase 2"
+    },
+    "en": {
+      "title": "Freedoom",
+      "description": "Free Doom with Crispy Doom: Phase 1 and 2"
+    },
+    "es": {
+      "title": "Freedoom",
+      "description": "Doom libre con Crispy Doom: Fase 1 y 2"
+    },
+    "fr": {
+      "title": "Freedoom",
+      "description": "Doom libre avec Crispy Doom : Phases 1 et 2"
+    },
+    "de": {
+      "title": "Freedoom",
+      "description": "Freies Doom mit Crispy Doom: Phase 1 und 2"
+    },
+    "pt": {
+      "title": "Freedoom",
+      "description": "Doom livre com Crispy Doom: Fase 1 e 2"
+    }
+  }
+}

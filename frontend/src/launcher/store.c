@@ -186,7 +186,8 @@ static void free_entries(entry_t *e, int n) {
 
 /* solo nelle cartelle del sistema, mai fuori da Arcade */
 static bool path_ok(const char *p) {
-    static const char *dirs[] = { "Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/" };
+    /* Linux/ dalla 0.9.58, per i giochi Linux: i loro pacchetti sono in "packages2" (parse_catalog) */
+    static const char *dirs[] = { "Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/", "Linux/" };
     if (!*p || *p == '/' || strstr(p, "..") || strchr(p, '\\') || strstr(p, "//")) return false;
     for (size_t i = 0; i < sizeof dirs / sizeof *dirs; i++)
         if (!strncmp(p, dirs[i], strlen(dirs[i])) && p[strlen(dirs[i])]) return true;
@@ -251,11 +252,14 @@ static const char *pkg_text(jval *v, const char *field) {
 static bool parse_catalog(const char *text, entry_t **out, int *nout) {
     jval *j = json_parse(text);
     if (!j || json_int(j, "format", 0) != 1) { json_free(j); return false; }
-    jval *arr = json_get(j, "packages");
+    /* "packages2": pacchetti con cartelle nuove (i giochi Linux), che i sistemi fino alla 0.9.57 non
+       leggono. Per loro un percorso sconosciuto rende falso tutto il catalogo: così non li vedono */
+    jval *arrs[2] = { json_get(j, "packages"), json_get(j, "packages2") };
     int n = 0, cap = 0;
     entry_t *e = NULL;
     bool ok = true;
-    for (jval *v = arr && arr->t == J_ARR ? arr->child : NULL; v && ok; v = v->next) {
+    for (int ai = 0; ai < 2; ai++)
+    for (jval *v = arrs[ai] && arrs[ai]->t == J_ARR ? arrs[ai]->child : NULL; v && ok; v = v->next) {
         if (n == cap) {
             entry_t *ne = realloc(e, sizeof(entry_t) * (size_t)(cap ? cap * 2 : 16));
             if (!ne) { ok = false; break; }

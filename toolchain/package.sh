@@ -18,7 +18,7 @@ mkdir -p "$APP/bin" "$APP/lib" "$DATA"
 
 # programmi e core compilati, dal volume Docker
 docker run --rm -v trimui-build:/build -v "$DIST":/dist alpine:3.20 \
-    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; } && rm -rf /dist/ppsspp && { [ ! -f /build/out/ppsspp/PPSSPPSDL ] || cp -a /build/out/ppsspp /dist/ppsspp; } && rm -rf /dist/mupen64plus && { [ ! -f /build/out/mupen64plus/mupen64plus ] || cp -a /build/out/mupen64plus /dist/mupen64plus; }'
+    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; } && rm -rf /dist/ppsspp && { [ ! -f /build/out/ppsspp/PPSSPPSDL ] || cp -a /build/out/ppsspp /dist/ppsspp; } && rm -rf /dist/mupen64plus && { [ ! -f /build/out/mupen64plus/mupen64plus ] || cp -a /build/out/mupen64plus /dist/mupen64plus; } && rm -rf /dist/linux && { [ ! -d /build/out/linux ] || cp -a /build/out/linux /dist/linux; }'
 cp "$FE/package/trimui/launch.sh" "$FE/package/trimui/config.json" "$FE/package/trimui/icon.png" "$APP/"
 chmod +x "$APP/launch.sh" "$APP/bin/"*
 
@@ -179,6 +179,25 @@ for f in "$FE"/package/filters/*/; do
     mkdir -p "$PKG/filtri-$id"
     cp -R "$f/Filters" "$PKG/filtri-$id/"
 done
+# giochi Linux dello Store (0.9.58): frontend/package/linux/<id> ha pack.json (lo legge
+# make-store.py) e la cartella Linux con script e impostazioni; qui si aggiungono i programmi
+# compilati da toolchain/build-linux-games.sh e i dati dei giochi
+if [ -f "$DIST/linux/crispy-doom/crispy-doom" ] && [ -f "$TOP/deps/freedoom/freedoom-0.13.0.zip" ]; then
+    L="$PKG/freedoom/Linux"
+    mkdir -p "$PKG/freedoom"
+    cp -R "$FE/package/linux/freedoom/Linux" "$PKG/freedoom/"
+    cp "$DIST/linux/crispy-doom/crispy-doom" "$L/Freedoom/crispy-doom"
+    cp "$TOP/deps/crispy-doom/COPYING.md" "$L/Freedoom/COPYING-crispy-doom.md"
+    T=$(mktemp -d)
+    unzip -q "$TOP/deps/freedoom/freedoom-0.13.0.zip" -d "$T"
+    cp "$T/freedoom-0.13.0/freedoom1.wad" "$T/freedoom-0.13.0/COPYING.txt" "$L/Freedoom/"
+    mv "$L/Freedoom/COPYING.txt" "$L/Freedoom/COPYING-freedoom.txt"
+    cp "$T/freedoom-0.13.0/freedoom2.wad" "$L/Freedoom2/"
+    python3 "$TOP/toolchain/wad-cover.py" "$L/Freedoom/freedoom1.wad" "$L/Freedoom/cover.png"   # la schermata del titolo
+    python3 "$TOP/toolchain/wad-cover.py" "$L/Freedoom2/freedoom2.wad" "$L/Freedoom2/cover.png"
+    rm -rf "$T"
+    chmod +x "$L/Freedoom/crispy-doom" "$L"/*/launch.sh "$L/Freedoom/doom.sh"
+fi
 # temi: nel sistema solo Tessera (frontend/themes) e i font condivisi; gli altri sono nello Store
 # (0.9.55). Non dalla SD simulata del Mac, dove ci sono anche quelli dello Store
 mkdir -p "$DATA/Themes"

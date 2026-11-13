@@ -68,10 +68,16 @@ PACKAGES = {
     "sdtest": ("SD card test", None, "apps"),
     "scraper": ("Download images", None, "apps"),
     "sdgrow": ("SD card space", None, "apps"),
-    "diag": ("Diagnostics", None, "apps"),   # allarga la SD (issue #7)   # senza launch.sh: lo avvia il launcher (0.9.48)
+    "diag": ("Diagnostics", None, "apps"),
+    # giochi Linux (0.9.58): nome, versione, colore e testi da frontend/package/linux/<id>/pack.json
+    "freedoom": ("Freedoom", None, "linux"),   # allarga la SD (issue #7)   # senza launch.sh: lo avvia il launcher (0.9.48)
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
-ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")
+ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/", "Linux/")
+# Linux/ solo per i giochi Linux, che vanno nell'elenco "packages2" del catalogo: i sistemi fino
+# alla 0.9.57 leggono solo "packages" e un percorso che non conoscono renderebbe falso tutto il
+# catalogo; "packages2" lo leggono dalla 0.9.58
+NEW_PATHS = ("Linux/",)
 
 
 def theme_info(root):
@@ -163,7 +169,7 @@ labels = commits()
 # il catalogo è lo stesso per i due canali del sistema. STORE_STATO lo cambia nelle prove
 stato_file = os.environ.get("STORE_STATO") or os.path.join(top, "frontend", "package", "store-stato.json")
 stato = json.load(open(stato_file, encoding="utf-8")) if os.path.exists(stato_file) else {}
-catalog = {"format": 1, "packages": []}
+catalog = {"format": 1, "packages": [], "packages2": []}
 for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
     theme = theme_info(root) if pid not in PACKAGES and os.path.isdir(root) else None
@@ -208,6 +214,11 @@ for pid in sorted(os.listdir(args.src)):
     art = {"emu": emulators[first], "art": ems[first].get("art", ""), "short": ems[first].get("short", ""),
            "console": ems[first].get("kind") == "console"} if first is not None else {}
     texts = None
+    linuxj = os.path.join(top, "frontend", "package", "linux", pid, "pack.json")
+    lmeta = json.load(open(linuxj, encoding="utf-8")) if category == "linux" and os.path.exists(linuxj) else None
+    if lmeta:
+        texts = lmeta.get("texts")
+        name = (texts or {}).get("en", {}).get("title", name)
     appj = os.path.join(root, "Apps", pid, "app.json")
     if category == "apps" and os.path.exists(appj):
         aj = json.load(open(appj))
@@ -215,7 +226,9 @@ for pid in sorted(os.listdir(args.src)):
         texts = aj.get("texts")
     if bezel:   # le console delle cornici, per la scheda del pacchetto (i sistemi fino alla 0.9.36 le mettono in Console)
         systems = bezel[4]
-    if theme or bezel:
+    if lmeta:
+        label = str(lmeta.get("version", "1.0"))
+    elif theme or bezel:
         label, texts = (theme or bezel)[1], (theme or bezel)[3]
     elif category == "apps":
         label = json.load(open(appj)).get("version", "?") if os.path.exists(appj) else "?"
@@ -258,13 +271,18 @@ for pid in sorted(os.listdir(args.src)):
         entry["colors"] = theme[2]
     if bezel and bezel[2]:   # cornici: il colore del riquadro
         entry["colors"] = bezel[2]
-    catalog["packages"].append(entry)
+    if lmeta and lmeta.get("color"):
+        entry["colors"] = [lmeta["color"]]
+    new = any(rel.startswith(NEW_PATHS) for rel in files)
+    if new and not stato.get("min_system", {}).get(pid):
+        sys.exit(f"{pid}: i file in {NEW_PATHS} richiedono un min_system in store-stato.json")
+    catalog["packages2" if new else "packages"].append(entry)
     print(f"  {pid:16} {label:10} {os.path.getsize(zpath) / 1e6:6.1f} MB  {', '.join(systems)}")
 
 # Due pacchetti non devono scrivere lo stesso file: togliendone uno sparirebbe anche dall'altro
 # (audit 0.9.38). Confronto senza maiuscole, come sul FAT della scheda
 owner = {}
-for pk in catalog["packages"]:
+for pk in catalog["packages"] + catalog["packages2"]:
     for rel in pk["files"]:
         k = rel.lower()
         if k in owner and owner[k] != pk["id"]:
@@ -275,6 +293,7 @@ for pk in catalog["packages"]:
 def order(pk):
     return min((json.load(open(os.path.join(args.src, pk["id"], "Emulators", e + ".json"))).get("order", 100) for e in pk["emulators"]), default=100)
 catalog["packages"].sort(key=lambda pk: (order(pk), pk["name"].lower()))
+catalog["packages2"].sort(key=lambda pk: pk["name"].lower())
 text = (json.dumps(catalog, ensure_ascii=False, indent=1) + "\n").encode()
 with tempfile.NamedTemporaryFile() as t:
     t.write(text)
@@ -286,4 +305,4 @@ open(os.path.join(args.out, "store.sig"), "wb").write(sig)
 # arrivare spaiati (store.json e store.sig restano per i sistemi di prima e per i pacchetti copiati
 # sulla scheda)
 open(os.path.join(args.out, "store.cat"), "wb").write(b"MOSAIK-STORE 1 %d\n" % len(sig) + sig + text)
-print(f"Store: {len(catalog['packages'])} pacchetti in {args.out}")
+print(f"Store: {len(catalog['packages']) + len(catalog['packages2'])} pacchetti in {args.out}")

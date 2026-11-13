@@ -3775,7 +3775,9 @@ static bool sto_is_theme(const store_pkg_t *p) { return !strcmp(p->category, "th
 static bool sto_is_bezel(const store_pkg_t *p) { return !strcmp(p->category, "bezels"); }
 static bool sto_is_filter(const store_pkg_t *p) { return !strcmp(p->category, "filters"); }
 /* app, temi e cornici: niente giochi né salvataggi, quindi niente Archivia e una conferma sola */
-static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_theme(p) || sto_is_bezel(p) || sto_is_filter(p); }
+static bool sto_is_linux(const store_pkg_t *p) { return !strcmp(p->category, "linux"); }
+/* anche i giochi Linux: le loro partite stanno in Saves e restano togliendo il pacchetto */
+static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_theme(p) || sto_is_bezel(p) || sto_is_filter(p) || sto_is_linux(p); }
 
 /* pulsanti della scheda secondo lo stato del pacchetto */
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_ARCHIVE, SB_DELETE };
@@ -3921,6 +3923,12 @@ static void sto_pkg_art(const store_pkg_t *p, color_t *col, emulator_t *em) {
         snprintf(em->art, sizeof em->art, "@app:%s", p->id);
         *col = !strcmp(p->id, "files") ? hexc(0x1F6E8C) : !strcmp(p->id, "viewer") ? hexc(0x8C4A1F)
              : !strcmp(p->id, "music") ? hexc(0x7A2E6E) : !strcmp(p->id, "sdtest") ? hexc(0x2E6B3E) : hexc(0x4B3C86);
+        return;
+    }
+    if (sto_is_linux(p)) {   /* giochi Linux: il portatile della cartella, nel colore del gioco */
+        snprintf(em->art, sizeof em->art, "@linux");
+        unsigned c1 = 0;
+        *col = sscanf(p->colors, "%6x", &c1) == 1 ? hexc(c1) : hexc(0x2F6B45);
         return;
     }
     if (sto_is_filter(p)) {   /* filtri: un gioco a metà nitido e a metà con le righe */

@@ -26,7 +26,8 @@
     "dosbox_pure",
     "puae",
     "sdgrow",
-    "diag"
+    "diag",
+    "freedoom"
   ],
   "tested": {
     "fbneo": [
@@ -63,6 +64,7 @@
     "bluemsx": "0.9.35",
     "dosbox_pure": "0.9.47",
     "scraper": "0.9.48",
-    "filtri-shader": "0.9.51"
+    "filtri-shader": "0.9.51",
+    "freedoom": "0.9.58"
   }
 }
