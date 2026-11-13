@@ -63,7 +63,11 @@ static bool ring_init;
 
 /* libreria */
 /* schede: tutti, un emulatore ciascuno (TAB_EMU + indice), Linux, preferiti */
-enum { TAB_ALL, TAB_LINUX, TAB_FAV, TAB_EMU = 100, TAB_COLL = 200, TAB_PLAN = 300 };
+enum { TAB_ALL, TAB_LINUX, TAB_FAV, TAB_EMU = 100, TAB_COLL = 200, TAB_AUTO = 250, TAB_PLAN = 300 };
+/* collezioni automatiche (TAB_AUTO + AUTO_*): si riempiono da sole con statistiche, salvataggi e
+   dati dello scraper; compaiono solo se hanno almeno un gioco */
+enum { AUTO_FINISH, AUTO_QUICK, AUTO_TWO, AUTO_NEVER, AUTO_COUNT };
+static const char *const AUTO_KEYS[AUTO_COUNT] = { "library.auto_finish", "library.auto_quick", "library.auto_two", "library.auto_never" };
 static int tabs[MAX_EMUS + 24], ntabs, tab_sel;   /* Tutti, Preferiti, emulatori, Linux, collezioni */
 /* schermata Piattaforme: le stesse schede, poi le console in arrivo (TAB_PLAN + indice in
    PLANNED), in grigio e senza libreria. Le prime ntabs coincidono con tabs[]. */
@@ -314,6 +318,7 @@ static void build_carousel(void) {
 
 static const char *tab_label(int t) {
     if (is_plan(t)) return PLANNED[t - TAB_PLAN].name;
+    if (t >= TAB_AUTO) return T(AUTO_KEYS[t - TAB_AUTO]);
     if (t >= TAB_COLL) return COLLS[t - TAB_COLL];
     if (t >= TAB_EMU) return EMUS[t - TAB_EMU].name;
     switch (t) {
@@ -327,8 +332,22 @@ static const char *tab_label(int t) {
 static bool visible(const game_t *g) { return coll_sel == COLL_HIDDEN ? g->user_hidden : !g->hidden; }
 static bool in_coll(const game_t *g) { return coll_sel < 0 || (g->colls >> coll_sel & 1u); }
 
+/* Da finire: un salvataggio automatico e una partita negli ultimi 30 giorni. Partite brevi: almeno
+   due partite, di solito non più di 10 minuti. Due giocatori: dallo scraper (arcade e console).
+   Mai giocati: nessuna partita nelle statistiche. */
+static bool auto_match(const game_t *g, int k) {
+    if (!strcmp(g->core, "app") || g->missing) return false;
+    switch (k) {
+    case AUTO_FINISH: return g->autosave && g->last_played > (long)time(NULL) - 30L * 86400;
+    case AUTO_QUICK: return g->plays >= 2 && g->seconds / g->plays <= 600;
+    case AUTO_TWO: return g->players >= 2;
+    default: return g->plays == 0;
+    }
+}
+
 static bool in_tab(const game_t *g, int t) {
     if (!visible(g)) return false;
+    if (t >= TAB_AUTO) return auto_match(g, t - TAB_AUTO);
     if (t >= TAB_COLL) return g->colls >> (t - TAB_COLL) & 1u;
     if (t >= TAB_EMU) return !strcmp(g->core, EMUS[t - TAB_EMU].id);
     switch (t) {
@@ -354,6 +373,11 @@ static void build_tabs(void) {
         bool has = false;
         for (int i = 0; i < ngames && !has; i++) has = in_tab(&games[i], TAB_COLL + c);
         if (has) tabs[ntabs++] = TAB_COLL + c;
+    }
+    for (int k = 0; k < AUTO_COUNT && ntabs < (int)(sizeof tabs / sizeof *tabs); k++) {
+        bool has = false;
+        for (int i = 0; i < ngames && !has; i++) has = in_tab(&games[i], TAB_AUTO + k);
+        if (has) tabs[ntabs++] = TAB_AUTO + k;
     }
     if (tab_sel >= ntabs) tab_sel = 0;
     nptabs = 0;
@@ -477,6 +501,17 @@ static void reload_games(void) {
     static bool split_done;
     if (!split_done && !rec_pending) { saves_split(UI.root, games, ngames); split_done = true; }
     games_mark_lists(UI.root, games, ngames);
+    /* salvataggio automatico dei giochi già giocati (collezione "Da finire"): uno stat ciascuno */
+    for (int i = 0; i < ngames; i++) {
+        game_t *g = &games[i];
+        const emulator_t *em = emulator_find(g->core);
+        if (!g->plays || g->missing || !strcmp(g->core, "linux") || !strcmp(g->core, "app") || (em && em->launch[0])) continue;
+        char base[1200], core[80], st[1300];
+        struct stat sb;
+        save_base(g, base, sizeof base, core, sizeof core);
+        snprintf(st, sizeof st, "%s/%s.auto.state", base, g->key);
+        g->autosave = stat(st, &sb) == 0 && sb.st_size > 0;
+    }
     romcheck_load(UI.root, games, ngames);
     mark_duplicates();
     build_genres();

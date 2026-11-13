@@ -32,6 +32,7 @@ typedef struct {
     int plays;           /* partite (System/stats.tsv) */
     long seconds;        /* tempo giocato */
     long last_played;    /* data dell'ultima partita (secondi dal 1970) */
+    bool autosave;       /* ha un salvataggio automatico (lo guarda il launcher, collezione "Da finire") */
     bool key_unsaved;    /* chiave nuova non ancora scritta nel registro: il gioco non si avvia */
 } game_t;
 
