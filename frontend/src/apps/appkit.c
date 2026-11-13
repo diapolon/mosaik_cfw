@@ -27,6 +27,7 @@ bool app_start(int argc, char **argv, const char *id) {
        acceso e con la scheda al lavoro (Test della SD) il fruscio si sentiva sempre */
     plat_amp_config(UI.set.speaker_rest);
     UI.amp_auto = true;
+    UI.rest_auto = true;
     char p[1200];
     snprintf(p, sizeof p, "%s/lang/%s.json", app_dir, UI.set.lang);
     texts = json_load(p);

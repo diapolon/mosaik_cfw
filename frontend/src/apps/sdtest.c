@@ -356,6 +356,7 @@ int main(int argc, char **argv) {
         UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch */
         input_t *in = &UI.in;
         int ph = job.phase;
+        UI.busy = ph != PH_IDLE && ph != PH_DONE;   /* prova in corso */
         if (ph == PH_IDLE && confirm_open) {
             int r = ui_popup_input(&confirm_sel, 2);
             if (r == 1) { confirm_open = false; ui_sound(SND_OK); start(true); mute_at = SDL_GetTicks() + 300; }

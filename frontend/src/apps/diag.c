@@ -301,6 +301,7 @@ int main(int argc, char **argv) {
         ui_poll();
         if (UI.in.quit) break;
         UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch */
+        UI.busy = atomic_load(&speed_state) == 1;   /* prova del Wi-Fi in corso */
         input_t *in = &UI.in;
         if (in->pressed[BTN_B] || in->pressed[BTN_MENU]) quit = true;
         int vis = 10;

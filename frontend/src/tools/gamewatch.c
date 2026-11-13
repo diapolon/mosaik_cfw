@@ -129,6 +129,23 @@ static int run_menu(const char *arg) {
 }
 #endif
 
+#ifdef __linux__
+/* sospende la console con il programma già fermo (SIGSTOP); al risveglio il tasto di accensione
+   non vale per un momento. Con la SD guasta al risveglio il programma si chiude senza salvare (le
+   sue scritture non tornerebbero) e system-init riavvia. */
+static void group_sleep(pid_t pid, int ui, double *block_until) {
+    fprintf(stderr, "gamewatch: sospensione\n");
+    int rc = system("arcade-suspend");
+    if (access("/run/sd-guasta", F_OK) == 0) {
+        kill(-pid, SIGKILL);
+        if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+        _exit(0);
+    }
+    fprintf(stderr, "gamewatch: risveglio (%s)\n", rc == 0 ? "riuscita" : "non riuscita");
+    *block_until = now() + 1.5;
+}
+#endif
+
 int main(int argc, char **argv) {
     double hold = 1.5;
     int keys[8], nkeys = 0, cmd = -1;
@@ -218,6 +235,8 @@ int main(int argc, char **argv) {
        (SIGSTOP) finché la console non si risveglia; tenuto premuto 1,2 s = chiude il gioco e
        chiede lo spegnimento (codice di uscita 120 per system-init) */
     bool standalone = getenv("ARCADE_STANDALONE") && getenv("ARCADE_STANDALONE")[0] == '1';
+    unlink("/run/gamewatch-sospendi");   /* avanzi di un programma di prima */
+    unlink("/run/gamewatch-spegni");
     /* GAMEWATCH_NOMENU=1: il programma ha un suo menu e la sua uscita, e chiuderlo da fuori fa
        perdere dati (Deadcast: salvataggi della VMU ancora nel buffer). Menu tenuto e HOME non fanno
        nulla, e il tasto di accensione sospende senza la domanda (il nostro livello lì non si vede). */
@@ -249,6 +268,22 @@ int main(int argc, char **argv) {
                 lost--;
                 fprintf(stderr, "gamewatch: %s \"%s\" riaperto\n", fpath[i], name);
             }
+        }
+        /* app dello Store ferma da troppo (ui.c, rest_check): sospensione o spegnimento automatici */
+        if (standalone && unlink("/run/gamewatch-spegni") == 0) {
+            fprintf(stderr, "gamewatch: spegnimento automatico chiesto dal programma\n");
+            stop_group(pid);
+            if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+            return 120;
+        }
+        if (standalone && unlink("/run/gamewatch-sospendi") == 0) {
+            fprintf(stderr, "gamewatch: sospensione automatica chiesta dal programma\n");
+            kill(-pid, SIGSTOP);
+            group_sleep(pid, ui, &power_block_until);
+            kill(-pid, SIGCONT);
+            struct input_event skip;
+            for (int j = 0; j < nfds; j++) while (fds[j].fd >= 0 && read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
+            pressed_at = power_at = 0;
         }
         if (poll(fds, (nfds_t)nfds, 100) > 0) {
             for (int i = 0; i < nfds; i++) {
@@ -290,19 +325,7 @@ int main(int argc, char **argv) {
                                 if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
                                 return 120;
                             }
-                            if (ask == 30) {
-                                fprintf(stderr, "gamewatch: sospensione\n");
-                                int rc = system("arcade-suspend");
-                                /* SD guasta al risveglio: il gioco si chiude senza fargli salvare (le sue
-                                   scritture non tornerebbero), niente registro; system-init riavvia */
-                                if (access("/run/sd-guasta", F_OK) == 0) {
-                                    kill(-pid, SIGKILL);
-                                    if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
-                                    _exit(0);
-                                }
-                                fprintf(stderr, "gamewatch: risveglio (%s)\n", rc == 0 ? "riuscita" : "non riuscita");
-                                power_block_until = now() + 1.5;
-                            }
+                            if (ask == 30) group_sleep(pid, ui, &power_block_until);
                             kill(-pid, SIGCONT);
                             /* eventi arrivati durante il sonno: non devono valere dopo */
                             struct input_event skip;

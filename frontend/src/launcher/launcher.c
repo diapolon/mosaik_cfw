@@ -3799,7 +3799,6 @@ static int sto_buttons(const store_pkg_t *p, int *b) {
 static void sto_input(void) {
     const store_status_t *s = store_status();
     input_t *in = &UI.in;
-    last_input = UI.t;
     if (s->phase == ST_WORKING) {
         if (in->pressed[BTN_B]) { store_cancel(); ui_sound(SND_BACK); }
         return;
@@ -5383,9 +5382,6 @@ static int upd_buttons(const update_status_t *s, const char **labels) {
 
 static void upd_input(void) {
     const update_status_t *s = update_status();
-    /* niente salvaschermo o spegnimento automatico mentre cerca, scarica o installa; la finestra
-       che aspetta una scelta (pronto da installare con la batteria bassa) lascia riposare la console */
-    if (upd_busy()) last_input = UI.t;
     const char *labels[2];
     int n = upd_buttons(s, labels);
     if (upd_sel_phase != s->phase) { upd_sel_phase = s->phase; upd_sel = n - 1; }
@@ -6287,7 +6283,7 @@ static void setup_draw(void) {
 static double ptest_flash[3];   /* HOME, F1, F2 arrivano come impulsi: restano accesi un momento */
 
 static void ptest_input(void) {
-    last_input = UI.t;
+    for (int i = 0; i < 4; i++) if (abs(UI.in.axis[i]) > 8000) last_input = UI.t;   /* levette mosse */
     if (UI.in.home) ptest_flash[0] = UI.t;
     if (UI.in.f1) ptest_flash[1] = UI.t;
     if (UI.in.f2) ptest_flash[2] = UI.t;
@@ -7001,7 +6997,6 @@ static void qp_do(int t) {
 
 static void qp_input(void) {
     input_t *in = &UI.in;
-    last_input = UI.t;
     if (in->pressed[BTN_MENU] || in->pressed[BTN_B]) { qp_open = false; ui_sound(SND_BACK); return; }
     if (in->pressed[BTN_UP] && qp_row > 0) { qp_row--; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN] && qp_row < 3) { qp_row++; ui_sound(SND_MOVE); }
@@ -7637,7 +7632,6 @@ static void rcq_input(void) {
 static void rcq_draw(void) { ui_confirm_draw(T("rom.choose_title"), T("rom.choose_body"), T("rom.quick"), T("rom.full"), rcq_sel); }
 
 static void romcheck_input(void) {
-    last_input = UI.t;   /* niente spegnimento automatico mentre lavora */
     const romcheck_status_t *s = romcheck_status();
     bool press = UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B];
     if (!s->finished && press) { romcheck_cancel(); ui_sound(SND_BACK); }
@@ -7929,7 +7923,6 @@ static void keyboard_draw(void) {
 /* -------------------------------------------------- scaricamento */
 
 static void scrape_input(void) {
-    last_input = UI.t;   /* niente spegnimento automatico mentre lavora */
     const scrape_status_t *s = scraper_status();
     bool finished = s->phase == SCRAPE_DONE || s->phase == SCRAPE_FAILED;
     /* un pulsante solo nella finestra: "Interrompi" mentre lavora, "OK" alla fine */
@@ -8269,6 +8262,21 @@ static int saver_pick(void) {
     return -1;
 }
 
+/* la console sta lavorando: niente riposo automatico (vedi il ciclo principale) */
+static bool working_now(void) {
+    if (romcheck_open && !romcheck_status()->finished) return true;
+    if (scrape_open) { int ph = scraper_status()->phase; if (ph != SCRAPE_DONE && ph != SCRAPE_FAILED) return true; }
+    if (upd_busy() || sdbad_open) return true;   /* sdbad: la SD non risponde, niente sospensione */
+    if (atomic_load(&imp_state) == IMP_RUN || atomic_load(&rst_state) == RST_RUN) return true;   /* backup, reimposta, cancella tutto */
+    if (screen == SCR_STORE && store_status()->phase == ST_WORKING) return true;
+    if (fsrv_open) {
+        fs_status_t fs;
+        fs_get_status(&fs);
+        if (fs.state != FS_IDLE || fs.restore == FS_RS_RUNNING) return true;
+    }
+    return false;
+}
+
 static void saver_check(double idle) {
     int kind = UI.set.saver % 5;
     double after = kind == 1 || kind == 3 ? 120 : 300;
@@ -8572,10 +8580,12 @@ int main(int argc, char **argv) {
         upd_audio();
         /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
         if (UI.t > 0.4) plat_audio_release();
-        bool working = romcheck_open || scrape_open || upd_busy() || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open
-                       /* lo Store solo mentre scarica o installa: lasciato aperto e fermo deve rallentare e
-                          sospendersi come il resto (Brick Pro, 12 nov: 2 ore e mezza acceso, dal 62% all'11%) */
-                       || (screen == SCR_STORE && store_status()->phase == ST_WORKING);
+        /* Salvaschermo, sospensione e spegnimento automatici si fermano solo mentre la console
+           lavora (scarica, installa, verifica, trasferisce); una finestra che aspetta una scelta
+           non conta (aggiornamento pronto con la batteria bassa, Store, Wi-Fi, tastiera, pannello
+           rapido). Mentre lavora il tempo da fermo riparte: a lavoro finito si vede l'esito. */
+        bool working = working_now();
+        if (working) last_input = UI.t;
         /* nei primi 30 s il Wi-Fi carica il driver e si collega: niente cambi di frequenza della CPU */
         bool idle = !working && !UI.automation && UI.t > 30 && UI.t - last_input > IDLE_AFTER_S;
         plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);

@@ -1029,6 +1029,7 @@ int main(int argc, char **argv) {
         ui_poll();
         if (UI.in.quit) break;
         UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch (sospensione) */
+        UI.busy = job.running;   /* niente sospensione automatica durante copie ed estrazioni */
         if (win == W_JOB) {
             if (UI.in.pressed[BTN_B] && job.running) { job.cancel = true; ui_sound(SND_BACK); }
             if (!job.running) {

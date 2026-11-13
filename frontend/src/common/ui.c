@@ -1406,6 +1406,28 @@ static void auto_step(void) {
     }
 }
 
+/* App ferma (nessun tasto, nessun lavoro, niente musica) per i minuti delle impostazioni: chiede a
+   gamewatch di sospendere o spegnere, come fa il launcher. Lo fa gamewatch, che col tasto di
+   accensione già ferma l'app, sospende e scarta il tasto del risveglio. */
+static void rest_check(void) {
+    static double last = -1;
+    bool moved = false;
+    for (int i = 0; i < 4; i++) moved = moved || abs(UI.in.axis[i]) > 8000;
+    if (last < 0 || UI.in.any || moved || UI.busy || UI.amp_keep) last = UI.t;
+    double idle = UI.t - last;
+    const char *req = NULL;
+    if (UI.set.autosleep_min && idle > UI.set.autosleep_min * 60.0) req = "spegni";
+    else if (UI.set.autosuspend_min && idle > UI.set.autosuspend_min * 60.0) req = "sospendi";
+    if (!req) return;
+    last = UI.t;
+    ui_log("app ferma da %.0f min: %s", idle / 60, req);
+    if (!plat_standalone()) return;
+    char p[64];
+    snprintf(p, sizeof p, "/run/gamewatch-%s", req);
+    FILE *f = fopen(p, "w");
+    if (f) fclose(f);
+}
+
 void ui_poll(void) {
     if (UI.amp_auto) plat_amp_idle(UI.amp_keep);
     memset(UI.in.pressed, 0, sizeof UI.in.pressed);
@@ -1581,6 +1603,7 @@ void ui_poll(void) {
         }
     if (UI.automation) { auto_step(); ports_update(); }   /* i tasti simulati arrivano anche ai giocatori */
     if (auto_quit) UI.in.quit = true;
+    if (UI.rest_auto) rest_check();
 }
 
 /* -------------------------------------------------------------- toast */
