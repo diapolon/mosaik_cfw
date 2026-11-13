@@ -139,6 +139,13 @@ static void go(int scr) {
     ring_init = false;
 }
 
+/* Indietro dalle Impostazioni. Non verso lo Store: tornati dallo Store alle Impostazioni, lo
+   Store è la schermata di prima, e lo Store a sua volta torna alle Impostazioni (0.9.48: aperto
+   dalle Impostazioni non si usciva più) */
+static int settings_back(void) {
+    return back_screen == SCR_SETTINGS || back_screen == SCR_STORE ? SCR_HOME : back_screen;
+}
+
 /* ------------------------------------------------------------ dati */
 
 /* Giochi doppi: lo stesso nome ROM nel set FBNeo e in quello MAME. Secondo
@@ -2838,7 +2845,7 @@ static const int cat_items[SC_COUNT][12] = {
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },          /* ROM e immagini */
-    { S_STORE, S_FILESERVER, S_RESETSET, S_ERASE, -1 },  /* scheda e dati */
+    { S_FILESERVER, S_RESETSET, S_ERASE, -1 },  /* scheda e dati (lo Store sta nella home dalla 0.9.49) */
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUPPORT, -1 },
 };
 #define ROW_CAT 1000   /* righe della prima pagina: ROW_CAT + categoria */
@@ -5350,12 +5357,12 @@ static void settings_input(void) {
     if ((set_page < 0 || is_bar_layout()) && in->pressed[BTN_Y]) { support_open = true; ui_sound(SND_OK); return; }
     if (grid) {
         if (in->pressed[BTN_A]) { settings_open(set_sel - ROW_CAT, 0); ui_sound(SND_OK); }
-        else if (in->pressed[BTN_B] || in->pressed[BTN_START]) { go(back_screen == SCR_SETTINGS ? SCR_HOME : back_screen); ui_sound(SND_BACK); }
+        else if (in->pressed[BTN_B] || in->pressed[BTN_START]) { go(settings_back()); ui_sound(SND_BACK); }
         return;
     }
     if (in->pressed[BTN_B] || in->pressed[BTN_START]) {
         if (set_page >= 0 && in->pressed[BTN_B] && !is_bar_layout()) { settings_open(-1, set_page); ui_sound(SND_BACK); return; }
-        go(back_screen == SCR_SETTINGS ? SCR_HOME : back_screen);
+        go(settings_back());
         ui_sound(SND_BACK);
         return;
     }

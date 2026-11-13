@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.49
+it Corretto: aperto dalle Impostazioni, lo Store non si chiudeva più
+en Fixed: opened from Settings, the Store could not be closed
+it Lo Store si apre dalla schermata principale (tolto da Impostazioni → Scheda e dati)
+en The Store opens from the home screen (removed from Settings → Card and data)
+
 0.9.48
 it «Scarica immagini» diventa un'app dello Store: si aggiorna senza un sistema nuovo
 en "Download images" is now a Store app: it updates without a new system
