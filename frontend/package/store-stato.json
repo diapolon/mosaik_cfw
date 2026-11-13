@@ -9,9 +9,45 @@
     "fuse",
     "bluemsx",
     "vice",
-    "scummvm"
+    "scummvm",
+    "mame2010",
+    "stella2014",
+    "prosystem",
+    "gearcoleco",
+    "freeintv",
+    "fceumm",
+    "pce_fast",
+    "gambatte",
+    "mgba",
+    "ngp",
+    "handy",
+    "wswan",
+    "pokemini",
+    "vb",
+    "pcsx"
   ],
-  "tested": {},
+  "tested": {
+    "fbneo": [
+      "smartpro",
+      "brickpro"
+    ],
+    "mame2003p": [
+      "smartpro",
+      "brickpro"
+    ],
+    "snes9x": [
+      "smartpro",
+      "brickpro"
+    ],
+    "genesis_plus_gx": [
+      "smartpro",
+      "brickpro"
+    ],
+    "deadcast": [
+      "smartpro",
+      "brickpro"
+    ]
+  },
   "min_system": {
     "scummvm": "0.9.35",
     "tema-copertina": "0.9.30",
