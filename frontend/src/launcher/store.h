@@ -18,7 +18,7 @@
 #include <stdbool.h>
 
 enum { ST_IDLE, ST_LOADING, ST_READY, ST_WORKING, ST_DONE, ST_FAILED };
-enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL, SE_UNSIGNED };
+enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL, SE_UNSIGNED, SE_SYSTEM };
 /* PKG_OLD: arrivato col sistema, senza versione; PKG_ARCHIVED: archiviato (solo l'emulatore tolto,
    giochi e salvataggi restano), come sulla Switch: si riscarica con un pulsante */
 enum { PKG_ABSENT, PKG_INSTALLED, PKG_UPDATE, PKG_OLD, PKG_ARCHIVED };
@@ -33,6 +33,11 @@ typedef struct {
     bool console;
     long long size, installed;   /* byte dello zip e dei file installati */
     int state;                   /* PKG_* */
+    /* stato del pacchetto nel catalogo, uguale per i canali Stabile e Sviluppo del sistema */
+    bool experimental;           /* "status": "experimental": si installa, ma non è ancora provato sulle console */
+    char tested[32];             /* modelli su cui è provato: "brickpro smartpro" */
+    char min_system[16];         /* versione minima del sistema, "" se va con tutte */
+    bool needs_system;           /* il sistema in uso è più vecchio di min_system: prima va aggiornato */
 } store_pkg_t;
 
 typedef struct {
@@ -47,6 +52,8 @@ typedef struct {
 
 /* lingua dei nomi e delle descrizioni delle app nel catalogo ("texts": {"it": {...}}), prima di store_open */
 void store_lang(const char *lang);
+/* versione del sistema in uso ("0.9.45"), per i pacchetti che ne chiedono una minima; prima di store_open */
+void store_system(const char *version);
 /* carica subito il catalogo tenuto sulla scheda e, in un thread, quello in rete (se online) */
 void store_open(const char *root, int development, bool online);
 const store_status_t *store_status(void);

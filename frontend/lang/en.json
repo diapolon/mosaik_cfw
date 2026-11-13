@@ -960,7 +960,12 @@
     "count1_themes": "1 theme",
     "count_bezels": "%d packs",
     "count1_bezels": "1 pack",
-    "err_unsigned": "Unverified package: also copy store.json and store.sig next to it"
+    "err_unsigned": "Unverified package: also copy store.json and store.sig next to it",
+    "experimental": "Experimental",
+    "exp_note": "Experimental: not tried on the consoles yet.",
+    "tested": "Tested on %s.",
+    "needs_system": "Needs Mosaik %s: update the system first.",
+    "err_system": "Update the system first"
   },
   "support": {
     "title": "Support Mosaik",

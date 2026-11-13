@@ -960,7 +960,12 @@
     "count1_themes": "1 Design",
     "count_bezels": "%d Pakete",
     "count1_bezels": "1 Paket",
-    "err_unsigned": "Paket nicht geprüft: store.json und store.sig daneben kopieren"
+    "err_unsigned": "Paket nicht geprüft: store.json und store.sig daneben kopieren",
+    "experimental": "Experimentell",
+    "exp_note": "Experimentell: noch nicht auf den Konsolen getestet.",
+    "tested": "Getestet auf %s.",
+    "needs_system": "Benötigt Mosaik %s: zuerst das System aktualisieren.",
+    "err_system": "Zuerst das System aktualisieren"
   },
   "support": {
     "title": "Mosaik unterstützen",

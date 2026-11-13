@@ -960,7 +960,12 @@
     "count1_themes": "1 tema",
     "count_bezels": "%d pacotes",
     "count1_bezels": "1 pacote",
-    "err_unsigned": "Pacote não verificado: copie também store.json e store.sig ao lado"
+    "err_unsigned": "Pacote não verificado: copie também store.json e store.sig ao lado",
+    "experimental": "Experimental",
+    "exp_note": "Experimental: ainda não testado nas consolas.",
+    "tested": "Testado em %s.",
+    "needs_system": "Requer Mosaik %s: atualiza primeiro o sistema.",
+    "err_system": "Atualiza primeiro o sistema"
   },
   "support": {
     "title": "Apoiar o Mosaik",

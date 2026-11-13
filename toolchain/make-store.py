@@ -130,6 +130,10 @@ for n in os.listdir(args.out):   # i pacchetti di prima: restano solo quelli di 
     if n.startswith("store"):
         os.remove(os.path.join(args.out, n))
 labels = commits()
+# stato dei pacchetti (sperimentale, provato su quali modelli, sistema minimo): un file solo, perché
+# il catalogo è lo stesso per i due canali del sistema. STORE_STATO lo cambia nelle prove
+stato_file = os.environ.get("STORE_STATO") or os.path.join(top, "frontend", "package", "store-stato.json")
+stato = json.load(open(stato_file, encoding="utf-8")) if os.path.exists(stato_file) else {}
 catalog = {"format": 1, "packages": []}
 for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
@@ -208,6 +212,12 @@ for pid in sorted(os.listdir(args.src)):
         "file": os.path.basename(zpath), "size": os.path.getsize(zpath), "installed": installed,
         "sha256": sha256(zpath), "files": files,
     }
+    if pid in stato.get("experimental", []):
+        entry["status"] = "experimental"
+    if stato.get("tested", {}).get(pid):
+        entry["tested"] = stato["tested"][pid]
+    if stato.get("min_system", {}).get(pid):
+        entry["min_system"] = stato["min_system"][pid]
     if texts:   # nomi e descrizioni delle app nelle lingue della console
         entry["texts"] = texts
     if theme and theme[2]:   # temi: i colori delle varianti, per il riquadro

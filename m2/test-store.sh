@@ -32,6 +32,14 @@ static int find(const char *id) { for (int i = 0; i < store_count(); i++) if (!s
 int main(int c, char **v) {
     const char *root = v[1], *cmd = v[2];
     if (!strcmp(cmd, "recover")) { puts(store_recover(root) ? "chiuso" : "in sospeso"); return 0; }
+    if (!strcmp(cmd, "stato")) {   /* sperimentale|provato|sistema minimo|da aggiornare, con il sistema dato */
+        store_system(v[4]);
+        store_open(root, 0, true);
+        store_join();
+        for (int i = 0; i < store_count(); i++) if (!strcmp(store_pkg(i)->id, v[3]))
+            printf("%d|%s|%s|%d\n", store_pkg(i)->experimental, store_pkg(i)->tested, store_pkg(i)->min_system, store_pkg(i)->needs_system);
+        return 0;
+    }
     if (!strcmp(cmd, "force")) { puts(store_recover_force(root) ? "messo da parte" : "errore"); return 0; }
     if (!strcmp(cmd, "pending")) { printf("%d\n", store_restore_pending(root)); return 0; }
     if (!strcmp(cmd, "restore")) {
@@ -268,6 +276,14 @@ check "cornici nel catalogo: nome e cartella Cornici" "Television|Home consoles 
 check "cornici installate" "4 0 1" "$(./t $R install cornici-tv 2>/dev/null)"
 check "cornice dello Store accanto a quella dell'utente" "tv mia" "$(cat sd/Bezels/nes/_mosaik.png) $(cat sd/Bezels/nes/_default.png)"
 check "cornici tolte, quella dell'utente resta" "4 0 0 no mia" "$(./t $R delete cornici-tv 2>/dev/null) $([ -e sd/Bezels/nes/_mosaik.png ] && echo si || echo no) $(cat sd/Bezels/nes/_default.png)"
+# stato dei pacchetti nel catalogo: sperimentale, provato, sistema minimo
+printf '{"experimental": ["files"], "tested": {"fbneo": ["brickpro"]}, "min_system": {"cornici-tv": "0.9.37"}}' > stato.json
+STORE_STATO=$W/stato.json CORNICI=1 mk 4
+check "pacchetto sperimentale nel catalogo" "1|||0" "$(./t $R stato files 0.9.45 2>/dev/null)"
+check "pacchetto provato su un modello" "0|brickpro||0" "$(./t $R stato fbneo 0.9.45 2>/dev/null)"
+check "sistema minimo: con un sistema nuovo si può" "0||0.9.37|0" "$(./t $R stato cornici-tv 0.9.45 2>/dev/null)"
+check "sistema minimo: con uno vecchio va aggiornato" "0||0.9.37|1" "$(./t $R stato cornici-tv 0.9.9 2>/dev/null)"
+CORNICI=1 mk 4
 # giornale che non si legge (audit A38-003): resta dov'è e lo Store non scrive altro
 mkdir sd/System/store-giornale.txt
 check "giornale illeggibile: installazione rifiutata, il giornale resta" "5 6 si" "$(./t $R install cornici-tv 2>/dev/null | cut -d' ' -f1-2) $([ -d sd/System/store-giornale.txt ] && echo si || echo no)"

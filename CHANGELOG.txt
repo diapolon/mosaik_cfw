@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.45
+it Store uguale per tutti: i pacchetti nuovi arrivano senza aggiornare il sistema
+en One Store for everyone: new packages arrive without a system update
+it Etichetta Sperimentale sui pacchetti non ancora provati sulle console
+en Experimental label on packages not yet tried on the consoles
+
 0.9.44
 it Nintendo 64 con Mupen64Plus (Store → Console)
 en Nintendo 64 with Mupen64Plus (Store → Consoles)

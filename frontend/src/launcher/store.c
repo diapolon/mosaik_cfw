@@ -34,7 +34,7 @@ typedef struct {
 } entry_t;
 
 static store_status_t st;
-static char root_dir[1024], base_url[512];
+static char root_dir[1024], base_url[512], fallback_url[512];
 static entry_t *cat;
 static int ncat;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -48,22 +48,35 @@ void store_cancel(void) { st.cancel = true; }
 bool store_changed(void) { return atomic_exchange(&changed, false); }
 
 /* ------------------------------------------------------------------ indirizzo */
-/* lo stesso degli aggiornamenti: System/update-url.txt se c'è, altrimenti quello del programma,
-   con /download/testing al posto di /latest/download per il canale Sviluppo */
+/* Il catalogo dello Store è uno solo, uguale per i canali Stabile e Sviluppo del sistema: sta
+   nella Release "store" (.../releases/download/store), così un pacchetto nuovo arriva a tutti
+   senza pubblicare un sistema. Se lì non si trova (rete, Release non ancora creata) si prova
+   l'indirizzo del canale, dove resta una copia per i sistemi fino alla 0.9.44.
+   System/update-url.txt, per le prove, vale per tutti e due e non ha riserva. */
+static void trim_url(char *u) {
+    u[strcspn(u, "\r\n")] = 0;
+    size_t n = strlen(u);
+    while (n && u[n - 1] == '/') u[--n] = 0;
+}
+
 static void make_url(int development) {
     char p[1100];
     snprintf(p, sizeof p, "%s/System/update-url.txt", root_dir);
     FILE *f = fopen(p, "r");
     bool ok = f && fgets(base_url, sizeof base_url, f) != NULL;
     if (f) fclose(f);
+    fallback_url[0] = 0;
     if (!ok) {
+        snprintf(fallback_url, sizeof fallback_url, "%s", UPDATE_DEFAULT_URL);
         snprintf(base_url, sizeof base_url, "%s", UPDATE_DEFAULT_URL);
-        char *tail = development ? strstr(base_url, "/latest/download") : NULL;
+        char *tail = development ? strstr(fallback_url, "/latest/download") : NULL;
         if (tail) strcpy(tail, "/download/testing");
+        tail = strstr(base_url, "/latest/download");
+        if (tail) strcpy(tail, "/download/store");
+        else fallback_url[0] = 0;   /* indirizzo fatto in un altro modo: uno solo */
+        trim_url(fallback_url);
     }
-    base_url[strcspn(base_url, "\r\n")] = 0;
-    size_t n = strlen(base_url);
-    while (n && base_url[n - 1] == '/') base_url[--n] = 0;
+    trim_url(base_url);
 }
 
 /* ------------------------------------------------------------------ rete */
@@ -209,6 +222,21 @@ oom:
 }
 
 static char lang_code[16] = "en";
+static char system_version[24];
+void store_system(const char *version) { snprintf(system_version, sizeof system_version, "%s", version ? version : ""); }
+
+/* "0.9.37" contro "0.9.5": numero per numero */
+static int version_cmp(const char *a, const char *b) {
+    while (*a || *b) {
+        long x = strtol(a, (char **)&a, 10), y = strtol(b, (char **)&b, 10);
+        if (x != y) return x < y ? -1 : 1;
+        if (*a == '.') a++;
+        if (*b == '.') b++;
+        if ((*a && (*a < '0' || *a > '9')) || (*b && (*b < '0' || *b > '9'))) break;
+    }
+    return 0;
+}
+
 void store_lang(const char *lang) { snprintf(lang_code, sizeof lang_code, "%s", lang && lang[0] ? lang : "en"); }
 
 /* testo di un pacchetto nella lingua della console ("texts": {"it": {"title": ...}}), altrimenti inglese */
@@ -263,6 +291,20 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         jval *cv = json_get(v, "console");
         x->p.console = cv && cv->t == J_BOOL && cv->n != 0;
         x->p.installed = (long long)json_num(v, "installed", 0);
+        x->p.experimental = !strcmp(json_str(v, "status", ""), "experimental");
+        snprintf(x->p.min_system, sizeof x->p.min_system, "%s", json_str(v, "min_system", ""));
+        x->p.needs_system = x->p.min_system[0] && system_version[0] && version_cmp(system_version, x->p.min_system) < 0;
+        {
+            int nt = 0;
+            bool toom = false;
+            char **tl = str_list(json_get(v, "tested"), &nt, &toom);
+            for (int k = 0; k < nt; k++) {
+                size_t l = strlen(x->p.tested);
+                snprintf(x->p.tested + l, sizeof x->p.tested - l, "%s%s", l ? " " : "", tl[k]);
+                free(tl[k]);
+            }
+            free(tl);
+        }
         int ns = 0;
         bool oom = false;
         char **sys = str_list(json_get(v, "systems"), &ns, &oom);
@@ -413,6 +455,14 @@ static void *fetch_worker(void *arg) {
     (void)arg;
     mem_t t = { malloc(1 << 20), 0, 1 << 20 }, s = { malloc(512), 0, 512 };
     bool got = t.buf && s.buf && get_mem("store.json", &t) && get_mem("store.sig", &s);
+    if (!got && t.buf && s.buf && fallback_url[0] && !st.cancel) {
+        /* niente catalogo comune: quello del canale, da cui si scaricheranno anche i pacchetti */
+        ui_log("store: catalogo comune non raggiunto, provo quello del canale");
+        snprintf(base_url, sizeof base_url, "%s", fallback_url);
+        fallback_url[0] = 0;
+        t.len = s.len = 0;
+        got = get_mem("store.json", &t) && get_mem("store.sig", &s);
+    }
     entry_t *e = NULL;
     int n = 0;
     if (!got) { st.error = SE_NETWORK; ui_log("store: catalogo non scaricato"); }
@@ -882,6 +932,7 @@ static int install_job(void) {
     if (have) e = cat[job];
     pthread_mutex_unlock(&lock);
     if (!have) return SE_CATALOG;
+    if (e.p.needs_system) return SE_SYSTEM;   /* il pacchetto chiede un sistema più nuovo di questo */
     snprintf(st.working, sizeof st.working, "%s", e.p.name);
     /* spazio: lo zip più i file installati, con un margine */
     struct statvfs vs;

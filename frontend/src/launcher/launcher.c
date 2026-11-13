@@ -3393,6 +3393,7 @@ static bool restpkg_asked;
 static void sto_start(void) {
     sto_was_offline = !sto_online();
     store_lang(UI.set.lang);
+    store_system(update_current());
     store_open(UI.root, UI.set.update_channel, !sto_was_offline);
     sto_level = SL_CATS;
     sto_cat = sto_sel = 0;
@@ -3474,9 +3475,9 @@ static void sto_input(void) {
         store_join();
         sto_job = false;
         static const char *errk[] = { "", "store.err_network", "store.err_signature", "store.err_catalog", "store.err_space",
-                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned" };
+                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned", "store.err_system" };
         if (s->phase == ST_DONE) { ui_toast(T("store.done")); ui_sound(SND_OK); }
-        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_UNSIGNED ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
+        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_SYSTEM ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
         if (store_changed()) { reload_games(); sto_themes_refresh(); }
         return;
     }
@@ -3723,7 +3724,9 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
 /* installato: a colori e senza etichetta; non installato: in grigio; da aggiornare: a colori con
    l'etichetta; archiviato: in grigio con l'etichetta (giochi e salvataggi sono ancora lì) */
 static const char *sto_badge(const store_pkg_t *p) {
-    return p->state == PKG_UPDATE || p->state == PKG_OLD ? T("store.update") : p->state == PKG_ARCHIVED ? T("store.archived") : "";
+    if (p->state == PKG_UPDATE || p->state == PKG_OLD) return T("store.update");
+    if (p->state == PKG_ARCHIVED) return T("store.archived");
+    return "";
 }
 
 static bool sto_gray(const store_pkg_t *p) { return p->state == PKG_ABSENT || p->state == PKG_ARCHIVED; }
@@ -3875,6 +3878,12 @@ static void sto_draw(void) {
                 if (sto_no_data(&p)) snprintf(sub, sizeof sub, "%s", size);
                 else snprintf(sub, sizeof sub, "%s · %s", p.name, size);
                 sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_badge(&p), i == sto_sel, sto_gray(&p));
+                if (p.experimental) {   /* non ancora provato sulle console: etichetta arancione a sinistra, sempre */
+                    const char *ex = T("store.experimental");
+                    int bw = ui_text_w(fs, ex) + M(0.02f), bh = TTF_FontHeight(fs) + M(0.006f);
+                    ui_rrect(x + M(0.008f), yy + M(0.008f), bw, bh, bh / 2, rgba(230, 130, 20, 255));
+                    ui_text(fs, ex, x + M(0.008f) + bw / 2, yy + M(0.011f), rgba(255, 255, 255, 255), ALIGN_CENTER);
+                }
             }
         }
         ui_clip_pop();
@@ -3917,6 +3926,22 @@ static void sto_draw(void) {
         static const char *const stk[] = { "store.st_absent", "store.st_installed", "store.st_update", "store.st_old", "store.st_archived" };
         nl = ui_wrap(fs, T(stk[p.state >= 0 && p.state <= PKG_ARCHIVED ? p.state : 0]), tw, lines, 3);
         for (int k = 0; k < nl; k++, ty += fsh) ui_text(fs, lines[k], tx, ty, t->text, ALIGN_LEFT);
+        /* stato del pacchetto: da aggiornare prima il sistema, sperimentale, provato su quali modelli */
+        char note[200] = "";
+        if (p.needs_system) snprintf(note, sizeof note, T("store.needs_system"), p.min_system);
+        else if (p.experimental) snprintf(note, sizeof note, "%s", T("store.exp_note"));
+        else if (p.tested[0]) {
+            char models[80] = "";
+            if (strstr(p.tested, "smartpro")) snprintf(models, sizeof models, "Smart Pro");
+            if (strstr(p.tested, "brickpro")) { size_t l = strlen(models); snprintf(models + l, sizeof models - l, "%sBrick Pro", l ? ", " : ""); }
+            if (models[0]) snprintf(note, sizeof note, T("store.tested"), models);
+        }
+        if (note[0]) {
+            ty += M(0.008f);
+            nl = ui_wrap(fs, note, tw, lines, 2);
+            color_t nc = p.needs_system || p.experimental ? rgba(230, 130, 20, 255) : t->accent;
+            for (int k = 0; k < nl; k++, ty += fsh) ui_text(fs, lines[k], tx, ty, nc, ALIGN_LEFT);
+        }
         int bl[4], nb = sto_buttons(&p, bl), danger = -1;
         static const char *const bk[] = { "store.install", "store.do_update", "store.redownload", "store.archive", "store.delete" };
         const char *labels[4];
