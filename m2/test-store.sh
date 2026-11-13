@@ -233,6 +233,19 @@ check "Cores resta" "si" "$([ -d sd/Cores ] && echo si || echo no)"
 # catalogo firmato con un'altra chiave: si resta con quello sulla scheda
 mk 2 altra.pem
 check "firma sbagliata: errore, catalogo di prima" "2 2 3 files:0 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
+# catalogo e firma in un file solo (store.cat): la console legge quello, e una firma separata
+# vecchia o rovinata accanto non conta (13 nov: GitHub li ha serviti spaiati per due minuti)
+mk 2
+echo vecchia > www/store.sig
+check "store.cat valido con una firma separata sbagliata accanto: catalogo letto" "2 0 3" "$(./t $R list 2>/dev/null | cut -d' ' -f1-3)"
+mk 2
+printf 'MOSAIK-STORE 1 70\n' > www/store.cat
+check "store.cat tronco: valgono catalogo e firma separati" "2 0 3" "$(./t $R list 2>/dev/null | cut -d' ' -f1-3)"
+mk 2
+python3 - <<'P'
+p = "/tmp/store/www/store.cat"; b = bytearray(open(p, "rb").read()); b[-20] ^= 1; open(p, "wb").write(bytes(b))
+P
+check "store.cat con il catalogo manomesso: firma non valida" "2" "$(./t $R list 2>/dev/null | cut -d' ' -f2)"
 # percorso fuori dalle cartelle permesse: il catalogo intero non vale
 mk 2
 python3 - <<'P'
@@ -240,6 +253,7 @@ import json, subprocess
 p = "/tmp/store/www/store.json"; c = json.load(open(p)); c["packages"][0]["files"].append("../System/wifi.conf")
 t = json.dumps(c).encode(); open(p, "wb").write(t)
 open("/tmp/store/www/store.sig", "wb").write(subprocess.run(["openssl", "dgst", "-sha256", "-sign", "/tmp/store/key.pem", p], capture_output=True).stdout)
+import os; os.remove("/tmp/store/www/store.cat")   # qui si prova la coppia catalogo + firma
 P
 check "percorso pericoloso: catalogo rifiutato" "3" "$(./t $R list 2>/dev/null | cut -d' ' -f2)"
 # pacchetto copiato sulla scheda, senza rete

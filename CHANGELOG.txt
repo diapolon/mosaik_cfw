@@ -4,6 +4,8 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.46
+it Store: il catalogo arriva in un file solo, niente più «firma non valida» dopo una pubblicazione
+en Store: the catalogue comes in one file, no more "invalid signature" right after a publication
 it MSX: i BIOS originali si mettono in Bios/bluemsx
 en MSX: original BIOS files go in Bios/bluemsx
 

@@ -451,17 +451,45 @@ static bool load_cache(void) {
     return ok;
 }
 
+/* Catalogo e firma dalla rete. Prima store.cat, un file solo: "MOSAIK-STORE 1 <byte della firma>",
+   a capo, la firma, il catalogo. Così chi pubblica sostituisce un file e la console non può mai
+   ricevere il catalogo nuovo con la firma vecchia (13 nov: GitHub li ha serviti spaiati per due
+   minuti). Se store.cat non c'è (Release fatte prima, prove) valgono store.json e store.sig. */
+static bool fetch_pair(mem_t *t, mem_t *s) {
+    mem_t c = { malloc((1 << 20) + 1024), 0, (1 << 20) + 1024 };
+    bool got = false;
+    if (c.buf && get_mem("store.cat", &c)) {
+        const char *nl = memchr(c.buf, '\n', c.len < 64 ? c.len : 64);
+        unsigned sl = 0;
+        if (nl && sscanf(c.buf, "MOSAIK-STORE 1 %u", &sl) == 1 && sl > 0 && sl <= s->cap) {
+            size_t head = (size_t)(nl - c.buf) + 1;
+            if (c.len > head + sl && c.len - head - sl < t->cap) {
+                memcpy(s->buf, c.buf + head, sl);
+                s->len = sl;
+                t->len = c.len - head - sl;
+                memcpy(t->buf, c.buf + head + sl, t->len);
+                t->buf[t->len] = 0;
+                got = true;
+            }
+        }
+        if (!got) ui_log("store: store.cat non valido, provo catalogo e firma separati");
+    }
+    free(c.buf);
+    if (got) return true;
+    t->len = s->len = 0;
+    return get_mem("store.json", t) && get_mem("store.sig", s);
+}
+
 static void *fetch_worker(void *arg) {
     (void)arg;
     mem_t t = { malloc(1 << 20), 0, 1 << 20 }, s = { malloc(512), 0, 512 };
-    bool got = t.buf && s.buf && get_mem("store.json", &t) && get_mem("store.sig", &s);
+    bool got = t.buf && s.buf && fetch_pair(&t, &s);
     if (!got && t.buf && s.buf && fallback_url[0] && !st.cancel) {
         /* niente catalogo comune: quello del canale, da cui si scaricheranno anche i pacchetti */
         ui_log("store: catalogo comune non raggiunto, provo quello del canale");
         snprintf(base_url, sizeof base_url, "%s", fallback_url);
         fallback_url[0] = 0;
-        t.len = s.len = 0;
-        got = get_mem("store.json", &t) && get_mem("store.sig", &s);
+        got = fetch_pair(&t, &s);
     }
     entry_t *e = NULL;
     int n = 0;

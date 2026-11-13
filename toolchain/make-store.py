@@ -9,6 +9,7 @@ della scheda sotto Arcade/) e scrive in --out:
   store.json                         il catalogo: per ogni pacchetto nome, console, versione,
                                      misura, impronta SHA-256 e file installati
   store.sig                          la firma del catalogo (stessa chiave degli aggiornamenti)
+  store.cat                          firma e catalogo in un file solo: quello che legge la console
 La versione è l'impronta del contenuto: cambia solo se cambia un file. L'etichetta mostrata è il
 commit del core (o la versione di Deadcast). La console scarica catalogo e firma dallo stesso
 indirizzo degli aggiornamenti (canale Stabile o Sviluppo)."""
@@ -241,4 +242,8 @@ with tempfile.NamedTemporaryFile() as t:
     sig = subprocess.run(["openssl", "dgst", "-sha256", "-sign", args.key, t.name], check=True, capture_output=True).stdout
 open(os.path.join(args.out, "store.json"), "wb").write(text)
 open(os.path.join(args.out, "store.sig"), "wb").write(sig)
+# catalogo e firma in un file solo, per i sistemi dalla 0.9.46: sostituendolo non possono mai
+# arrivare spaiati (store.json e store.sig restano per i sistemi di prima e per i pacchetti copiati
+# sulla scheda)
+open(os.path.join(args.out, "store.cat"), "wb").write(b"MOSAIK-STORE 1 %d\n" % len(sig) + sig + text)
 print(f"Store: {len(catalog['packages'])} pacchetti in {args.out}")
