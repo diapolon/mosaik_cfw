@@ -1011,5 +1011,14 @@
     "no_resume": "senza ripresa: riparte da capo",
     "current": "In corso",
     "menu": "Cambia gioco"
+  },
+  "frag": {
+    "title": "Frammenti recuperati",
+    "body": "Il controllo della scheda ha salvato %d frammenti (%s)%s: di solito non servono.",
+    "when": ", %s",
+    "keep": "Tieni",
+    "delete": "Cancella",
+    "deleted": "Frammenti cancellati",
+    "failed": "Alcuni frammenti non si sono potuti cancellare"
   }
 }

@@ -1011,5 +1011,14 @@
     "no_resume": "sans reprise : repart du début",
     "current": "En cours",
     "menu": "Changer de jeu"
+  },
+  "frag": {
+    "title": "Fragments récupérés",
+    "body": "La vérification de la carte a gardé %d fragments (%s)%s : en général inutiles.",
+    "when": ", %s",
+    "keep": "Garder",
+    "delete": "Supprimer",
+    "deleted": "Fragments supprimés",
+    "failed": "Certains fragments n'ont pas pu être supprimés"
   }
 }

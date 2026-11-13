@@ -1011,5 +1011,14 @@
     "no_resume": "sem retomar: começa do início",
     "current": "A jogar",
     "menu": "Mudar de jogo"
+  },
+  "frag": {
+    "title": "Fragmentos recuperados",
+    "body": "A verificação do cartão guardou %d fragmentos (%s)%s: normalmente não são precisos.",
+    "when": ", %s",
+    "keep": "Manter",
+    "delete": "Apagar",
+    "deleted": "Fragmentos apagados",
+    "failed": "Não foi possível apagar alguns fragmentos"
   }
 }

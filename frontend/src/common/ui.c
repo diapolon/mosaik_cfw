@@ -1827,9 +1827,9 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     crash_handlers();
     settings_load(&UI.set, root);
     crash_fd_open();
+    settings_apply_tz(&UI.set);   /* prima della prima riga del log: l'ora è già quella del fuso */
     ui_log("---- avvio %s", app);
     ui_mark("inizio");
-    settings_apply_tz(&UI.set);
     if (plat_standalone()) settings_save_tz_for_boot(&UI.set, root);
     lang_load(root, UI.set.lang);
     UI.automation = auto_script && *auto_script;
@@ -1978,8 +1978,8 @@ bool ui_init_offscreen(const char *app, const char *root) {
     snprintf(p, sizeof p, "%s/Logs/%s.log", root, app);
     snprintf(log_path, sizeof log_path, "%s", p);
     settings_load(&UI.set, root);
-    ui_log("---- avvio %s (fuori schermo)", app);
     settings_apply_tz(&UI.set);
+    ui_log("---- avvio %s (fuori schermo)", app);
     lang_load(root, UI.set.lang);
     /* solo tasti: lo schermo e l'audio restano al gioco */
     if (SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK) != 0) {

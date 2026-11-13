@@ -117,12 +117,31 @@ static bool pkg_owned(const char *rel) {
     return false;
 }
 
+/* Frammenti salvati dal controllo della scheda (FSCK0000.REC, FSCK0000.000, FILE0000.CHK) nella
+   cartella principale della scheda, sopra Arcade ("..": voce "Scheda SD" dalla 1.9). Lì tutto è
+   in sola lettura tranne loro, che si possono cancellare. */
+static bool frag_name(const char *n) {
+    size_t l = strlen(n);
+    if (l != 12 || n[8] != '.') return false;
+    bool fsck = !strncasecmp(n, "FSCK", 4), file = !strncasecmp(n, "FILE", 4);
+    if (!fsck && !file) return false;
+    for (int i = 4; i < 8; i++) if (n[i] < '0' || n[i] > '9') return false;
+    const char *e = n + 9;
+    if (file) return !strcasecmp(e, "CHK");
+    return !strcasecmp(e, "REC") || (e[0] >= '0' && e[0] <= '9' && e[1] >= '0' && e[1] <= '9' && e[2] >= '0' && e[2] <= '9');
+}
+
 /* si può modificare la voce rel (copiarla si può sempre): dentro una cartella scrivibile, non
-   la cartella principale stessa, e non parte di un pacchetto dello Store */
-static bool can_modify(const char *rel) { return in_writable(rel) && strchr(rel, '/') && !pkg_owned(rel); }
+   la cartella principale stessa, e non parte di un pacchetto dello Store; sopra Arcade solo i
+   frammenti */
+static bool can_modify(const char *rel) {
+    if (!strncmp(rel, "../", 3)) return !strchr(rel + 3, '/') && frag_name(rel + 3);
+    return in_writable(rel) && strchr(rel, '/') && !pkg_owned(rel);
+}
 
 static bool hidden(const char *dir_rel, const char *name) {
     if (name[0] == '.') return true;
+    if (!strcmp(dir_rel, "..") && !strcasecmp(name, "Arcade")) return true;   /* ci si torna con B */
     if (!strcasecmp(dir_rel, "System") && (!strcasecmp(name, "wifi.conf") || !strcasecmp(name, "fileserver-browsers.txt"))) return true;
     return false;
 }
@@ -172,6 +191,18 @@ static void reload(const char *keep) {
         x->ro = cwd[0] ? !can_modify(rel) : !in_writable(rel);
     }
     if (d) closedir(d);
+    /* nella cartella Arcade, in cima, la cartella principale della scheda */
+    if (!cwd[0] && nents == cap_ents) {
+        ent_t *ne = realloc(ents, (size_t)(cap_ents + 16) * sizeof *ne);
+        if (ne) { ents = ne; cap_ents += 16; }
+    }
+    if (!cwd[0] && nents < cap_ents) {
+        ent_t *x = &ents[nents++];
+        memset(x, 0, sizeof *x);
+        snprintf(x->name, sizeof x->name, "%s", "..");
+        x->dir = true;
+        x->ro = true;
+    }
     if (cut) { ui_log("file: elenco di %s incompleto", cwd); ui_toast(FT("files.list_incomplete")); }
     if (nents > 1) qsort(ents, (size_t)nents, sizeof *ents, ent_cmp);
     if (sel >= nents) sel = nents ? nents - 1 : 0;
@@ -886,7 +917,8 @@ static void list_draw(void) {
     /* percorso e spazio libero */
     int py = M(t->topbar_h) + M(0.02f);
     char path[1600] = "Arcade", fit[1600], sp[48], free_s[64];
-    for (const char *c = cwd, *s; *c; c = *s ? s + 1 : s) {   /* "Arcade / Roms / FBNEO" */
+    if (!strncmp(cwd, "..", 2)) snprintf(path, sizeof path, "%s", FT("files.card"));   /* sopra Arcade */
+    else for (const char *c = cwd, *s; *c; c = *s ? s + 1 : s) {   /* "Arcade / Roms / FBNEO" */
         s = c + strcspn(c, "/");
         size_t l = strlen(path);
         snprintf(path + l, sizeof path - l, " / %.*s", (int)(s - c), c);
@@ -932,7 +964,7 @@ static void list_draw(void) {
                 rw += ls + M(0.015f);
                 lock_icon(mx + W - rw, ry + (rh - ls) / 2, ls, on ? t->accent_text : t->text_dim, on ? t->accent : t->bg);
             }
-            ui_text_fit(fn, e->name, W - is - M(0.03f) - rw - M(0.03f), fit, sizeof fit);
+            ui_text_fit(fn, strcmp(e->name, "..") ? e->name : FT("files.card"), W - is - M(0.03f) - rw - M(0.03f), fit, sizeof fit);
             ui_text(fn, fit, ix + is + M(0.02f), ry + (rh - fnh) / 2, tc, ALIGN_LEFT);
         }
         if (nents > vis) {   /* barra di scorrimento */

@@ -1011,5 +1011,14 @@
     "no_resume": "sin reanudar: empieza desde el principio",
     "current": "En curso",
     "menu": "Cambiar de juego"
+  },
+  "frag": {
+    "title": "Fragmentos recuperados",
+    "body": "La comprobación de la tarjeta guardó %d fragmentos (%s)%s: no suelen hacer falta.",
+    "when": ", %s",
+    "keep": "Conservar",
+    "delete": "Borrar",
+    "deleted": "Fragmentos borrados",
+    "failed": "Algunos fragmentos no se pudieron borrar"
   }
 }

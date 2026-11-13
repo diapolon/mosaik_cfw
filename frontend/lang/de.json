@@ -1011,5 +1011,14 @@
     "no_resume": "ohne Fortsetzen: beginnt von vorn",
     "current": "Läuft",
     "menu": "Spiel wechseln"
+  },
+  "frag": {
+    "title": "Gerettete Fragmente",
+    "body": "Die Kartenprüfung hat %d Fragmente (%s) gesichert%s: meist unnötig.",
+    "when": ", %s",
+    "keep": "Behalten",
+    "delete": "Löschen",
+    "deleted": "Fragmente gelöscht",
+    "failed": "Einige Fragmente ließen sich nicht löschen"
   }
 }

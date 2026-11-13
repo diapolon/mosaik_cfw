@@ -547,7 +547,9 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3, CFM_STORE, CFM_PKG, CFM_RESTPKG };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3, CFM_STORE, CFM_PKG, CFM_RESTPKG, CFM_FRAG };
+static void frag_keep(void);
+static void frag_delete(void);
 static double cfm_hold;
 /* pacchetti dello Store copiati sulla scheda (domanda all'avvio), e invito allo Store senza emulatori */
 static bool pkg_checked, store_asked;
@@ -6750,6 +6752,7 @@ static void cfm_input(void) {
     if (r < 0) return;
     int k = cfm_kind;
     cfm_kind = CFM_NONE;
+    if (k == CFM_FRAG && r == 0) { frag_keep(); return; }   /* "Tieni": non si chiede più per questi */
     if (r != 1) return;
     if (k == CFM_COLL) {
         if (games_delete_coll(UI.root, cp_sel, games, ngames)) {
@@ -6772,6 +6775,8 @@ static void cfm_input(void) {
     } else if (k == CFM_RESTPKG) {   /* dopo un ripristino: emulatori e app del backup */
         sto_start();
         sto_batch = true;
+    } else if (k == CFM_FRAG) {
+        frag_delete();
     } else if (k == CFM_PKG) {   /* pacchetto copiato sulla scheda */
         char msg[160];
         snprintf(msg, sizeof msg, T("store.working"), pkg_name);
@@ -6795,7 +6800,105 @@ static void cfm_input(void) {
     }
 }
 
+/* ------------------------------------------------- frammenti recuperati
+   Il controllo della scheda all'avvio (fsck.fat, dopo uno spegnimento brusco) salva i pezzi di
+   file rimasti senza nome come FSCK0000.REC nella cartella principale della scheda, fuori da
+   Arcade: dalla console non li vedeva nessuno. Una volta per avvio, se ce ne sono di nuovi, si
+   chiede se cancellarli; "Tieni" li ricorda in System/frammenti-visti.txt (nome e misura). */
+#define FRAG_MAX 512
+static char frag_dir[1100];
+static char (*frag_names)[64];
+static long long frag_sizes[FRAG_MAX];
+static int nfrag;
+static long long frag_bytes;
+static bool frag_checked;
+
+static bool frag_name(const char *n) {
+    size_t l = strlen(n);
+    if (l != 12 || n[8] != '.') return false;
+    bool fsck = !strncasecmp(n, "FSCK", 4), file = !strncasecmp(n, "FILE", 4);
+    if (!fsck && !file) return false;
+    for (int i = 4; i < 8; i++) if (n[i] < '0' || n[i] > '9') return false;
+    const char *e = n + 9;
+    if (file) return !strcasecmp(e, "CHK");
+    return !strcasecmp(e, "REC") || (e[0] >= '0' && e[0] <= '9' && e[1] >= '0' && e[1] <= '9' && e[2] >= '0' && e[2] <= '9');
+}
+
+/* frammenti nuovi (non già tenuti) nella cartella principale della scheda: quanti */
+static int frag_find(void) {
+    nfrag = 0;
+    frag_bytes = 0;
+    /* la scheda è la cartella sopra Arcade; sul Mac (sdcard) non c'è */
+    const char *b = strrchr(UI.root, '/');
+    if (!b || strcasecmp(b + 1, "Arcade")) return 0;
+    snprintf(frag_dir, sizeof frag_dir, "%.*s", (int)(b - UI.root), UI.root);
+    if (!frag_names && !(frag_names = malloc(sizeof *frag_names * FRAG_MAX))) return 0;
+    char seen[16384] = "", p[1200];
+    snprintf(p, sizeof p, "%s/System/frammenti-visti.txt", UI.root);
+    FILE *f = fopen(p, "r");
+    if (f) { size_t n = fread(seen, 1, sizeof seen - 1, f); seen[n] = 0; fclose(f); }
+    DIR *d = opendir(frag_dir);
+    struct dirent *e;
+    bool fresh = false;
+    while (d && (e = readdir(d)) && nfrag < FRAG_MAX) {
+        if (!frag_name(e->d_name)) continue;
+        char q[1400];
+        struct stat sb;
+        snprintf(q, sizeof q, "%s/%s", frag_dir, e->d_name);
+        if (stat(q, &sb) != 0 || !S_ISREG(sb.st_mode)) continue;
+        snprintf(frag_names[nfrag], 64, "%s", e->d_name);
+        frag_sizes[nfrag] = (long long)sb.st_size;
+        frag_bytes += sb.st_size;
+        char key[96];
+        snprintf(key, sizeof key, "%s %lld\n", e->d_name, (long long)sb.st_size);
+        if (!strstr(seen, key)) fresh = true;
+        nfrag++;
+    }
+    if (d) closedir(d);
+    if (nfrag) ui_log("frammenti recuperati dal controllo della scheda: %d (%lld KB)%s", nfrag, frag_bytes >> 10, fresh ? "" : ", già tenuti");
+    return fresh ? nfrag : 0;
+}
+
+static void frag_keep(void) {
+    char p[1200];
+    snprintf(p, sizeof p, "%s/System/frammenti-visti.txt", UI.root);
+    FILE *f = fopen(p, "w");
+    for (int i = 0; f && i < nfrag; i++) fprintf(f, "%s %lld\n", frag_names[i], frag_sizes[i]);
+    if (f) fclose(f);
+}
+
+static void frag_delete(void) {
+    int bad = 0;
+    for (int i = 0; i < nfrag; i++) {
+        char q[1400];
+        snprintf(q, sizeof q, "%s/%s", frag_dir, frag_names[i]);
+        if (unlink(q) != 0) bad++;
+    }
+    sync();
+    ui_log("frammenti cancellati: %d di %d", nfrag - bad, nfrag);
+    char p[1200];
+    snprintf(p, sizeof p, "%s/System/frammenti-visti.txt", UI.root);
+    remove(p);
+    ui_toast(T(bad ? "frag.failed" : "frag.deleted"));
+}
+
 static void cfm_draw(void) {
+    if (cfm_kind == CFM_FRAG) {
+        char sz[32], body[600], when[96] = "", p[1200];
+        snprintf(p, sizeof p, "%s/Logs/fsck.txt", UI.root);
+        struct stat sb;
+        if (stat(p, &sb) == 0) {   /* il controllo che li ha creati, se l'avvio l'ha registrato */
+            char w[48];
+            when_text(sb.st_mtime, w, sizeof w);
+            snprintf(when, sizeof when, T("frag.when"), w);
+        }
+        long long kb = frag_bytes >> 10;
+        if (kb >= 1024) snprintf(sz, sizeof sz, "%.1f MB", frag_bytes / 1048576.0);
+        else snprintf(sz, sizeof sz, "%lld KB", kb);
+        snprintf(body, sizeof body, T("frag.body"), nfrag, sz, when);
+        ui_confirm_draw(T("frag.title"), body, T("frag.keep"), T("frag.delete"), cfm_sel);
+        return;
+    }
     if (cfm_kind == CFM_RESTART) ui_confirm_draw(T("dialog.restart_title"), T("dialog.power_body"), T("common.cancel"), T("common.restart"), cfm_sel);
     else if (cfm_kind == CFM_RESETSET) ui_confirm_draw(T("reset_all.settings_title"), T("reset_all.settings_body"), T("common.cancel"), T("reset_all.settings_go"), cfm_sel);
     else if (cfm_kind == CFM_ERASE) ui_confirm_draw(T("reset_all.erase_title"), T("reset_all.erase_body"), T("common.cancel"), T("reset_all.erase_go"), cfm_sel);
@@ -8274,6 +8377,12 @@ int main(int argc, char **argv) {
                 cfm_kind = CFM_PKG;
                 cfm_sel = 1;
             }
+        }
+        /* frammenti recuperati dal controllo della scheda: una volta per avvio, se ce ne sono di nuovi */
+        if (pkg_checked && !frag_checked && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
+            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open) {
+            frag_checked = true;
+            if (!rec_pending && frag_find()) { cfm_kind = CFM_FRAG; cfm_sel = 1; }
         }
         /* dopo un ripristino: una volta per avvio, a Wi-Fi collegato, rimettere i pacchetti del backup
            (prima dell'invito della scheda senza emulatori, che allora non serve) */

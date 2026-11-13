@@ -1011,5 +1011,14 @@
     "no_resume": "no resume: starts from the beginning",
     "current": "Playing",
     "menu": "Switch game"
+  },
+  "frag": {
+    "title": "Recovered fragments",
+    "body": "The card check saved %d fragments (%s)%s: usually not needed.",
+    "when": ", %s",
+    "keep": "Keep",
+    "delete": "Delete",
+    "deleted": "Fragments deleted",
+    "failed": "Some fragments could not be deleted"
   }
 }
