@@ -4,7 +4,6 @@
     "mupen64plus",
     "ppsspp",
     "music",
-    "sdtest",
     "fuse",
     "bluemsx",
     "vice",
@@ -47,6 +46,9 @@
     ],
     "deadcast": [
       "smartpro",
+      "brickpro"
+    ],
+    "sdtest": [
       "brickpro"
     ]
   },
