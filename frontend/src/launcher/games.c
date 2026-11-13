@@ -74,7 +74,8 @@ int emulators_load(const char *root) {
             { "ngp", "SNK", "1998" }, { "ps", "Sony", "1994" }, { "a2600", "Atari", "1977" },
             { "a7800", "Atari", "1986" }, { "lynx", "Atari", "1989" }, { "coleco", "Coleco", "1982" },
             { "intv", "Mattel", "1979" }, { "ws", "Bandai", "1999" }, { "wsc", "Bandai", "2000" },
-            { "pokemini", "Nintendo", "2001" }, { "vb", "Nintendo", "1995" }, { "scummvm", "ScummVM", "2001" }, { "psp", "Sony", "2004" }, { "n64", "Nintendo", "1996" } };
+            { "pokemini", "Nintendo", "2001" }, { "vb", "Nintendo", "1995" }, { "scummvm", "ScummVM", "2001" }, { "psp", "Sony", "2004" }, { "n64", "Nintendo", "1996" },
+            { "zx", "Sinclair", "1982" }, { "msx", "ASCII · Microsoft", "1983" }, { "c64", "Commodore", "1982" } };
         for (size_t k = 0; k < sizeof known / sizeof *known; k++)
             if (!strcmp(m->id, known[k].id)) { snprintf(m->maker, sizeof m->maker, "%s", known[k].maker); snprintf(m->year, sizeof m->year, "%s", known[k].year); }
         if (json_get(j, "maker")) snprintf(m->maker, sizeof m->maker, "%s", json_str(j, "maker", ""));

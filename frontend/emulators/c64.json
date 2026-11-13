@@ -1,0 +1,20 @@
+{
+  "name": "Commodore 64",
+  "core": "vice_x64_libretro",
+  "roms": "Roms/C64",
+  "extensions": [
+    "d64",
+    "t64",
+    "tap",
+    "prg",
+    "crt",
+    "g64",
+    "d81",
+    "zip"
+  ],
+  "kind": "console",
+  "art": "pc",
+  "short": "C64",
+  "thumbnails": "Commodore - 64",
+  "order": 78
+}

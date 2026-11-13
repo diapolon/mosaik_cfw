@@ -1,0 +1,19 @@
+{
+  "name": "MSX",
+  "core": "bluemsx_libretro",
+  "roms": "Roms/MSX",
+  "extensions": [
+    "rom",
+    "mx1",
+    "mx2",
+    "dsk",
+    "cas",
+    "zip"
+  ],
+  "system_dir": "Cores/bluemsx",
+  "kind": "console",
+  "art": "pc",
+  "short": "MSX",
+  "thumbnails": "Microsoft - MSX",
+  "order": 77
+}

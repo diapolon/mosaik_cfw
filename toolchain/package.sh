@@ -68,6 +68,21 @@ if [ -f "$DIST/ppsspp/PPSSPPSDL" ]; then
 else
     echo "attenzione: manca PPSSPP (toolchain/build-ppsspp.sh): niente pacchetto PSP" >&2
 fi
+# Computer leggeri (cartella Computer dello Store): ZX Spectrum, MSX, Commodore 64
+[ -f "$DIST/cores/fuse_libretro.so" ] && pkg fuse fuse_libretro.so fuse_libretro.so zx
+[ -f "$DIST/cores/vice_x64_libretro.so" ] && pkg vice vice_x64_libretro.so vice_x64_libretro.so c64
+# MSX: blueMSX vuole le definizioni delle macchine e i suoi archivi in <sistema>/Machines e
+# /Databases. Si portano solo le macchine C-BIOS (BIOS libero, licenza in cbios.txt) e le
+# definizioni senza ROM di MSX, MSX2 e MSX2+: i BIOS originali NON si distribuiscono (il core passa
+# da solo a C-BIOS se mancano); chi li ha li mette in Bios/bluemsx (runner, emulator_sysdir)
+if [ -f "$DIST/cores/bluemsx_libretro.so" ]; then
+    pkg bluemsx bluemsx_libretro.so bluemsx_libretro.so msx
+    BM="$TOP/deps/blueMSX-libretro/system/bluemsx"
+    mkdir -p "$PKG/bluemsx/Cores/bluemsx/Machines"
+    cp -R "$BM/Databases" "$PKG/bluemsx/Cores/bluemsx/"
+    for m in "MSX - C-BIOS" "MSX2 - C-BIOS" "MSX2+ - C-BIOS"; do cp -R "$BM/Machines/$m" "$PKG/bluemsx/Cores/bluemsx/Machines/"; done
+    for m in MSX MSX2 "MSX2+"; do mkdir -p "$PKG/bluemsx/Cores/bluemsx/Machines/$m"; cp "$BM/Machines/$m/config.ini" "$PKG/bluemsx/Cores/bluemsx/Machines/$m/"; done
+fi
 # Nintendo 64: mupen64plus, programma a sé (toolchain/build-mupen64plus.sh) con il core, i plugin
 # e i suoi dati, avviato da Cores/mupen64plus/launch.sh; comandi iniziali in mupen64plus.cfg
 if [ -f "$DIST/mupen64plus/mupen64plus" ]; then

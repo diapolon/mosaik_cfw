@@ -304,7 +304,17 @@ static void emulator_sysdir(char *out, size_t n) {
         snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
         jval *j = json_load(p);
         const char *sd = j && !strcmp(json_str(j, "core", ""), base) ? json_str(j, "system_dir", "") : "";
-        if (sd[0] && sd[0] != '/' && !strstr(sd, "..")) snprintf(out, n, "%s/%s", root, sd);
+        if (sd[0] && sd[0] != '/' && !strstr(sd, "..")) {
+            snprintf(out, n, "%s/%s", root, sd);
+            /* i BIOS veri li mette l'utente, e nella cartella del pacchetto non può scrivere: se c'è
+               Bios/<nome> con la stessa struttura vale quella (MSX: Bios/bluemsx/Machines con i BIOS
+               originali al posto di C-BIOS) */
+            const char *b = strrchr(sd, '/');
+            char user[1300];
+            struct stat ub;
+            snprintf(user, sizeof user, "%s/Bios/%s", root, b ? b + 1 : sd);
+            if (stat(user, &ub) == 0 && S_ISDIR(ub.st_mode)) { snprintf(out, n, "%s", user); ui_log("cartella di sistema dell'utente: %s", user); }
+        }
         json_free(j);
     }
     if (d) closedir(d);

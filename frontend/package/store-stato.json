@@ -1,6 +1,15 @@
 {
   "_": "Stato dei pacchetti nel catalogo dello Store (toolchain/make-store.py), uguale per i canali Stabile e Sviluppo. experimental: si installa ma non è ancora provato sulle console. tested: modelli su cui l'ha provato chi usa la console (smartpro, brickpro). min_system: versione del sistema da cui funziona.",
-  "experimental": ["mupen64plus", "ppsspp", "viewer", "music", "sdtest"],
+  "experimental": [
+    "mupen64plus",
+    "ppsspp",
+    "viewer",
+    "music",
+    "sdtest",
+    "fuse",
+    "bluemsx",
+    "vice"
+  ],
   "tested": {},
   "min_system": {
     "scummvm": "0.9.35",
@@ -8,6 +17,7 @@
     "tema-stellato": "0.9.32",
     "cornici-portatili": "0.9.37",
     "cornici-tv": "0.9.37",
-    "cornici-arcade": "0.9.37"
+    "cornici-arcade": "0.9.37",
+    "bluemsx": "0.9.35"
   }
 }

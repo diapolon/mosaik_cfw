@@ -53,7 +53,10 @@ PACKAGES = {
     "wswan": ("Beetle WonderSwan", "wswan", "console"),
     "pokemini": ("PokeMini", "pokemini", "console"),
     "vb": ("Beetle VB", "vb", "console"),
-    "scummvm": ("ScummVM", "scummvm", "computer"),   # cartella Computer (i sistemi fino alla 0.9.36 la mettono in Console)
+    "scummvm": ("ScummVM", "scummvm", "computer"),
+    "fuse": ("Fuse", "fuse", "computer"),
+    "bluemsx": ("blueMSX", "bluemsx", "computer"),
+    "vice": ("VICE", "vice", "computer"),   # cartella Computer (i sistemi fino alla 0.9.36 la mettono in Console)
     "ppsspp": ("PPSSPP", "ppsspp", "console"),
     "mupen64plus": ("Mupen64Plus", None, "console"),   # etichetta: commit del core in deps/mupen64plus
     "files": ("Files", None, "apps"),   # app: nome, versione e traduzioni da Apps/<id>/app.json
