@@ -66,6 +66,6 @@ $(OUT)/bin:
 # sulla console non arriva in un'immagine (verifica audit)
 FW_GLIBC ?= $(shell for l in /build/fw/*/root/lib/libc.so.6; do [ -e $$l ] && strings $$l | grep -oE '^GLIBC_2\.[0-9]+' | sort -Vu | tail -1; done | sort -V | head -1 | sed 's/GLIBC_//')
 check: all
-	@sh ../toolchain/check-glibc.sh "$(FW_GLIBC)" $(OUT)/bin/* $(OUT)/apps/* $(wildcard $(OUT)/cores/*.so) $(wildcard $(OUT)/ppsspp/PPSSPPSDL)
+	@sh ../toolchain/check-glibc.sh "$(FW_GLIBC)" $(OUT)/bin/* $(OUT)/apps/* $(wildcard $(OUT)/cores/*.so) $(wildcard $(OUT)/ppsspp/PPSSPPSDL) $(wildcard $(OUT)/mupen64plus/mupen64plus) $(wildcard $(OUT)/mupen64plus/lib/*)
 
 .PHONY: all check

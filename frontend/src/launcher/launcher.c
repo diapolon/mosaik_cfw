@@ -1767,7 +1767,7 @@ static void draw_handheld(int x, int y, int w, int h, color_t c, const char *nam
 /* Console da casa riconoscibili dalla forma, senza marchi: NES (scatola con sportello),
    Super Nintendo (arrotondata, cursori, controller a osso), Mega Drive (nera con la cupola),
    Master System (cuneo nero con le righe), PC Engine (cubetto bianco con la HuCard). */
-enum { CON_NES, CON_SNES, CON_MD, CON_SMS, CON_PCE };
+enum { CON_NES, CON_SNES, CON_MD, CON_SMS, CON_PCE, CON_2600, CON_7800, CON_COLECO, CON_INTV, CON_N64 };
 
 #define PX(p) (x + w * (p) / 100)
 #define PY(p) (y + h * (p) / 100)
@@ -1886,6 +1886,112 @@ static void draw_home_console(int kind, int x, int y, int w, int h, color_t c, c
         con_dpad(px + pw * 22 / 100, py + ph / 2, ph * 26 / 100, hexc(0x5A5B63));
         int bs = ph * 26 / 100;
         for (int k = 0; k < 2; k++) ui_rrect(px + pw * (62 + k * 18) / 100 - bs / 2, py + ph / 2 - bs / 2, bs, bs, 2, hexc(0x8A8B93));
+        break;
+    }
+    case CON_2600: {   /* scatola bassa: sopra nero a coste, davanti legno, levette cromate, joystick */
+        color_t wood = hexc(0x8A5A2E), wood2 = hexc(0x6E4521), ribs = hexc(0x2A2A2E), chrome = hexc(0xC8C9CF);
+        int by = PY(24), bh = h * 44 / 100, cw = w * 34 / 100, ch = h * 24 / 100, cx = x + (w - cw) / 2;
+        con_cart(cx, PY(2), cw, ch, r, hexc(0x2C2D33), c, name);
+        ui_rrect(x, by + h / 50, w, bh, r / 2 + 1, hexc(0x0E0F12));
+        ui_rrect(x, by, w, bh, r / 2 + 1, black);
+        for (int k = 0; k < 6; k++) ui_rect(PX(4), by + bh * (14 + k * 8) / 100, w * 92 / 100, bh / 28 + 1, ribs);
+        ui_rect(cx - w / 60, by, cw + w / 30, bh * 10 / 100 + 1, hexc(0x0A0A0C));
+        ui_rect(x, by + bh * 66 / 100, w, bh * 34 / 100, wood);
+        for (int k = 0; k < 3; k++) ui_rect(x, by + bh * (72 + k * 9) / 100, w, bh / 40 + 1, wood2);
+        for (int k = 0; k < 6; k++) {   /* le levette: tre a sinistra, tre a destra */
+            int lx = PX(k < 3 ? 8 + k * 9 : 66 + (k - 3) * 9), ly = by + bh * 50 / 100;
+            ui_rect(lx, ly, w * 5 / 100, bh * 6 / 100 + 1, hexc(0x55565E));
+            ui_rect(lx + w * 2 / 100, ly - bh * 12 / 100, w / 100 + 1, bh * 12 / 100, chrome);
+        }
+        int pw = w * 26 / 100, ph = h * 22 / 100, px = PX(64), py = y + h - ph;
+        plat_line(PX(30), by + bh, px + pw / 2, py + ph * 70 / 100, lw1, cable);
+        ui_rrect(px, py + ph * 40 / 100, pw, ph * 60 / 100, 3, black);
+        ui_rect(px + pw * 44 / 100, py, pw * 12 / 100, ph * 50 / 100, hexc(0x33343A));
+        ui_circle(px + pw / 2, py, pw * 9 / 100 + 1, hexc(0x33343A));
+        ui_circle(px + pw * 18 / 100, py + ph * 58 / 100, pw * 8 / 100 + 1, hexc(0xD0403A));
+        break;
+    }
+    case CON_7800: {   /* cuneo nero basso con la fascia d'acciaio e i tasti rettangolari */
+        color_t steel = hexc(0xB9BBC2), top = hexc(0x26272D);
+        int by = PY(30), bh = h * 38 / 100, cw = w * 34 / 100, ch = h * 26 / 100, cx = x + (w - cw) / 2;
+        con_cart(cx, PY(6), cw, ch, r, hexc(0x2C2D33), c, name);
+        plat_quad(PX(6), by, PX(94), by, x + w, by + bh, x, by + bh, black);
+        plat_quad(PX(6), by, PX(94), by, PX(97), by + bh * 45 / 100, PX(3), by + bh * 45 / 100, top);
+        ui_rect(cx - w / 60, by, cw + w / 30, bh * 10 / 100 + 1, hexc(0x0A0A0C));
+        ui_rect(PX(2), by + bh * 52 / 100, w * 96 / 100, bh * 16 / 100, steel);
+        ui_rect(PX(2), by + bh * 66 / 100, w * 96 / 100, bh / 30 + 1, c);
+        for (int k = 0; k < 4; k++) ui_rrect(PX(8 + k * 9), by + bh * 55 / 100, w * 6 / 100, bh * 9 / 100, 1, hexc(0x55565E));
+        ui_circle(PX(88), by + bh * 60 / 100, bh / 22 + 1, hexc(0xE04848));
+        int pw = w * 44 / 100, ph = h * 20 / 100, px = PX(50), py = y + h - ph;
+        plat_line(PX(30), by + bh, px + pw * 15 / 100, py + ph / 2, lw1, cable);
+        ui_rrect(px, py, pw, ph, ph / 5 + 1, black);
+        con_dpad(px + pw * 22 / 100, py + ph / 2, ph * 26 / 100, hexc(0x6A6B74));
+        for (int k = 0; k < 2; k++) ui_circle(px + pw * (66 + k * 16) / 100, py + ph / 2, ph * 13 / 100 + 1, steel);
+        break;
+    }
+    case CON_COLECO: {   /* scatola nera con le due sedi dei controller: tastierino e manopola */
+        color_t slot = hexc(0x0E0F12), key = hexc(0x8A8B93), gold = hexc(0xC9A24A);
+        int by = PY(26), bh = h * 52 / 100, cw = w * 42 / 100, ch = h * 24 / 100, cx = PX(5);
+        con_cart(cx, PY(3), cw, ch, r, hexc(0x2C2D33), c, name);
+        ui_rrect(x, by + h / 50, w, bh, r / 2 + 1, slot);
+        ui_rrect(x, by, w, bh, r / 2 + 1, black);
+        ui_rect(cx - w / 60, by, cw + w / 30, bh * 9 / 100 + 1, slot);
+        ui_rect(PX(4), by + bh * 22 / 100, w * 40 / 100, bh / 30 + 1, gold);
+        ui_rrect(PX(6), by + bh * 34 / 100, w * 10 / 100, bh * 10 / 100, 2, c);
+        ui_rrect(PX(20), by + bh * 34 / 100, w * 10 / 100, bh * 10 / 100, 2, hexc(0x55565E));
+        for (int p2 = 0; p2 < 2; p2++) {   /* i due controller nelle loro sedi, a destra */
+            int sx = PX(52 + p2 * 24), sy = by + bh * 12 / 100, sw = w * 20 / 100, shh = bh * 80 / 100;
+            ui_rrect(sx, sy, sw, shh, 3, slot);
+            ui_rrect(sx + sw / 10, sy + shh / 20, sw * 8 / 10, shh * 9 / 10, 3, hexc(0x2A2B31));
+            ui_circle(sx + sw / 2, sy + shh * 22 / 100, sw * 22 / 100, hexc(0x3A3B42));
+            ui_circle(sx + sw / 2, sy + shh * 22 / 100, sw * 9 / 100 + 1, key);
+            for (int k = 0; k < 12; k++)
+                ui_rect(sx + sw * (22 + (k % 3) * 22) / 100, sy + shh * (46 + (k / 3) * 12) / 100, sw * 14 / 100, shh * 7 / 100, key);
+        }
+        break;
+    }
+    case CON_INTV: {   /* mobiletto marrone col frontale dorato e i due controller a disco appoggiati sopra */
+        color_t wood = hexc(0x7A4E2A), wood2 = hexc(0x5E3B1E), gold = hexc(0xC9A24A), dark = hexc(0x2A2B31);
+        int by = PY(22), bh = h * 58 / 100;
+        ui_rrect(x, by + h / 50, w, bh, r / 2 + 1, hexc(0x0E0F12));
+        ui_rrect(x, by, w, bh, r / 2 + 1, wood);
+        for (int k = 0; k < 3; k++) ui_rect(x, by + bh * (80 + k * 6) / 100, w, bh / 44 + 1, wood2);
+        ui_rect(PX(3), by + bh * 60 / 100, w * 94 / 100, bh * 18 / 100, gold);
+        con_label(PX(26), by + bh * 60 / 100, w * 48 / 100, bh * 18 / 100, 1, mix(c, black, 0.35f), name);
+        ui_rrect(PX(4), by + bh * 6 / 100, w * 92 / 100, bh * 50 / 100, 3, dark);
+        for (int p2 = 0; p2 < 2; p2++) {   /* controller: tastierino sopra, disco dorato sotto */
+            int sx = PX(10 + p2 * 46), sy = by + bh * 9 / 100, sw = w * 34 / 100, shh = bh * 44 / 100;
+            ui_rrect(sx, sy, sw, shh, 3, hexc(0x3A3B42));
+            for (int k = 0; k < 12; k++)
+                ui_rect(sx + sw * (8 + (k % 6) * 8) / 100, sy + shh * (18 + (k / 6) * 26) / 100, sw * 5 / 100, shh * 16 / 100, hexc(0x8A8B93));
+            ui_circle(sx + sw * 78 / 100, sy + shh / 2, shh * 34 / 100, gold);
+            ui_circle(sx + sw * 78 / 100, sy + shh / 2, shh * 12 / 100, mix(gold, black, 0.35f));
+        }
+        ui_circle(PX(8), by + bh * 90 / 100, bh / 26 + 1, hexc(0xE04848));
+        break;
+    }
+    case CON_N64: {   /* corpo scuro bombato con quattro porte, cartuccia grigia, controller a tre impugnature */
+        color_t body = hexc(0x34363E), top = hexc(0x44464F), grey = hexc(0x9A9CA5);
+        int by = PY(30), bh = h * 38 / 100, cw = w * 40 / 100, ch = h * 30 / 100, cx = x + (w - cw) / 2;
+        con_cart(cx, PY(2), cw, ch, r, grey, c, name);
+        ui_rrect(x, by + h / 50, w, bh, w / 8, hexc(0x0E0F12));
+        ui_rrect(x, by, w, bh, w / 8, body);
+        ui_rrect(PX(6), by + bh * 6 / 100, w * 88 / 100, bh * 50 / 100, w / 10, top);
+        ui_rect(cx - w / 60, by, cw + w / 30, bh * 12 / 100 + 1, hexc(0x0A0A0C));
+        ui_rrect(PX(9), by + bh * 26 / 100, w * 10 / 100, bh * 14 / 100, 2, hexc(0x55565E));
+        ui_rrect(PX(81), by + bh * 26 / 100, w * 10 / 100, bh * 14 / 100, 2, hexc(0x55565E));
+        ui_circle(PX(50), by + bh * 44 / 100, bh / 22 + 1, hexc(0xE04848));
+        for (int k = 0; k < 4; k++) ui_rrect(PX(16 + k * 18), by + bh * 68 / 100, w * 12 / 100, bh * 18 / 100, 2, hexc(0x0E0F12));
+        int pw = w * 46 / 100, ph = h * 26 / 100, px = PX(50), py = y + h - ph;
+        plat_line(PX(22), by + bh * 86 / 100, px + pw / 2, py + ph * 30 / 100, lw1, cable);
+        ui_rrect(px, py, pw, ph * 46 / 100, ph / 5 + 1, grey);
+        for (int k = 0; k < 3; k++) ui_rrect(px + pw * (4 + k * 36) / 100, py + ph * 20 / 100, pw * 20 / 100, ph * 80 / 100, pw / 12 + 1, grey);
+        con_dpad(px + pw * 14 / 100, py + ph * 24 / 100, ph * 13 / 100, hexc(0x34363E));
+        ui_circle(px + pw * 50 / 100, py + ph * 46 / 100, ph * 9 / 100 + 1, hexc(0x55565E));
+        ui_circle(px + pw * 50 / 100, py + ph * 16 / 100, ph * 5 / 100 + 1, hexc(0xD0403A));
+        ui_circle(px + pw * 76 / 100, py + ph * 30 / 100, ph * 7 / 100 + 1, hexc(0x3466B5));
+        ui_circle(px + pw * 70 / 100, py + ph * 16 / 100, ph * 7 / 100 + 1, hexc(0x3E9E4F));
+        for (int k = 0; k < 4; k++) ui_circle(px + pw * (86 + (k % 2) * 8 - (k > 1 ? 4 : 0)) / 100, py + ph * (12 + (k / 2) * 14 + (k > 1 ? 0 : 7)) / 100, ph * 4 / 100 + 1, hexc(0xD8B830));
         break;
     }
     default: {   /* CON_PCE */
@@ -2042,9 +2148,13 @@ static void draw_emu_art(const emulator_t *em, color_t c, const char *label, int
     } else if (em && em->console) {
         int aw = w, ah = w * 86 / 100;
         if (ah > h * 80 / 100) { ah = h * 80 / 100; aw = ah * 100 / 86; }
-        static const char *const kinds[] = { "nes", "snes", "md", "sms", "pce" };
+        /* l'ordine di CON_*; chi non ha "art" si riconosce dall'id dell'emulatore, così i pacchetti
+           già pubblicati (2600, 7800, ColecoVision, Intellivision) prendono il disegno senza cambiare */
+        static const char *const kinds[] = { "nes", "snes", "md", "sms", "pce", "a2600", "a7800", "coleco", "intv", "n64" };
+        const char *want = art[0] ? art : em->id;
         int kind = -1;
-        for (int k = 0; k < 5; k++) if (!strcmp(art, kinds[k])) kind = k;
+        for (int k = 0; k < 10; k++) if (!strcmp(want, kinds[k])) kind = k;
+        if (kind == CON_PCE && strcmp(want, "pce")) kind = -1;
         if (kind >= 0) draw_home_console(kind, x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
         else draw_console(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname);
     } else {

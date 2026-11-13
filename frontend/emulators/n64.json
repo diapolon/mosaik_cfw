@@ -1,0 +1,16 @@
+{
+  "name": "Nintendo 64",
+  "kind": "console",
+  "core": "mupen64plus",
+  "launch": "Cores/mupen64plus/launch.sh",
+  "roms": "Roms/N64",
+  "extensions": [
+    "z64",
+    "n64",
+    "v64"
+  ],
+  "art": "n64",
+  "short": "N64",
+  "thumbnails": "Nintendo - Nintendo 64",
+  "order": 36
+}

@@ -55,6 +55,7 @@ PACKAGES = {
     "vb": ("Beetle VB", "vb", "console"),
     "scummvm": ("ScummVM", "scummvm", "computer"),   # cartella Computer (i sistemi fino alla 0.9.36 la mettono in Console)
     "ppsspp": ("PPSSPP", "ppsspp", "console"),
+    "mupen64plus": ("Mupen64Plus", None, "console"),   # etichetta: commit del core in deps/mupen64plus
     "files": ("Files", None, "apps"),   # app: nome, versione e traduzioni da Apps/<id>/app.json
     "viewer": ("Images and comics", None, "apps"),
     "music": ("Music player", None, "apps"),
@@ -180,6 +181,9 @@ for pid in sorted(os.listdir(args.src)):
         label, texts = (theme or bezel)[1], (theme or bezel)[3]
     elif category == "apps":
         label = json.load(open(appj)).get("version", "?") if os.path.exists(appj) else "?"
+    elif pid == "mupen64plus":
+        label = subprocess.run(["git", "-C", os.path.join(top, "deps", "mupen64plus", "mupen64plus-core"), "rev-parse", "--short=7", "HEAD"],
+                               capture_output=True, text=True).stdout.strip() or "?"
     elif pid == "deadcast":
         dz = sorted(n for n in os.listdir(os.path.join(top, "deps", "deadcast")) if n.endswith(".pak.zip"))
         label = dz[-1][12:-8] if dz else "?"

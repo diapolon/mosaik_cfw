@@ -74,6 +74,8 @@ models | while IFS="|" read -r id fw name file; do
     # trovare nel firmware ogni libreria e ogni versione di simboli che chiedono (audit A38-006)
     PS=; [ -f /build/out/ppsspp/PPSSPPSDL ] && PS=/build/out/ppsspp/PPSSPPSDL
     AP=; for a in /build/out/apps/*; do [ -f "$a" ] && AP="$AP $a"; done
+    # Nintendo 64: mupen64plus e i suoi moduli (toolchain/build-mupen64plus.sh)
+    for a in /build/out/mupen64plus/mupen64plus /build/out/mupen64plus/lib/*.so*; do [ -f "$a" ] && AP="$AP $a"; done
     python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch /build/out/bin/gamemenu \
         /build/out/cores/*.so $DC $PS $AP \
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \

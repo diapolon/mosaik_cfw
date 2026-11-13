@@ -1,0 +1,36 @@
+--- a/src/main.c	2026-11-13 09:30:06
++++ b/src/main.c	2026-11-13 09:30:06
+@@ -25,6 +25,7 @@
+  * for Mupen64Plus v2.0.
+  */
+ 
++#include <signal.h>
+ #include <stdarg.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -913,6 +914,15 @@
+  */
+ __attribute__ ((visibility("default")))
+ #endif
++/* Mosaik: gamewatch closes the emulator with SIGTERM (exit from the menu, power off, low
++ * battery). Stop the emulation instead of dying, so the core writes the cartridge saves. */
++static void mosaik_stop(int sig)
++{
++    (void)sig;
++    if (CoreDoCommand != NULL)
++        (*CoreDoCommand)(M64CMD_STOP, 0, NULL);
++}
++
+ int main(int argc, char *argv[])
+ {
+     int i;
+@@ -1135,6 +1145,9 @@
+     if (l_SaveOptions && (*ConfigHasUnsavedChanges)(NULL))
+         (*ConfigSaveFile)();
+ 
++    signal(SIGTERM, mosaik_stop);
++    signal(SIGINT, mosaik_stop);
++
+     /* run the game */
+     (*CoreDoCommand)(M64CMD_EXECUTE, 0, NULL);
+ 

@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.44
+it Nintendo 64 con Mupen64Plus (Store → Console)
+en Nintendo 64 with Mupen64Plus (Store → Consoles)
+it Disegni nuovi per Atari 2600 e 7800, ColecoVision e Intellivision
+en New drawings for Atari 2600 and 7800, ColecoVision and Intellivision
+
 0.9.43
 it Store lasciato aperto: la console ora si sospende da sola come nel resto del menu
 en Store left open: the console now goes to sleep by itself, as in the rest of the menu
