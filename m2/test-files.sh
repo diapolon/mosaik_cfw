@@ -32,6 +32,7 @@ static void test_sync(void) { syncs++; }
 #define RETRO_MEMORY_RTC 1
 enum { BTN_COUNT = 20, ROT_NONE = 0 };
 static const int default_map[16] = { 0 };
+static int emu_map[16];   /* tasti di partenza dell'emulatore (runner.c): nulli come default_map */
 static struct { struct { int aspect, bezel; char filter[32]; } set; } UI;
 static const char *filter_legacy_id(int n) { (void)n; return "nitido"; }
 static void ui_log(const char *f, ...) { (void)f; }
