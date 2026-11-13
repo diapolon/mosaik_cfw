@@ -6923,6 +6923,163 @@ static void cfm_input(void) {
     }
 }
 
+/* ------------------------------------------------- pannello rapido
+   Tasto Menu nel launcher, da qualsiasi schermata: stato della console (batteria, temperatura,
+   processore, memoria), tempo di gioco, e i comandi più usati senza passare dalle Impostazioni:
+   Wi-Fi, altoparlante a riposo, LED, musica, cattura, sospendi, riavvia, spegni; sotto
+   luminosità e volume. Righe 0-1 i riquadri (4 per riga), 2 luminosità, 3 volume. */
+enum { QT_WIFI, QT_SPEAKER, QT_LED, QT_MUSIC, QT_SHOT, QT_SUSPEND, QT_RESTART, QT_POWER, QT_COUNT };
+static bool qp_open;
+static int qp_row, qp_col;
+static double qp_info_t = -10;
+static int qp_bat, qp_mhz, qp_temp;
+static bool qp_charging;
+static long qp_free_mb;
+static long qp_total_s, qp_top_s;
+static int qp_top = -1;
+
+static void qp_refresh(void) {
+    qp_info_t = UI.t;
+    qp_bat = ui_battery(&qp_charging);
+    plat_cpu_status(&qp_mhz, &qp_temp);
+    qp_free_mb = -1;
+    FILE *f = fopen("/proc/meminfo", "r");
+    char line[128];
+    while (f && fgets(line, sizeof line, f)) { long kb; if (sscanf(line, "MemAvailable: %ld kB", &kb) == 1) { qp_free_mb = kb / 1024; break; } }
+    if (f) fclose(f);
+}
+
+static void qp_show(void) {
+    qp_open = true;
+    qp_row = qp_col = 0;
+    qp_refresh();
+    qp_total_s = qp_top_s = 0;   /* tempo di gioco e gioco più giocato, dalle statistiche */
+    qp_top = -1;
+    for (int i = 0; i < ngames; i++) {
+        qp_total_s += games[i].seconds;
+        if (games[i].seconds > qp_top_s) { qp_top_s = games[i].seconds; qp_top = i; }
+    }
+    ui_sound(SND_OK);
+}
+
+static void qp_time(long s, char *out, size_t n) {
+    if (s >= 3600) snprintf(out, n, "%ld h %02ld min", s / 3600, s / 60 % 60);
+    else snprintf(out, n, "%ld min", s / 60);
+}
+
+static void qp_do(int t) {
+    switch (t) {
+    case QT_WIFI: set_change(S_WIFI, +1); break;
+    case QT_SPEAKER: set_change(S_SPEAKER, +1); break;
+    case QT_LED: set_change(S_LED, +1); break;
+    case QT_MUSIC:
+        if (music_count()) { music_next(); ui_sound(SND_MOVE); }
+        else { ui_toast(T("quick.no_music")); ui_sound(SND_ERROR); }
+        break;
+    case QT_SHOT: {   /* la schermata sotto il pannello, chiuso prima di disegnare */
+        char dir[1100], p[1300], stamp[32];
+        snprintf(dir, sizeof dir, "%s/Screenshots", UI.root);
+        mkdir(dir, 0755);
+        time_t now = time(NULL);
+        struct tm tmv;
+        localtime_r(&now, &tmv);
+        strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", &tmv);
+        snprintf(p, sizeof p, "%s/menu-%s.png", dir, stamp);
+        qp_open = false;
+        ui_screenshot(p);
+        ui_toast(T("quick.shot_done"));
+        ui_sound(SND_OK);
+        break;
+    }
+    case QT_SUSPEND: qp_open = false; ui_sound(SND_OK); ui_suspend(); last_input = UI.t; break;
+    case QT_RESTART: qp_open = false; cfm_kind = CFM_RESTART; cfm_sel = 0; ui_sound(SND_OK); break;
+    case QT_POWER: qp_open = false; dlg_open = true; dlg_suspend = false; dlg_sel = 0; ui_sound(SND_OK); break;
+    }
+}
+
+static void qp_input(void) {
+    input_t *in = &UI.in;
+    last_input = UI.t;
+    if (in->pressed[BTN_MENU] || in->pressed[BTN_B]) { qp_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_UP] && qp_row > 0) { qp_row--; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN] && qp_row < 3) { qp_row++; ui_sound(SND_MOVE); }
+    int dir = in->pressed[BTN_RIGHT] ? 1 : in->pressed[BTN_LEFT] ? -1 : 0;
+    if (qp_row < 2) {
+        if (dir && qp_col + dir >= 0 && qp_col + dir < 4) { qp_col += dir; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_A]) qp_do(qp_row * 4 + qp_col);
+    } else if (dir) set_change(qp_row == 2 ? S_BRIGHT : S_VOLUME, dir);
+    if (UI.t - qp_info_t > 2) qp_refresh();
+}
+
+static void qp_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 140));
+    TTF_Font *fs = UI.f_small, *fn = UI.f_normal;
+    int fsh = TTF_FontHeight(fs), fnh = TTF_FontHeight(fn);
+    int pad = M(0.03f), gap = M(0.015f), w = UI.w - 2 * M(t->margin);
+    int tw = (w - 2 * pad - 3 * gap) / 4, th = fnh + fsh + M(0.04f), sh = fnh + M(0.03f);
+    int h = pad + fsh * 2 + M(0.02f) + 2 * th + gap + M(0.02f) + 2 * sh + gap + pad;
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
+    /* stato della console */
+    char line[300], a[48], b[48];
+    if (qp_bat >= 0) snprintf(a, sizeof a, T(qp_charging ? "quick.battery_charging" : "quick.battery"), qp_bat); else a[0] = 0;
+    if (qp_free_mb >= 0) snprintf(b, sizeof b, T("quick.ram"), qp_free_mb); else b[0] = 0;
+    char c[48] = "";
+    if (qp_temp > 0 && qp_mhz > 0) snprintf(c, sizeof c, "%d °C   %d MHz", qp_temp, qp_mhz);   /* sul Mac non ci sono */
+    snprintf(line, sizeof line, "%s   %s   %s", a, c, b);
+    int yy = y + pad;
+    ui_text(fs, line, x + pad, yy, t->text, ALIGN_LEFT);
+    yy += fsh;
+    if (qp_top >= 0) {
+        char tot[32], top[32], fit[300];
+        qp_time(qp_total_s, tot, sizeof tot);
+        qp_time(qp_top_s, top, sizeof top);
+        snprintf(line, sizeof line, T("quick.played"), tot, games[qp_top].title, top);
+        ui_text_fit(fs, line, w - 2 * pad, fit, sizeof fit);
+        ui_text(fs, fit, x + pad, yy, t->text_dim, ALIGN_LEFT);
+    } else ui_text(fs, T("quick.never"), x + pad, yy, t->text_dim, ALIGN_LEFT);
+    yy += fsh + M(0.02f);
+    /* riquadri */
+    static const char *const keys[QT_COUNT] = { "quick.wifi", "quick.speaker", "quick.led", "quick.music", "quick.shot", "quick.suspend", "quick.restart", "quick.power" };
+    for (int i = 0; i < QT_COUNT; i++) {
+        int cx = x + pad + (i % 4) * (tw + gap), cy = yy + (i / 4) * (th + gap);
+        bool on = qp_row == i / 4 && qp_col == i % 4;
+        ui_rrect(cx, cy, tw, th, M(t->panel_radius), on ? t->accent : with_alpha(t->text_dim, 40));
+        color_t tc = on ? t->accent_text : t->text, dc = on ? t->accent_text : t->text_dim;
+        char val[96] = "", fit[120];
+        if (i == QT_WIFI) {
+            const wifi_status_t *ws = wifi_status(false);
+            snprintf(val, sizeof val, "%s", !UI.set.wifi ? T("common.off") : ws && ws->ssid[0] ? ws->ssid : T("common.on"));
+        } else if (i == QT_SPEAKER) set_value(S_SPEAKER, val, sizeof val);
+        else if (i == QT_LED) set_value(S_LED, val, sizeof val);
+        else if (i == QT_MUSIC) snprintf(val, sizeof val, "%s", music_title()[0] ? music_title() : T("quick.no_track"));
+        ui_text_fit(fn, T(keys[i]), tw - M(0.02f), fit, sizeof fit);
+        ui_text(fn, fit, cx + M(0.012f), cy + M(0.012f), tc, ALIGN_LEFT);
+        if (val[0]) {
+            ui_text_fit(fs, val, tw - M(0.02f), fit, sizeof fit);
+            ui_text(fs, fit, cx + M(0.012f), cy + M(0.012f) + fnh, dc, ALIGN_LEFT);
+        }
+    }
+    yy += 2 * th + gap + M(0.02f);
+    /* luminosità e volume */
+    for (int k = 0; k < 2; k++, yy += sh + gap) {
+        bool on = qp_row == 2 + k;
+        int v = k ? UI.set.volume : UI.set.brightness, max = k ? 20 : 10;
+        ui_rrect(x + pad, yy, w - 2 * pad, sh, sh / 2, on ? with_alpha(t->accent, 60) : with_alpha(t->text_dim, 30));
+        ui_text(fn, T(k ? "quick.volume" : "quick.brightness"), x + pad + M(0.02f), yy + (sh - fnh) / 2, t->text, ALIGN_LEFT);
+        int bx = x + pad + w * 30 / 100, bw = w - 2 * pad - w * 30 / 100 - M(0.03f), bh = M(0.012f), by = yy + (sh - bh) / 2;
+        ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 70));
+        ui_rrect(bx, by, bw * v / max, bh, bh / 2, t->accent);
+    }
+    /* i tasti del pannello al posto di quelli della schermata sotto */
+    ui_rect(0, UI.h - M(t->hintbar_h), UI.w, M(t->hintbar_h), t->bg);
+    const char *hk[] = { "A", T("quick.select"), "B", T("common.back") };
+    ui_hints(hk, 4);
+}
+
 /* ------------------------------------------------- frammenti recuperati
    Il controllo della scheda all'avvio (fsck.fat, dopo uno spegnimento brusco) salva i pezzi di
    file rimasti senza nome come FSCK0000.REC nella cartella principale della scheda, fuori da
@@ -8393,6 +8550,8 @@ int main(int argc, char **argv) {
         else if (sdinfo_open) sdinfo_input();
         else if (support_open) support_input();
         else if (fsrv_open) fsrv_input();
+        else if (qp_open) qp_input();
+        else if (UI.in.pressed[BTN_MENU] && !setup_step && !kb_open) qp_show();   /* pannello rapido, da ogni schermata */
         else if (sw_open) sw_input();
         else if (screen == SCR_HOME && UI.in.pressed[BTN_SELECT]) sw_show();   /* cambio gioco, in tutti i temi */
         else if (screen == SCR_HOME) home_input();
@@ -8456,6 +8615,7 @@ int main(int argc, char **argv) {
         if (fsrv_open) fsrv_draw();
         if (fpanel_open) fpanel_draw();
         if (sw_open) sw_draw();
+        if (qp_open) qp_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
         if (gp_open) gp_draw();
         if (cp_open) cp_draw();

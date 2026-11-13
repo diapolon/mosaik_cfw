@@ -8,6 +8,8 @@ it Disegni nuovi per ZX Spectrum, MSX, C64, DOS e Amiga
 en New drawings for ZX Spectrum, MSX, C64, DOS and Amiga
 it SG-1000 nel pacchetto Genesis Plus GX (giochi in Roms/SG1000)
 en SG-1000 in the Genesis Plus GX package (games in Roms/SG1000)
+it Pannello rapido con il tasto Menu: batteria, Wi-Fi, luminosità, volume, LED, musica e altro
+en Quick panel with the Menu button: battery, Wi-Fi, brightness, volume, LED, music and more
 
 0.9.55
 it Collezioni automatiche: Da finire, Partite brevi, Due giocatori, Mai giocati

@@ -1024,5 +1024,27 @@
     "delete": "Delete",
     "deleted": "Fragments deleted",
     "failed": "Some fragments could not be deleted"
+  },
+  "quick": {
+    "battery": "Battery %d%%",
+    "battery_charging": "Battery %d%%, charging",
+    "ram": "%ld MB free",
+    "played": "Play time %s · most played: %s (%s)",
+    "never": "No games played yet",
+    "wifi": "Wi-Fi",
+    "speaker": "Speaker",
+    "led": "LED",
+    "music": "Music",
+    "shot": "Screenshot",
+    "suspend": "Sleep",
+    "restart": "Restart",
+    "power": "Power off",
+    "no_track": "No track",
+    "no_music": "No tracks in the Music folder",
+    "shot_done": "Screenshot saved in Screenshots",
+    "brightness": "Brightness",
+    "volume": "Volume",
+    "select": "Choose",
+    "adjust": "Adjust"
   }
 }

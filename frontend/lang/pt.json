@@ -1024,5 +1024,27 @@
     "delete": "Apagar",
     "deleted": "Fragmentos apagados",
     "failed": "Não foi possível apagar alguns fragmentos"
+  },
+  "quick": {
+    "battery": "Bateria %d%%",
+    "battery_charging": "Bateria %d%%, a carregar",
+    "ram": "%ld MB livres",
+    "played": "Tempo de jogo %s · mais jogado: %s (%s)",
+    "never": "Ainda não jogaste",
+    "wifi": "Wi-Fi",
+    "speaker": "Altifalante",
+    "led": "LED",
+    "music": "Música",
+    "shot": "Captura",
+    "suspend": "Suspender",
+    "restart": "Reiniciar",
+    "power": "Desligar",
+    "no_track": "Sem faixa",
+    "no_music": "Não há faixas na pasta Music",
+    "shot_done": "Captura guardada em Screenshots",
+    "brightness": "Brilho",
+    "volume": "Volume",
+    "select": "Escolher",
+    "adjust": "Ajustar"
   }
 }

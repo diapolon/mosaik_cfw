@@ -1024,5 +1024,27 @@
     "delete": "Borrar",
     "deleted": "Fragmentos borrados",
     "failed": "Algunos fragmentos no se pudieron borrar"
+  },
+  "quick": {
+    "battery": "Batería %d%%",
+    "battery_charging": "Batería %d%%, cargando",
+    "ram": "%ld MB libres",
+    "played": "Tiempo de juego %s · más jugado: %s (%s)",
+    "never": "Aún no has jugado",
+    "wifi": "Wi-Fi",
+    "speaker": "Altavoz",
+    "led": "LED",
+    "music": "Música",
+    "shot": "Captura",
+    "suspend": "Suspender",
+    "restart": "Reiniciar",
+    "power": "Apagar",
+    "no_track": "Sin canción",
+    "no_music": "No hay canciones en la carpeta Music",
+    "shot_done": "Captura guardada en Screenshots",
+    "brightness": "Brillo",
+    "volume": "Volumen",
+    "select": "Elegir",
+    "adjust": "Ajustar"
   }
 }

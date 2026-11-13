@@ -1024,5 +1024,27 @@
     "delete": "Supprimer",
     "deleted": "Fragments supprimés",
     "failed": "Certains fragments n'ont pas pu être supprimés"
+  },
+  "quick": {
+    "battery": "Batterie %d%%",
+    "battery_charging": "Batterie %d%%, en charge",
+    "ram": "%ld Mo libres",
+    "played": "Temps de jeu %s · le plus joué : %s (%s)",
+    "never": "Aucune partie pour l'instant",
+    "wifi": "Wi-Fi",
+    "speaker": "Haut-parleur",
+    "led": "LED",
+    "music": "Musique",
+    "shot": "Capture",
+    "suspend": "Veille",
+    "restart": "Redémarrer",
+    "power": "Éteindre",
+    "no_track": "Aucun morceau",
+    "no_music": "Aucun morceau dans le dossier Music",
+    "shot_done": "Capture enregistrée dans Screenshots",
+    "brightness": "Luminosité",
+    "volume": "Volume",
+    "select": "Choisir",
+    "adjust": "Régler"
   }
 }

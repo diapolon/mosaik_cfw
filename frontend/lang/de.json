@@ -1024,5 +1024,27 @@
     "delete": "Löschen",
     "deleted": "Fragmente gelöscht",
     "failed": "Einige Fragmente ließen sich nicht löschen"
+  },
+  "quick": {
+    "battery": "Akku %d%%",
+    "battery_charging": "Akku %d%%, lädt",
+    "ram": "%ld MB frei",
+    "played": "Spielzeit %s · meistgespielt: %s (%s)",
+    "never": "Noch nichts gespielt",
+    "wifi": "WLAN",
+    "speaker": "Lautsprecher",
+    "led": "LED",
+    "music": "Musik",
+    "shot": "Bildschirmfoto",
+    "suspend": "Ruhezustand",
+    "restart": "Neu starten",
+    "power": "Ausschalten",
+    "no_track": "Kein Titel",
+    "no_music": "Keine Titel im Ordner Music",
+    "shot_done": "Bildschirmfoto in Screenshots gespeichert",
+    "brightness": "Helligkeit",
+    "volume": "Lautstärke",
+    "select": "Wählen",
+    "adjust": "Einstellen"
   }
 }
