@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.53
+it Nuova app Spazio della SD nello Store: mostra lo spazio e allarga la scheda se serve
+en New SD card space app in the Store: shows the space and expands the card if needed
+it Le immagini nuove scrivono sempre in Logs/sdgrow.txt perché la scheda non si allarga
+en New images always write in Logs/sdgrow.txt why the card was not expanded
+
 0.9.52
 it Cambia gioco: Select nella home o la voce nel menu del gioco, con le ultime partite
 en Switch game: Select on the home screen or the item in the game menu, with your last games
