@@ -5,7 +5,8 @@
    processore e memoria, Wi-Fi, controller. A prova la velocità del Wi-Fi scaricando 4 MB
    dall'indirizzo degli aggiornamenti; X salva un rapporto in Logs/diagnostica-<data>.txt con
    tutto questo e le ultime righe dei log, da allegare a una segnalazione. Nel rapporto il nome
-   della rete e gli indirizzi non ci sono: le segnalazioni sono pubbliche.
+   della rete (anche delle reti salvate) e gli indirizzi IP e MAC non ci sono: le segnalazioni
+   sono pubbliche.
 
    Sul Mac: build/diag --root sdcard --app package/apps/diag (molti valori mancano). */
 #include "appkit.h"
@@ -15,6 +16,7 @@
 #include <dirent.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +36,7 @@
 #define MAXROWS 64
 static struct { char k[64], v[160]; bool head; } rows[MAXROWS];
 static int nrows;
-static char ssid_now[40], ip_now[20];   /* da togliere dal rapporto */
+static char ssid_now[40];   /* da togliere dal rapporto (load_names) */
 
 static void head(const char *key) {
     if (nrows >= MAXROWS) return;
@@ -180,11 +182,10 @@ static void collect(void) {
     /* Wi-Fi */
     head("diag.wifi");
     const wifi_status_t *ws = wifi_status(false);
-    ssid_now[0] = ip_now[0] = 0;
+    ssid_now[0] = 0;
     if (!UI.set.wifi) row("diag.state", "%s", T("common.off"));
     else if (ws && ws->ssid[0]) {
         snprintf(ssid_now, sizeof ssid_now, "%s", ws->ssid);
-        snprintf(ip_now, sizeof ip_now, "%s", ws->ip);
         row("diag.state", FT("diag.connected"), ws->ssid, ws->bars);
         if (ws->ip[0]) row("diag.address", "%s", ws->ip);
     } else row("diag.state", "%s", FT("diag.not_connected"));
@@ -202,21 +203,95 @@ static void collect(void) {
 
 /* ------------------------------------------------------------ rapporto */
 
-/* una riga del log con il nome della rete e l'indirizzo tolti */
-static void put_clean(FILE *o, const char *line) {
-    char buf[1024];
-    snprintf(buf, sizeof buf, "%s", line);
-    const char *tok[2] = { ssid_now, ip_now };
-    for (int t = 0; t < 2; t++) {
-        if (!tok[t][0]) continue;
-        char *s;
-        while ((s = strstr(buf, tok[t]))) {
-            char rest[1024];
-            snprintf(rest, sizeof rest, "%s", s + strlen(tok[t]));
-            snprintf(s, sizeof buf - (size_t)(s - buf), "%s%s", t ? "<indirizzo>" : "<rete>", rest);
+/* Nomi delle reti da togliere: quella di adesso e tutte quelle salvate in System/wifi.conf
+   (ssid="nome" oppure in esadecimale), perché i log più vecchi possono nominarle. */
+#define MAX_NAMES 24
+static char names[MAX_NAMES][40];
+static size_t name_len[MAX_NAMES];
+static int nnames;
+
+static void add_name(const char *n) {
+    size_t l = strlen(n);
+    if (l < 3 || l >= sizeof names[0] || nnames >= MAX_NAMES) return;   /* 1-2 lettere toglierebbero mezzo testo */
+    for (int i = 0; i < nnames; i++) if (!strcmp(names[i], n)) return;
+    snprintf(names[nnames], sizeof names[0], "%s", n);
+    name_len[nnames++] = l;
+}
+
+static void load_names(void) {
+    nnames = 0;
+    add_name(ssid_now);
+    char p[1300], b[256];
+    snprintf(p, sizeof p, "%s/System/wifi.conf", app_root);
+    FILE *f = fopen(p, "r");
+    while (f && fgets(b, sizeof b, f)) {
+        char *c = b;
+        while (*c == ' ' || *c == '\t') c++;
+        if (strncmp(c, "ssid=", 5)) continue;
+        c += 5;
+        c[strcspn(c, "\r\n")] = 0;
+        char n[40] = "";
+        if (*c == '"') {
+            char *e = strrchr(c + 1, '"');
+            if (e) { *e = 0; snprintf(n, sizeof n, "%s", c + 1); }
+        } else {   /* esadecimale */
+            size_t k = 0;
+            for (; c[0] && c[1] && k + 1 < sizeof n && isxdigit((unsigned char)c[0]) && isxdigit((unsigned char)c[1]); c += 2) {
+                unsigned v;
+                sscanf(c, "%2x", &v);
+                n[k++] = (char)v;
+            }
+            n[k] = 0;
         }
+        add_name(n);
     }
-    fputs(buf, o);
+    if (f) fclose(f);
+    /* i più lunghi prima: "Casa Mia 5G" non deve diventare "<rete> 5G" per colpa di "Casa Mia" */
+    for (int i = 1; i < nnames; i++)
+        for (int j = i; j > 0 && name_len[j] > name_len[j - 1]; j--) {
+            char t[40]; size_t tl = name_len[j];
+            memcpy(t, names[j], sizeof t); memcpy(names[j], names[j - 1], sizeof t); memcpy(names[j - 1], t, sizeof t);
+            name_len[j] = name_len[j - 1]; name_len[j - 1] = tl;
+        }
+}
+
+/* lunghezza di un indirizzo IPv4 che comincia in c (0 se non lo è) */
+static size_t ipv4_at(const char *line, const char *c) {
+    if (c > line && (isdigit((unsigned char)c[-1]) || c[-1] == '.')) return 0;
+    const char *s = c;
+    for (int part = 0; part < 4; part++) {
+        int d = 0;
+        while (isdigit((unsigned char)*s) && d < 4) { s++; d++; }
+        if (d < 1 || d > 3) return 0;
+        if (part < 3) { if (*s != '.') return 0; s++; }
+    }
+    if (isdigit((unsigned char)*s) || (*s == '.' && isdigit((unsigned char)s[1]))) return 0;
+    return (size_t)(s - c);
+}
+
+/* lunghezza di un indirizzo MAC (aa:bb:cc:dd:ee:ff) che comincia in c */
+static size_t mac_at(const char *line, const char *c) {
+    if (c > line && isxdigit((unsigned char)c[-1])) return 0;
+    for (int i = 0; i < 17; i++) {
+        if (i % 3 == 2 ? c[i] != ':' : !isxdigit((unsigned char)c[i])) return 0;
+    }
+    return isxdigit((unsigned char)c[17]) || c[17] == ':' ? 0 : 17;
+}
+
+/* Una riga del log senza nomi delle reti, indirizzi IP e MAC: le segnalazioni sono pubbliche.
+   Una passata sola sul testo originale: i segnaposti non si rileggono mai, anche se contengono un
+   nome di rete (una rete chiamata "<rete>" o "rete" faceva girare per sempre la versione di
+   prima, audit A56-003). */
+static void put_clean(FILE *o, const char *line) {
+    for (const char *c = line; *c; ) {
+        size_t l;
+        if ((l = ipv4_at(line, c))) { fputs("<indirizzo>", o); c += l; continue; }
+        if ((l = mac_at(line, c))) { fputs("<mac>", o); c += l; continue; }
+        int hit = -1;
+        for (int i = 0; i < nnames && hit < 0; i++) if (!strncmp(c, names[i], name_len[i])) hit = i;
+        if (hit >= 0) { fputs("<rete>", o); c += name_len[hit]; continue; }
+        fputc(*c++, o);
+    }
 }
 
 static void tail_file(FILE *o, const char *name, int lines) {
@@ -245,6 +320,7 @@ static void report(void) {
     snprintf(p, sizeof p, "%s/Logs/diagnostica-%s.txt", app_root, stamp);
     FILE *o = fopen(p, "w");
     if (!o) { ui_toast(FT("diag.report_failed")); ui_sound(SND_ERROR); return; }
+    load_names();
     fprintf(o, "Mosaik, diagnostica del %s\n", stamp);
     for (int i = 0; i < nrows; i++) {
         if (rows[i].head) { fprintf(o, "\n[%s]\n", rows[i].k); continue; }
