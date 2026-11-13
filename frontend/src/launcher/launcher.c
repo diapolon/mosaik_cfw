@@ -7802,7 +7802,10 @@ int main(int argc, char **argv) {
         upd_audio();
         /* l'uscita audio è aperta e assestata: ora l'amplificatore si può accendere */
         if (UI.t > 0.4) plat_audio_release();
-        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open || screen == SCR_STORE;
+        bool working = romcheck_open || scrape_open || upd_open || clean_open || wpanel_open || kb_open || sdbad_open || fsrv_open
+                       /* lo Store solo mentre scarica o installa: lasciato aperto e fermo deve rallentare e
+                          sospendersi come il resto (Brick Pro, 12 nov: 2 ore e mezza acceso, dal 62% all'11%) */
+                       || (screen == SCR_STORE && store_status()->phase == ST_WORKING);
         /* nei primi 30 s il Wi-Fi carica il driver e si collega: niente cambi di frequenza della CPU */
         bool idle = !working && !UI.automation && UI.t > 30 && UI.t - last_input > IDLE_AFTER_S;
         plat_cpu_fixed(idle ? CPU_IDLE_KHZ : CPU_ACTIVE_KHZ);

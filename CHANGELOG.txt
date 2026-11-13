@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.43
+it Store lasciato aperto: la console ora si sospende da sola come nel resto del menu
+en Store left open: the console now goes to sleep by itself, as in the rest of the menu
+
 0.9.42
 it Operazione rimasta a metà: Prosegui non chiude la finestra se non può mettere da parte il giornale
 en Unfinished operation: Continue keeps the window open if it cannot set the journal aside
