@@ -57,6 +57,8 @@ write("compressa.zip", b"ciao " * 200, zipfile.ZIP_DEFLATED)
 write("discorde.zip", b"x" * 5000, zipfile.ZIP_STORED, lambda b, cd: b.__setitem__(slice(cd + 24, cd + 28), struct.pack("<I", 1)))
 write("crc.zip", b"ciao", zipfile.ZIP_STORED, lambda b, cd: b.__setitem__(slice(cd + 16, cd + 20), struct.pack("<I", 12345)))
 # compressa con usize più piccolo del vero
+# nome di 600 caratteri: non sta nella voce, lo zip si rifiuta invece di tagliarlo
+z = zipfile.ZipFile("lungo.zip", "w"); z.writestr("d/" * 299 + "x.txt", b"ciao"); z.close()
 write("gonfia.zip", b"a" * 100000, zipfile.ZIP_DEFLATED, lambda b, cd: b.__setitem__(slice(cd + 24, cd + 28), struct.pack("<I", 10)))
 P
 check "voce salvata valida" "si si ciao" "$(./t salvata.zip 16 2>&1)"
@@ -65,5 +67,6 @@ check "voce salvata più grande dello spazio: rifiutata" "no si" "$(./t salvata.
 check "misure discordanti (usize 1, dati 5000): rifiutata senza scrivere oltre" "no no" "$(./t discorde.zip 16 2>&1 || echo caduto)"
 check "CRC sbagliato: rifiutata" "no no" "$(./t crc.zip 16 2>&1)"
 check "compressa più grande del dichiarato: rifiutata" "no no" "$(./t gonfia.zip 64 2>&1)"
+check "nome più lungo di 511 caratteri: zip rifiutato, niente nome tagliato" "dir" "$(./t lungo.zip 16 2>&1)"
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

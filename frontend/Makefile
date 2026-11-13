@@ -15,8 +15,15 @@ all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BU
 
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 
-# VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010)
-$(BUILD)/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h ../VERSION $(wildcard ../UPDATE_URL) | $(BUILD)
+# VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010).
+# UPDATE_URL passa da .update-url, che cambia solo quando cambia il valore, anche se il file
+# viene tolto (con $(wildcard) togliendolo non si ricompilava)
+$(BUILD)/.update-url: FORCE | $(BUILD)
+	@v="$$(cat ../UPDATE_URL 2>/dev/null)"; [ -f $@ ] && [ "$$(cat $@)" = "$$v" ] || printf '%s' "$$v" > $@
+.PHONY: FORCE
+FORCE:
+
+$(BUILD)/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h ../VERSION $(BUILD)/.update-url | $(BUILD)
 	$(CC) $(CFLAGS) $(shell pkg-config --cflags openssl) -o $@ $(COMMON) $(LAUNCHER) $(LDLIBS) $(shell pkg-config --libs SDL2_mixer) -lcurl -lz $(shell pkg-config --libs openssl)
 
 RUNNER := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c

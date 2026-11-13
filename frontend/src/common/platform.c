@@ -7,6 +7,7 @@ bool plat_standalone(void) { const char *e = getenv("ARCADE_STANDALONE"); return
 
 #ifdef TRIMUI_DEVICE
 #include <dirent.h>
+#include <errno.h>
 #include <linux/input.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -265,6 +266,19 @@ static void keys_open(void) {
     if (d) closedir(d);
 }
 
+/* Un evento da fd. Se il dispositivo sparisce (ENODEV: trimui_inputd riavviato, dispositivo
+   ricreato) si chiude e fd torna -1: plat_poll lo ricerca come all'avvio (audit R17) */
+static bool ev_read(int *fd, struct input_event *ev) {
+    if (*fd < 0) return false;
+    ssize_t r = read(*fd, ev, sizeof *ev);
+    if (r == (ssize_t)sizeof *ev) return true;
+    if (r < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) return false;
+    ui_log("dispositivo dei tasti chiuso (%s): lo cerco di nuovo", r < 0 ? strerror(errno) : "fine dei dati");
+    close(*fd);
+    *fd = -1;
+    return false;
+}
+
 static int fn_gpio(void) {
     static bool exported;
     if (!exported) { put_str("/sys/class/gpio/export", "243"); put_str("/sys/class/gpio/gpio243/direction", "in"); exported = true; }
@@ -295,7 +309,7 @@ void plat_poll(plat_keys_t *k) {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     double now = ts.tv_sec + ts.tv_nsec / 1e9;
     struct input_event pev;
-    while (power_fd >= 0 && read(power_fd, &pev, sizeof pev) == (ssize_t)sizeof pev) {
+    while (ev_read(&power_fd, &pev)) {
         if (pev.type != EV_KEY || pev.code != KEY_POWER) continue;
         if (pev.value == 1) { power_t0 = now; long_sent = false; }
         else if (pev.value == 0) {
@@ -306,7 +320,7 @@ void plat_poll(plat_keys_t *k) {
     }
     if (power_t0 >= 0 && !long_sent && now - power_t0 >= 1.2) { k->power_long = true; long_sent = true; }
     struct input_event ev;
-    while (keys_fd >= 0 && read(keys_fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
+    while (ev_read(&keys_fd, &ev)) {
         if (ev.type == EV_KEY && ev.value == 1) {
             if (ev.code == KEY_HOMEPAGE) k->home = true;
             if (ev.code == KEY_F1) k->f1 = true;
@@ -314,7 +328,7 @@ void plat_poll(plat_keys_t *k) {
         }
         vol_event(&ev, 1, k);
     }
-    while (vol_fd >= 0 && read(vol_fd, &ev, sizeof ev) == (ssize_t)sizeof ev) vol_event(&ev, 2, k);
+    while (ev_read(&vol_fd, &ev)) vol_event(&ev, 2, k);
     /* FN: il GPIO 243 ogni mezzo secondo circa (a 60 fotogrammi al secondo) */
     static unsigned tick;
     if (tick++ % 30 == 0) {

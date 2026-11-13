@@ -182,6 +182,7 @@
     "all": "Todos",
     "favorites": "Favoritos",
     "empty": "Nenhum jogo nesta secção",
+    "partial": "Memória esgotada: a biblioteca mostra só parte dos jogos",
     "empty_fav": "Sem favoritos: prima Y num jogo",
     "genre": "Género",
     "genre_all": "Todos"

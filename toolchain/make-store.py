@@ -234,6 +234,16 @@ for pid in sorted(os.listdir(args.src)):
     catalog["packages"].append(entry)
     print(f"  {pid:16} {label:10} {os.path.getsize(zpath) / 1e6:6.1f} MB  {', '.join(systems)}")
 
+# Due pacchetti non devono scrivere lo stesso file: togliendone uno sparirebbe anche dall'altro
+# (audit 0.9.38). Confronto senza maiuscole, come sul FAT della scheda
+owner = {}
+for pk in catalog["packages"]:
+    for rel in pk["files"]:
+        k = rel.lower()
+        if k in owner and owner[k] != pk["id"]:
+            sys.exit(f"errore: {rel} sta sia in {owner[k]} sia in {pk['id']}")
+        owner[k] = pk["id"]
+
 # ordine delle piattaforme (campo "order" degli emulatori): prima gli arcade, poi le console
 def order(pk):
     return min((json.load(open(os.path.join(args.src, pk["id"], "Emulators", e + ".json"))).get("order", 100) for e in pk["emulators"]), default=100)

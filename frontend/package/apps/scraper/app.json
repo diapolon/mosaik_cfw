@@ -2,7 +2,7 @@
  "title": "Download images",
  "description": "Downloads screenshots, titles and marquees; for consoles also the box, year, publisher, genre and players. Start it from Settings or with X on Platforms.",
  "author": "Mosaik",
- "version": "1.0",
+ "version": "1.1",
  "texts": {
   "it": {
    "title": "Scarica immagini",

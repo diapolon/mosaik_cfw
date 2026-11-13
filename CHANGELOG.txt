@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.50
+it Un salvataggio a batteria di misura diversa resta da parte in .srm.orig prima di essere riscritto
+en A battery save of a different size is kept as .srm.orig before being rewritten
+it I tasti tornano da soli se il loro dispositivo sparisce e ricompare
+en The buttons come back by themselves if their device disappears and returns
+it Wi-Fi: password fuori misura segnalata subito, niente reti salvate a metà
+en Wi-Fi: wrong-length passwords reported at once, no half-saved networks
+
 0.9.49
 it Corretto: aperto dalle Impostazioni, lo Store non si chiudeva più
 en Fixed: opened from Settings, the Store could not be closed

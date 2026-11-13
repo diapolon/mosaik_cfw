@@ -471,6 +471,7 @@ static void reload_games(void) {
     games_no_write = rec_pending;   /* operazione a metà non richiusa: si legge soltanto (R40-01) */
     ngames = games_scan(UI.root, &games, UI.set.show_missing);
     ui_mark("lettura dei giochi");
+    if (games_scan_partial()) ui_toast(T("library.partial"));   /* prima solo nel log (audit 12 nov) */
     /* salvataggi delle console da Saves/<core> a Saves/<console> (issue #5): una volta per
        avvio, prima di cercare la partita da riprendere e gli slot */
     static bool split_done;

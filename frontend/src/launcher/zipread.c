@@ -34,6 +34,9 @@ int zip_dir(FILE *f, zent_t **out) {
         if (p + 46 > cdsize || get32(cd + p) != 0x02014b50) { free(cd); free(z); return -1; }
         unsigned nl = get16(cd + p + 28), xl = get16(cd + p + 30), cl = get16(cd + p + 32);
         if (p + 46 + nl > cdsize) { free(cd); free(z); return -1; }
+        /* un nome che non sta in zent_t.name non si taglia: una voce tagliata finirebbe in un
+           altro file (Store, ripristino del backup). Lo zip intero si rifiuta (audit 0.9.38) */
+        if (nl >= sizeof z[k].name) { free(cd); free(z); return -1; }
         z[k].method = get16(cd + p + 10);
         z[k].crc = get32(cd + p + 16);
         z[k].csize = get32(cd + p + 20);

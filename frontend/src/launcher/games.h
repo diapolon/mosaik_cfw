@@ -73,6 +73,8 @@ const emulator_t *emulator_find(const char *id);
 /* true: games_scan non scrive i registri delle chiavi (un ripristino non ancora richiuso) */
 extern bool games_no_write;
 int games_scan(const char *root, game_t **out, bool include_missing);
+/* l'ultima games_scan si è fermata per memoria finita: la libreria mostrata è incompleta */
+bool games_scan_partial(void);
 void games_free(game_t *g, int n);
 void games_mark_lists(const char *root, game_t *g, int n);
 void games_toggle_fav(const char *root, game_t *g);

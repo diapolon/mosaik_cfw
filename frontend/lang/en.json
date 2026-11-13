@@ -182,6 +182,7 @@
     "all": "All",
     "favorites": "Favorites",
     "empty": "No games in this section",
+    "partial": "Out of memory: the library shows only some of the games",
     "empty_fav": "No favorites yet: press Y on a game",
     "genre": "Genre",
     "genre_all": "All"

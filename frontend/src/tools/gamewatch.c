@@ -159,6 +159,7 @@ int main(int argc, char **argv) {
     /* HOME laterale della Brick Pro (KEY_HOMEPAGE): esce subito, senza tenerlo premuto */
     const int quick_key = KEY_HOMEPAGE;
     struct pollfd fds[32];
+    static char fpath[32][300];   /* percorso di ogni dispositivo aperto, per ritrovarlo se sparisce */
     int nfds = 0;
     DIR *d = opendir("/dev/input");
     struct dirent *e;
@@ -171,10 +172,13 @@ int main(int argc, char **argv) {
             char name[128] = "";
             ioctl(fd, EVIOCGNAME(sizeof name), name);
             fprintf(stderr, "gamewatch: %s \"%s\"\n", path, name);
+            snprintf(fpath[nfds], sizeof fpath[0], "%s", path);
             fds[nfds++] = (struct pollfd){ fd, POLLIN, 0 };
         }
     }
     if (d) closedir(d);
+    int lost = 0;          /* dispositivi spariti (trimui_inputd riavviato): si riaprono (audit R17) */
+    unsigned rescan = 0;
     fprintf(stderr, "gamewatch: %d dispositivi; Menu tenuto %.1f s o HOME per uscire\n", nfds, hold);
 
     /* tastiera virtuale, creata dopo aver aperto i dispositivi: così non legge sé stessa */
@@ -232,8 +236,31 @@ int main(int argc, char **argv) {
             if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
             return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
         }
+        if (lost && ++rescan % 20 == 0) {   /* ogni 2 s circa, finché manca qualcuno */
+            for (int i = 0; i < nfds; i++) {
+                if (fds[i].fd >= 0) continue;
+                int fd = open(fpath[i], O_RDONLY | O_NONBLOCK);
+                char name[128] = "";
+                if (fd >= 0) ioctl(fd, EVIOCGNAME(sizeof name), name);
+                if (fd < 0 || strstr(name, "gamewatch keyboard")) { if (fd >= 0) close(fd); continue; }   /* mai la propria tastiera */
+                fds[i].fd = fd;
+                ioctl(fd, EVIOCGABS(ABS_X), &axes[i].ix);
+                ioctl(fd, EVIOCGABS(ABS_Y), &axes[i].iy);
+                lost--;
+                fprintf(stderr, "gamewatch: %s \"%s\" riaperto\n", fpath[i], name);
+            }
+        }
         if (poll(fds, (nfds_t)nfds, 100) > 0) {
             for (int i = 0; i < nfds; i++) {
+                if (fds[i].fd >= 0 && (fds[i].revents & (POLLERR | POLLHUP | POLLNVAL))) {
+                    /* dispositivo sparito: senza chiuderlo poll tornerebbe subito, all'infinito */
+                    fprintf(stderr, "gamewatch: %s sparito, lo cerco di nuovo\n", fpath[i]);
+                    close(fds[i].fd);
+                    fds[i].fd = -1;
+                    lost++;
+                    continue;
+                }
+                if (fds[i].fd < 0) continue;
                 struct input_event ev;
                 while (read(fds[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
                     /* tasti del volume: barra sopra il gioco, che non si ferma */
@@ -279,7 +306,7 @@ int main(int argc, char **argv) {
                             kill(-pid, SIGCONT);
                             /* eventi arrivati durante il sonno: non devono valere dopo */
                             struct input_event skip;
-                            for (int j = 0; j < nfds; j++) while (read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
+                            for (int j = 0; j < nfds; j++) while (fds[j].fd >= 0 && read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
                             pressed_at = 0;
                             break;
                         }
@@ -354,7 +381,7 @@ int main(int argc, char **argv) {
             }
             /* eventi arrivati durante il menu: il gioco non deve vederli come nuovi */
             struct input_event skip;
-            for (int j = 0; j < nfds; j++) while (read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
+            for (int j = 0; j < nfds; j++) while (fds[j].fd >= 0 && read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
             continue;
         }
         if (power_at && now() - power_at >= 1.2) {

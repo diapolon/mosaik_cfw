@@ -182,6 +182,7 @@
     "all": "Todos",
     "favorites": "Favoritos",
     "empty": "No hay juegos en esta sección",
+    "partial": "Memoria agotada: la biblioteca muestra solo parte de los juegos",
     "empty_fav": "Sin favoritos: pulsa Y sobre un juego",
     "genre": "Género",
     "genre_all": "Todos"

@@ -241,8 +241,15 @@ static bool nf_has(const char *key) {
 
 static void nf_add(const char *key) {
     if (nf_has(key)) return;
-    if (nnotfound == cap_notfound) notfound = realloc(notfound, sizeof(char *) * (size_t)(cap_notfound = cap_notfound ? cap_notfound * 2 : 256));
-    notfound[nnotfound++] = strdup(key);
+    if (nnotfound == cap_notfound) {   /* memoria finita: l'immagine si cercherà di nuovo al prossimo giro */
+        int nc = cap_notfound ? cap_notfound * 2 : 256;
+        char **nn = realloc(notfound, sizeof(char *) * (size_t)nc);
+        if (!nn) return;
+        notfound = nn;
+        cap_notfound = nc;
+    }
+    char *k = strdup(key);
+    if (k) notfound[nnotfound++] = k;
 }
 
 static void nf_load(void) {

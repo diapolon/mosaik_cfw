@@ -182,6 +182,7 @@
     "all": "Tous",
     "favorites": "Favoris",
     "empty": "Aucun jeu dans cette section",
+    "partial": "Mémoire saturée : la bibliothèque ne montre qu'une partie des jeux",
     "empty_fav": "Aucun favori : appuyez sur Y sur un jeu",
     "genre": "Genre",
     "genre_all": "Tous"

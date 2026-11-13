@@ -183,13 +183,15 @@ static entry_t *index_find(index_t *ix, const char *name) {
 /* -------------------------------------------------------- scansione */
 
 typedef struct { game_t *g; int n, cap; } list_t;
+static bool scan_partial;   /* l'ultima lettura si è fermata per memoria finita */
+bool games_scan_partial(void) { return scan_partial; }
 
 /* NULL se la memoria non basta: chi chiama smette di aggiungere (audit BUG-008) */
 static game_t *push(list_t *l) {
     if (l->n == l->cap) {
         int nc = l->cap ? l->cap * 2 : 256;
         game_t *ng = realloc(l->g, sizeof(game_t) * (size_t)nc);
-        if (!ng) { ui_log("libreria: memoria esaurita a %d giochi", l->n); return NULL; }
+        if (!ng) { ui_log("libreria: memoria esaurita a %d giochi", l->n); scan_partial = true; return NULL; }
         l->g = ng;
         l->cap = nc;
     }
@@ -800,6 +802,7 @@ static int title_cmp(const void *a, const void *b) {
 
 int games_scan(const char *root, game_t **out, bool include_missing) {
     list_t l = { 0 };
+    scan_partial = false;
     for (int i = 0; i < NEMUS; i++) {
         char ixp[1400], dir[1400];
         index_t ix;
