@@ -2,7 +2,7 @@
  "title": "SD card space",
  "description": "Shows how much of the card Mosaik uses and, if it uses only part of it, expands it to the whole card.",
  "author": "Mosaik",
- "version": "1.0",
+ "version": "1.1",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },
