@@ -5,14 +5,14 @@
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
 #       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [mame2010] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp] [pcsx]
-#       [stella2014] [prosystem] [handy] [wswan] [vb] [gearcoleco] [pokemini] [freeintv] [scummvm] [fuse] [bluemsx] [vice] [dosbox_pure] [puae]
+#       [stella2014] [prosystem] [handy] [wswan] [vb] [gearcoleco] [pokemini] [freeintv] [scummvm] [fuse] [bluemsx] [vice] [dosbox_pure] [puae] [mrboom]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx stella2014 prosystem handy wswan vb gearcoleco pokemini freeintv scummvm fuse bluemsx vice dosbox_pure puae}
+WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx stella2014 prosystem handy wswan vb gearcoleco pokemini freeintv scummvm fuse bluemsx vice dosbox_pure puae mrboom}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -164,6 +164,11 @@ for core in $WHICH; do
     gearcoleco) echo "== Gearcoleco (ColecoVision)"; simple gearcoleco Gearcoleco platforms/libretro Makefile gearcoleco_libretro.so ;;
     pokemini) echo "== PokeMini (Pokemon Mini)"; simple pokemini PokeMini . Makefile.libretro pokemini_libretro.so ;;
     freeintv) echo "== FreeIntv (Intellivision)"; simple freeintv FreeIntv . Makefile freeintv_libretro.so ;;
+    # giochi Linux dello Store fatti come core libretro (0.9.58): Mr.Boom, fino a 8 giocatori
+    mrboom)   # libretro-common è un sottomodulo: il clone nel volume non lo porta, si copia da deps
+        clone mrboom-libretro mrboom
+        rm -rf "$SRC/mrboom/libretro-common" && cp -a /trimui/deps/mrboom-libretro/libretro-common "$SRC/mrboom/"
+        echo "== Mr.Boom"; simple mrboom mrboom-libretro . Makefile mrboom_libretro.so ;;
     # computer (cartella Computer dello Store): leggeri, senza GPU
     fuse) echo "== Fuse (ZX Spectrum)"; simple fuse fuse-libretro . Makefile fuse_libretro.so ;;
     bluemsx) echo "== blueMSX (MSX, MSX2)"; simple bluemsx blueMSX-libretro . Makefile bluemsx_libretro.so ;;

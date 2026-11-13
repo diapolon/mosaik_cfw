@@ -27,7 +27,8 @@
     "puae",
     "sdgrow",
     "diag",
-    "freedoom"
+    "freedoom",
+    "mrboom"
   ],
   "tested": {
     "fbneo": [
@@ -65,6 +66,7 @@
     "dosbox_pure": "0.9.47",
     "scraper": "0.9.48",
     "filtri-shader": "0.9.51",
-    "freedoom": "0.9.58"
+    "freedoom": "0.9.58",
+    "mrboom": "0.9.58"
   }
 }

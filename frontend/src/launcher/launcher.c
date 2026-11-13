@@ -618,8 +618,32 @@ static void launch_ex(game_t *g, bool resume) {
         return;
     }
     bool sh = !strcmp(g->core, "linux") || !strcmp(g->core, "app");   /* script: giochi Linux e app */
+    /* gioco Linux che è un core libretro (Mr.Boom, 0.9.58): "libretro" in game.json, il core nella
+       sua cartella; parte nel runner senza ROM ("-"), salvataggi in Saves/<cartella> */
+    char lcore[1100] = "", lsys[64] = "";
+    if (!strcmp(g->core, "linux")) {
+        char meta[1200];
+        snprintf(meta, sizeof meta, "%.*s/game.json", (int)(strrchr(g->path, '/') - g->path), g->path);
+        jval *j = json_load(meta);
+        const char *lc = json_str(j, "libretro", "");
+        if (lc[0] && !strchr(lc, '/') && !strstr(lc, "..")) {
+            snprintf(lcore, sizeof lcore, "%.*s/%s.%s", (int)(strrchr(g->path, '/') - g->path), g->path, lc, CORE_EXT);   /* senza estensione: .so o .dylib */
+            const char *dn = g->path + (strrchr(g->path, '/') - g->path);
+            while (dn > g->path && dn[-1] != '/') dn--;
+            snprintf(lsys, sizeof lsys, "%.*s", (int)(strrchr(g->path, '/') - dn), dn);
+            for (char *c = lsys; *c; c++) if (*c == '\t' || *c == '/') *c = '_';
+            sh = false;
+        }
+        json_free(j);
+        if (lcore[0] && access(lcore, R_OK) != 0) {
+            ui_log("gioco %s: manca il core %s", g->title, lcore);
+            ui_toast(T("common.launch_error"));
+            ui_sound(SND_ERROR);
+            return;
+        }
+    }
     /* emulatore a sé (non libretro): parte come un gioco Linux, il suo script riceve il gioco */
-    const emulator_t *xemu = sh ? NULL : emulator_find(g->core);
+    const emulator_t *xemu = sh || lcore[0] ? NULL : emulator_find(g->core);
     char xscript[1100] = "";
     if (xemu && xemu->launch[0]) {
         snprintf(xscript, sizeof xscript, "%s/%s", UI.root, xemu->launch);
@@ -646,6 +670,7 @@ static void launch_ex(game_t *g, bool resume) {
         }
     }
     if (sh || xscript[0]) snprintf(core, sizeof core, "-");
+    else if (lcore[0]) snprintf(core, sizeof core, "%s", lcore);
     else {
         const emulator_t *emu = emulator_find(g->core);
         snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
@@ -657,8 +682,8 @@ static void launch_ex(game_t *g, bool resume) {
         /* ultimo campo: la console, per i salvataggi in Saves/<console> (issue #5); "-" per gli arcade */
         /* sesto campo: la console ("-" per gli arcade); settimo: l'identità del gioco per i suoi
            file, diversa dal nome solo per due ROM omonime (audit prelancio R04) */
-        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", sh || xscript[0] ? "linux" : "libretro", core, xscript[0] ? xscript : g->path, g->title,
-                resume ? "resume" : "-", core_console(g->core) ? g->core : "-", g->key[0] ? g->key : "-");
+        fprintf(f, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", sh || xscript[0] ? "linux" : "libretro", core, xscript[0] ? xscript : lcore[0] ? "-" : g->path, g->title,
+                resume ? "resume" : "-", lsys[0] ? lsys : core_console(g->core) ? g->core : "-", g->key[0] ? g->key : "-");
         written = !ferror(f) && fflush(f) == 0;
         if (fclose(f) != 0) written = false;
     }

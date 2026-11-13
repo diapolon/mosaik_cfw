@@ -198,6 +198,14 @@ if [ -f "$DIST/linux/crispy-doom/crispy-doom" ] && [ -f "$TOP/deps/freedoom/free
     rm -rf "$T"
     chmod +x "$L/Freedoom/crispy-doom" "$L"/*/launch.sh "$L/Freedoom/doom.sh"
 fi
+# Mr.Boom (fino a 8 giocatori): un core libretro nella sua cartella di Linux, che il launcher avvia
+# nel runner senza ROM ("libretro" in game.json)
+if [ -f "$DIST/cores/mrboom_libretro.so" ]; then
+    mkdir -p "$PKG/mrboom"
+    cp -R "$FE/package/linux/mrboom/Linux" "$PKG/mrboom/"
+    cp "$DIST/cores/mrboom_libretro.so" "$PKG/mrboom/Linux/MrBoom/"
+    cp "$TOP/deps/mrboom-libretro/LICENSE" "$PKG/mrboom/Linux/MrBoom/LICENSE-mrboom.txt"
+fi
 # temi: nel sistema solo Tessera (frontend/themes) e i font condivisi; gli altri sono nello Store
 # (0.9.55). Non dalla SD simulata del Mac, dove ci sono anche quelli dello Store
 mkdir -p "$DATA/Themes"

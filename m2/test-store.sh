@@ -314,7 +314,7 @@ check "tolto l'ostacolo si installa di nuovo" "4 0 1" "$(./t $R install cornici-
 printf '{"experimental": ["freedoom"], "min_system": {"freedoom": "0.9.58"}}' > stato.json
 STORE_STATO=$W/stato.json LINUXG=1 CORNICI=1 mk 4
 check "gioco Linux nell'elenco packages2, non in packages" "0 1" "$(python3 -c "import json;d=json.load(open('www/store.json'));print(sum(p['id']=='freedoom' for p in d['packages']),sum(p['id']=='freedoom' for p in d['packages2']))")"
-check "gioco Linux nel catalogo: nome, descrizione e cartella" "Freedoom|Free Doom with Crispy Doom: two complete games, Phase 1 and Phase 2|linux" "$(./t $R title freedoom 2>/dev/null)"
+check "gioco Linux nel catalogo: nome, descrizione e cartella" "Freedoom|Free Doom with Crispy Doom: Phase 1 and 2|linux" "$(./t $R title freedoom 2>/dev/null)"
 check "gioco Linux: sistema minimo 0.9.58" "1||0.9.58|1" "$(./t $R stato freedoom 0.9.57 2>/dev/null)"
 check "gioco Linux installato" "4 0 1" "$(./t $R install freedoom 2>/dev/null)"
 check "file del gioco nella cartella Linux" "wad1 wad2" "$(cat sd/Linux/Freedoom/freedoom1.wad) $(cat sd/Linux/Freedoom2/freedoom2.wad)"

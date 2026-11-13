@@ -1,0 +1,30 @@
+{
+  "version": "5.5",
+  "color": "#3B3F8C",
+  "texts": {
+    "it": {
+      "title": "Mr.Boom",
+      "description": "Battaglie a bombe fino a 8 giocatori, con i controller esterni"
+    },
+    "en": {
+      "title": "Mr.Boom",
+      "description": "Bomb battles for up to 8 players, with external controllers"
+    },
+    "es": {
+      "title": "Mr.Boom",
+      "description": "Batallas de bombas hasta 8 jugadores, con mandos externos"
+    },
+    "fr": {
+      "title": "Mr.Boom",
+      "description": "Batailles de bombes jusqu'à 8 joueurs, avec des manettes externes"
+    },
+    "de": {
+      "title": "Mr.Boom",
+      "description": "Bombenschlachten für bis zu 8 Spieler, mit externen Controllern"
+    },
+    "pt": {
+      "title": "Mr.Boom",
+      "description": "Batalhas de bombas até 8 jogadores, com comandos externos"
+    }
+  }
+}

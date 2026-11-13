@@ -778,11 +778,17 @@ static bool load_core(void) {
     return true;
 }
 
+/* "-" al posto della ROM: un core che è già un gioco (Mr.Boom), avviato da un gioco Linux con
+   "libretro" in game.json (0.9.58); il core riceve retro_load_game(NULL) */
+static bool no_game(void) { return !strcmp(rom_path, "-"); }
+
 static bool load_game(void) {
     struct retro_system_info si = { 0 };
     core.get_system_info(&si);
     struct retro_game_info gi = { .path = rom_path };
-    if (romzip_is_zip(rom_path) && !romzip_ext_ok(rom_path, si.valid_extensions)) {
+    if (no_game()) {
+        /* niente da leggere */
+    } else if (romzip_is_zip(rom_path) && !romzip_ext_ok(rom_path, si.valid_extensions)) {
         /* il core non legge gli zip (NES, Mega Drive...): la ROM si estrae in /tmp e il core la
            riceve con il suo nome, che alcuni usano per riconoscere il tipo di cartuccia */
         void *d;
@@ -823,7 +829,7 @@ static bool load_game(void) {
         gi.data = rom_data;
     }
     ui_log("core %s %s", si.library_name, si.library_version);
-    if (!core.load_game(&gi)) return false;
+    if (!core.load_game(no_game() ? NULL : &gi)) return false;
     sram_load();
     core.get_system_av_info(&av);
     for (unsigned p = 0; p < 4; p++) core.set_controller_port_device(p, port_dev[p]);
