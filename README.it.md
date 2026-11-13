@@ -38,7 +38,7 @@
 - **Altre console nello Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 e 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; sperimentali PSP (PPSSPP) e Nintendo 64 (Mupen64Plus).
 - **Computer**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) e Amiga, con la tastiera a schermo dei loro emulatori.
 - **Copertine e informazioni anche per le console**: scatola, titolo, anno, editore, genere e giocatori, trovati dalla ROM stessa.
-- **Giochi Linux**, con menu sopra al gioco e sospensione.
+- **Giochi Linux**, con menu sopra al gioco e sospensione; dallo Store (0.9.58, sperimentali): Freedoom, Mr.Boom e Diablo (con i file del gioco originale).
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
 - **Trasferimento file via Wi-Fi** da computer o telefono: inquadri il QR o apri `mosaik.local`, poi carichi ROM e scarichi salvataggi senza togliere la scheda.

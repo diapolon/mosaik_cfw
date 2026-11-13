@@ -38,7 +38,7 @@
 - **More consoles in the Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 and 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; experimental PSP (PPSSPP) and Nintendo 64 (Mupen64Plus).
 - **Computers**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) and Amiga, with their emulators' on-screen keyboards.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
-- **Linux games**, with an in-game menu and sleep.
+- **Linux games**, with an in-game menu and sleep; from the Store (0.9.58, experimental): Freedoom, Mr.Boom and Diablo (with your own game files).
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
 - **Transfer files over Wi-Fi** from a computer or phone: scan the QR code or open `mosaik.local`, then upload ROMs and download saves without taking the card out.
