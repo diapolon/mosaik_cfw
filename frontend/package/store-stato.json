@@ -24,7 +24,9 @@
     "wswan",
     "pokemini",
     "vb",
-    "pcsx"
+    "pcsx",
+    "dosbox_pure",
+    "puae"
   ],
   "tested": {
     "fbneo": [
@@ -55,6 +57,7 @@
     "cornici-portatili": "0.9.37",
     "cornici-tv": "0.9.37",
     "cornici-arcade": "0.9.37",
-    "bluemsx": "0.9.35"
+    "bluemsx": "0.9.35",
+    "dosbox_pure": "0.9.47"
   }
 }

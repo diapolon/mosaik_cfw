@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.47
+it DOS e Amiga nello Store (sperimentali); Select apre la tastiera a schermo
+en DOS and Amiga in the Store (experimental); Select opens the on-screen keyboard
+it Ogni emulatore può avere i suoi tasti e le sue opzioni di partenza
+en Each emulator can have its own starting buttons and options
+
 0.9.46
 it Store: il catalogo arriva in un file solo, niente più «firma non valida» dopo una pubblicazione
 en Store: the catalogue comes in one file, no more "invalid signature" right after a publication

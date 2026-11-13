@@ -1,0 +1,21 @@
+{
+  "name": "Amiga",
+  "core": "puae_libretro",
+  "roms": "Roms/AMIGA",
+  "extensions": [
+    "adf",
+    "adz",
+    "dms",
+    "ipf",
+    "hdf",
+    "hdz",
+    "lha",
+    "m3u",
+    "zip"
+  ],
+  "kind": "console",
+  "art": "pc",
+  "short": "Amiga",
+  "thumbnails": "Commodore - Amiga",
+  "order": 80
+}

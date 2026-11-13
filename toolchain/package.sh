@@ -71,6 +71,9 @@ fi
 # Computer leggeri (cartella Computer dello Store): ZX Spectrum, MSX, Commodore 64
 [ -f "$DIST/cores/fuse_libretro.so" ] && pkg fuse fuse_libretro.so fuse_libretro.so zx
 [ -f "$DIST/cores/vice_x64_libretro.so" ] && pkg vice vice_x64_libretro.so vice_x64_libretro.so c64
+# DOS (DOSBox Pure) e Amiga (PUAE; i Kickstart li mette l'utente in Bios, AROS libero è nel core)
+[ -f "$DIST/cores/dosbox_pure_libretro.so" ] && pkg dosbox_pure dosbox_pure_libretro.so dosbox_pure_libretro.so dos
+[ -f "$DIST/cores/puae_libretro.so" ] && pkg puae puae_libretro.so puae_libretro.so amiga
 # MSX: blueMSX vuole le definizioni delle macchine e i suoi archivi in <sistema>/Machines e
 # /Databases. Si portano solo le macchine C-BIOS (BIOS libero, licenza in cbios.txt) e le
 # definizioni senza ROM di MSX, MSX2 e MSX2+: i BIOS originali NON si distribuiscono (il core passa

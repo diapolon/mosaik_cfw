@@ -187,8 +187,43 @@ static void sram_save(void) {
     }
 }
 
+/* JSON dell'emulatore di questo core (Emulators/<id>.json con "core" uguale), NULL se non c'è */
+static jval *emulator_json(void) {
+    char base[256], dir[1200], p[1600];
+    const char *s = strrchr(core_path, '/');
+    snprintf(base, sizeof base, "%s", s ? s + 1 : core_path);
+    char *dot = strrchr(base, '.');
+    if (dot) *dot = 0;
+    snprintf(dir, sizeof dir, "%s/Emulators", root);
+    DIR *d = opendir(dir);
+    jval *found = NULL;
+    struct dirent *e;
+    while (d && !found && (e = readdir(d))) {
+        size_t n = strlen(e->d_name);
+        if (n < 6 || strcmp(e->d_name + n - 5, ".json") || e->d_name[0] == '.') continue;
+        snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
+        jval *j = json_load(p);
+        if (j && !strcmp(json_str(j, "core", ""), base)) found = j;
+        else json_free(j);
+    }
+    if (d) closedir(d);
+    return found;
+}
+
+/* "options" del JSON dell'emulatore: valori di partenza scelti per la console (per esempio i tasti
+   della tastiera a schermo); poi valgono System/core-options.txt e le scelte del gioco */
+static void opts_load_emulator(void) {
+    jval *j = emulator_json(), *o = json_get(j, "options");
+    for (jval *c = o && o->t == J_OBJ ? o->child : NULL; c; c = c->next) {
+        coreopt_t *co = c->key && c->t == J_STR ? copt_find(c->key) : NULL;
+        if (co) snprintf(co->value, sizeof co->value, "%s", c->s);
+    }
+    json_free(j);
+}
+
 static void opts_load_overrides(void) {
     char p[1200];
+    opts_load_emulator();
     snprintf(p, sizeof p, "%s/System/core-options.txt", root);
     opts_load_file(p);
     game_file(p, sizeof p, "opt");
@@ -240,6 +275,11 @@ static const int default_map[16] = {
     [RETRO_DEVICE_ID_JOYPAD_L3] = -1, [RETRO_DEVICE_ID_JOYPAD_R3] = -1,
 };
 
+/* Tasti predefiniti di questo emulatore: default_map, cambiato dalla voce "buttons" del suo JSON
+   ({"l3": "select", "select": "none"}: le console non hanno il clic delle levette, che DOSBox Pure
+   usa per il menu e la tastiera a schermo). È la base a cui torna "Comandi predefiniti". */
+static int emu_map[16];
+
 static struct {
     int aspect, rotate, bezel, cpu, map[16];   /* cpu: 0 automatico, 1 minimo, 2 risparmio, 3 bilanciato, 4 prestazioni */
     char filter[32];
@@ -249,6 +289,24 @@ static struct {
     int slot;   /* slot degli stati in uso: 0..2 */
 } gcfg;
 
+/* tasti di partenza: default_map, poi "buttons" del JSON dell'emulatore */
+static void emu_map_load(void) {
+    static const char *const pad[16] = { "b", "y", "select", "start", "up", "down", "left", "right", "a", "x", "l", "r", "l2", "r2", "l3", "r3" };
+    static const struct { const char *name; int btn; } con[] = {
+        { "a", BTN_A }, { "b", BTN_B }, { "x", BTN_X }, { "y", BTN_Y }, { "l", BTN_L }, { "r", BTN_R }, { "l2", BTN_L2 }, { "r2", BTN_R2 },
+        { "select", BTN_SELECT }, { "start", BTN_START }, { "up", BTN_UP }, { "down", BTN_DOWN }, { "left", BTN_LEFT }, { "right", BTN_RIGHT }, { "none", -1 } };
+    memcpy(emu_map, default_map, sizeof emu_map);
+    jval *j = emulator_json(), *b = json_get(j, "buttons");
+    for (jval *c = b && b->t == J_OBJ ? b->child : NULL; c; c = c->next) {
+        if (!c->key || c->t != J_STR) continue;
+        for (int i = 0; i < 16; i++) {
+            if (strcmp(c->key, pad[i])) continue;
+            for (size_t k = 0; k < sizeof con / sizeof con[0]; k++) if (!strcmp(c->s, con[k].name)) emu_map[i] = con[k].btn;
+        }
+    }
+    json_free(j);
+}
+
 static void gamecfg_load(void) {
     gcfg.aspect = UI.set.aspect;
     snprintf(gcfg.filter, sizeof gcfg.filter, "%s", UI.set.filter);
@@ -256,7 +314,7 @@ static void gamecfg_load(void) {
     gcfg.rotate = ROT_NONE;
     gcfg.cpu = 0;
     gcfg.slot = 0;
-    memcpy(gcfg.map, default_map, sizeof gcfg.map);
+    memcpy(gcfg.map, emu_map, sizeof gcfg.map);
     char p[1200], line[128];
     game_file(p, sizeof p, "cfg");
     FILE *f = fopen(p, "r");
@@ -357,7 +415,7 @@ static void gamecfg_save(void) {
     fprintf(f, "aspect=%d\nfilter=%s\nbezel=%d\nrotate=%d\ncpu=%d\n", gcfg.aspect, gcfg.filter, gcfg.bezel, gcfg.rotate, gcfg.cpu);
     fprintf(f, "slot=%d\n", gcfg.slot);
     for (int i = 0; i < 16; i++)
-        if (gcfg.map[i] != default_map[i]) fprintf(f, "map.%d=%d\n", i, gcfg.map[i]);
+        if (gcfg.map[i] != emu_map[i]) fprintf(f, "map.%d=%d\n", i, gcfg.map[i]);
     for (int i = 0; i < glsh_param_count(); i++) {
         glsh_param_t *q = glsh_param(i);
         if (q->value != q->def) fprintf(f, "sp.%s=%g\n", q->name, q->value);
@@ -1865,7 +1923,7 @@ static void ask_do(int kind) {
         core.reset();
         menu_open = false;
     } else {
-        memcpy(gcfg.map, default_map, sizeof gcfg.map);
+        memcpy(gcfg.map, emu_map, sizeof gcfg.map);
         gamecfg_save();
         ui_toast(T("game.controls_restored"));
         ui_sound(SND_OK);
@@ -1975,6 +2033,7 @@ int main(int argc, char **argv) {
         ui_shutdown_code(EXIT_MENU);
         return EXIT_MENU;
     }
+    emu_map_load();
     gamecfg_load();
     emu_cpu = emulator_cpu();
     apply_cpu();

@@ -34,6 +34,8 @@ Included without changes to their code.
 | Fuse 1.6.0 (ZX Spectrum), libretro port; includes the Spectrum ROMs, distributed with Amstrad's permission as in Fuse | `GPL-3.0.txt` (GPL-3.0-or-later) | https://github.com/libretro/fuse-libretro/tree/e997e2b (source also attached to each release) |
 | blueMSX (MSX, MSX2), libretro port, with its machine definitions and databases in `Cores/bluemsx`; only the C-BIOS machines carry BIOS files (C-BIOS, BSD-style license in `cbios.txt`). The original MSX BIOS files are not distributed | `GPL-2.0.txt` (GPL-2.0-or-later) | https://github.com/libretro/blueMSX-libretro/tree/e3086eb (source also attached to each release) |
 | VICE 3.10 x64 (Commodore 64), libretro port | `GPL-2.0.txt` (GPL-2.0-or-later) | https://github.com/libretro/vice-libretro/tree/76cde0b (source also attached to each release) |
+| DOSBox Pure (DOS), based on DOSBox | `GPL-2.0.txt` (GPL-2.0-or-later) | https://codeberg.org/schelling/dosbox-pure (commit 9cccfa2; source also attached to each release) |
+| PUAE 5.3.1 (Amiga), libretro port of P-UAE/WinUAE; includes the free AROS Kickstart replacement (AROS Public License). Original Kickstart files are not distributed | `GPL-2.0.txt` (GPL-2.0-or-later) | https://github.com/libretro/libretro-uae/tree/d366f77 (source also attached to each release) |
 
 ## Data downloaded by the console
 

@@ -5,14 +5,14 @@
 # nelle cartelle originali e il suo filesystem non distingue maiuscole e minuscole.
 #   docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro \
 #       trimui-tg5040 sh /trimui/toolchain/build-cores.sh [fbneo] [mame2003p] [mame2010] [fceumm] [genesis_plus_gx] [gambatte] [mgba] [snes9x] [pce_fast] [ngp] [pcsx]
-#       [stella2014] [prosystem] [handy] [wswan] [vb] [gearcoleco] [pokemini] [freeintv] [scummvm] [fuse] [bluemsx] [vice]
+#       [stella2014] [prosystem] [handy] [wswan] [vb] [gearcoleco] [pokemini] [freeintv] [scummvm] [fuse] [bluemsx] [vice] [dosbox_pure] [puae]
 set -e
 SRC=/build/src
 OUT=/build/out/cores
 mkdir -p "$SRC" "$OUT"
 export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ AR=aarch64-linux-gnu-ar
 JOBS=$(nproc)
-WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx stella2014 prosystem handy wswan vb gearcoleco pokemini freeintv scummvm fuse bluemsx vice}
+WHICH=${*:-fbneo mame2003p mame2010 fceumm genesis_plus_gx gambatte mgba snes9x pce_fast ngp pcsx stella2014 prosystem handy wswan vb gearcoleco pokemini freeintv scummvm fuse bluemsx vice dosbox_pure puae}
 
 clone() {   # cartella in deps, destinazione
     if [ ! -d "$SRC/$2/.git" ]; then
@@ -167,6 +167,28 @@ for core in $WHICH; do
     # computer (cartella Computer dello Store): leggeri, senza GPU
     fuse) echo "== Fuse (ZX Spectrum)"; simple fuse fuse-libretro . Makefile fuse_libretro.so ;;
     bluemsx) echo "== blueMSX (MSX, MSX2)"; simple bluemsx blueMSX-libretro . Makefile bluemsx_libretro.so ;;
+    dosbox_pure)
+        # DOSBox Pure (DOS): il Makefile sceglie le ottimizzazioni ARM da "uname -m", che nel kit è
+        # x86_64; si passano a mano (pagine di 4 KB come sull'A133P). Sorgenti da codeberg.org/schelling
+        clone dosbox-pure dosbox_pure
+        echo "== DOSBox Pure (DOS) (qualche minuto)"
+        make -C "$SRC/dosbox_pure" -j"$JOBS" platform=unix CXX="$CXX" STRIP=aarch64-linux-gnu-strip \
+            CPUFLAGS="-DPAGESIZE=4096 -mcpu=cortex-a53" > "$SRC/dosbox_pure.log" 2>&1 \
+            || { tail -30 "$SRC/dosbox_pure.log"; exit 1; }
+        cp "$SRC/dosbox_pure/dosbox_pure_libretro.so" "$OUT/"
+        ;;
+    puae)
+        # PUAE (Amiga): per platform=unix il Makefile non collega la libreria matematica, e il core
+        # poi non si carica (log10l mancante); si dà l'elenco intero, con --no-undefined che lo
+        # verifica già alla compilazione
+        clone libretro-uae puae
+        echo "== PUAE (Amiga) (qualche minuto)"
+        make -C "$SRC/puae" -j"$JOBS" platform=unix \
+            CC="$CC -mcpu=cortex-a53" CXX="$CXX -mcpu=cortex-a53" AR="$AR" \
+            LDFLAGS="-lm -lpthread -ldl -Wl,--no-undefined" > "$SRC/puae.log" 2>&1 \
+            || { tail -30 "$SRC/puae.log"; exit 1; }
+        cp "$SRC/puae/puae_libretro.so" "$OUT/"
+        ;;
     vice) echo "== VICE x64 (Commodore 64) (ci vuole qualche minuto)"; simple vice vice-libretro . Makefile vice_x64_libretro.so ;;
     scummvm)
         # ScummVM: i due sottomoduli (libretro-deps, libretro-common) sono già in deps/scummvm, alle

@@ -42,6 +42,16 @@ static bool env(unsigned cmd, void *d) {
     case RETRO_ENVIRONMENT_GET_VARIABLE: {
         struct retro_variable *v = d;
         nvar++;
+        /* CORETEST_OPTS="chiave=valore,chiave=valore" cambia i predefiniti */
+        const char *ov = getenv("CORETEST_OPTS");
+        static char buf[100];
+        size_t kl = strlen(v->key);
+        for (const char *p = ov; p && *p; p = strchr(p, ',') ? strchr(p, ',') + 1 : NULL)
+            if (!strncmp(p, v->key, kl) && p[kl] == '=') {
+                snprintf(buf, sizeof buf, "%.*s", (int)strcspn(p + kl + 1, ","), p + kl + 1);
+                v->value = buf;
+                return true;
+            }
         for (int i = 0; i < nopts; i++) if (!strcmp(opts[i].key, v->key)) { v->value = opts[i].val; return true; }
         v->value = NULL;
         return false;
@@ -102,10 +112,14 @@ int main(int c, char **v) {
         fseek(f, 0, SEEK_END); long n = ftell(f); rewind(f);
         buf = malloc((size_t)n); gi.size = fread(buf, 1, (size_t)n, f); gi.data = buf; fclose(f);
     }
+    if (getenv("CORETEST_TRACE")) fprintf(stderr, "carico il gioco\n");
     if (!load(&gi)) { fprintf(stderr, "retro_load_game: rifiutato\n"); return 1; }
     struct retro_system_av_info av = { 0 };
     avinfo(&av);
-    for (frame = 0; frame < frames; frame++) run();
+    for (frame = 0; frame < frames; frame++) {
+        if (getenv("CORETEST_TRACE") && frame % 50 == 0) fprintf(stderr, "fotogramma %d\n", frame);
+        run();
+    }
     printf("%s %s · %ux%u · %.2f fps · audio %s · stati %s · tastiera %s · estensioni %s\n", si.library_name, si.library_version, lw, lh,
            av.timing.fps, audio ? "sì" : "no", sersize() ? "sì" : "no", want_kbd ? "chiesta" : "no", si.valid_extensions);
     if (!last) { fprintf(stderr, "nessun fotogramma\n"); return 1; }
@@ -113,6 +127,11 @@ int main(int c, char **v) {
     fprintf(o, "P6\n%u %u\n255\n", lw, lh);
     fwrite(last, 1, (size_t)lw * lh * 3, o);
     fclose(o);
-    unload(); deinit();
+    fflush(stdout);
+    if (getenv("CORETEST_TRACE")) fprintf(stderr, "chiudo il gioco\n");
+    unload();
+    if (getenv("CORETEST_TRACE")) fprintf(stderr, "gioco chiuso, chiudo il core\n");
+    deinit();
+    if (getenv("CORETEST_TRACE")) fprintf(stderr, "core chiuso\n");
     return 0;
 }

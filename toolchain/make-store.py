@@ -57,7 +57,9 @@ PACKAGES = {
     "scummvm": ("ScummVM", "scummvm", "computer"),
     "fuse": ("Fuse", "fuse", "computer"),
     "bluemsx": ("blueMSX", "bluemsx", "computer"),
-    "vice": ("VICE", "vice", "computer"),   # cartella Computer (i sistemi fino alla 0.9.36 la mettono in Console)
+    "vice": ("VICE", "vice", "computer"),
+    "dosbox_pure": ("DOSBox Pure", "dosbox_pure", "computer"),
+    "puae": ("PUAE", "puae", "computer"),   # cartella Computer (i sistemi fino alla 0.9.36 la mettono in Console)
     "ppsspp": ("PPSSPP", "ppsspp", "console"),
     "mupen64plus": ("Mupen64Plus", None, "console"),   # etichetta: commit del core in deps/mupen64plus
     "files": ("Files", None, "apps"),   # app: nome, versione e traduzioni da Apps/<id>/app.json
