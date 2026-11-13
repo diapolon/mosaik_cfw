@@ -1,0 +1,35 @@
+{
+ "title": "Diagnostics",
+ "description": "The console's state on one page: battery, temperature, memory, card, Wi-Fi with a speed test, controllers. Saves a report to attach to bug reports.",
+ "author": "Mosaik",
+ "version": "1.0",
+ "env": {
+  "GAMEWATCH_NOMENU": "1"
+ },
+ "texts": {
+  "it": {
+   "title": "Diagnostica",
+   "description": "Lo stato della console in una pagina: batteria, temperatura, memoria, scheda, Wi-Fi con prova di velocità, controller. Salva un rapporto da allegare alle segnalazioni."
+  },
+  "en": {
+   "title": "Diagnostics",
+   "description": "The console's state on one page: battery, temperature, memory, card, Wi-Fi with a speed test, controllers. Saves a report to attach to bug reports."
+  },
+  "de": {
+   "title": "Diagnose",
+   "description": "Der Zustand der Konsole auf einer Seite: Akku, Temperatur, Speicher, Karte, WLAN mit Geschwindigkeitstest, Controller. Speichert einen Bericht für Fehlermeldungen."
+  },
+  "es": {
+   "title": "Diagnóstico",
+   "description": "El estado de la consola en una página: batería, temperatura, memoria, tarjeta, Wi-Fi con prueba de velocidad, mandos. Guarda un informe para adjuntar a los avisos."
+  },
+  "fr": {
+   "title": "Diagnostic",
+   "description": "L'état de la console sur une page : batterie, température, mémoire, carte, Wi-Fi avec test de vitesse, manettes. Enregistre un rapport à joindre aux signalements."
+  },
+  "pt": {
+   "title": "Diagnóstico",
+   "description": "O estado da consola numa página: bateria, temperatura, memória, cartão, Wi-Fi com teste de velocidade, comandos. Guarda um relatório para anexar aos relatos."
+  }
+ }
+}

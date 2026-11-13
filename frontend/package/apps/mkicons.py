@@ -67,7 +67,18 @@ def sdgrow_icon(path):
     im.resize((256, 256), Image.LANCZOS).save(path)
 
 
+def diag_icon(path):
+    S = 1024
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([96, 140, 928, 884], radius=110, fill=ACCENT)                  # schermo
+    W = (245, 248, 250)
+    d.line([(170, 560), (330, 560), (410, 360), (520, 720), (610, 470), (680, 560), (854, 560)], fill=W, width=70, joint="curve")   # traccia
+    im.resize((256, 256), Image.LANCZOS).save(path)
+
+
 files_icon(os.path.join(D, "files", "icon.png"))
+diag_icon(os.path.join(D, "diag", "icon.png"))
 sdgrow_icon(os.path.join(D, "sdgrow", "icon.png"))
 sdtest_icon(os.path.join(D, "sdtest", "icon.png"))
 music_icon(os.path.join(D, "music", "icon.png"))

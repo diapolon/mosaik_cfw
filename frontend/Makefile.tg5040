@@ -24,7 +24,7 @@ COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/l
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 RUNNER   := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
-all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu $(OUT)/apps/files $(OUT)/apps/viewer $(OUT)/apps/music $(OUT)/apps/sdtest $(OUT)/apps/scraper $(OUT)/apps/sdgrow
+all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu $(OUT)/apps/files $(OUT)/apps/viewer $(OUT)/apps/music $(OUT)/apps/sdtest $(OUT)/apps/scraper $(OUT)/apps/sdgrow $(OUT)/apps/diag
 
 # VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010).
 # UPDATE_URL passa da .update-url, che cambia solo quando cambia il valore, anche se il file
@@ -54,6 +54,10 @@ $(OUT)/apps/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c
 
 $(OUT)/apps/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -Wl,-Bdynamic $(SDLLIBS)
+
+# Diagnostica (libcurl per la prova del Wi-Fi, come il launcher)
+$(OUT)/apps/diag: $(COMMON) $(APPKIT) src/apps/diag.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/diag.c $(LDFLAGS) -Wl,-Bstatic -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
 
 # Spazio della SD (contiene m2/sdgrow.c: allarga la GPT, il FAT lo allarga l'initramfs)
 $(OUT)/apps/sdgrow: $(COMMON) $(APPKIT) src/apps/sdgrow.c ../m2/sdgrow.c src/apps/appkit.h src/common/*.h | $(OUT)/apps

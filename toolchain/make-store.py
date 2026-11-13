@@ -67,7 +67,8 @@ PACKAGES = {
     "music": ("Music player", None, "apps"),
     "sdtest": ("SD card test", None, "apps"),
     "scraper": ("Download images", None, "apps"),
-    "sdgrow": ("SD card space", None, "apps"),   # allarga la SD (issue #7)   # senza launch.sh: lo avvia il launcher (0.9.48)
+    "sdgrow": ("SD card space", None, "apps"),
+    "diag": ("Diagnostics", None, "apps"),   # allarga la SD (issue #7)   # senza launch.sh: lo avvia il launcher (0.9.48)
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")
