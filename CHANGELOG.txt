@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.58
+it Giochi Linux nello Store: Freedoom, Mr.Boom e Diablo (con i file del gioco originale)
+en Linux games in the Store: Freedoom, Mr.Boom and Diablo (with the original game files)
+it Nello Store console e computer per marca e anno
+en Store consoles and computers sorted by maker and year
+
 0.9.57
 it Salvaschermo e sospensione si fermano solo mentre la console lavora
 en Screensaver and sleep pause only while the console is working
