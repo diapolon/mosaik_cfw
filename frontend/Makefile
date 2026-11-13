@@ -11,9 +11,9 @@ LDLIBS  += $(shell pkg-config --libs $(PKGS)) -lm
 BUILD   := build
 COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 
-all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest
+all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest $(BUILD)/scraper
 
-LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 
 # VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010)
 $(BUILD)/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h ../VERSION $(wildcard ../UPDATE_URL) | $(BUILD)
@@ -38,6 +38,11 @@ $(BUILD)/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c sr
 
 $(BUILD)/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDLIBS) $(shell pkg-config --libs SDL2_mixer)
+
+# Scarica immagini (app dello Store senza schermata, la avvia il launcher: launcher/scrape_client.c)
+SCRAPER_APP := src/apps/scraper.c src/launcher/scraper.c src/common/json.c src/runner/romzip.c
+$(BUILD)/scraper: $(SCRAPER_APP) src/launcher/scraper.h src/launcher/games.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(SCRAPER_APP) $(LDLIBS) -lcurl -lz
 
 $(BUILD)/sdtest: $(COMMON) $(APPKIT) src/apps/sdtest.c src/apps/appkit.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/sdtest.c $(LDLIBS) -lpthread

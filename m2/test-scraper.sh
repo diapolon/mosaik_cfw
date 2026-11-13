@@ -11,19 +11,18 @@ ok() { echo "  ok: $*"; }
 ko() { echo "  ERRORE: $*"; errors=$((errors + 1)); }
 cp -r /trimui/frontend/src src
 
+# Dalla 0.9.48 lo scraper è l'app dello Store Apps/scraper (src/apps/scraper.c): la prova passa
+# dal client del launcher (scrape_client.c), che scrive l'elenco, avvia l'app e legge lo stato.
 cat > src/launcher/t.c <<'C'
 #include "scraper.h"
 #include <SDL.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 void ui_log(const char *fmt, ...) { va_list a; va_start(a, fmt); vfprintf(stderr, fmt, a); va_end(a); fputc('\n', stderr); }
 emulator_t EMUS[MAX_EMUS];
 int NEMUS;
-const emulator_t *emulator_find(const char *id) {
-    for (int i = 0; i < NEMUS; i++) if (!strcmp(EMUS[i].id, id)) return &EMUS[i];
-    return NULL;
-}
 static void emu(const char *id, const char *name, const char *thumbs, const char *ext) {
     emulator_t *e = &EMUS[NEMUS++];
     memset(e, 0, sizeof *e);
@@ -38,7 +37,8 @@ static void emu(const char *id, const char *name, const char *thumbs, const char
 }
 /* argomenti: radice, poi "console|nome|percorso" per ogni gioco */
 int main(int argc, char **argv) {
-    SDL_Init(0);
+    SDL_Init(SDL_INIT_TIMER);
+    if (!scraper_installed(argv[1])) { printf("NOAPP\n"); return 0; }
     emu("md", "Mega Drive", "Sega - Mega Drive - Genesis", "md");
     emu("gb", "Game Boy", "Nintendo - Game Boy", "gb");
     static game_t G[16];
@@ -53,16 +53,19 @@ int main(int argc, char **argv) {
         G[n].path = strdup(path);
     }
     if (!scraper_start(argv[1], G, n, getenv("SOLO"))) return 2;
+    if (getenv("CANCEL")) scraper_cancel();
     const scrape_status_t *s = scraper_status();
-    while (s->phase != SCRAPE_DONE && s->phase != SCRAPE_FAILED) SDL_Delay(20);
-    printf("%s %d %d\n", s->phase == SCRAPE_DONE ? "DONE" : "FAILED", s->saved, s->missing);
+    while (s->phase != SCRAPE_DONE && s->phase != SCRAPE_FAILED) { SDL_Delay(20); s = scraper_status(); }
+    printf("%s %d %d%s\n", s->phase == SCRAPE_DONE ? "DONE" : "FAILED", s->saved, s->missing, s->cancel ? " cancel" : "");
     scraper_join();
     return 0;
 }
 C
-cd src/launcher
-gcc -O1 -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -o $W/t t.c scraper.c ../common/json.c ../runner/romzip.c \
+cd src
+gcc -O1 -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -D_DEFAULT_SOURCE -o $W/scraper apps/scraper.c launcher/scraper.c common/json.c runner/romzip.c \
     $(pkg-config --cflags --libs sdl2 SDL2_image libcurl zlib)
+gcc -O1 -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -D_DEFAULT_SOURCE -o $W/t launcher/t.c launcher/scrape_client.c \
+    $(pkg-config --cflags --libs sdl2)
 cd $W
 
 # ROM, zip, file del database e immagini
@@ -119,7 +122,15 @@ mkdir -p "sd/Arcade/Media/box/md/Gioco C.png.tmp"
 (cd www && exec python3 -m http.server 8765 --bind 127.0.0.1 >/dev/null 2>&1) & SRV=$!
 for i in 1 2 3 4 5 6 7 8 9 10; do wget -q -O /dev/null http://127.0.0.1:8765/ 2>/dev/null && break; sleep 0.3; done
 R=$W/sd/Arcade
+mkdir -p $R/System $R/Logs
 export ARCADE_SCRAPER_TEST=http://127.0.0.1:8765
+
+echo "--- app e patto"
+out=$(ARCADE_SCRAPER_APP=$W/manca ./t $R 2>/dev/null)
+[ "$out" = NOAPP ] && ok "app non installata: il launcher lo sa prima di partire" || ko "app assente: $out"
+rc=0; ./scraper 9 $R /dev/null $W/st9 2>/dev/null || rc=$?
+[ $rc = 2 ] && [ ! -e $W/st9 ] && ok "patto diverso: l'app si rifiuta (2) senza toccare nulla" || ko "patto diverso: uscita $rc"
+export ARCADE_SCRAPER_APP=$W/scraper
 out=$(./t $R "md|Gioco A|$W/sd/Roms/MD/Gioco A.md" "md|Gioco B|$W/sd/Roms/MD/Gioco B.md" "md|Gioco C|$W/sd/Roms/MD/Gioco C.zip" \
         "md|Gioco D|$W/sd/Roms/MD/Gioco D.zip" "gb|Tetris|$W/sd/Roms/GB/Tetris.gb" 2>$W/log1)
 echo "--- primo giro: $out"
@@ -141,6 +152,13 @@ cmp -s "$R/Dats/libretro/genre/Nintendo - Game Boy.dat" gb-genre.dat && ok "pagi
 grep -q "non è un file del database" $W/log1 && ok "… e il log lo dice" || ko "pagina d'errore non nel log"
 grep -q "^Tetris	Tetris (World)	" $R/Dats/gb.tsv && ok "… e i dati vengono dalla copia sulla scheda" || ko "Tetris: $(cat $R/Dats/gb.tsv 2>&1)"
 [ "${out%% *}" = DONE ] && ok "primo giro completato" || ko "primo giro: $out"
+[ "${out#DONE 3 }" != "$out" ] && [ "${out##* }" -gt 0 ] && ok "avanzamento dal file di stato: 3 immagini, le non trovate contate" || ko "stato letto: $out"
+[ ! -e $R/System/.scraper-in.txt ] && ok "elenco dei giochi tolto a fine giro" || ko "elenco dei giochi rimasto"
+grep -q "scraper (app, patto 1): 2 emulatori, 5 giochi" $R/Logs/scraper.log && ok "log dell'app in Logs/scraper.log" || ko "log dell'app: $(cat $R/Logs/scraper.log 2>&1)"
+
+echo "--- Interrompi appena partito"
+out=$(CANCEL=1 ./t $R "md|Gioco B|$W/sd/Roms/MD/Gioco B.md" 2>$W/log-stop)
+[ "$out" = "DONE 0 0 cancel" ] && ok "interrotto: l'app chiude subito e il giro risulta fermato" || ko "interrotto: $out"
 
 echo "--- giro di un emulatore solo"
 printf 'solo md' > $W/sd/Roms/MD/Solo.md; printf 'solo gb' > $W/sd/Roms/GB/Solo.gb

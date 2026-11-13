@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.48
+it «Scarica immagini» diventa un'app dello Store: si aggiorna senza un sistema nuovo
+en "Download images" is now a Store app: it updates without a new system
+it Chi aggiorna la installa da Store → App, poi funziona come prima
+en After updating, install it from Store → Apps, then it works as before
+
 0.9.47
 it DOS e Amiga nello Store (sperimentali); Select apre la tastiera a schermo
 en DOS and Amiga in the Store (experimental); Select opens the on-screen keyboard

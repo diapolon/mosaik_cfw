@@ -26,7 +26,8 @@
     "vb",
     "pcsx",
     "dosbox_pure",
-    "puae"
+    "puae",
+    "scraper"
   ],
   "tested": {
     "fbneo": [
@@ -58,6 +59,7 @@
     "cornici-tv": "0.9.37",
     "cornici-arcade": "0.9.37",
     "bluemsx": "0.9.35",
-    "dosbox_pure": "0.9.47"
+    "dosbox_pure": "0.9.47",
+    "scraper": "0.9.48"
   }
 }

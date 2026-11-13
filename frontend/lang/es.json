@@ -438,6 +438,7 @@
     "progress": "%d de %d juegos · %d imágenes, %d no encontradas",
     "stop": "Detener",
     "no_wifi": "Conéctate al Wi-Fi para descargar las imágenes",
+    "no_app": "Instala «Descargar imágenes» desde la Tienda",
     "pick_all": "Todos los emuladores",
     "pick_go": "Descargar",
     "pick_none": "Elige al menos un emulador",

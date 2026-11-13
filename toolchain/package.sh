@@ -144,12 +144,15 @@ app() {   # app NOME: frontend/package/apps/NOME più il programma compilato dis
     mkdir -p "$PKG/$1/Apps"
     cp -R "$FE/package/apps/$1" "$PKG/$1/Apps/$1"
     cp "$DIST/apps/$1" "$PKG/$1/Apps/$1/$1"
-    chmod +x "$PKG/$1/Apps/$1/$1" "$PKG/$1/Apps/$1/launch.sh"
+    chmod +x "$PKG/$1/Apps/$1/$1"
+    # senza launch.sh l'app non compare fra le App: è un servizio che avvia il launcher (scraper)
+    [ ! -f "$PKG/$1/Apps/$1/launch.sh" ] || chmod +x "$PKG/$1/Apps/$1/launch.sh"
 }
 app files
 app viewer
 app music
 app sdtest
+app scraper
 # temi dello Store: ogni cartella di frontend/package/themes è un pacchetto (Themes/<id>), i
 # tre temi di base restano nella cartella Arcade dell'immagine
 for t in "$FE"/package/themes/*/; do

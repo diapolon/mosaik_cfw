@@ -21,10 +21,10 @@ LDFLAGS := -L$(PREFIX)/lib -L$(SDK)/lib -Wl,-rpath-link,$(TCLIBC)/lib -Wl,-rpath
 SDLLIBS := -Wl,-Bstatic -lSDL2_ttf -lSDL2_image -Wl,-Bdynamic -lSDL2 -lm -lpthread -ldl
 
 COMMON   := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
-LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scraper.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 RUNNER   := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
 
-all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu $(OUT)/apps/files $(OUT)/apps/viewer $(OUT)/apps/music $(OUT)/apps/sdtest
+all: $(OUT)/bin/launcher $(OUT)/bin/runner $(OUT)/bin/gamewatch $(OUT)/bin/gamemenu $(OUT)/apps/files $(OUT)/apps/viewer $(OUT)/apps/music $(OUT)/apps/sdtest $(OUT)/apps/scraper
 
 # VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010)
 $(OUT)/bin/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h ../VERSION $(wildcard ../UPDATE_URL) | $(OUT)/bin
@@ -47,6 +47,11 @@ $(OUT)/apps/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c
 
 $(OUT)/apps/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -Wl,-Bdynamic $(SDLLIBS)
+
+# Scarica immagini (app dello Store senza schermata, la avvia il launcher: launcher/scrape_client.c)
+SCRAPER_APP := src/apps/scraper.c src/launcher/scraper.c src/common/json.c src/runner/romzip.c
+$(OUT)/apps/scraper: $(SCRAPER_APP) src/launcher/scraper.h src/launcher/games.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -o $@ $(SCRAPER_APP) $(LDFLAGS) -Wl,-Bstatic -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
 
 $(OUT)/apps/sdtest: $(COMMON) $(APPKIT) src/apps/sdtest.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/sdtest.c $(LDFLAGS) $(SDLLIBS)

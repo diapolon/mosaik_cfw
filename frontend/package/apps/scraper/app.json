@@ -1,0 +1,32 @@
+{
+ "title": "Download images",
+ "description": "Downloads screenshots, titles and marquees; for consoles also the box, year, publisher, genre and players. Start it from Settings or with X on Platforms.",
+ "author": "Mosaik",
+ "version": "1.0",
+ "texts": {
+  "it": {
+   "title": "Scarica immagini",
+   "description": "Scarica schermate, titoli e marquee; per le console anche scatola, anno, editore, genere e giocatori. Si avvia da Impostazioni o con X sulle Piattaforme."
+  },
+  "en": {
+   "title": "Download images",
+   "description": "Downloads screenshots, titles and marquees; for consoles also the box, year, publisher, genre and players. Start it from Settings or with X on Platforms."
+  },
+  "de": {
+   "title": "Bilder herunterladen",
+   "description": "Lädt Screenshots, Titel und Marquees; bei Konsolen auch Verpackung, Jahr, Hersteller, Genre und Spieler. Start in den Einstellungen oder mit X bei Plattformen."
+  },
+  "es": {
+   "title": "Descargar imágenes",
+   "description": "Descarga capturas, títulos y marquesinas; para las consolas también caja, año, editor, género y jugadores. Se inicia desde Ajustes o con X en Plataformas."
+  },
+  "fr": {
+   "title": "Télécharger les images",
+   "description": "Télécharge captures, titres et marquees ; pour les consoles aussi la boîte, l'année, l'éditeur, le genre et les joueurs. Se lance depuis Réglages ou avec X sur Plateformes."
+  },
+  "pt": {
+   "title": "Transferir imagens",
+   "description": "Transfere capturas, títulos e marquees; para as consolas também a caixa, o ano, o editor, o género e os jogadores. Inicia-se nas Definições ou com X nas Plataformas."
+  }
+ }
+}

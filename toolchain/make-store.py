@@ -66,6 +66,7 @@ PACKAGES = {
     "viewer": ("Images and comics", None, "apps"),
     "music": ("Music player", None, "apps"),
     "sdtest": ("SD card test", None, "apps"),
+    "scraper": ("Download images", None, "apps"),   # senza launch.sh: lo avvia il launcher (0.9.48)
 }
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/")

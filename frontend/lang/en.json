@@ -438,6 +438,7 @@
     "progress": "%d of %d games · %d images, %d not found",
     "stop": "Stop",
     "no_wifi": "Connect to Wi-Fi to download images",
+    "no_app": "Install “Download images” from the Store",
     "pick_all": "All emulators",
     "pick_go": "Download",
     "pick_none": "Choose at least one emulator",

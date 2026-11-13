@@ -5,6 +5,8 @@
 cd "$(dirname "$0")" || exit 1
 ROOT="${ROOT:-$PWD/sdcard}"
 BIN="$PWD/build"
+# Scarica immagini è un'app dello Store: sul Mac, se non è installata nella SD simulata, quella compilata
+[ -x "$ROOT/Apps/scraper/scraper" ] || export ARCADE_SCRAPER_APP="${ARCADE_SCRAPER_APP:-$BIN/scraper}"
 
 while :; do
     "$BIN/launcher" --root "$ROOT"

@@ -438,6 +438,7 @@
     "progress": "%d de %d jogos · %d imagens, %d não encontradas",
     "stop": "Parar",
     "no_wifi": "Liga-te ao Wi-Fi para transferir as imagens",
+    "no_app": "Instala «Transferir imagens» a partir da Loja",
     "pick_all": "Todos os emuladores",
     "pick_go": "Descarregar",
     "pick_none": "Escolhe pelo menos um emulador",

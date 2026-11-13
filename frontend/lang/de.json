@@ -438,6 +438,7 @@
     "progress": "%d von %d Spielen · %d Bilder, %d nicht gefunden",
     "stop": "Stoppen",
     "no_wifi": "Verbinde dich mit dem WLAN, um Bilder zu laden",
+    "no_app": "Installiere „Bilder herunterladen“ aus dem Store",
     "pick_all": "Alle Emulatoren",
     "pick_go": "Laden",
     "pick_none": "Wähle mindestens einen Emulator",

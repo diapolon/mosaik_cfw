@@ -7360,6 +7360,7 @@ static int spk_emu[MAX_EMUS], spk_cnt[MAX_EMUS];
 static bool spk_pick[MAX_EMUS];
 
 static void spk_show(int only_emu) {
+    if (!scraper_installed(UI.root)) { ui_toast(T("scrape.no_app")); ui_sound(SND_ERROR); return; }
     if (!UI.set.wifi) { ui_toast(T("scrape.no_wifi")); ui_sound(SND_ERROR); return; }
     spk_n = 0;
     for (int e = 0; e < NEMUS; e++) {
