@@ -34,14 +34,14 @@
 /* ------------------------------------------------------------ dati */
 
 #define MAXROWS 64
-static struct { char k[64], v[160]; bool head; } rows[MAXROWS];
+static struct { char k[64], v[160], pub[160]; bool head; } rows[MAXROWS];   /* pub: valore per il rapporto, se diverso */
 static int nrows;
 static char ssid_now[40];   /* da togliere dal rapporto (load_names) */
 
 static void head(const char *key) {
     if (nrows >= MAXROWS) return;
     snprintf(rows[nrows].k, sizeof rows[0].k, "%s", FT(key));
-    rows[nrows].v[0] = 0;
+    rows[nrows].v[0] = rows[nrows].pub[0] = 0;
     rows[nrows++].head = true;
 }
 
@@ -50,6 +50,7 @@ static void row(const char *key, const char *fmt, ...) {
     snprintf(rows[nrows].k, sizeof rows[0].k, "%s", FT(key));
     va_list a;
     va_start(a, fmt);
+    rows[nrows].pub[0] = 0;
     vsnprintf(rows[nrows].v, sizeof rows[0].v, fmt, a);
     va_end(a);
     rows[nrows++].head = false;
@@ -187,6 +188,8 @@ static void collect(void) {
     else if (ws && ws->ssid[0]) {
         snprintf(ssid_now, sizeof ssid_now, "%s", ws->ssid);
         row("diag.state", FT("diag.connected"), ws->ssid, ws->bars);
+        /* nel rapporto senza il nome, qualunque sia (anche di 1-2 lettere, audit R56-01) */
+        snprintf(rows[nrows - 1].pub, sizeof rows[0].pub, FT("diag.connected"), "<rete>", ws->bars);
         if (ws->ip[0]) row("diag.address", "%s", ws->ip);
     } else row("diag.state", "%s", FT("diag.not_connected"));
     int st = speed_state;
@@ -212,7 +215,7 @@ static int nnames;
 
 static void add_name(const char *n) {
     size_t l = strlen(n);
-    if (l < 3 || l >= sizeof names[0] || nnames >= MAX_NAMES) return;   /* 1-2 lettere toglierebbero mezzo testo */
+    if (!l || l >= sizeof names[0] || nnames >= MAX_NAMES) return;
     for (int i = 0; i < nnames; i++) if (!strcmp(names[i], n)) return;
     snprintf(names[nnames], sizeof names[0], "%s", n);
     name_len[nnames++] = l;
@@ -278,18 +281,43 @@ static size_t mac_at(const char *line, const char *c) {
     return isxdigit((unsigned char)c[17]) || c[17] == ':' ? 0 : 17;
 }
 
+/* lunghezza del nome di rete che comincia in c: un nome di 3+ caratteri ovunque; uno di 1-2
+   (una "A" toglierebbe mezzo testo) solo tra virgolette, cioè com'è scritto in wifi.conf e
+   nell'uscita di wpa_cli (audit R56-01) */
+static size_t name_at(const char *line, const char *c) {
+    for (int i = 0; i < nnames; i++) {
+        size_t l = name_len[i];
+        if (strncmp(c, names[i], l)) continue;
+        if (l >= 3) return l;
+        if (c > line && (c[-1] == '"' || c[-1] == '\'') && c[l] == c[-1]) return l;
+    }
+    return 0;
+}
+
+/* dopo questi campi il resto della riga, fino alle virgolette, è un nome di rete */
+static size_t field_name_at(const char *line, const char *c) {
+    static const char *const fields[] = { "ssid=", "ssid=\"", "collegato a ", "SSID: ", "ssid " };
+    for (size_t i = 0; i < sizeof fields / sizeof *fields; i++) {
+        size_t fl = strlen(fields[i]);
+        if (c - line < (long)fl || strncmp(c - fl, fields[i], fl)) continue;
+        if (*c == '"' || *c == '<' || !*c || *c == '\n') return 0;
+        size_t l = strcspn(c, "\"\r\n");
+        return l;
+    }
+    return 0;
+}
+
 /* Una riga del log senza nomi delle reti, indirizzi IP e MAC: le segnalazioni sono pubbliche.
    Una passata sola sul testo originale: i segnaposti non si rileggono mai, anche se contengono un
    nome di rete (una rete chiamata "<rete>" o "rete" faceva girare per sempre la versione di
-   prima, audit A56-003). */
+   prima, audit A56-003). Limite: i nomi di reti non più salvate si tolgono solo dopo i campi
+   noti (ssid=, "collegato a"). */
 static void put_clean(FILE *o, const char *line) {
     for (const char *c = line; *c; ) {
         size_t l;
         if ((l = ipv4_at(line, c))) { fputs("<indirizzo>", o); c += l; continue; }
         if ((l = mac_at(line, c))) { fputs("<mac>", o); c += l; continue; }
-        int hit = -1;
-        for (int i = 0; i < nnames && hit < 0; i++) if (!strncmp(c, names[i], name_len[i])) hit = i;
-        if (hit >= 0) { fputs("<rete>", o); c += name_len[hit]; continue; }
+        if ((l = field_name_at(line, c)) || (l = name_at(line, c))) { fputs("<rete>", o); c += l; continue; }
         fputc(*c++, o);
     }
 }
@@ -325,7 +353,7 @@ static void report(void) {
     for (int i = 0; i < nrows; i++) {
         if (rows[i].head) { fprintf(o, "\n[%s]\n", rows[i].k); continue; }
         char line[300];
-        snprintf(line, sizeof line, "%s: %s\n", rows[i].k, rows[i].v);
+        snprintf(line, sizeof line, "%s: %s\n", rows[i].k, rows[i].pub[0] ? rows[i].pub : rows[i].v);
         put_clean(o, line);
     }
     static const char *const logs[] = { "passi.txt", "avvio.log", "Arcade.log", "sdgrow.txt", "fsck.txt", "sospensione.txt" };
