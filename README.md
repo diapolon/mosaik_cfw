@@ -35,14 +35,19 @@
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
 - **PlayStation** (PCSX ReARMed) with the DualShock sticks: `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
 - **Dreamcast** with [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), first on the Brick Pro.
+- **More consoles in the Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 and 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; experimental PSP (PPSSPP) and Nintendo 64 (Mupen64Plus).
+- **Computers**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) and Amiga, with their emulators' on-screen keyboards.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
 - **Linux games**, with an in-game menu and sleep.
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
 - **Transfer files over Wi-Fi** from a computer or phone: scan the QR code or open `mosaik.local`, then upload ROMs and download saves without taking the card out.
 - **Backup and restore**: one zip with saves, settings, BIOS files and, if you want, the games; restore it all or only the parts you choose, also onto a new card or the other model.
-- **Apps**: programs that aren't games get their own section on the home screen.
-- **Three themes with color variants**, languages, LEDs and video filters you can configure.
+- **Apps from the Store**: Files, Images and comics (also as icons), Music player, SD card test, SD card space, Diagnostics and Download images.
+- **Switch game** (Select): your last games in a row with the picture of where you left them; pick one and resume from there, without going through the menu.
+- **Quick panel** (Menu): battery, temperature, play time, Wi-Fi, speaker, LED, music, screenshot, brightness and volume.
+- **Automatic collections**: To finish, Quick sessions, Two players, Never played, next to favorites and your own collections.
+- **Themes with color variants** (Tessera built in; Cabinet, Wave, Cover and Starry in the Store), six languages, LEDs, video filters and shaders, bezels.
 - **Signed updates** over Wi-Fi, all or nothing: if one is interrupted or the new version fails to start, the console goes back to all the previous files.
 - **CPU profile for each game**, and a notice on the home screen when an update is available.
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
@@ -58,6 +63,14 @@
   <tr>
     <td align="center">Platforms, to pick a category before the games</td>
     <td align="center">The library, as a grid of pictures in Tessera</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/switch-game.png" alt="Switch game"></td>
+    <td><img src="docs/images/quick-panel.png" alt="Quick panel"></td>
+  </tr>
+  <tr>
+    <td align="center">Switch game (Select): resume one of your last games</td>
+    <td align="center">Quick panel (Menu): console status and quick controls</td>
   </tr>
   <tr>
     <td><img src="docs/images/details.png" alt="Game details"></td>
@@ -80,8 +93,8 @@
     <td><img src="docs/images/theme-onda.png" alt="Onda theme"></td>
   </tr>
   <tr>
-    <td align="center">Cabinato theme: the numbered arcade menu</td>
-    <td align="center">Onda theme: the library as a vertical list</td>
+    <td align="center">Cabinet theme (from the Store): the numbered arcade menu</td>
+    <td align="center">Wave theme (from the Store): the library as a vertical list</td>
   </tr>
   <tr>
     <td><img src="docs/images/transfer.png" alt="Transfer files window"></td>
@@ -96,7 +109,7 @@
     <td><img src="docs/images/store.png" alt="Consoles in the Store"></td>
   </tr>
   <tr>
-    <td align="center">The Store: arcade, consoles, computers, apps, themes and bezels</td>
+    <td align="center">The Store: arcade, consoles, computers, apps, themes, bezels and filters</td>
     <td align="center">Installed emulators in colour, the others in grey</td>
   </tr>
   <tr>
@@ -104,7 +117,7 @@
     <td><img src="docs/images/store-delete.png" alt="Delete preview in the Store"></td>
   </tr>
   <tr>
-    <td align="center">Themes to download from the Store</td>
+    <td align="center">Themes to download from the Store: Cabinet, Cover, Wave, Starry</td>
     <td align="center">Before deleting, what is removed and what is kept</td>
   </tr>
   <tr>
@@ -194,9 +207,10 @@ Arcade/Linux/MyGame/
 | X | Game details |
 | Y | Add to favorites |
 | Start | Settings |
-| Select | Filters and sorting (in the library) |
+| Select | Filters and sorting (in the library); Switch game (on the home screen) |
+| Menu (in the Mosaik menu) | Quick panel: battery, Wi-Fi, brightness, volume, LED, music, screenshot, power off |
 | L / R | Switch tabs in the library |
-| Menu (arcade and console games) | Game menu: save and load state, aspect ratio, filter, controls, exit |
+| Menu (arcade and console games) | Game menu: switch game, save and load state, aspect ratio, filter, controls, exit |
 | Menu held 1 s (Linux games) | Menu over the paused game |
 
 **Shortcuts in arcade and console games (hold Menu):**

@@ -35,14 +35,19 @@
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket**, con i salvataggi a batteria scritti ogni 10 secondi (anche l'orologio dei Pokémon), salvataggi separati per ogni console e le ROM zippate.
 - **PlayStation** (PCSX ReARMed) con le levette del DualShock: dischi `.chd`, `.cue` e `.pbp`, giochi su più dischi con un file `.m3u` e il cambio disco nel menu di gioco.
 - **Dreamcast** con [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), per ora soprattutto sulla Brick Pro.
+- **Altre console nello Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 e 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; sperimentali PSP (PPSSPP) e Nintendo 64 (Mupen64Plus).
+- **Computer**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) e Amiga, con la tastiera a schermo dei loro emulatori.
 - **Copertine e informazioni anche per le console**: scatola, titolo, anno, editore, genere e giocatori, trovati dalla ROM stessa.
 - **Giochi Linux**, con menu sopra al gioco e sospensione.
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
 - **Trasferimento file via Wi-Fi** da computer o telefono: inquadri il QR o apri `mosaik.local`, poi carichi ROM e scarichi salvataggi senza togliere la scheda.
 - **Backup e ripristino**: un solo zip con salvataggi, impostazioni, BIOS e, se vuoi, i giochi; lo ripristini tutto o solo le parti che scegli, anche su una scheda nuova o sull'altro modello.
-- **App**: i programmi che non sono giochi hanno una sezione loro nella home.
-- **Tre temi con varianti di colore**, lingue, LED e filtri video configurabili.
+- **App dallo Store**: Esplora file, Immagini e fumetti (anche a icone), Lettore musicale, Test della SD, Spazio della SD, Diagnostica e Scarica immagini.
+- **Cambia gioco** (Select): le ultime partite in fila con l'immagine del punto in cui le hai lasciate; scegli e riprendi da lì, senza passare dal menu.
+- **Pannello rapido** (Menu): batteria, temperatura, tempo di gioco, Wi-Fi, altoparlante, LED, musica, cattura, luminosità e volume.
+- **Collezioni automatiche**: Da finire, Partite brevi, Due giocatori, Mai giocati, accanto a preferiti e collezioni tue.
+- **Temi con varianti di colore** (Tessera di base; Cabinato, Onda, Copertina e Stellato nello Store), sei lingue, LED, filtri video e shader, cornici.
 - **Aggiornamenti firmati** via Wi-Fi, tutto o niente: se uno si interrompe o la versione nuova non parte, la console torna a tutti i file di prima.
 - **Profilo CPU per ogni gioco** e avviso nella home quando c'è un aggiornamento.
 - **Diagnosi dei giochi**: quando un gioco non parte, ti dice cosa manca e dove copiarlo.
@@ -58,6 +63,14 @@
   <tr>
     <td align="center">Le piattaforme, per scegliere la categoria prima dei giochi</td>
     <td align="center">La libreria, a griglia di immagini in Tessera</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/it/switch-game.png" alt="Cambia gioco"></td>
+    <td><img src="docs/images/it/quick-panel.png" alt="Pannello rapido"></td>
+  </tr>
+  <tr>
+    <td align="center">Cambia gioco (Select): riprendi una delle ultime partite</td>
+    <td align="center">Pannello rapido (Menu): stato della console e comandi veloci</td>
   </tr>
   <tr>
     <td><img src="docs/images/it/details.png" alt="Scheda del gioco"></td>
@@ -80,8 +93,8 @@
     <td><img src="docs/images/it/theme-onda.png" alt="Tema Onda"></td>
   </tr>
   <tr>
-    <td align="center">Tema Cabinato: il menu numerato da sala giochi</td>
-    <td align="center">Tema Onda: la libreria come elenco verticale</td>
+    <td align="center">Tema Cabinato (dallo Store): il menu numerato da sala giochi</td>
+    <td align="center">Tema Onda (dallo Store): la libreria come elenco verticale</td>
   </tr>
   <tr>
     <td><img src="docs/images/it/transfer.png" alt="Finestra Trasferisci file"></td>
@@ -96,7 +109,7 @@
     <td><img src="docs/images/it/store.png" alt="Console nello Store"></td>
   </tr>
   <tr>
-    <td align="center">Lo Store: arcade, console, computer, app, temi e cornici</td>
+    <td align="center">Lo Store: arcade, console, computer, app, temi, cornici e filtri</td>
     <td align="center">Emulatori installati a colori, gli altri in grigio</td>
   </tr>
   <tr>
@@ -104,7 +117,7 @@
     <td><img src="docs/images/it/store-delete.png" alt="Anteprima di Elimina nello Store"></td>
   </tr>
   <tr>
-    <td align="center">Temi da scaricare dallo Store</td>
+    <td align="center">Temi da scaricare dallo Store: Cabinato, Copertina, Onda, Stellato</td>
     <td align="center">Prima di eliminare, cosa si toglie e cosa resta</td>
   </tr>
   <tr>
@@ -194,9 +207,10 @@ Arcade/Linux/MioGioco/
 | X | Scheda del gioco |
 | Y | Aggiunge ai preferiti |
 | Start | Impostazioni |
-| Select | Filtri e ordinamento (in libreria) |
+| Select | Filtri e ordinamento (in libreria); Cambia gioco (nella schermata principale) |
+| Menu (nel menu di Mosaik) | Pannello rapido: batteria, Wi-Fi, luminosità, volume, LED, musica, cattura, spegni |
 | L / R | Cambiano scheda in libreria |
-| Menu (giochi arcade e console) | Menu del gioco: salva e carica stato, proporzioni, filtro, comandi, esci |
+| Menu (giochi arcade e console) | Menu del gioco: Cambia gioco, salva e carica stato, proporzioni, filtro, comandi, esci |
 | Menu tenuto 1 s (giochi Linux) | Menu sopra al gioco fermo |
 
 **Tasti rapidi nei giochi arcade e console (tieni premuto Menu):**
