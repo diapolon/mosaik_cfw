@@ -5435,7 +5435,7 @@ static void upd_draw(void) {
     default:
         snprintf(key, sizeof key, "update.err%d", s->error);
         snprintf(line, sizeof line, "%s", T(key));
-        snprintf(sub, sizeof sub, "%s", T("update.err_safe"));
+        snprintf(sub, sizeof sub, "%s", T(s->error == UPE_UNDO ? "update.err_restart" : "update.err_safe"));
     }
     bool bar = s->phase == UPD_CHECK || s->phase == UPD_DOWNLOAD || s->phase == UPD_VERIFY || s->phase == UPD_INSTALL;
     if (bar && s->total) {

@@ -665,7 +665,7 @@
     "system": "Wi-Fi, data e hora, desligar",
     "tools": "Verificar ROM, descarregar e limpar imagens",
     "updates": "Atualizar, canal, registo, informações",
-    "card": "Loja, transferir ficheiros, cópia, repor"
+    "card": "Transferir ficheiros, cópia, repor, apagar tudo"
   },
   "settings_cat_desc": {
     "power": "Suspende a consola, reinicia-a ou desliga-a.",
@@ -711,8 +711,10 @@
     "err5": "Falha ao copiar para o cartão: tenta de novo",
     "err6": "Não foi possível escrever no cartão",
     "err7": "Atualização cancelada",
+    "err8": "Ficheiros anteriores não totalmente repostos",
     "battery_low": "Bateria em %d%%: liga o carregador para instalar",
     "err_safe": "A consola ficou como estava.",
+    "err_restart": "Reinicia a consola: repõe-os no arranque.",
     "channel_stable": "Estável",
     "channel_dev": "Desenvolvimento",
     "channel_warn": "Versões de teste: podem ter problemas",

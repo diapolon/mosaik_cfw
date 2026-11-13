@@ -665,7 +665,7 @@
     "system": "Wi-Fi, date et heure, extinction",
     "tools": "Vérifier les ROM, télécharger et nettoyer les images",
     "updates": "Mise à jour, canal, journal, infos",
-    "card": "Boutique, transfert, sauvegarde, réinitialiser"
+    "card": "Transfert, sauvegarde, réinitialiser, tout effacer"
   },
   "settings_cat_desc": {
     "power": "Mettre la console en veille, la redémarrer ou l’éteindre.",
@@ -711,8 +711,10 @@
     "err5": "Échec de la copie sur la carte : réessayez",
     "err6": "Impossible d'écrire sur la carte",
     "err7": "Mise à jour annulée",
+    "err8": "Fichiers précédents pas entièrement restaurés",
     "battery_low": "Batterie à %d%% : branchez le chargeur pour installer",
     "err_safe": "Votre console n'a pas été modifiée.",
+    "err_restart": "Redémarrez la console : elle les restaure au démarrage.",
     "channel_stable": "Stable",
     "channel_dev": "Développement",
     "channel_warn": "Versions de test : des problèmes sont possibles",

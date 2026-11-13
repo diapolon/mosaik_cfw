@@ -573,25 +573,64 @@ static int running_system(void) {
     return found;
 }
 
-static void restore_system(const char *prev, const char *dst) {
-    if (rename(prev, dst) != 0) ui_log("aggiornamento: sistema precedente NON ripristinato (%s): resta %s", strerror(errno), prev);
+static bool restore_system(const char *prev, const char *dst) {
+    if (rename(prev, dst) == 0) return true;
+    ui_log("aggiornamento: sistema precedente NON ripristinato (%s): resta %s", strerror(errno), prev);
+    return false;
 }
 
 /* Mentre si sostituiscono i file, quello vecchio resta di fianco come .annulla: se un passaggio
    fallisce si rimette tutto com'era, e la scheda non resta con file di due versioni. */
+static void remove_tmps(void);
+static void journal_clear(void);
 static void backup_name(const item_t *it, char *out, size_t n) { snprintf(out, n, "%s/%s.annulla", root_dir, it->path); }
 
-static void undo_items(void) {
+/* rimette gli originali; falso se anche uno solo non torna (il giornale allora resta) */
+static bool undo_items(void) {
     char dst[1100], bak[1120];
+    bool ok = true;
     for (int i = nitems - 1; i >= 0; i--) {
         item_t *it = &items[i];
         snprintf(dst, sizeof dst, "%s/%s", root_dir, it->path);
         backup_name(it, bak, sizeof bak);
+#ifdef UPDATE_TEST   /* prova: un ripristino che non riesce (m2/test-update.sh) */
+        const char *tf = getenv("UPDATE_UNDO_FAIL");
+        if (it->backed && tf && !strcmp(tf, it->path)) { ui_log("aggiornamento: %s NON ripristinato (prova)", it->path); ok = false; continue; }
+#endif
         if (it->backed) {
-            if (rename(bak, dst) != 0) ui_log("aggiornamento: %s NON ripristinato (%s)", it->path, strerror(errno));
-        } else if (it->placed) unlink(dst);
+            if (rename(bak, dst) != 0) { ui_log("aggiornamento: %s NON ripristinato (%s)", it->path, strerror(errno)); ok = false; continue; }
+        } else if (it->placed && unlink(dst) != 0 && errno != ENOENT) {
+            ui_log("aggiornamento: %s nuovo NON tolto (%s)", it->path, strerror(errno));
+            ok = false;
+            continue;
+        }
         it->backed = it->placed = false;
     }
+    return ok;
+}
+
+/* Un'installazione non riuscita: si rimette tutto com'era. Il giornale si cancella solo se il
+   ripristino è completo; altrimenti resta (stato "applico") e al riavvio system-init rimette i
+   file che mancano, e fino ad allora qui non si installa altro (audit A56-001). */
+static bool undo_stuck;
+/* anche dopo un riavvio del launcher (un gioco in mezzo): un giornale ancora sulla scheda vuol dire
+   un'installazione da finire o da disfare all'avvio, e un'altra lo riscriverebbe */
+static bool install_blocked(void) {
+    char j[1100];
+    snprintf(j, sizeof j, "%s/" JOURNAL, root_dir);
+    if (!undo_stuck && access(j, F_OK) != 0) return false;
+    ui_log("aggiornamento: giornale di un'installazione precedente ancora presente, prima il riavvio");
+    return true;
+}
+static void rollback_apply(bool sys_moved, const char *prev, const char *dst) {
+    bool ok = true;
+    if (sys_moved) ok = restore_system(prev, dst);
+    ok = undo_items() && ok;
+    remove_tmps();
+    if (ok) { journal_clear(); fail(UPE_WRITE); return; }
+    undo_stuck = true;
+    ui_log("aggiornamento: ripristino incompleto, il giornale resta: al riavvio system-init rimette i file di prima");
+    fail(UPE_UNDO);
 }
 
 
@@ -737,7 +776,7 @@ static void *apply_worker(void *arg) {
         if (!strcmp(it->path, SYSFILE)) { sys = it; continue; }
         tmp_name(it, tmp, sizeof tmp);
         snprintf(dst, sizeof dst, "%s/%s", root_dir, it->path);
-        if (!place_item(it, tmp, dst)) { ui_log("aggiornamento: rename %s: %s", it->path, strerror(errno)); undo_items(); remove_tmps(); journal_clear(); fail(UPE_WRITE); return NULL; }
+        if (!place_item(it, tmp, dst)) { ui_log("aggiornamento: rename %s: %s", it->path, strerror(errno)); rollback_apply(false, NULL, NULL); return NULL; }
     }
     /* prova su console (System/prova-aggiornamento.txt, vale una volta): i dati sono già
        sostituiti, il sistema non ancora. 30 s per spegnere a forza e vedere che all'avvio dopo
@@ -756,7 +795,7 @@ static void *apply_worker(void *arg) {
        system-init rimette i file di prima */
     if (!sys && !write_pending(pend_all)) {
         ui_log("aggiornamento: impossibile scrivere update-pending");
-        unlink(pend_all); undo_items(); remove_tmps(); journal_clear(); fail(UPE_WRITE); return NULL;
+        unlink(pend_all); rollback_apply(false, NULL, NULL); return NULL;
     }
     if (sys) {
         char prev[1100], pend[1100];
@@ -774,28 +813,20 @@ static void *apply_worker(void *arg) {
         bool keep_prev = run == RUN_PREV || (run == RUN_UNKNOWN && stat(prev, &prev_st) == 0);
         if (!keep_prev && stat(dst, &main_st) == 0) {
             unlink(prev);
-            if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); undo_items(); remove_tmps(); journal_clear(); fail(UPE_WRITE); return NULL; }
+            if (rename(dst, prev) != 0) { ui_log("aggiornamento: rename del sistema: %s", strerror(errno)); rollback_apply(false, NULL, NULL); return NULL; }
             moved = true;
         }
         /* senza questo file non si contano gli avvii di prova: non si prosegue */
         if (!write_pending(pend)) {
             ui_log("aggiornamento: impossibile scrivere update-pending");
             unlink(pend);
-            if (moved) restore_system(prev, dst);
-            undo_items();
-            remove_tmps();
-            journal_clear();
-            fail(UPE_WRITE);
+            rollback_apply(moved, prev, dst);
             return NULL;
         }
         if (rename(tmp, dst) != 0) {
             ui_log("aggiornamento: rename del sistema nuovo: %s", strerror(errno));
-            if (moved) restore_system(prev, dst);
             unlink(pend);
-            undo_items();
-            remove_tmps();
-            journal_clear();
-            fail(UPE_WRITE);
+            rollback_apply(moved, prev, dst);
             return NULL;
         }
     }
@@ -895,6 +926,7 @@ static void notify_join(void) {
 
 void update_install(void) {
     update_join();
+    if (install_blocked()) { fail(UPE_UNDO); return; }   /* prima il riavvio che rimette i file */
     st.cancel = false;
     st.phase = UPD_CHECK;
     if (pthread_create(&thread, NULL, install_worker, NULL) == 0) thread_on = true;
@@ -903,6 +935,7 @@ void update_install(void) {
 
 void update_apply(void) {
     update_join();
+    if (install_blocked()) { remove_tmps(); fail(UPE_UNDO); return; }
     st.phase = UPD_INSTALL;
     if (pthread_create(&thread, NULL, apply_worker, NULL) == 0) thread_on = true;
     else { remove_tmps(); fail(UPE_WRITE); }

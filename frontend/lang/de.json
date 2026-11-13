@@ -665,7 +665,7 @@
     "system": "WLAN, Datum und Uhrzeit, Ausschalten",
     "tools": "ROMs prüfen, Bilder laden und aufräumen",
     "updates": "Update, Kanal, Protokoll, Infos",
-    "card": "Store, Dateien übertragen, Sicherung, zurücksetzen"
+    "card": "Dateien übertragen, Sicherung, zurücksetzen, alles löschen"
   },
   "settings_cat_desc": {
     "power": "Konsole in den Ruhezustand versetzen, neu starten oder ausschalten.",
@@ -711,8 +711,10 @@
     "err5": "Kopieren auf die Karte fehlgeschlagen: versuche es erneut",
     "err6": "Schreiben auf die Karte nicht möglich",
     "err7": "Update abgebrochen",
+    "err8": "Vorherige Dateien nicht vollständig wiederhergestellt",
     "battery_low": "Akku bei %d%%: zum Installieren das Ladegerät anschließen",
     "err_safe": "Deine Konsole ist unverändert.",
+    "err_restart": "Starte die Konsole neu: sie stellt sie beim Start wieder her.",
     "channel_stable": "Stabil",
     "channel_dev": "Entwicklung",
     "channel_warn": "Testversionen: Probleme sind möglich",

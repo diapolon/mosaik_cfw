@@ -52,7 +52,7 @@ int main(int c, char **v) {
     return 0;
 }
 C
-gcc -O2 -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DUPDATE_REAL -DARCADE_VERSION='"0.0.0"' -DSYS_BLOCK_DIR='"/tmp/upd/block"' -o t src/t.c src/update.c -lcurl -lcrypto -lpthread
+gcc -O2 -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DUPDATE_REAL -DUPDATE_TEST -DARCADE_VERSION='"0.0.0"' -DSYS_BLOCK_DIR='"/tmp/upd/block"' -o t src/t.c src/update.c -lcurl -lcrypto -lpthread
 echo "0.8.0 20260101.0000" > old.txt; echo "0.9.0 20270101.0000" > same.txt; echo "1.0.0 20300101.0000" > newer.txt
 
 # pacchetto sul "Mac"
@@ -104,6 +104,16 @@ cmp $W/vecchio $S/System/arcade-system.squashfs && ok "il sistema resta il vecch
 [ ! -e $S/Cores/a.so ] && ok "file nuovi tolti" || ko "file nuovo rimasto"
 [ -z "$(find $S -name '*.annulla' -o -name '*.nuovo')" ] && ok "nessun file provvisorio" || ko "file provvisori rimasti: $(find $S -name '*.annulla' -o -name '*.nuovo')"
 [ ! -e $S/System/update-journal.txt ] && ok "nessun giornale dopo l'errore" || ko "giornale rimasto"
+card
+echo "--- errore a metà e un originale che non torna: il giornale resta (audit A56-001)"
+mkdir -p $S/Themes/t/theme.json
+expect "$(UPDATE_UNDO_FAIL=Lang/it.json ./t $W/sd install 2>/dev/null)" "11 8 6" "aggiornamento fermato, ripristino incompleto"
+J=$S/System/update-journal.txt
+grep -qx 'stato applico' $J && grep -qx 'file Lang/it.json' $J && ok "giornale tenuto per system-init" || ko "giornale: $(cat $J 2>&1)"
+[ "$(cat $S/Lang/it.json.annulla)" = vecchio ] && ok "l'originale resta come .annulla" || ko "originale perso"
+cmp $W/vecchio $S/System/arcade-system.squashfs && ok "il sistema resta il vecchio"
+expect "$(./t $W/sd install 2>/dev/null)" "11 8 6" "altra installazione rifiutata finché c'è il giornale"
+[ "$(cat $S/Lang/it.json.annulla)" = vecchio ] && grep -qx 'stato applico' $J && ok "giornale e originale non toccati" || ko "giornale riscritto"
 card
 echo "--- impossibile scrivere il segno degli avvii di prova"
 mkdir $S/System/update-pending

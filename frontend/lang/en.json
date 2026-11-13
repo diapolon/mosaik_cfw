@@ -665,7 +665,7 @@
     "system": "Wi-Fi, date and time, power",
     "tools": "Verify ROMs, download and clean images",
     "updates": "Update, channel, log, information",
-    "card": "Store, transfer files, backup, reset"
+    "card": "Transfer files, backup, reset, erase all"
   },
   "settings_cat_desc": {
     "power": "Put the console to sleep, restart it or turn it off.",
@@ -711,8 +711,10 @@
     "err5": "Copy to the card failed: try again",
     "err6": "Couldn't write to the card",
     "err7": "Update cancelled",
+    "err8": "Previous files not fully restored",
     "battery_low": "Battery at %d%%: connect the charger to install",
     "err_safe": "Your console is unchanged.",
+    "err_restart": "Restart the console: it restores them at startup.",
     "channel_stable": "Stable",
     "channel_dev": "Development",
     "channel_warn": "Test builds: they may have problems",
