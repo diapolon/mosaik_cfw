@@ -2328,6 +2328,85 @@ static void draw_pc(int x, int y, int w, int h, color_t c) {
         for (int k = 0; k < 14; k++) ui_rect(kx + kw * 4 / 100 + k * kw * 92 / 100 / 14, ky + kh * (18 + row * 26) / 100, kw * 92 / 100 / 14 - 2, kh / 6 + 1, shell_d);
 }
 
+/* Computer di casa, riconoscibili dalla forma (niente marchi): ZX Spectrum, MSX, C64, PC con
+   monitor per il DOS, Amiga 500. Tastiere viste dall'alto un po' inclinate, come le console. */
+enum { PC_ZX, PC_MSX, PC_C64, PC_DOS, PC_AMIGA };
+
+static void keys_grid(int kx, int ky, int kw, int kh, int rows, int cols, color_t key) {
+    int gx = kw / (cols * 6) + 1, gy = kh / (rows * 5) + 1;
+    int cw = (kw - gx * (cols + 1)) / cols, rh = (kh - gy * (rows + 1)) / rows;
+    for (int r = 0; r < rows; r++) {
+        int off = r * cw / 3;   /* righe sfalsate come una tastiera vera */
+        for (int c = 0; c < cols; c++) {
+            int x = kx + gx + off / 2 + c * (cw + gx);
+            if (x + cw > kx + kw - gx) break;
+            ui_rrect(x, ky + gy + r * (rh + gy), cw, rh, cw / 6 + 1, key);
+        }
+    }
+}
+
+static void draw_computer(int kind, int x, int y, int w, int h, color_t c) {
+    color_t white = hexc(0xF4F1EA);
+    if (kind == PC_DOS) {   /* monitor a tubo sopra il case con il lettore di dischetti */
+        color_t shell = hexc(0xD9D2C2), shell_d = hexc(0xAFA693), scr = hexc(0x111A14);
+        int r = w / 30 + 1, mw = w * 70 / 100, mh = h * 58 / 100, mx = x + (w - mw) / 2;
+        ui_rrect(mx, y, mw, mh, r * 2, shell);
+        int sx = mx + mw * 10 / 100, sy = y + mh * 11 / 100, sw = mw * 80 / 100, sh = mh * 70 / 100;
+        ui_rrect(sx, sy, sw, sh, r * 2, scr);
+        int fh = sh / 5;
+        TTF_Font *f = TTF_FontHeight(UI.f_normal) <= fh ? UI.f_normal : UI.f_small;
+        ui_text(f, "C:\\>", sx + sw / 10, sy + sh / 8, hexc(0x7CE08A), ALIGN_LEFT);
+        int tw = ui_text_w(f, "C:\\>");
+        ui_rect(sx + sw / 10 + tw + 2, sy + sh / 8 + TTF_FontHeight(f) / 6, TTF_FontHeight(f) / 2 + 1, TTF_FontHeight(f) * 2 / 3, hexc(0x7CE08A));
+        ui_rect(mx + mw * 84 / 100, y + mh * 86 / 100, mw / 14 + 1, mh / 24 + 1, c);   /* spia accesa */
+        int cw = w * 90 / 100, ch = h * 30 / 100, cx = x + (w - cw) / 2, cy = y + h - ch;
+        ui_rrect(cx, cy, cw, ch, r, shell);
+        ui_rect(cx + cw * 8 / 100, cy + ch * 30 / 100, cw * 26 / 100, ch / 7 + 1, shell_d);   /* dischetto */
+        ui_rect(cx + cw * 8 / 100, cy + ch * 60 / 100, cw * 26 / 100, ch / 7 + 1, shell_d);
+        ui_rect(cx + cw * 70 / 100, cy + ch * 40 / 100, cw / 14 + 1, ch / 5 + 1, mix(c, white, 0.3f));   /* accensione */
+        ui_rect(x + w * 42 / 100, y + mh, w * 16 / 100, cy - y - mh, shell_d);   /* collo del monitor */
+        return;
+    }
+    int bh = h * 62 / 100, by = y + (h - bh) / 2, r = w / 24 + 1;
+    color_t body, key, top;
+    switch (kind) {
+    case PC_ZX:    body = hexc(0x1E1E22); key = hexc(0x8A8C92); top = hexc(0x2C2C32); break;
+    case PC_MSX:   body = hexc(0x3A3C44); key = hexc(0x1C1D22); top = hexc(0x4A4D57); break;
+    case PC_C64:   body = hexc(0x8A7A62); key = hexc(0x4A3A2C); top = hexc(0x9C8C72); break;
+    default:       body = hexc(0xE6E1D6); key = hexc(0xB8B2A4); top = hexc(0xF2EEE6); break;   /* Amiga */
+    }
+    if (kind == PC_C64) {   /* "scatola del pane": dorso tondo */
+        ui_rrect(x, by, w, bh, bh / 3, body);
+        ui_rrect(x + w / 40, by + bh / 30, w - w / 20, bh / 3, bh / 4, top);
+    } else {
+        ui_rrect(x, by, w, bh, r, body);
+        ui_rect(x + r, by, w - 2 * r, bh / 5, top);   /* il bordo in alto, più chiaro */
+    }
+    int kx = x + w * 6 / 100, ky = by + bh * 30 / 100, kw = w * 88 / 100, kh = bh * 60 / 100;
+    if (kind == PC_C64) {   /* tasti funzione a destra */
+        keys_grid(kx, ky, kw * 82 / 100, kh, 4, 11, key);
+        for (int i = 0; i < 4; i++) ui_rrect(kx + kw * 88 / 100, ky + i * kh / 4 + kh / 30, kw * 10 / 100, kh / 5, kw / 80 + 1, hexc(0xBCAE94));
+    } else if (kind == PC_AMIGA) {   /* tastiera grande, dischetto sul fianco destro */
+        keys_grid(kx, ky, kw * 86 / 100, kh, 5, 13, key);
+        ui_rect(kx, by + bh * 18 / 100, kw * 86 / 100, bh / 20 + 1, key);   /* tasti funzione */
+        ui_rect(x + w - w / 70 - 2, by + bh * 40 / 100, w / 70 + 2, bh * 30 / 100, hexc(0x4A4740));
+        ui_rect(kx, by + bh / 14, w / 10, bh / 22 + 1, c);   /* striscia di colore della piattaforma */
+    } else if (kind == PC_MSX) {   /* fessura della cartuccia in alto e tasti funzione chiari */
+        ui_rrect(x + w * 58 / 100, by + bh / 30, w * 30 / 100, bh / 9, bh / 30 + 1, hexc(0x15161A));
+        for (int i = 0; i < 5; i++) ui_rrect(kx + i * kw * 9 / 100, by + bh * 15 / 100, kw * 8 / 100, bh / 12, kw / 90 + 1, hexc(0x9EA3B0));
+        keys_grid(kx, ky + kh / 8, kw, kh * 7 / 8, 4, 12, key);
+    } else {   /* ZX: tasti di gomma e l'arcobaleno nell'angolo */
+        keys_grid(kx, ky, kw, kh, 4, 10, key);
+        static const unsigned rb[4] = { 0xD8352A, 0xF2C230, 0x3DAA4C, 0x2EA0D8 };
+        int sw = w / 28 + 1;
+        for (int i = 0; i < 4; i++) {
+            int x0 = x + w - w * 22 / 100 + i * sw;
+            ui_triangle(x0, by + bh, x0 + sw, by + bh, x0 + w * 12 / 100 + sw, by + bh * 70 / 100, hexc(rb[i]));
+            ui_triangle(x0, by + bh, x0 + w * 12 / 100 + sw, by + bh * 70 / 100, x0 + w * 12 / 100, by + bh * 70 / 100, hexc(rb[i]));
+        }
+    }
+}
+
 static void draw_laptop(int x, int y, int w, int h) {
     color_t shell = hexc(0xB9AE9C), shell_d = hexc(0x8E8474), scr = hexc(0x1C1A28);
     int r = w / 30 + 1, lx = x + w * 9 / 100, lw = w * 82 / 100, lh = h * 64 / 100;
@@ -2386,6 +2465,15 @@ static void draw_emu_art(const emulator_t *em, color_t c, const char *label, int
         int aw = w, ah = w * 46 / 100;
         if (ah > h * 70 / 100) { ah = h * 70 / 100; aw = ah * 100 / 46; }
         draw_handheld(x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c, em->shortname, true);
+    } else if (!strcmp(art, "pc") && (!strcmp(em->id, "zx") || !strcmp(em->id, "msx") || !strcmp(em->id, "c64") ||
+                                      !strcmp(em->id, "dos") || !strcmp(em->id, "amiga"))) {
+        /* computer di casa: riconosciuti dall'id, così i pacchetti già pubblicati (art "pc") prendono
+           il disegno senza cambiare */
+        int kind = !strcmp(em->id, "zx") ? PC_ZX : !strcmp(em->id, "msx") ? PC_MSX : !strcmp(em->id, "c64") ? PC_C64
+                 : !strcmp(em->id, "dos") ? PC_DOS : PC_AMIGA;
+        int aw = w, ah = kind == PC_DOS ? w * 84 / 100 : w * 60 / 100;
+        if (ah > h * 86 / 100) { ah = h * 86 / 100; aw = ah * 100 / (kind == PC_DOS ? 84 : 60); }
+        draw_computer(kind, x + (w - aw) / 2, y + (h - ah) / 2, aw, ah, c);
     } else if (!strcmp(art, "pc")) {
         int aw = w, ah = w * 84 / 100;
         if (ah > h * 86 / 100) { ah = h * 86 / 100; aw = ah * 100 / 84; }

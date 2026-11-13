@@ -49,7 +49,7 @@ pkg fbneo fbneo_libretro.so fbneo_libretro.so fbneo
 pkg mame2003p mame2003_plus_libretro.so mame2003p_libretro.so mame2003p
 pkg mame2010 mame2010_libretro.so mame2010_libretro.so mame2010
 pkg fceumm fceumm_libretro.so fceumm_libretro.so nes
-pkg genesis_plus_gx genesis_plus_gx_libretro.so genesis_plus_gx_libretro.so md sms gg segacd
+pkg genesis_plus_gx genesis_plus_gx_libretro.so genesis_plus_gx_libretro.so md sms gg segacd sg1000
 pkg snes9x snes9x_libretro.so snes9x_libretro.so snes
 pkg gambatte gambatte_libretro.so gambatte_libretro.so gb gbc
 pkg mgba mgba_libretro.so mgba_libretro.so gba
@@ -206,6 +206,7 @@ MAME2010: ROM per MAME 2010 (romset MAME 0.139), per i giochi che mancano agli a
 NES: giochi NES/Famicom (.nes, .fds, .unf), anche zippati, uno per zip.
 MD: giochi Mega Drive/Genesis (.md, .gen, .smd, .bin), anche zippati, uno per zip.
 SMS, GG: giochi Master System (.sms, .sg) e Game Gear (.gg), anche zippati, uno per zip.
+SG1000: giochi Sega SG-1000 e SC-3000 (.sg, .sc), anche zippati, uno per zip.
 PCE: giochi PC Engine su HuCard (.pce), anche zippati.
 PCECD: giochi PC Engine CD (.chd, .cue con i .bin, .ccd, .m3u per più dischi); serve
 syscard3.pce in Bios/.

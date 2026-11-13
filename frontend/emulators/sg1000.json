@@ -1,0 +1,14 @@
+{
+  "name": "SG-1000",
+  "core": "genesis_plus_gx_libretro",
+  "roms": "Roms/SG1000",
+  "extensions": [
+    "sg",
+    "sc",
+    "zip"
+  ],
+  "kind": "console",
+  "short": "SG-1000",
+  "thumbnails": "Sega - SG-1000",
+  "order": 40
+}

@@ -69,7 +69,7 @@ int emulators_load(const char *root) {
             { "fbneo", "Arcade", "" }, { "mame2003p", "Arcade", "" }, { "mame2010", "Arcade", "" },
             { "nes", "Nintendo", "1983" }, { "snes", "Nintendo", "1990" }, { "gb", "Nintendo", "1989" },
             { "gbc", "Nintendo", "1998" }, { "gba", "Nintendo", "2001" }, { "md", "Sega", "1988" },
-            { "sms", "Sega", "1985" }, { "gg", "Sega", "1990" }, { "segacd", "Sega", "1991" },
+            { "sg1000", "Sega", "1983" }, { "sms", "Sega", "1985" }, { "gg", "Sega", "1990" }, { "segacd", "Sega", "1991" },
             { "dc", "Sega", "1998" }, { "pce", "NEC", "1987" }, { "pcecd", "NEC", "1988" },
             { "ngp", "SNK", "1998" }, { "ps", "Sony", "1994" }, { "a2600", "Atari", "1977" },
             { "a7800", "Atari", "1986" }, { "lynx", "Atari", "1989" }, { "coleco", "Coleco", "1982" },

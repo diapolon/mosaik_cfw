@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.56
+it Disegni nuovi per ZX Spectrum, MSX, C64, DOS e Amiga
+en New drawings for ZX Spectrum, MSX, C64, DOS and Amiga
+it SG-1000 nel pacchetto Genesis Plus GX (giochi in Roms/SG1000)
+en SG-1000 in the Genesis Plus GX package (games in Roms/SG1000)
+
 0.9.55
 it Collezioni automatiche: Da finire, Partite brevi, Due giocatori, Mai giocati
 en Automatic collections: To finish, Quick sessions, Two players, Never played
