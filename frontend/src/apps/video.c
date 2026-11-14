@@ -256,6 +256,11 @@ static double clk_pts, clk_time;     /* orologio: tempo del video suonato all'is
 static bool clk_run;                 /* l'audio sta scorrendo (non a corto di dati) */
 static bool a_hold = true;           /* niente audio del video finché non c'è il primo fotogramma */
 static bool a_pause, a_ended, a_wall;
+/* Uscita audio persa per questo video (non si è riaperta dopo la sospensione): il decoder audio
+   resta al thread di lettura, che però butta i campioni invece di aspettare una richiamata che non
+   c'è più, e l'orologio resta quello monotono anche dopo i salti (verifica Codex NEW-006). Si
+   azzera solo aprendo un altro video. Atomica: la leggono il thread di lettura e l'interfaccia. */
+static _Atomic bool a_mute;
 static double wall_pts, wall_time;   /* orologio monotono: tempo del video all'istante wall_time */
 static _Atomic int a_gain = 256;
 static Sint16 fxbuf[48000];          /* suoni dei tasti (stereo) */
@@ -389,6 +394,8 @@ static int fq_r, fq_n;
 static int vframes_ok, vframes_bad;
 
 static bool playing, paused, waiting, has_audio, bar_pinned, light_told;
+/* l'orologio può essere l'audio: c'è il suo decoder e c'è l'uscita */
+static bool audio_clock(void) { return has_audio && !a_mute; }
 static int cur = -1, rot;                  /* rotazione in gradi, in senso orario */
 static double cur_pts, duration, wait_since, bar_until, paused_at_clk;
 static double audio_end = -1;              /* fine dell'audio, quando è nota (per i salti oltre) */
@@ -431,7 +438,7 @@ static void push_audio(AVFrame *fr) {
     SDL_LockMutex(mtx);
     double db = drop_before;
     SDL_UnlockMutex(mtx);
-    if (pts >= 0 && pts + fd < db) return;   /* prima del punto chiesto */
+    if (a_mute || (pts >= 0 && pts + fd < db)) return;   /* senza uscita, o prima del punto chiesto */
     int max = swr_get_out_samples(swr, fr->nb_samples);
     static Uint8 *buf;
     static int bcap;
@@ -445,7 +452,7 @@ static void push_audio(AVFrame *fr) {
     int got = swr_convert(swr, o, max, (const uint8_t **)fr->extended_data, fr->nb_samples);
     if (got <= 0) return;
     int bytes = got * 4, done = 0;
-    while (done < bytes && !d_stop && !seek_pending()) {
+    while (done < bytes && !d_stop && !a_mute && !seek_pending()) {
         SDL_LockMutex(amtx);
         if (pts >= 0 && ar_n == 0) ar_end_pts = pts;   /* l'anello vuoto riparte dal tempo del pezzo */
         /* Anello pieno mentre si aspetta il primo fotogramma (audio molto prima del video nel
@@ -767,13 +774,17 @@ static bool player_open_guarded(int i, double start) {
     } else aidx = -1;
     /* durata: dal contenitore, poi dal più lungo degli stream, poi dal probing solo se già
        pubblicato (verifica Codex NEW-004: il thread delle durate può scriverla in questo momento) */
-    duration = fmt->duration > 0 ? fmt->duration / (double)AV_TIME_BASE : 0;
-    for (unsigned s = 0; duration <= 0 && s < fmt->nb_streams; s++) {
-        AVStream *st = fmt->streams[s];
-        double d = st->duration > 0 ? st->duration * av_q2d(st->time_base) : 0;
-        if (d > duration) duration = d;
+    /* VIDEO_PROVA_SENZA_DURATA=1: solo per le prove, si ignora la durata del contenitore */
+    bool no_cont = getenv("VIDEO_PROVA_SENZA_DURATA") != NULL;
+    duration = fmt->duration > 0 && !no_cont ? fmt->duration / (double)AV_TIME_BASE : 0;
+    if (duration <= 0) {   /* il più lungo di tutti gli stream (verifica Codex NEW-007), poi il probing */
+        for (unsigned s = 0; s < fmt->nb_streams; s++) {
+            AVStream *st = fmt->streams[s];
+            double d = st->duration > 0 ? st->duration * av_q2d(st->time_base) : 0;
+            if (d > duration) duration = d;
+        }
+        if (!no_cont && atomic_load_explicit(&vids[i].probed, memory_order_acquire) && vids[i].dur > duration) duration = vids[i].dur;
     }
-    if (duration <= 0 && atomic_load_explicit(&vids[i].probed, memory_order_acquire)) duration = vids[i].dur;
     ui_log("video: %s, %s %dx%d %.2f fps%s%s, audio %s, %.0f s, da %.0f s", vids[i].rel, vc->name, w, h, 1 / fdur,
            rot ? ", girato" : "", sar != 1 ? ", pixel non quadrati" : "", has_audio ? ac->name : "no", duration, start);
     /* stato iniziale: si parte con un salto, anche da zero (i decoder partono puliti) */
@@ -793,6 +804,7 @@ static bool player_open_guarded(int i, double start) {
     clk_run = a_ended = a_wall = false;
     a_hold = true;
     a_pause = false;
+    a_mute = false;
     SDL_UnlockMutex(amtx);
     audio_end = -1;
     starve_since = 0;
@@ -815,7 +827,7 @@ static double clock_now(void) {
     if (waiting) return cur_pts;
     if (paused) return paused_at_clk;
     SDL_LockMutex(amtx);
-    if (has_audio && !a_wall && a_ended && ar_n == 0) {
+    if (audio_clock() && !a_wall && a_ended && ar_n == 0) {
         /* audio finito davvero (non solo in ritardo): si continua con l'orologio monotono dal suo
            ultimo tempo (verifica Codex NEW-002) */
         a_wall = true;
@@ -825,7 +837,7 @@ static double clock_now(void) {
         ui_log("video: audio finito a %.1f s, il video continua", clk_pts);
     }
     double p;
-    if (!has_audio || a_wall) p = wall_pts + (now_s() - wall_time);
+    if (!audio_clock() || a_wall) p = wall_pts + (now_s() - wall_time);
     else {
         double e = now_s() - clk_time;
         p = clk_pts + (clk_run ? (e < 0 ? 0 : e > 0.2 ? 0.2 : e) : 0);
@@ -941,20 +953,20 @@ static bool player_step(bool *ended) {
             clk_time = wall_time = now_s();
             clk_run = false;
             /* oltre la fine già nota dell'audio: subito l'orologio monotono */
-            if (has_audio && audio_end >= 0 && show_pts >= audio_end - 0.05) a_wall = true;
+            if (audio_clock() && audio_end >= 0 && show_pts >= audio_end - 0.05) a_wall = true;
             SDL_UnlockMutex(amtx);
         }
     }
     /* finito: niente più fotogrammi e l'audio ha suonato tutto */
     if (eof && !waiting) {
         int left = 0;
-        if (has_audio) { SDL_LockMutex(amtx); left = a_wall ? 0 : ar_n; SDL_UnlockMutex(amtx); }
+        if (audio_clock()) { SDL_LockMutex(amtx); left = a_wall ? 0 : ar_n; SDL_UnlockMutex(amtx); }
         if (!left) *ended = true;
     }
     /* Audio che non arriva più: anello vuoto, orologio fermo, e la lettura bloccata dalle code
        video piene (l'audio è troppo lontano nel file, o il decoder non dà niente). Dopo 1,5 s così
        non è una semplice attesa: orologio monotono da dove si era (NEW-002). */
-    if (has_audio && !waiting && !paused) {
+    if (audio_clock() && !waiting && !paused) {
         SDL_LockMutex(mtx);
         bool full = fq_n == FQ && (pq_n == PQ || pq_bytes > PQ_BYTES);
         SDL_UnlockMutex(mtx);
@@ -994,23 +1006,20 @@ static bool player_step(bool *ended) {
 /* Dopo una sospensione (gamewatch ferma l'app, la console dorme, poi la riprende) l'uscita audio
    può non rispondere più: si riapre, e il video resta in pausa. CLOCK_BOOTTIME conta il sonno,
    CLOCK_MONOTONIC no. */
-static void resume_check(void) {
-#ifdef CLOCK_BOOTTIME
-    struct timespec bt, mt;
-    static double last = -1;
-    clock_gettime(CLOCK_BOOTTIME, &bt);
-    clock_gettime(CLOCK_MONOTONIC, &mt);
-    double gap = (bt.tv_sec - mt.tv_sec) + (bt.tv_nsec - mt.tv_nsec) / 1e9;
-    bool slept = last >= 0 && gap - last > 1.0;
-    last = gap;
-    if (!slept) return;
+static void after_sleep(void) {
     ui_log("video: ripresa dalla sospensione, riapro l'audio");
     if (playing && !waiting) set_pause(true);
     if (adev) {   /* l'anello resta: lo legge la nuova richiamata */
         guard_begin();
         audio_close();
-        if (!audio_open(true) && playing && has_audio) {   /* senza uscita: si va avanti muti */
+        /* VIDEO_PROVA_RIAPERTURA=fallita: solo per le prove, la riapertura non riesce */
+        const char *pr = getenv("VIDEO_PROVA_RIAPERTURA");
+        bool ok = !(pr && !strcmp(pr, "fallita")) && audio_open(true);
+        if (!ok && playing && has_audio) {   /* senza uscita: si va avanti muti fino alla fine */
+            ui_log("video: uscita audio persa, il video continua senza suono");
+            a_mute = true;
             SDL_LockMutex(amtx);
+            ar_r = ar_n = 0;
             a_wall = true;
             wall_pts = paused_at_clk;
             wall_time = now_s();
@@ -1019,6 +1028,24 @@ static void resume_check(void) {
         guard_end();
     }
     if (playing) bar_show();
+}
+
+static void resume_check(void) {
+    /* VIDEO_PROVA_SOSPENSIONE=secondi: solo per le prove (sul Mac non c'è CLOCK_BOOTTIME), una
+       sospensione finta dopo tanti secondi di video */
+    static double fake_at = -1;
+    const char *fs = getenv("VIDEO_PROVA_SOSPENSIONE");
+    if (fs && playing && fake_at < 0) fake_at = now_s() + atof(fs);
+    if (fake_at > 0 && now_s() > fake_at) { fake_at = 0; after_sleep(); return; }
+#ifdef CLOCK_BOOTTIME
+    struct timespec bt, mt;
+    static double last = -1;
+    clock_gettime(CLOCK_BOOTTIME, &bt);
+    clock_gettime(CLOCK_MONOTONIC, &mt);
+    double gap = (bt.tv_sec - mt.tv_sec) + (bt.tv_nsec - mt.tv_nsec) / 1e9;
+    bool slept = last >= 0 && gap - last > 1.0;
+    last = gap;
+    if (slept) after_sleep();
 #endif
 }
 
