@@ -82,19 +82,50 @@ fi
 # Le volte successive sdgrow vede che non c'è nulla da fare e finisce subito.
 PN=${P#/dev/}
 DISK=/dev/$(basename "$(readlink -f /sys/class/block/$PN/..)")
+# registro dell'allargamento in Logs/sdgrow.txt della FAT montata in $1, anche con il registro
+# spento; oltre 20 KB il file diventa sdgrow.txt.old e si ricomincia (audit SDGROW, B1)
+grow_log() {
+    mkdir -p "$1"
+    if [ -f "$1/sdgrow.txt" ] && [ "$(wc -c < "$1/sdgrow.txt")" -ge 20000 ]; then mv -f "$1/sdgrow.txt" "$1/sdgrow.txt.old"; fi
+    { echo "=== $(date) · esito $GROW (0 allargata, 1 niente da fare ma la partizione è piccola, 2 errore, 3 tabella allargata e riavvio, 4 non avviato, 5 tabella e kernel discordi, 6 tabella allargata e riavvio, senza registro di questo tentativo)"
+      cat /tmp/sdgrow.txt; } >> "$1/sdgrow.txt"
+    sync
+}
 GROW=1
+SUSPECT=
 if [ -f /sys/class/block/$PN/partition ] && [ -b "$DISK" ]; then
     sdgrow "$DISK" "$P" > /tmp/sdgrow.txt 2>&1
     GROW=$?
+    # "niente da fare" con più di 1 GB fra disco e partizione: si registra, con le misure della prova
+    if [ $GROW = 1 ]; then
+        DS=$(cat /sys/class/block/${DISK#/dev/}/size 2>/dev/null || echo 0)
+        PS=$(cat /sys/class/block/$PN/size 2>/dev/null || echo 0)
+        if [ $((DS - PS)) -gt 2097152 ]; then
+            SUSPECT=1
+            { echo "disco $((DS / 2048)) MB, partizione per il kernel $((PS / 2048)) MB"; sdgrow -n "$DISK" 2>&1; } >> /tmp/sdgrow.txt
+        fi
+    fi
 else
     GROW=4   # partizione o disco non trovati: sdgrow non è partito
     echo "sdgrow non avviato: partizione $P, disco $DISK" > /tmp/sdgrow.txt
 fi
-if [ $GROW = 3 ]; then
+if [ $GROW = 3 ] || [ $GROW = 6 ]; then
     # partizione allargata ma il kernel vede ancora la misura vecchia: il FAT si allarga al
     # prossimo avvio
     # col caricatore collegato U-Boot, ripartendo, resterebbe nella modalità di sola carica:
     # si spegne e si riaccende con il tasto
+    # Prima il registro: con l'esito 3 sdgrow ha controllato che la partizione vista dal kernel
+    # cominci dove comincia il FAT (non toccato) e lo contenga tutto, quindi si monta un momento, si
+    # scrive e si smonta. Senza, al riavvio l'esito andava perso (audit SDGROW, B1). Con il 6 quel
+    # controllo non è passato: niente mount; il motivo di questo tentativo si perde, l'avvio dopo
+    # registra il suo esito (SDG-R01)
+    if [ $GROW = 3 ]; then
+        mkdir -p /sd
+        if mount -t vfat -o rw,noatime,flush "$P" /sd 2>/dev/null; then
+            grow_log /sd/Arcade/Logs
+            umount /sd || sync
+        fi
+    fi
     sync
     if [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ]; then
         fbmsg show blu 8 "SD ALLARGATA" "RIACCENDI LA CONSOLE" 2>/dev/null
@@ -128,14 +159,14 @@ esac
 # Allargamento: l'esito va sempre in Logs/sdgrow.txt, anche con il registro spento, quando la
 # scheda è stata allargata o non ci si è riusciti: chi resta con la partizione piccola (issue #7)
 # deve poter dire perché senza accendere prima il registro
-# (un errore che si ripete a ogni avvio non fa crescere il file oltre 20 KB)
-if [ $GROW != 1 ] && [ "$(wc -c < /sd/Arcade/Logs/sdgrow.txt 2>/dev/null || echo 0)" -lt 20000 ]; then
-    { echo "=== $(date) · esito $GROW (0 allargata, 2 errore, 4 non avviato)"; cat /tmp/sdgrow.txt; } >> /sd/Arcade/Logs/sdgrow.txt
-    sync
+# (oltre 20 KB il file si ruota in sdgrow.txt.old: un errore che si ripete non lo fa crescere)
+if [ $GROW != 1 ] || [ -n "$SUSPECT" ]; then
+    grow_log /sd/Arcade/Logs
 fi
 case $GROW in
     0) step "2c SD allargata a tutta la scheda: $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
-    1) ;;
+    1) if [ -n "$SUSPECT" ]; then step "2c SD: niente da fare ma la partizione è piccola: $(tr '\n' ' ' < /tmp/sdgrow.txt)"; fi ;;
+    5) step "2c SD: la tabella è allargata ma il kernel vede la partizione vecchia: $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
     *) step "2c allargamento della SD non riuscito ($GROW): $(tr '\n' ' ' < /tmp/sdgrow.txt)" ;;
 esac
 # >>> scelta del sistema (m2/test-boot.sh prova questo blocco)

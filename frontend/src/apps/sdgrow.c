@@ -35,6 +35,7 @@ static long long card_bytes, part_bytes, fs_bytes, fs_free;
 static int verdict = -1;                  /* esito della prova: 0 si può, 1 niente da fare, 2 no */
 static char detail[600];                  /* quello che dice sdgrow */
 static bool grown;                        /* tabella allargata: si spegne per finire */
+static bool sd_ok;                        /* il disco è una scheda SD (mai la memoria interna) */
 
 static long long sys_sectors(const char *name) {
     char p[256];
@@ -66,6 +67,21 @@ static void find_card(void) {
         char *s = strrchr(link, '/');
         if (s) { *s = 0; s = strrchr(link, '/'); if (s) snprintf(disk, sizeof disk, "%s", s + 1); }
     }
+    /* Solo una scheda SD: il tipo del dispositivo MMC dice "SD" per le schede e "MMC" per la
+       memoria interna (eMMC), che non si tocca mai. Un altro nome o un tipo illeggibile: no
+       (audit SDGROW, verifica 4) */
+    sd_ok = false;
+    if (!strncmp(disk, "mmcblk", 6) && !strstr(disk, "boot") && !strstr(disk, "rpmb")) {
+        char tp[300], ty[16] = "";
+        snprintf(tp, sizeof tp, "/sys/class/block/%s/device/type", disk);
+        FILE *tf = fopen(tp, "r");
+        if (tf) { if (fscanf(tf, "%15s", ty) != 1) ty[0] = 0; fclose(tf); }
+        sd_ok = !strcmp(ty, "SD");
+        ui_log("sd: disco %s, tipo %s", disk, ty[0] ? ty : "?");
+    }
+#ifndef __linux__
+    sd_ok = true;   /* Mac: scheda simulata */
+#endif
     card_bytes = disk[0] ? sys_sectors(disk) : 0;
     part_bytes = part[0] ? sys_sectors(part) : 0;
     struct statvfs v;
@@ -78,6 +94,7 @@ static int run_sdgrow(const char *opt, char *out, size_t n) {
     out[0] = 0;
 #ifdef __linux__
     if (!disk[0]) { snprintf(out, n, "sdgrow: scheda non trovata"); return 2; }
+    if (!sd_ok) { snprintf(out, n, "sdgrow: %s non risulta una scheda SD: non si tocca", disk); return 2; }
     int pf[2];
     if (pipe(pf) != 0) return 2;
     /* quello che il programma ha ancora da scrivere (i messaggi di SDL) non va copiato nel figlio:
