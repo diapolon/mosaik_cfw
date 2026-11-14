@@ -349,11 +349,12 @@ int music_count(void) { scan_menu(); return ntracks; }
    al risveglio lo stesso brano riparte dallo stesso punto, con il controllo del flusso */
 static int sleep_track = -1;
 static double sleep_pos;
+static bool sleep_detached;
 void music_before_sleep(void) {
     if (!mixer_on) return;
+    wd("chiusura della musica per la sospensione");   /* anche la lettura della posizione */
     sleep_track = title[0] && mus ? cur : -1;
     sleep_pos = mus ? Mix_GetMusicPosition(mus) : 0;
-    wd("chiusura della musica per la sospensione");
     Mix_HookMusicFinished(NULL);
     Mix_HaltMusic();
     Mix_HaltChannel(-1);
@@ -365,14 +366,26 @@ void music_before_sleep(void) {
     fx_buf = NULL;
     Mix_CloseAudio();
     mixer_on = false;
+    /* l'uscita resta libera fino al risveglio: riaprire qui l'audio dei menu era un'apertura
+       senza guardia prima del sonno (seconda verifica di Codex); ui_suspend non ha nulla da chiudere */
+    ui_audio_detach();
+    sleep_detached = true;
     wd(NULL);
     title[0] = 0;
-    ui_audio_takeover(NULL);
 }
 void music_after_sleep(void) {
     int i = sleep_track;
+    bool detached = sleep_detached;
     sleep_track = -1;
-    if (i < 0 || i >= ntracks || UI.set.music_vol <= 0 || !mixer_open()) { wd(NULL); return; }
+    sleep_detached = false;
+    if (i < 0 || i >= ntracks || UI.set.music_vol <= 0 || !mixer_open()) {
+        if (detached && !mixer_on) {   /* niente musica: torna l'audio dei menu, sotto il cane da guardia */
+            wd("riapertura dell'audio dei menu dopo la sospensione");
+            ui_audio_takeover(NULL);
+        }
+        wd(NULL);
+        return;
+    }
     cur = i;
     finished = false;
     wd("Mix_LoadMUS");

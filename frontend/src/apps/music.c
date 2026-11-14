@@ -272,11 +272,11 @@ static void resume_check(void) {
     bool slept = last >= 0 && gap - last > 1.0;
     last = gap;
     if (!slept || !mixer_on) return;
+    guard_begin();   /* dalla lettura della posizione alla riapertura (seconda verifica di Codex) */
     int idx = cur;
     bool was_paused = paused;
     double pos = position();
     ui_log("musica: ripresa dalla sospensione, riapro l'audio (brano %d, %.0f s)", idx, pos);
-    guard_begin();
     Mix_HookMusicFinished(NULL);
     Mix_HaltMusic();
     if (mus) { Mix_FreeMusic(mus); mus = NULL; }

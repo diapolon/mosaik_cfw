@@ -32,17 +32,26 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
     if (i == GM_BRIGHT) snprintf(value, vn, "%d", UI.set.brightness);
 }
 
+/* fondo del menu: velo scuro, ombra e pannello. Si usa anche per ripulire la zona delle voci:
+   con una superficie semitrasparente (tema Copertina) coprire le righe con il suo colore lasciava
+   vedere l'evidenziazione di prima, e cambiando voce si accendevano tutte */
+static void draw_base(int px, int py, int pw, int ph) {
+    theme_t *t = &UI.th;
+    int r = M(t->panel_radius) * 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 150));
+    ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
+    ui_rrect(px, py, pw, ph, r, t->surface);
+}
+
 /* parti fisse, come menu_draw del runner (pagina principale): si disegnano una volta */
 static void draw_static(const char *title) {
     theme_t *t = &UI.th;
-    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 150));
     int hb = M(t->hintbar_h), my = M(0.035f);
     int pw = M(0.80f);
     if (pw > UI.w - 2 * M(t->margin)) pw = UI.w - 2 * M(t->margin);
     int ph = UI.h - hb - 2 * my;
-    int px = M(t->margin), py = my, r = M(t->panel_radius) * 2;
-    ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    int px = M(t->margin), py = my;
+    draw_base(px, py, pw, ph);
     char buf[300];
     int pad = M(0.04f), y = py + pad;
     ui_text_fit(UI.f_title, title, pw - 2 * pad, buf, sizeof buf);
@@ -63,8 +72,15 @@ static void draw_static(const char *title) {
 static void draw_rows(void) {
     theme_t *t = &UI.th;
     char buf[300], label[200], value[120];
-    int x0 = g_px + M(0.015f), w0 = g_pw - M(0.03f);
-    ui_rect(x0, g_rows_y, w0, GM_COUNT * g_rh, t->surface);   /* copre le righe di prima */
+    /* la zona delle righe torna com'era senza righe: svuotata e ridisegnata con il fondo */
+    SDL_Rect z = { g_px, g_rows_y, g_pw, GM_COUNT * g_rh };
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(UI.ren, 0, 0, 0, 0);
+    SDL_RenderFillRect(UI.ren, &z);
+    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
+    ui_clip_push(z.x, z.y, z.w, z.h);
+    draw_base(g_px, g_py, g_pw, g_ph);
+    ui_clip_pop();
     TTF_Font *f = UI.f_normal;
     int fh = TTF_FontHeight(f);
     ui_rrect(g_px + M(0.02f), g_rows_y + sel * g_rh, g_pw - M(0.04f), g_rh, M(t->panel_radius), t->accent);
