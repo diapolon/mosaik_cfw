@@ -2,7 +2,8 @@
  "title": "Video",
  "description": "Watch the Video folder: MP4, MKV, WEBM, AVI, MOV up to 1080p, resumes where you left off.",
  "author": "Mosaik",
- "version": "1.0",
+ "version": "1.1",
+ "min_system": "0.9.57",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

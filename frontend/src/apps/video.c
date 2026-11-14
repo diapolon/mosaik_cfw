@@ -108,7 +108,7 @@ static void scan(const char *dir, const char *rel, int depth) {
         if (lp >= (int)sizeof p || lr >= (int)sizeof r || lr >= (int)sizeof vids[0].rel) { scan_cut = true; continue; }
         if (stat(p, &sb) != 0) continue;
         if (S_ISDIR(sb.st_mode)) { scan(p, r, depth + 1); continue; }
-        if (!is_video(e->d_name)) continue;
+        if (!S_ISREG(sb.st_mode) || !is_video(e->d_name)) continue;   /* solo file veri: una FIFO bloccherebbe */
         if (nvids == cap_vids) {
             int nc = cap_vids ? cap_vids * 2 : 64;
             vid_t *nv = realloc(vids, (size_t)nc * sizeof *nv);
@@ -131,13 +131,15 @@ static void vid_path(int i, char *out, size_t n) { snprintf(out, n, "%s/Video/%s
 
 /* durata e misure di ogni video, in sottofondo: basta l'intestazione del contenitore */
 static _Atomic bool probe_stop;
+static int probe_interrupt(void *u) { (void)u; return probe_stop; }
 static int probe_thread(void *u) {
     (void)u;
     for (int i = 0; i < nvids && !probe_stop; i++) {
         char p[1700];
         vid_path(i, p, sizeof p);
-        AVFormatContext *fc = NULL;
-        if (avformat_open_input(&fc, p, NULL, NULL) == 0) {
+        AVFormatContext *fc = avformat_alloc_context();
+        if (fc) fc->interrupt_callback = (AVIOInterruptCB){ probe_interrupt, NULL };
+        if (fc && avformat_open_input(&fc, p, NULL, NULL) == 0) {
             if (fc->duration > 0) vids[i].dur = fc->duration / (double)AV_TIME_BASE;
             for (unsigned s = 0; s < fc->nb_streams; s++) {   /* senza durata del contenitore: la più lunga degli stream */
                 AVStream *st = fc->streams[s];
@@ -217,24 +219,68 @@ static void mark_set(const char *rel, double pos, double dur) {
     marks_save();
 }
 
+/* ------------------------------------------------------------ guardia */
+
+/* Limite di tempo per le operazioni che con un driver audio bloccato o una scheda che non risponde
+   non tornano più (passaggio dell'audio all'app, apertura e chiusura dell'uscita, ripresa dopo la
+   sospensione, apertura di un video, fine dei thread tornando all'elenco): allo scadere il segnale
+   chiude l'app e gamewatch torna al menu, invece di un'app ferma (verifica Codex NEW-001, come il
+   Lettore musicale). A contatore: le chiamate annidate non lo spengono prima del tempo. Durante
+   l'uscita vale il limite di app_exit_begin e la guardia non si tocca più. */
+static int guard_depth;
+static bool exiting;
+static void guard_begin(void) { if (!exiting && guard_depth++ == 0) alarm(8); }
+static void guard_end(void) { if (!exiting && guard_depth > 0 && --guard_depth == 0) alarm(0); }
+static void exit_begin(void) { exiting = true; app_exit_begin(); }
+
 /* ------------------------------------------------------------ audio */
 
 /* L'uscita audio è dell'app per tutto il tempo (anche i suoni dei tasti passano da qui): la
    richiamata mescola l'audio del video, dall'anello, e i suoni dell'interfaccia. Tutto quello che
-   segue è protetto da amtx (anche nella richiamata), che resta valido se l'uscita si riapre. */
+   segue è protetto da amtx (anche nella richiamata), che resta valido se l'uscita si riapre.
+
+   Orologio. Di solito è l'audio: play_pos è il tempo del prossimo campione da suonare; se l'audio
+   comincia più tardi del video la richiamata suona silenzio e fa avanzare play_pos finché non lo
+   raggiunge. Quando l'audio è finito davvero (a_ended, dalla lettura alla fine del file) o non
+   arriva più (lettura ferma con le code video piene) l'orologio passa a quello monotono
+   (a_wall), ancorato all'ultimo tempo dell'audio; da lì la richiamata suona i dati dell'anello
+   solo al loro tempo. Una semplice attesa di dati (anello vuoto per poco) ferma l'orologio. */
 static SDL_AudioDeviceID adev;
 static SDL_mutex *amtx;
 static int arate = 48000, abps = 48000 * 4, alat_samples = 1024;
 static Uint8 *aring;
 static int aring_cap, ar_r, ar_n;
 static double ar_end_pts;            /* tempo del video alla fine dei dati nell'anello */
+static double play_pos;              /* tempo del prossimo campione da mandare all'uscita */
 static double clk_pts, clk_time;     /* orologio: tempo del video suonato all'istante clk_time */
 static bool clk_run;                 /* l'audio sta scorrendo (non a corto di dati) */
 static bool a_hold = true;           /* niente audio del video finché non c'è il primo fotogramma */
-static bool a_pause;
+static bool a_pause, a_ended, a_wall;
+static double wall_pts, wall_time;   /* orologio monotono: tempo del video all'istante wall_time */
 static _Atomic int a_gain = 256;
 static Sint16 fxbuf[48000];          /* suoni dei tasti (stereo) */
 static int fx_n, fx_pos;
+
+static double ring_front(void) { return ar_end_pts - (double)ar_n / abps; }
+
+static void ring_drop(int bytes) {
+    bytes -= bytes % 4;
+    if (bytes > ar_n) bytes = ar_n;
+    ar_r = (ar_r + bytes) % aring_cap;
+    ar_n -= bytes;
+}
+
+static int ring_play(Sint16 *out, int len) {   /* byte suonati */
+    int n = ar_n < len ? ar_n : len, g = a_gain;
+    n -= n % 4;
+    for (int i = 0; i < n / 2; i++) {
+        int k = (ar_r + i * 2) % aring_cap;
+        Sint16 s = (Sint16)(aring[k] | aring[(k + 1) % aring_cap] << 8);
+        out[i] = (Sint16)(s * g / 256);
+    }
+    ring_drop(n);
+    return n;
+}
 
 static void audio_cb(void *u, Uint8 *stream, int len) {
     (void)u;
@@ -242,17 +288,22 @@ static void audio_cb(void *u, Uint8 *stream, int len) {
     Sint16 *out = (Sint16 *)stream;
     SDL_LockMutex(amtx);
     int ns = len / 2;
-    if (!a_hold && !a_pause && ar_n > 0) {
-        int n = ar_n < len ? ar_n : len, g = a_gain;
-        n -= n % 4;
-        for (int i = 0; i < n / 2; i++) {
-            int k = (ar_r + i * 2) % aring_cap;
-            Sint16 s = (Sint16)(aring[k] | aring[(k + 1) % aring_cap] << 8);
-            out[i] = (Sint16)(s * g / 256);
-        }
-        ar_r = (ar_r + n) % aring_cap;
-        ar_n -= n;
-        clk_pts = ar_end_pts - (double)ar_n / abps - (double)alat_samples / arate;
+    double lat = (double)alat_samples / arate, dur = (double)len / abps;
+    if (a_hold || a_pause) clk_run = false;
+    else if (a_wall) {   /* orologio monotono: l'audio che c'è si suona al suo tempo */
+        double pos = wall_pts + (now_s() - wall_time) + lat;
+        if (ar_n > 0 && ring_front() < pos - 0.03) ring_drop((int)((pos - ring_front()) * abps));
+        if (ar_n > 0 && ring_front() <= pos + 0.03) ring_play(out, len);
+    } else if (ar_n > 0 && ring_front() > play_pos + 0.04) {   /* l'audio comincia più tardi */
+        play_pos += dur;
+        clk_pts = play_pos - lat;
+        clk_time = now_s();
+        clk_run = true;
+    } else if (ar_n > 0) {
+        double front = ring_front();
+        int n = ring_play(out, len);
+        play_pos = front + (double)n / abps;
+        clk_pts = play_pos - lat;
         clk_time = now_s();
         clk_run = n == len;
     } else clk_run = false;
@@ -273,29 +324,39 @@ static void play_fx(const Sint16 *stereo, int frames) {   /* già con il volume 
     SDL_UnlockMutex(amtx);
 }
 
+static void audio_close_now(void) {
+    if (adev) SDL_CloseAudioDevice(adev);
+    adev = 0;
+}
+
 static bool audio_open(bool keep_ring) {
     if (adev) return true;
-    if (getenv("ARCADE_NO_AUDIO")) return false;
+    if (getenv("ARCADE_NO_AUDIO")) return false;   /* audio non funzionante (system-init) */
+    guard_begin();
     SDL_AudioSpec want = { .freq = UI.audio_rate ? UI.audio_rate : 48000, .format = AUDIO_S16SYS, .channels = 2, .samples = 1024, .callback = audio_cb }, have;
     adev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+    guard_end();
     if (!adev) { ui_log("video: audio non disponibile (%s)", SDL_GetError()); return false; }
+    SDL_LockMutex(amtx);
     arate = have.freq;
     abps = arate * 4;
     alat_samples = have.samples;
-    SDL_LockMutex(amtx);
     if (!aring) {
         aring_cap = abps * 2;
         aring = malloc((size_t)aring_cap);
     }
     if (aring && !keep_ring) ar_r = ar_n = 0;
     SDL_UnlockMutex(amtx);
-    if (!aring) { SDL_CloseAudioDevice(adev); adev = 0; return false; }
+    if (!aring) { audio_close_now(); return false; }
     SDL_PauseAudioDevice(adev, 0);
     return true;
 }
 
 static void audio_close(void) {
-    if (adev) SDL_CloseAudioDevice(adev);
+    if (!adev) return;
+    guard_begin();
+    SDL_CloseAudioDevice(adev);
+    guard_end();
     adev = 0;
 }
 
@@ -329,7 +390,9 @@ static int vframes_ok, vframes_bad;
 
 static bool playing, paused, waiting, has_audio, bar_pinned, light_told;
 static int cur = -1, rot;                  /* rotazione in gradi, in senso orario */
-static double cur_pts, duration, wait_since, bar_until, wclk_pts, wclk_time, paused_at_clk;
+static double cur_pts, duration, wait_since, bar_until, paused_at_clk;
+static double audio_end = -1;              /* fine dell'audio, quando è nota (per i salti oltre) */
+static double starve_since;                /* da quando l'audio manca con le code piene */
 static SDL_Texture *vtex;
 static int tex_w, tex_h;
 static double sar = 1;
@@ -385,6 +448,10 @@ static void push_audio(AVFrame *fr) {
     while (done < bytes && !d_stop && !seek_pending()) {
         SDL_LockMutex(amtx);
         if (pts >= 0 && ar_n == 0) ar_end_pts = pts;   /* l'anello vuoto riparte dal tempo del pezzo */
+        /* Anello pieno mentre si aspetta il primo fotogramma (audio molto prima del video nel
+           file): nessuno lo sta suonando, aspettare fermerebbe la lettura prima del video. Si
+           tiene l'audio più recente e si butta il più vecchio (verifica Codex NEW-003). */
+        if (a_hold && aring_cap - ar_n < bytes - done) ring_drop(bytes - done - (aring_cap - ar_n));
         int space = aring_cap - ar_n, n = bytes - done < space ? bytes - done : space;
         n -= n % 4;
         int w = (ar_r + ar_n) % aring_cap;
@@ -520,13 +587,11 @@ static int read_thread(void *u) {
             if (avformat_seek_file(fmt, -1, INT64_MIN, ts, ts, 0) < 0 && t > 0) ui_log("video: salto a %.0f s non riuscito", t);
             if (adec) avcodec_flush_buffers(adec);
             if (swr) swr_init(swr);
-            if (adev) {
-                SDL_LockMutex(amtx);
-                ar_r = ar_n = 0;
-                ar_end_pts = clk_pts = t;
-                clk_run = false;
-                SDL_UnlockMutex(amtx);
-            }
+            SDL_LockMutex(amtx);
+            ar_r = ar_n = 0;
+            ar_end_pts = clk_pts = play_pos = t;
+            clk_run = a_ended = false;
+            SDL_UnlockMutex(amtx);
             at_end = false;
             continue;
         }
@@ -541,7 +606,12 @@ static int read_thread(void *u) {
         if (r < 0) {   /* fine (o errore di lettura): si svuotano i decoder */
             if (r != AVERROR_EOF) ui_log("video: lettura interrotta (%s)", av_err2str(r));
             if (adec) audio_decode(adec, NULL, fr);
-            if (pq_push(NULL, serial)) at_end = true;
+            if (pq_push(NULL, serial)) {
+                at_end = true;
+                SDL_LockMutex(amtx);
+                a_ended = true;   /* non arriverà altro audio fino al prossimo salto (NEW-002) */
+                SDL_UnlockMutex(amtx);
+            }
             continue;
         }
         if (pkt->stream_index == vidx) {
@@ -558,7 +628,18 @@ static int read_thread(void *u) {
     return 0;
 }
 
+/* FFmpeg chiede a ogni lettura se deve smettere: per la chiusura (d_stop) e, mentre si apre un
+   video nel thread dell'interfaccia, dopo una scadenza (verifica Codex NEW-001). Una lettura ferma
+   dentro il sistema non torna comunque: per quella resta la guardia. */
+static _Atomic double io_deadline;   /* 0: nessuna */
+static int io_interrupt(void *u) {
+    (void)u;
+    double dl = io_deadline;
+    return d_stop || (dl > 0 && now_s() > dl);
+}
+
 static void player_close(void) {
+    guard_begin();   /* i thread finiscono, o l'app si chiude: i contesti si liberano solo dopo */
     d_stop = true;
     SDL_LockMutex(mtx);
     SDL_CondBroadcast(cnd);
@@ -570,12 +651,10 @@ static void player_close(void) {
     fq_clear();
     pq_clear();
     SDL_UnlockMutex(mtx);
-    if (adev) {
-        SDL_LockMutex(amtx);
-        ar_r = ar_n = 0;
-        a_hold = true;
-        SDL_UnlockMutex(amtx);
-    }
+    SDL_LockMutex(amtx);
+    ar_r = ar_n = 0;
+    a_hold = true;
+    SDL_UnlockMutex(amtx);
     avcodec_free_context(&vdec);
     avcodec_free_context(&adec);
     swr_free(&swr);
@@ -585,18 +664,35 @@ static void player_close(void) {
     if (vtex) SDL_DestroyTexture(vtex);
     vtex = NULL;
     playing = false;
+    io_deadline = 0;
+    guard_end();
 }
 
 static const char *open_err;   /* chiave del messaggio per l'ultimo video che non si apre */
 static char open_detail[64];
 
+static bool player_open_guarded(int i, double start);
 static bool player_open(int i, double start) {
+    guard_begin();
+    bool ok = player_open_guarded(i, start);
+    guard_end();
+    return ok;
+}
+
+static bool player_open_guarded(int i, double start) {
     char p[1700];
     vid_path(i, p, sizeof p);
     open_err = "video.bad_file";
     open_detail[0] = 0;
-    if (avformat_open_input(&fmt, p, NULL, NULL) < 0) { ui_log("video: %s non si apre", vids[i].rel); return false; }
+    d_stop = false;
+    /* apertura e ricerca degli stream nel thread dell'interfaccia: al massimo 6 s */
+    io_deadline = now_s() + 6;
+    fmt = avformat_alloc_context();
+    if (!fmt) return false;
+    fmt->interrupt_callback = (AVIOInterruptCB){ io_interrupt, NULL };
+    if (avformat_open_input(&fmt, p, NULL, NULL) < 0) { ui_log("video: %s non si apre", vids[i].rel); io_deadline = 0; return false; }
     if (avformat_find_stream_info(fmt, NULL) < 0) { ui_log("video: %s senza stream leggibili", vids[i].rel); player_close(); return false; }
+    io_deadline = 0;
     vidx = aidx = -1;
     for (unsigned s = 0; s < fmt->nb_streams; s++) {
         AVStream *st = fmt->streams[s];
@@ -669,11 +765,18 @@ static bool player_open(int i, double start) {
             aidx = -1;
         }
     } else aidx = -1;
-    duration = fmt->duration > 0 ? fmt->duration / (double)AV_TIME_BASE : vids[i].dur;
+    /* durata: dal contenitore, poi dal più lungo degli stream, poi dal probing solo se già
+       pubblicato (verifica Codex NEW-004: il thread delle durate può scriverla in questo momento) */
+    duration = fmt->duration > 0 ? fmt->duration / (double)AV_TIME_BASE : 0;
+    for (unsigned s = 0; duration <= 0 && s < fmt->nb_streams; s++) {
+        AVStream *st = fmt->streams[s];
+        double d = st->duration > 0 ? st->duration * av_q2d(st->time_base) : 0;
+        if (d > duration) duration = d;
+    }
+    if (duration <= 0 && atomic_load_explicit(&vids[i].probed, memory_order_acquire)) duration = vids[i].dur;
     ui_log("video: %s, %s %dx%d %.2f fps%s%s, audio %s, %.0f s, da %.0f s", vids[i].rel, vc->name, w, h, 1 / fdur,
            rot ? ", girato" : "", sar != 1 ? ", pixel non quadrati" : "", has_audio ? ac->name : "no", duration, start);
     /* stato iniziale: si parte con un salto, anche da zero (i decoder partono puliti) */
-    d_stop = false;
     go_light = false;
     light_told = false;
     seek_req = true;
@@ -684,15 +787,15 @@ static bool player_open(int i, double start) {
     fq_r = fq_n = 0;
     pq_r = pq_n = pq_bytes = 0;
     vframes_ok = vframes_bad = 0;
-    if (adev) {
-        SDL_LockMutex(amtx);
-        ar_r = ar_n = 0;
-        ar_end_pts = clk_pts = start;
-        clk_run = false;
-        a_hold = true;
-        a_pause = false;
-        SDL_UnlockMutex(amtx);
-    }
+    SDL_LockMutex(amtx);
+    ar_r = ar_n = 0;
+    ar_end_pts = clk_pts = play_pos = wall_pts = start;
+    clk_run = a_ended = a_wall = false;
+    a_hold = true;
+    a_pause = false;
+    SDL_UnlockMutex(amtx);
+    audio_end = -1;
+    starve_since = 0;
     cur = i;
     cur_pts = start;
     paused = false;
@@ -711,18 +814,24 @@ static bool player_open(int i, double start) {
 static double clock_now(void) {
     if (waiting) return cur_pts;
     if (paused) return paused_at_clk;
-    if (has_audio) {
-        SDL_LockMutex(amtx);
-        double p = clk_pts, t = clk_time;
-        bool r = clk_run;
-        SDL_UnlockMutex(amtx);
-        if (r) {
-            double e = now_s() - t;
-            p += e < 0 ? 0 : e > 0.2 ? 0.2 : e;
-        }
-        return p;
+    SDL_LockMutex(amtx);
+    if (has_audio && !a_wall && a_ended && ar_n == 0) {
+        /* audio finito davvero (non solo in ritardo): si continua con l'orologio monotono dal suo
+           ultimo tempo (verifica Codex NEW-002) */
+        a_wall = true;
+        wall_pts = clk_pts;
+        wall_time = clk_time;
+        audio_end = clk_pts;
+        ui_log("video: audio finito a %.1f s, il video continua", clk_pts);
     }
-    return wclk_pts + (now_s() - wclk_time);
+    double p;
+    if (!has_audio || a_wall) p = wall_pts + (now_s() - wall_time);
+    else {
+        double e = now_s() - clk_time;
+        p = clk_pts + (clk_run ? (e < 0 ? 0 : e > 0.2 ? 0.2 : e) : 0);
+    }
+    SDL_UnlockMutex(amtx);
+    return p;
 }
 
 static void bar_show(void) { bar_until = UI.t + 3; }
@@ -731,13 +840,12 @@ static void set_pause(bool on) {
     if (on == paused || waiting) return;
     if (on) paused_at_clk = clock_now();
     paused = on;
-    if (adev) {
-        SDL_LockMutex(amtx);
-        a_pause = on;
-        clk_time = now_s();
-        SDL_UnlockMutex(amtx);
-    }
-    if (!on && !has_audio) { wclk_pts = paused_at_clk; wclk_time = now_s(); }
+    SDL_LockMutex(amtx);
+    a_pause = on;
+    clk_time = now_s();
+    if (!on) { wall_pts = paused_at_clk; wall_time = now_s(); }   /* orologio monotono: riparte da qui */
+    SDL_UnlockMutex(amtx);
+    starve_since = 0;
 }
 
 static void seek_rel(double d) {
@@ -753,13 +861,12 @@ static void seek_rel(double d) {
     fq_clear();
     SDL_CondBroadcast(cnd);
     SDL_UnlockMutex(mtx);
-    if (adev) {
-        SDL_LockMutex(amtx);
-        ar_r = ar_n = 0;
-        a_hold = true;
-        clk_run = false;
-        SDL_UnlockMutex(amtx);
-    }
+    SDL_LockMutex(amtx);
+    ar_r = ar_n = 0;
+    a_hold = true;
+    clk_run = a_ended = a_wall = false;
+    SDL_UnlockMutex(amtx);
+    starve_since = 0;
     cur_pts = t;
     waiting = true;
     wait_since = now_s();
@@ -825,23 +932,44 @@ static bool player_step(bool *ended) {
         shown++;
         if (waiting) {   /* primo fotogramma dopo l'apertura o un salto: l'orologio parte da qui */
             waiting = false;
-            wclk_pts = show_pts;
-            wclk_time = now_s();
             paused_at_clk = show_pts;
-            if (adev) {
-                SDL_LockMutex(amtx);
-                a_hold = false;
-                clk_pts = show_pts;
-                clk_time = now_s();
-                SDL_UnlockMutex(amtx);
-            }
+            SDL_LockMutex(amtx);
+            /* l'audio messo da parte prima di questo fotogramma non si suona (NEW-003) */
+            if (ar_n > 0 && ring_front() < show_pts - 0.05) ring_drop((int)((show_pts - ring_front()) * abps));
+            a_hold = false;
+            clk_pts = play_pos = wall_pts = show_pts;
+            clk_time = wall_time = now_s();
+            clk_run = false;
+            /* oltre la fine già nota dell'audio: subito l'orologio monotono */
+            if (has_audio && audio_end >= 0 && show_pts >= audio_end - 0.05) a_wall = true;
+            SDL_UnlockMutex(amtx);
         }
     }
     /* finito: niente più fotogrammi e l'audio ha suonato tutto */
     if (eof && !waiting) {
         int left = 0;
-        if (adev && has_audio) { SDL_LockMutex(amtx); left = ar_n; SDL_UnlockMutex(amtx); }
+        if (has_audio) { SDL_LockMutex(amtx); left = a_wall ? 0 : ar_n; SDL_UnlockMutex(amtx); }
         if (!left) *ended = true;
+    }
+    /* Audio che non arriva più: anello vuoto, orologio fermo, e la lettura bloccata dalle code
+       video piene (l'audio è troppo lontano nel file, o il decoder non dà niente). Dopo 1,5 s così
+       non è una semplice attesa: orologio monotono da dove si era (NEW-002). */
+    if (has_audio && !waiting && !paused) {
+        SDL_LockMutex(mtx);
+        bool full = fq_n == FQ && (pq_n == PQ || pq_bytes > PQ_BYTES);
+        SDL_UnlockMutex(mtx);
+        SDL_LockMutex(amtx);
+        bool starving = !a_wall && !clk_run && ar_n == 0 && full;
+        if (!starving) starve_since = 0;
+        else if (!starve_since) starve_since = now_s();
+        else if (now_s() - starve_since > 1.5) {
+            a_wall = true;
+            wall_pts = clk_pts;
+            wall_time = now_s();
+            starve_since = 0;
+            ui_log("video: l'audio non arriva (%.1f s): orologio del sistema", clk_pts);
+        }
+        SDL_UnlockMutex(amtx);
     }
     if (eof && waiting) *ended = true;   /* un salto oltre l'ultimo fotogramma */
     /* nessun fotogramma dopo 8 s: il video non si decodifica */
@@ -879,9 +1007,16 @@ static void resume_check(void) {
     ui_log("video: ripresa dalla sospensione, riapro l'audio");
     if (playing && !waiting) set_pause(true);
     if (adev) {   /* l'anello resta: lo legge la nuova richiamata */
-        SDL_CloseAudioDevice(adev);
-        adev = 0;
-        if (!audio_open(true) && playing) has_audio = false;
+        guard_begin();
+        audio_close();
+        if (!audio_open(true) && playing && has_audio) {   /* senza uscita: si va avanti muti */
+            SDL_LockMutex(amtx);
+            a_wall = true;
+            wall_pts = paused_at_clk;
+            wall_time = now_s();
+            SDL_UnlockMutex(amtx);
+        }
+        guard_end();
     }
     if (playing) bar_show();
 #endif
@@ -1097,6 +1232,7 @@ static void start(int i, double pos) {
 }
 
 static void stop_playing(bool finished) {
+    if (finished && cur >= 0) ui_log("video: finito (%.1f s)", cur_pts);
     if (finished && cur >= 0) mark_set(vids[cur].rel, -1, duration);
     else remember();
     player_close();
@@ -1163,8 +1299,10 @@ int main(int argc, char **argv) {
     if (scan_cut) ui_toast(FT("video.list_incomplete"));
     marks_load();
     /* l'audio passa all'app: i suoni dei tasti li mescola la sua richiamata */
+    guard_begin();
     ui_audio_takeover(play_fx);
     audio_open(false);
+    guard_end();
     SDL_Thread *pt = nvids ? SDL_CreateThread(probe_thread, "durate", NULL) : NULL;
     while (!quit) {
         UI.busy = UI.amp_keep = playing && !paused;   /* niente sospensione automatica mentre si guarda */
@@ -1205,7 +1343,7 @@ int main(int argc, char **argv) {
         if (err_msg[0]) err_draw();
         ui_end();
     }
-    app_exit_begin();
+    exit_begin();   /* da qui al massimo 5 s (app_exit_begin), anche per i thread e l'audio */
     if (playing) stop_playing(false);
     probe_stop = true;
     if (pt) SDL_WaitThread(pt, NULL);
