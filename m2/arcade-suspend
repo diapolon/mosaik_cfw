@@ -75,6 +75,32 @@ for e in /sys/class/input/event*; do
     [ "$(cat "$e/device/name" 2> /dev/null)" = axp2202-pek ] && PWR=/dev/input/${e##*/}
 done
 PRESSED=/run/arcade-suspend-press
+# Sorgenti di risveglio. Il driver della batteria segnala un aggiornamento ogni 10 s
+# (power_supply_changed tiene sveglio il dispositivo "axp2202-battery"): se capita mentre ci si
+# prepara a dormire, il kernel annulla la sospensione (Brick Pro, 13 novembre: 17 su 28 al secondo
+# tentativo, "last active wakeup source: axp2202-battery"). Come fa muOS sulle TrimUI (commit
+# 4600add0, settembre 2026), batteria, Wi-Fi e Bluetooth smettono di essere sorgenti di risveglio
+# finché si dorme e si rimettono al risveglio; il tasto e gli avvisi del chip di alimentazione
+# passano dalla sua interruzione e restano. "batteria-on" in System/prova-sospensione.txt lascia
+# tutto com'era. Nei passi: contatori prima e dopo e l'interruzione che ha svegliato la console.
+ws_dirs() {
+    for d in /sys/class/power_supply/axp2202-battery /sys/class/power_supply/axp2202-usb; do
+        for p in "$d/power" "$d/device/power"; do [ -f "$p/wakeup" ] && echo "$p"; done
+    done
+}
+ws_line() {
+    for p in $(ws_dirs); do
+        n=${p#/sys/class/power_supply/}
+        printf ' %s=%s/%s' "${n%%/power}" "$(cat "$p/wakeup" 2> /dev/null)" "$(cat "$p/wakeup_count" 2> /dev/null)"
+    done
+}
+WS_BEFORE=$(ws_line)
+QUIET=""
+if ! grep -q batteria-on "$ROOT/System/prova-sospensione.txt" 2> /dev/null; then
+    for p in /sys/class/power_supply/*battery*/power $(find /sys/devices/platform -maxdepth 4 \( -path "*btlpm*/power" -o -path "*wlan*/power" \) 2> /dev/null); do
+        [ "$(cat "$p/wakeup" 2> /dev/null)" = enabled ] && echo disabled > "$p/wakeup" 2> /dev/null && QUIET="$QUIET $p"
+    done
+fi
 max=5
 while [ $tries -lt $max ] && [ "$r" != riuscita ]; do
     tries=$((tries + 1))
@@ -86,11 +112,18 @@ while [ $tries -lt $max ] && [ "$r" != riuscita ]; do
     if [ -n "$PWR" ]; then cat "$PWR" > "$PRESSED" 2> /dev/null & watch=$!; fi
     if echo mem > /sys/power/state 2> /dev/null; then
         r=riuscita
+        # chi l'ha svegliata: il tasto (i suoi eventi arrivano appena i processi ripartono) o altro
+        sleep 0.2
+        if [ -s "$PRESSED" ]; then woke=tasto; else woke="altro (non il tasto)"; fi
     else
-        busy=0
+        busy=0; bat=0
         dmesg | tail -14 | grep -q 'phy0 failed to suspend' && { busy=1; max=15; }
-        # del rifiuto del Wi-Fi basta il primo tentativo: è previsto e il file crescerebbe
-        if [ $busy = 0 ] || [ $tries = 1 ]; then
+        dmesg | tail -14 | grep -q 'wakeup source: axp2202-battery' && bat=1
+        # del rifiuto del Wi-Fi basta il primo tentativo: è previsto e il file crescerebbe; per la
+        # batteria una riga sola, con i contatori
+        if [ $bat = 1 ]; then
+            echo "=== $(date) tentativo $tries annullato dalla batteria;$(ws_line)" >> "$LOGDIR/sospensione.txt"
+        elif [ $busy = 0 ] || [ $tries = 1 ]; then
             { echo "=== $(date) tentativo $tries"; dmesg | tail -40; } >> "$LOGDIR/sospensione.txt"
         fi
         sleep 0.2   # gli eventi del tasto arrivano appena i processi ripartono
@@ -99,11 +132,16 @@ while [ $tries -lt $max ] && [ "$r" != riuscita ]; do
             [ -n "$watch" ] && kill "$watch" 2> /dev/null
             break
         fi
-        sleep 1
+        # annullata dalla batteria: si riprova subito, il secondo tentativo di solito passa
+        [ $bat = 1 ] || sleep 1
     fi
     [ -n "$watch" ] && kill "$watch" 2> /dev/null
 done
 rm -f "$PRESSED"
+for p in $QUIET; do echo enabled > "$p/wakeup" 2> /dev/null; done
+# chi ha svegliato la console: l'interruzione registrata dal kernel e il suo nome
+wirq=$(cat /sys/power/pm_wakeup_irq 2> /dev/null)
+[ -n "$wirq" ] && wirq="$wirq $(awk -v i="$wirq:" '$1 == i { print $NF; exit }' /proc/interrupts 2> /dev/null)"
 
 for k in /sys/class/rfkill/rfkill*; do
     [ "$(cat "$k/type" 2> /dev/null)" = wlan ] && echo 1 > "$k/state" 2> /dev/null
@@ -133,7 +171,8 @@ if [ ! -f /run/sd-ok ]; then
     [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
     exit 0
 fi
-step "risveglio (sospensione $r, tentativi $tries, batteria $(battery)%)"
+step "risveglio (sospensione $r, tentativi $tries, sveglia: ${woke:--}, batteria $(battery)%)"
+step "sorgenti di risveglio prima:${WS_BEFORE:- nessuna} dopo:$(ws_line); escluse:${QUIET:- nessuna}; interruzione: ${wirq:-?}"
 consumi_mark   # e una al risveglio: batteria prima e dopo dicono quanto consuma lo standby
 sync   # la riga del risveglio sulla SD anche se poi la console viene spenta a forza
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
