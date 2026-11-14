@@ -9169,8 +9169,12 @@ int main(int argc, char **argv) {
     if (!auto_script && !rec_pending) consume_switch();
     else { char cp[1100]; snprintf(cp, sizeof cp, "%s/System/cambio.txt", UI.root); unlink(cp); }
     autoboot_load();
-    if (boot_first && !rec_pending && UI.set.setup_done && (!auto_script || getenv("ARCADE_TEST_AUTOBOOT"))) {
+    if (boot_first && !rec_pending && UI.set.setup_done && (!auto_script || getenv("ARCADE_TEST_AUTOBOOT")) && autoboot_game() >= 0) {
         update_confirm_boot(UI.root);   /* il sistema è arrivato fin qui, come per la ripresa */
+        /* all'accensione system-init lascia spente le uscite audio finché il launcher non le
+           riaccende: chiudere l'audio prima si blocca (Smart Pro, 14 novembre: launcher terminato
+           dopo 8 s). Come per la ripresa dell'ultima partita. */
+        plat_audio_release();
         autoboot_start();
     }
     music_init(UI.root);
