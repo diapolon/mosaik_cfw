@@ -3,6 +3,18 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.62
+it Impostazioni per tutta la console: nel menu del gioco, Cambia per
+en Settings for the whole console: in the game menu, Change for
+it Opzioni del gioco di nuovo raggiungibili dal menu
+en Game options can be opened again from the menu
+it Musica del menu: silenzio dopo il Lettore per tutta l'accensione, riprende dopo la sospensione
+en Menu music: silent after the Music player until power-off, resumes after sleep
+it App e giochi dello Store dicono di quale sistema hanno bisogno
+en Store apps and games tell which system they need
+it Cartella Video nel trasferimento file; menu dei giochi Linux più leggibile
+en Video folder in file transfer; clearer Linux game menu
+
 0.9.61
 it Il menu non si blocca più su "caricamento" quando parte la musica all'accensione
 en The menu no longer freezes on "loading" when music starts at power-on

@@ -4988,8 +4988,8 @@ static void sdinfo_start(void) {
     }
     static const char *dirs[][2] = { { "Bios", "sdinfo.bios" }, { "Media", "sdinfo.media" },
                                      { "Saves", "sdinfo.saves" }, { "Music", "sdinfo.music" },
-                                     { "System", "sdinfo.system" } };
-    for (int i = 0; i < 5; i++) {
+                                     { "Video", "sdinfo.video" }, { "System", "sdinfo.system" } };
+    for (int i = 0; i < 6; i++) {
         char p[1100];
         snprintf(p, sizeof p, "%s/%s", UI.root, dirs[i][0]);
         sdrow_add(T(dirs[i][1]), -1, dir_bytes(p, 0));
@@ -6773,7 +6773,7 @@ static const char *const RST_SYSTEM[] = { "settings.json", "favorites.txt", "rec
                                           "menu-rotazione", "scrape-scelta.txt", "cambio.tsv", "cambio.txt", NULL };
 static const char *const RST_SYSTEM_ALL[] = { "stats.tsv", "romcheck.tsv", NULL };
 /* cartelle svuotate da "Cancella tutto"; in Roms restano le cartelle degli emulatori e LEGGIMI.txt */
-static const char *const RST_DIRS[] = { "Bios", "Saves", "Media", "Music", "Linux", "Apps", NULL };
+static const char *const RST_DIRS[] = { "Bios", "Saves", "Media", "Music", "Video", "Linux", "Apps", NULL };
 
 /* toglie il contenuto di dir (e dir stessa se self); falso se qualcosa non si è potuto togliere */
 static bool rst_tree(const char *dir, bool self) {

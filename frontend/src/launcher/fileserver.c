@@ -32,7 +32,7 @@
 #include <zlib.h>
 
 /* cartelle in cui dalla pagina si può scrivere; tutto il resto si può solo scaricare */
-static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Linux", "Apps", "Bezels", "Themes", NULL };
+static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Video", "Linux", "Apps", "Bezels", "Themes", NULL };   /* Video: app Video (0.9.62) */
 /* testi della pagina, dalla sezione "fileserver" dei file di lingua */
 static const char *const PAGE_KEYS[] = {
     "title", "pin_page", "enter", "wrong_pin", "locked", "free", "readonly", "upload_files", "upload_folder",

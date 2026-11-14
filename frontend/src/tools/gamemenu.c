@@ -40,6 +40,9 @@ static void draw_base(int px, int py, int pw, int ph) {
     int r = M(t->panel_radius) * 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 150));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
+    /* fondo pieno: sotto il gioco Linux continua a muoversi e con una superficie semitrasparente
+       (tema Copertina) il menu si leggeva male, come per le finestre delle app (app_panel) */
+    ui_rrect(px, py, pw, ph, r, with_alpha(t->bg, 255));
     ui_rrect(px, py, pw, ph, r, t->surface);
 }
 
