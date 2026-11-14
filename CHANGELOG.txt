@@ -12,8 +12,10 @@ it Batteria: grafico delle ultime ore e tempo rimasto (Impostazioni → Sistema)
 en Battery: chart of the last hours and time left (Settings → System)
 it Ora automatica da internet quando il Wi-Fi è collegato
 en Automatic time from the internet when Wi-Fi is connected
-it La console si sospende al primo tentativo (Brick Pro)
-en The console sleeps at the first attempt (Brick Pro)
+it La console si sospende al primo tentativo
+en The console goes to sleep at the first attempt
+it Menu dei giochi Linux senza trasparenza
+en Linux game menu no longer see-through
 it I giochi con un proprio Esci (ScummVM, DOSBox) tornano al menu
 en Games with their own Quit (ScummVM, DOSBox) go back to the menu
 
