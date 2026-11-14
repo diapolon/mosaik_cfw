@@ -1,5 +1,5 @@
 {
-  "_": "Stato dei pacchetti nel catalogo dello Store (toolchain/make-store.py), uguale per i canali Stabile e Sviluppo. experimental: si installa ma non è ancora provato sulle console. tested: modelli su cui l'ha provato chi usa la console (smartpro, brickpro). min_system: versione del sistema da cui funziona.",
+  "_": "Stato dei pacchetti nel catalogo dello Store (toolchain/make-store.py), uguale per i canali Stabile e Sviluppo. experimental: si installa ma non è ancora provato sulle console. tested: modelli su cui l'ha provato chi usa la console (smartpro, brickpro). min_system: versione del sistema da cui funziona (app e giochi Linux la dichiarano nel loro app.json e game.json).",
   "experimental": [
     "mupen64plus",
     "ppsspp",
@@ -66,10 +66,6 @@
     "cornici-arcade": "0.9.37",
     "bluemsx": "0.9.35",
     "dosbox_pure": "0.9.47",
-    "scraper": "0.9.48",
-    "filtri-shader": "0.9.51",
-    "freedoom": "0.9.58",
-    "mrboom": "0.9.58",
-    "devilutionx": "0.9.58"
+    "filtri-shader": "0.9.51"
   }
 }

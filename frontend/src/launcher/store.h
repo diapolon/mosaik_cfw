@@ -54,6 +54,7 @@ typedef struct {
 void store_lang(const char *lang);
 /* versione del sistema in uso ("0.9.45"), per i pacchetti che ne chiedono una minima; prima di store_open */
 void store_system(const char *version);
+bool store_system_older(const char *min);   /* app e giochi: "min_system" del loro app.json/game.json */
 /* carica subito il catalogo tenuto sulla scheda e, in un thread, quello in rete (se online) */
 void store_open(const char *root, int development, bool online);
 const store_status_t *store_status(void);

@@ -3,6 +3,7 @@
  "description": "Measures the card's speed and finds fake or failing cards.",
  "author": "Mosaik",
  "version": "1.6",
+ "min_system": "0.9.45",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

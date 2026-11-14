@@ -17,6 +17,7 @@
   "power_off": "Spegni",
   "ask_title": "Allargare la partizione?",
   "ask_body": "La partizione di Mosaik arriva fino in fondo alla scheda. I file non si toccano; per finire bisogna spegnere e riaccendere la console.",
-  "failed": "Allargamento non riuscito"
+  "failed": "Allargamento non riuscito",
+  "done_manual": "La partizione è allargata. Spegni la console con il tasto di accensione e riaccendila: all'accensione Mosaik finisce di preparare lo spazio nuovo."
  }
 }

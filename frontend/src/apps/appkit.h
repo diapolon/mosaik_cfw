@@ -18,4 +18,5 @@ const char *FT(const char *key);                  /* scritta dell'app, poi del s
 void app_panel(int w, int h, int *x, int *y);     /* finestra centrata, con ombra e fondo pieno */
 void app_size(long long bytes, char *out, size_t n);
 void app_exit_begin(void);                        /* da qui l'uscita ha al massimo 5 s */
-void app_quit(void);                              /* chiusura di SDL (dentro gli stessi 5 s) */
+void app_quit(void);
+bool app_system_at_least(const char *v);       /* sistema in uso almeno v ("0.9.53"); sì se ignoto */                              /* chiusura di SDL (dentro gli stessi 5 s) */

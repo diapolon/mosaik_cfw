@@ -238,6 +238,11 @@ static int version_cmp(const char *a, const char *b) {
     return 0;
 }
 
+/* il sistema in uso è più vecchio di min ("0.9.58")? Senza versione nota (sul Mac) no */
+bool store_system_older(const char *min) {
+    return min && min[0] && system_version[0] && version_cmp(system_version, min) < 0;
+}
+
 void store_lang(const char *lang) { snprintf(lang_code, sizeof lang_code, "%s", lang && lang[0] ? lang : "en"); }
 
 /* testo di un pacchetto nella lingua della console ("texts": {"it": {"title": ...}}), altrimenti inglese */

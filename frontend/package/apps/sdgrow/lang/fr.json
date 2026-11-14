@@ -17,6 +17,7 @@
   "power_off": "Éteindre",
   "ask_title": "Agrandir la partition ?",
   "ask_body": "La partition Mosaik ira jusqu'à la fin de la carte. Les fichiers ne sont pas touchés ; pour finir, éteignez et rallumez la console.",
-  "failed": "Agrandissement échoué"
+  "failed": "Agrandissement échoué",
+  "done_manual": "La partition est agrandie. Éteignez la console avec le bouton d'alimentation et rallumez-la : au démarrage, Mosaik finit de préparer le nouvel espace."
  }
 }

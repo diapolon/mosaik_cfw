@@ -17,6 +17,7 @@
   "power_off": "Ausschalten",
   "ask_title": "Partition erweitern?",
   "ask_body": "Die Mosaik-Partition reicht dann bis zum Ende der Karte. Dateien werden nicht verändert; zum Abschluss die Konsole aus- und wieder einschalten.",
-  "failed": "Erweitern fehlgeschlagen"
+  "failed": "Erweitern fehlgeschlagen",
+  "done_manual": "Die Partition ist vergrößert. Schalte die Konsole mit der Ein-/Aus-Taste aus und wieder ein: beim Start bereitet Mosaik den neuen Platz fertig vor."
  }
 }

@@ -17,6 +17,7 @@
   "power_off": "Power off",
   "ask_title": "Expand the partition?",
   "ask_body": "The Mosaik partition will reach the end of the card. Files are not touched; to finish, turn the console off and on again.",
-  "failed": "Expansion failed"
+  "failed": "Expansion failed",
+  "done_manual": "The partition is expanded. Turn the console off with the power button and on again: at start Mosaik finishes preparing the new space."
  }
 }

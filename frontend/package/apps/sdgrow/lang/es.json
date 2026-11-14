@@ -17,6 +17,7 @@
   "power_off": "Apagar",
   "ask_title": "¿Ampliar la partición?",
   "ask_body": "La partición de Mosaik llegará hasta el final de la tarjeta. Los archivos no se tocan; para terminar, apaga y enciende la consola.",
-  "failed": "No se pudo ampliar"
+  "failed": "No se pudo ampliar",
+  "done_manual": "La partición está ampliada. Apaga la consola con el botón de encendido y vuelve a encenderla: al arrancar Mosaik termina de preparar el espacio nuevo."
  }
 }

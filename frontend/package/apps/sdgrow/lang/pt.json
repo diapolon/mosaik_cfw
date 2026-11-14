@@ -17,6 +17,7 @@
   "power_off": "Desligar",
   "ask_title": "Alargar a partição?",
   "ask_body": "A partição do Mosaik vai até ao fim do cartão. Os ficheiros não são tocados; para acabar, desliga e volta a ligar a consola.",
-  "failed": "Não foi possível alargar"
+  "failed": "Não foi possível alargar",
+  "done_manual": "A partição está aumentada. Desligue a consola com o botão de energia e volte a ligá-la: ao arrancar, o Mosaik termina de preparar o espaço novo."
  }
 }

@@ -618,6 +618,23 @@ static void launch_ex(game_t *g, bool resume) {
         return;
     }
     bool sh = !strcmp(g->core, "linux") || !strcmp(g->core, "app");   /* script: giochi Linux e app */
+    /* app e giochi Linux dichiarano il sistema di cui hanno bisogno ("min_system" in app.json o
+       game.json, accanto a launch.sh): con uno più vecchio non partono e lo si dice */
+    if (sh && g->path && strrchr(g->path, '/')) {
+        char meta[1200], min[24] = "";
+        snprintf(meta, sizeof meta, "%.*s/%s", (int)(strrchr(g->path, '/') - g->path), g->path, strcmp(g->core, "app") ? "game.json" : "app.json");
+        jval *mj = json_load(meta);
+        snprintf(min, sizeof min, "%s", json_str(mj, "min_system", ""));
+        json_free(mj);
+        if (store_system_older(min)) {
+            char msg[200];
+            snprintf(msg, sizeof msg, T("store.needs_system"), min);
+            ui_log("%s: richiede il sistema %s", g->title, min);
+            ui_toast(msg);
+            ui_sound(SND_ERROR);
+            return;
+        }
+    }
     /* gioco Linux che è un core libretro (Mr.Boom, 0.9.58): "libretro" in game.json, il core nella
        sua cartella; parte nel runner senza ROM ("-"), salvataggi in Saves/<cartella> */
     char lcore[1100] = "", lsys[64] = "";
@@ -8494,6 +8511,7 @@ int main(int argc, char **argv) {
     nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
     rec_open = rec_pending;
     if (rec_open) ui_log("avvio: %s non chiuso, si chiede di riprovare", rec_fs_bad ? "ripristino del backup" : "Store");
+    store_system(update_current());   /* anche per il "min_system" di app e giochi Linux, non solo nello Store */
     reload_games();
     ui_mark("giochi pronti");
     /* "Cambia gioco" dal menu del runner: si avvia il gioco scelto senza mostrare il menu

@@ -289,8 +289,24 @@ for pid in sorted(os.listdir(args.src)):
         entry["status"] = "experimental"
     if stato.get("tested", {}).get(pid):
         entry["tested"] = stato["tested"][pid]
-    if stato.get("min_system", {}).get(pid):
-        entry["min_system"] = stato["min_system"][pid]
+    # sistema di cui il pacchetto ha bisogno: app e giochi Linux lo dichiarano nei loro file
+    # (app.json, game.json di ogni gioco: lo legge anche il launcher prima di avviarli), gli altri
+    # pacchetti in store-stato.json; per app e giochi è obbligatorio
+    def vkey(v):
+        return [int(x) if x.isdigit() else 0 for x in str(v).split(".")]
+    mins = []
+    if category == "apps" and os.path.exists(appj):
+        mins.append(json.load(open(appj, encoding="utf-8")).get("min_system", ""))
+    if category == "linux":
+        for r in files:
+            if r.count("/") == 2 and r.endswith("/game.json"):
+                mins.append(json.load(open(os.path.join(root, r), encoding="utf-8")).get("min_system", ""))
+    mins = [m for m in mins if m]
+    min_sys = max(mins, key=vkey) if mins else stato.get("min_system", {}).get(pid, "")
+    if category in ("apps", "linux") and not min_sys:
+        sys.exit(f"{pid}: manca \"min_system\" (app.json delle app, game.json dei giochi Linux)")
+    if min_sys:
+        entry["min_system"] = min_sys
     if texts:   # nomi e descrizioni delle app nelle lingue della console
         entry["texts"] = texts
     if theme and theme[2]:   # temi: i colori delle varianti, per il riquadro
@@ -300,8 +316,8 @@ for pid in sorted(os.listdir(args.src)):
     if lmeta and lmeta.get("color"):
         entry["colors"] = [lmeta["color"]]
     new = any(rel.startswith(NEW_PATHS) for rel in files)
-    if new and not stato.get("min_system", {}).get(pid):
-        sys.exit(f"{pid}: i file in {NEW_PATHS} richiedono un min_system in store-stato.json")
+    if new and not min_sys:
+        sys.exit(f"{pid}: i file in {NEW_PATHS} richiedono un min_system")
     catalog["packages2" if new else "packages"].append(entry)
     print(f"  {pid:16} {label:10} {os.path.getsize(zpath) / 1e6:6.1f} MB  {', '.join(systems)}")
 

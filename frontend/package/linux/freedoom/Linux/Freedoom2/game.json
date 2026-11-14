@@ -2,6 +2,21 @@
   "title": "Freedoom: Phase 2",
   "year": "2024",
   "author": "Freedoom project, Crispy Doom",
-  "keys": { "UP": "UP", "DOWN": "DOWN", "LEFT": "LEFT", "RIGHT": "RIGHT", "A": "RCTRL", "B": "SPACE", "X": "TAB", "Y": "RALT",
-            "L": "COMMA", "R": "DOT", "L2": "Q", "R2": "E", "START": "ESC", "SELECT": "ENTER" }
+  "keys": {
+    "UP": "UP",
+    "DOWN": "DOWN",
+    "LEFT": "LEFT",
+    "RIGHT": "RIGHT",
+    "A": "RCTRL",
+    "B": "SPACE",
+    "X": "TAB",
+    "Y": "RALT",
+    "L": "COMMA",
+    "R": "DOT",
+    "L2": "Q",
+    "R2": "E",
+    "START": "ESC",
+    "SELECT": "ENTER"
+  },
+  "min_system": "0.9.58"
 }

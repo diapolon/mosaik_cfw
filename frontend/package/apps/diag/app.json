@@ -3,6 +3,7 @@
  "description": "The console's state on one page: battery, temperature, memory, card, Wi-Fi with a speed test, controllers. Saves a report to attach to bug reports.",
  "author": "Mosaik",
  "version": "1.1",
+ "min_system": "0.9.56",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

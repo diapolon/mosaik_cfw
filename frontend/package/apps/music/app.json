@@ -3,6 +3,7 @@
  "description": "Listen to the Music folder: covers, spectrum and selectable looks, repeat, shuffle, even with the screen off.",
  "author": "Mosaik",
  "version": "1.9",
+ "min_system": "0.9.45",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

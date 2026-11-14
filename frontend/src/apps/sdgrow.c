@@ -155,6 +155,9 @@ static void check(void) {
 /* ------------------------------------------------------------ disegno */
 
 static bool ask_open, quit;
+/* L'app deve funzionare su qualunque sistema: una scheda rimasta piccola si sistema solo con lei.
+   L'uscita 120 (spegni) la capisce system-init dalla 0.9.53; prima si chiede di spegnere a mano. */
+static bool can_power_off;
 static int ask_sel, exit_code;
 
 static void size_line(const char *key, long long a, long long b, char *out, size_t n) {
@@ -184,7 +187,7 @@ static void draw(void) {
     ui_text(fn, line, mx, y, t->text_dim, ALIGN_LEFT);
     y += fnh + M(0.035f);
     /* esito, in un riquadro */
-    const char *vk = grown ? "sdgrow.done" : verdict == 0 ? "sdgrow.can" : verdict == 1 ? "sdgrow.full" : "sdgrow.cannot";
+    const char *vk = grown ? (can_power_off ? "sdgrow.done" : "sdgrow.done_manual") : verdict == 0 ? "sdgrow.can" : verdict == 1 ? "sdgrow.full" : "sdgrow.cannot";
     char lines[6][160], dl[8][160];
     int n = ui_wrap(fn, FT(vk), W - M(0.05f), lines, 6);
     int nd = ui_wrap(fs, detail, W - M(0.05f), dl, 8);
@@ -200,7 +203,7 @@ static void draw(void) {
     for (int i = 0; i < nd; i++, ty += fsh) ui_text(fs, dl[i], mx + M(0.025f), ty, t->text_dim, ALIGN_LEFT);
     if (grown) {
         const char *h[] = { "B", FT("sdgrow.quit"), NULL, "A", FT("sdgrow.power_off"), NULL };
-        ui_keybar(h, 6);
+        ui_keybar(h, can_power_off ? 6 : 3);
     } else if (verdict == 0) {
         const char *h[] = { "B", FT("sdgrow.quit"), NULL, "A", FT("sdgrow.grow"), NULL };
         ui_keybar(h, 6);
@@ -225,12 +228,13 @@ static void input(void) {
     }
     if (in->pressed[BTN_B] || in->pressed[BTN_MENU]) { quit = true; return; }
     if (!in->pressed[BTN_A]) return;
-    if (grown) { exit_code = 120; quit = true; ui_sound(SND_OK); }   /* system-init spegne */
+    if (grown) { if (can_power_off) { exit_code = 120; quit = true; ui_sound(SND_OK); } }   /* system-init spegne */
     else if (verdict == 0) { ask_open = true; ask_sel = 0; ui_sound(SND_OK); }
 }
 
 int main(int argc, char **argv) {
     if (!app_start(argc, argv, "sdgrow")) return 1;
+    can_power_off = app_system_at_least("0.9.53");
     check();
     while (!quit) {
         ui_poll();

@@ -98,7 +98,7 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     cp good_libretro.so pkgsrc/files/Apps/files/files
     printf '#!/bin/sh\nexec ./files\n' > pkgsrc/files/Apps/files/launch.sh
     [ -n "$APPX" ] && echo ricompilata > pkgsrc/files/Apps/files/extra.txt
-    echo '{"title":"Files","version":"'"${APPV:-1.0}"'","texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
+    echo '{"title":"Files","version":"'"${APPV:-1.0}"'","min_system":"0.9.40","texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
     # percorsi lunghi (audit BUG-002): il registro deve elencarli interi
     L1=Apps/files/$(printf 'cartella-con-un-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18)a.bin
     L2=Apps/files/$(printf 'altra-cartella-dal-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)b.bin
@@ -110,6 +110,7 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     if [ -n "$LINUXG" ]; then   # gioco Linux (0.9.58): cartella Linux, descrizione vera in frontend/package/linux/freedoom
         mkdir -p pkgsrc/freedoom/Linux/Freedoom pkgsrc/freedoom/Linux/Freedoom2
         printf '#!/bin/sh\necho doom\n' > pkgsrc/freedoom/Linux/Freedoom/launch.sh
+        echo '{"title":"Freedoom","min_system":"0.9.58"}' > pkgsrc/freedoom/Linux/Freedoom/game.json   # il requisito sta nel gioco
         echo wad1 > pkgsrc/freedoom/Linux/Freedoom/freedoom1.wad
         echo wad2 > pkgsrc/freedoom/Linux/Freedoom2/freedoom2.wad
     fi
@@ -299,7 +300,7 @@ check "cornici tolte, quella dell'utente resta" "4 0 0 no mia" "$(./t $R delete 
 # stato dei pacchetti nel catalogo: sperimentale, provato, sistema minimo
 printf '{"experimental": ["files"], "tested": {"fbneo": ["brickpro"]}, "min_system": {"cornici-tv": "0.9.37"}}' > stato.json
 STORE_STATO=$W/stato.json CORNICI=1 mk 4
-check "pacchetto sperimentale nel catalogo" "1|||0" "$(./t $R stato files 0.9.45 2>/dev/null)"
+check "pacchetto sperimentale nel catalogo (sistema minimo dal suo app.json)" "1||0.9.40|0" "$(./t $R stato files 0.9.45 2>/dev/null)"
 check "pacchetto provato su un modello" "0|brickpro||0" "$(./t $R stato fbneo 0.9.45 2>/dev/null)"
 check "sistema minimo: con un sistema nuovo si può" "0||0.9.37|0" "$(./t $R stato cornici-tv 0.9.45 2>/dev/null)"
 check "sistema minimo: con uno vecchio va aggiornato" "0||0.9.37|1" "$(./t $R stato cornici-tv 0.9.9 2>/dev/null)"
@@ -311,11 +312,11 @@ check "… e niente è stato scritto" "no" "$([ -e sd/Bezels/nes/_mosaik.png ] &
 rmdir sd/System/store-giornale.txt
 check "tolto l'ostacolo si installa di nuovo" "4 0 1" "$(./t $R install cornici-tv 2>/dev/null)"
 # giochi Linux (0.9.58): nel catalogo in "packages2", che i sistemi fino alla 0.9.57 non leggono
-printf '{"experimental": ["freedoom"], "min_system": {"freedoom": "0.9.58"}}' > stato.json
+printf '{"experimental": ["freedoom"]}' > stato.json
 STORE_STATO=$W/stato.json LINUXG=1 CORNICI=1 mk 4
 check "gioco Linux nell'elenco packages2, non in packages" "0 1" "$(python3 -c "import json;d=json.load(open('www/store.json'));print(sum(p['id']=='freedoom' for p in d['packages']),sum(p['id']=='freedoom' for p in d['packages2']))")"
 check "gioco Linux nel catalogo: nome, descrizione e cartella" "Freedoom|Free Doom with Crispy Doom: Phase 1 and 2|linux" "$(./t $R title freedoom 2>/dev/null)"
-check "gioco Linux: sistema minimo 0.9.58" "1||0.9.58|1" "$(./t $R stato freedoom 0.9.57 2>/dev/null)"
+check "gioco Linux: sistema minimo 0.9.58, dal suo game.json" "1||0.9.58|1" "$(./t $R stato freedoom 0.9.57 2>/dev/null)"
 check "gioco Linux installato" "4 0 1" "$(./t $R install freedoom 2>/dev/null)"
 check "file del gioco nella cartella Linux" "wad1 wad2" "$(cat sd/Linux/Freedoom/freedoom1.wad) $(cat sd/Linux/Freedoom2/freedoom2.wad)"
 mkdir -p sd/Saves/doom/crispy-doom; echo partita > sd/Saves/doom/crispy-doom/savegame.dsg
@@ -331,5 +332,9 @@ else
     echo "  (senza git: niente prova con lo Store della 0.9.57)"
 fi
 kill $SRV
+# app e giochi devono dichiarare il sistema di cui hanno bisogno: senza, il catalogo non si fa
+check "app con il sistema minimo nel suo app.json" "0.9.40" "$(python3 -c "import json;d=json.load(open('www/store.json'));print([p for p in d['packages'] if p['id']=='files'][0].get('min_system'))")"
+python3 -c "import json;p='pkgsrc/files/Apps/files/app.json';j=json.load(open(p));j.pop('min_system');json.dump(j,open(p,'w'))"
+check "app senza min_system: catalogo rifiutato" "rifiutato" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && echo fatto || echo rifiutato)"
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi
