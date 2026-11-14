@@ -13,6 +13,7 @@
 
    Sul Mac: build/music --root sdcard --app package/apps/music [--auto "..."] */
 #include "appkit.h"
+#include "imgdims.h"
 #include <SDL_image.h>
 #include <SDL_mixer.h>
 #include <math.h>
@@ -129,6 +130,7 @@ static void play_fx(const Sint16 *stereo, int frames) {
 static void on_finished(void) { finished = true; }
 static void postmix(void *udata, Uint8 *stream, int len);
 static void cover_load(int i);
+static void silence_mark(void);
 static int spec_rate = 48000, spec_ch = 2;
 
 static bool mixer_open(void) {
@@ -165,7 +167,14 @@ static bool play(int i) {
     char p[1700];
     snprintf(p, sizeof p, "%s/Music/%s", app_root, tracks[i].rel);
     mus = Mix_LoadMUS(p);
-    if (!mus) { ui_log("musica: %s non leggibile (%s)", tracks[i].rel, Mix_GetError()); return false; }
+    if (!mus) {   /* niente brano in corso: stato fermo, non quello del brano di prima (M61-005) */
+        ui_log("musica: %s non leggibile (%s)", tracks[i].rel, Mix_GetError());
+        cur = -1;
+        paused = false;
+        duration = 0;
+        cover_load(-1);
+        return false;
+    }
     cur = i;
     paused = false;
     duration = Mix_MusicDuration(mus);
@@ -175,9 +184,13 @@ static bool play(int i) {
         Mix_FreeMusic(mus);
         mus = NULL;
         cur = -1;
+        duration = 0;
+        cover_load(-1);
         return false;
     }
     ui_log("musica: %s", tracks[i].rel);
+    plat_amp_wake();   /* dopo 4 s di silenzio l'altoparlante può essere spento a riposo (M61-003) */
+    silence_mark();
     cover_load(i);
     return true;
 }
@@ -204,24 +217,27 @@ static void skip(int dir, bool user) {
         if (play(n)) { sel = n; return; }
         cur = n;   /* illeggibile: si passa al successivo */
     }
+    cur = -1;   /* nessuno si legge: fermo */
 }
 
 static double position(void) { return mus ? Mix_GetMusicPosition(mus) : 0; }
 
-/* Al menu di Mosaik, che all'avvio fa partire la sua musica dalla stessa cartella Music (prima
-   sembrava che l'app continuasse e ricominciasse il brano da capo, issue #8): se nell'app si è
-   ascoltato qualcosa, uscendo la musica si ferma e il menu resta in silenzio fino alla prossima
-   accensione. Se non si è ascoltato niente, nessuna nota: il menu fa come sempre. Lo legge
-   launcher/music.c (music_init), una volta sola; dalla 0.9.60 capisce anche "riprendi\tbrano\tsecondi"
-   (l'app 1.6 lo usava per continuare il brano nel menu: l'utente preferisce che si fermi). */
-static void handoff_write(void) {
-    if (cur < 0) return;
+/* Il menu di Mosaik non deve far ripartire la musica dopo il Lettore (issue #8): appena un brano
+   parte si lascia il silenzio per questa accensione, così vale anche se l'app viene chiusa a
+   forza o la playlist finisce (verifica Codex M61-004). /run/musica-silenzio è in RAM e sparisce
+   spegnendo (launcher dalla 0.9.62); System/musica-app.txt lo leggono i launcher 0.9.60 e 0.9.61. */
+static void silence_mark(void) {
+    static bool done;
+    if (done) return;
+    done = true;
+    FILE *f = fopen("/run/musica-silenzio", "w");
+    if (f) fclose(f);
     char p[1200];
     snprintf(p, sizeof p, "%s/System/musica-app.txt", app_root);
-    FILE *f = fopen(p, "w");
-    if (!f) return;
-    fputs("silenzio\n", f);
-    if (fclose(f) != 0) remove(p);
+    if ((f = fopen(p, "w"))) {
+        fputs("silenzio\n", f);
+        if (fclose(f) != 0) remove(p);
+    }
 }
 
 /* Dopo una sospensione della console (gamewatch ferma l'app, arcade-suspend, poi la riprende)
@@ -248,7 +264,7 @@ static void resume_check(void) {
     Mix_CloseAudio();
     mixer_on = false;
     if (idx >= 0 && play(idx)) {
-        if (pos > 0) Mix_SetMusicPosition(pos);
+        if (pos > 0 && Mix_SetMusicPosition(pos) < 0) ui_log("musica: ripresa da %.0f s non riuscita (%s)", pos, Mix_GetError());
         if (was_paused) { Mix_PauseMusic(); paused = true; }
     }
 #endif
@@ -257,9 +273,10 @@ static void resume_check(void) {
 static void seek(double delta) {
     if (!mus) return;
     double p = position() + delta;
-    if (p < 0) p = 0;
     if (duration > 0 && p > duration - 1) p = duration - 1;
-    Mix_SetMusicPosition(p);
+    if (p < 0) p = 0;   /* dopo il limite di fine: con brani più corti di un secondo resta 0 */
+    static bool told;
+    if (Mix_SetMusicPosition(p) < 0 && !told) { told = true; ui_log("musica: spostamento non riuscito (%s)", Mix_GetError()); }
 }
 
 /* ------------------------------------------------------------ copertina e informazioni */
@@ -351,6 +368,25 @@ static Uint8 *embedded_picture(const char *path, size_t *len) {
     return out;
 }
 
+/* Una copertina si decodifica solo con misure note e ragionevoli: 16 milioni di pixel sono circa
+   64 MB decodificati, e una copertina vera è sotto i 3000x3000 (verifica Codex M61-006) */
+#define COVER_MAX_PIXELS 16000000L
+static bool cover_size_ok(bool known, long w, long h) {
+    bool ok = known && w > 0 && h > 0 && w <= 16384 && h <= 16384 && w * h <= COVER_MAX_PIXELS;
+    if (known && !ok) ui_log("musica: copertina troppo grande (%ldx%ld), non la mostro", w, h);
+    return ok;
+}
+static bool cover_size_ok_file(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return false;
+    unsigned char head[64];
+    size_t hn = fread(head, 1, sizeof head, f);
+    long w = 0, h = 0;
+    bool known = hn >= 4 && head[0] == 0xFF && head[1] == 0xD8 ? jpeg_dims_file(f, &w, &h) : img_dims(head, hn, &w, &h);
+    fclose(f);
+    return cover_size_ok(known, w, h);
+}
+
 /* immagine accanto al brano: cover, folder, front, album, albumart (.jpg, .jpeg, .png) o lo stesso
    nome del brano */
 static SDL_Surface *folder_picture(const char *track) {
@@ -376,7 +412,7 @@ static SDL_Surface *folder_picture(const char *track) {
         if (!ok) continue;
         char p[2000];
         snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
-        s = IMG_Load(p);
+        if (cover_size_ok_file(p)) s = IMG_Load(p);
     }
     if (d) closedir(d);
     return s;
@@ -448,7 +484,9 @@ static void cover_load(int i) {
     size_t n = 0;
     snprintf(p, sizeof p, "%s/Music/%s", app_root, tracks[i].rel);
     Uint8 *pic = embedded_picture(p, &n);
-    SDL_Surface *s = pic && n < 0x7fffffff ? IMG_Load_RW(SDL_RWFromConstMem(pic, (int)n), 1) : NULL;
+    long iw = 0, ih = 0;
+    bool known = pic && img_dims(pic, n, &iw, &ih);
+    SDL_Surface *s = pic && n < 0x7fffffff && cover_size_ok(known, iw, ih) ? IMG_Load_RW(SDL_RWFromConstMem(pic, (int)n), 1) : NULL;
     free(pic);
     if (!s) s = folder_picture(p);
     cover_tex = cover_texture(s);
@@ -466,7 +504,7 @@ static const char *cur_artist(void) { return cur < 0 ? "" : tag_artist[0] ? tag_
 #define FFT_N 1024
 #define RING 4096
 #define NBARS 48
-static float ring[RING];
+static _Atomic short ring[RING];   /* campioni mono: li scrive il thread dell'audio, li legge il disegno */
 static _Atomic unsigned ring_w;
 static float bars[NBARS];
 
@@ -476,9 +514,9 @@ static void postmix(void *udata, Uint8 *stream, int len) {
     int ch = spec_ch > 0 ? spec_ch : 2, n = len / (2 * ch);
     unsigned w = ring_w;
     for (int i = 0; i < n; i++) {
-        float v = 0;
+        int v = 0;
         for (int c = 0; c < ch; c++) v += s[i * ch + c];
-        ring[w++ & (RING - 1)] = v / (32768.0f * ch);
+        atomic_store_explicit(&ring[w++ & (RING - 1)], (short)(v / ch), memory_order_relaxed);
     }
     ring_w = w;
 }
@@ -516,7 +554,7 @@ static void spectrum_update(void) {
         if (g < 0.02f) g = 0.02f;
         for (int i = 0; i < FFT_N; i++) {
             float hann = 0.5f - 0.5f * cosf(2.0f * (float)M_PI * i / (FFT_N - 1));
-            re[i] = ring[(w - FFT_N + i) & (RING - 1)] * hann / g;
+            re[i] = atomic_load_explicit(&ring[(w - FFT_N + i) & (RING - 1)], memory_order_relaxed) / 32768.0f * hann / g;
             im[i] = 0;
         }
         fft(re, im, FFT_N);
@@ -1080,7 +1118,7 @@ static void input(void) {
     } else if (in->pressed[BTN_A]) {
         flash_t[C_PLAY] = UI.t;
         if (cur >= 0 && mus) {
-            if (paused) Mix_ResumeMusic(); else Mix_PauseMusic();
+            if (paused) { Mix_ResumeMusic(); plat_amp_wake(); } else Mix_PauseMusic();
             paused = !paused;
         } else if (ntracks && !play(sel)) { ui_toast(FT("music.bad_file")); ui_sound(SND_ERROR); }
     }
@@ -1138,7 +1176,6 @@ int main(int argc, char **argv) {
     }
     app_exit_begin();
     plat_screen_off(false);
-    handoff_write();
     if (mixer_on) {
         Mix_HookMusicFinished(NULL);
         Mix_HaltMusic();

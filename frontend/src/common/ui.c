@@ -974,6 +974,9 @@ static void audio_open(void) {
     }
 }
 
+/* il mixer ha chiuso il suo audio e si sta uscendo: niente più suoni, l'audio dei menu non si riapre */
+void ui_audio_detach(void) { pcm_hook = NULL; }
+
 void ui_audio_takeover(void (*play)(const Sint16 *stereo, int frames)) {
     if (play && UI.audio) { SDL_CloseAudioDevice(UI.audio); UI.audio = 0; }
     pcm_hook = play;
@@ -1931,6 +1934,10 @@ static void write_exit_code(int code) {
     FILE *f = fopen(p, "w");
     if (f) { fprintf(f, "%d\n", code); fflush(f); fsync(fileno(f)); fclose(f); }
 }
+
+/* il codice d'uscita prima delle chiusure che possono bloccarsi (audio della musica): da qui
+   system-init chiude il processo dopo qualche secondo se non esce da solo (verifica Codex M61-002) */
+void ui_exit_code(int code) { write_exit_code(code); }
 
 /* Riavvio dopo un aggiornamento: la chiusura dell'audio lì si blocca e bisogna aspettare che lo
    script chiuda il programma. Tanto la console si riavvia: si esce subito, senza chiudere SDL. */

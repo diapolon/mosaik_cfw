@@ -700,6 +700,7 @@ static void launch_ex(game_t *g, bool resume) {
     char msg[200];
     snprintf(msg, sizeof msg, T("common.starting"), g->title);
     ui_busy(msg, 0.35);
+    ui_exit_code(EXIT_LAUNCH);
     music_quit();
     ui_shutdown_code(EXIT_LAUNCH);
     exit(EXIT_LAUNCH);
@@ -713,6 +714,7 @@ static void leave_system(int code, const char *msg) {
     unlink(p);   /* spento dal menu: al riavvio non c'è una partita da riprendere */
     settings_save(&UI.set, UI.root);
     ui_busy(msg, 0.5);
+    ui_exit_code(code);
     music_quit();
     /* Riavvio, o uscita dopo un lavoro con l'altoparlante spento (ripristino, Cancella tutto):
        la chiusura dell'audio lì si blocca e system-init ci fermava dopo 10 s. Tanto si riparte:
@@ -3257,7 +3259,7 @@ static int page_rows(int *rows) { return page_rows_of(set_page, rows); }
 static bool set_disabled(int i) {
     switch (i) {
     case S_SCRAPE: case S_UPDATE: case S_WIFINETS: case S_FILESERVER: return !UI.set.wifi;
-    case S_MUSIC: return !music_count();
+    case S_MUSIC: return !music_count() && !music_title()[0];   /* se qualcosa suona si può sempre spegnere */
     case S_LEDCOLOR: case S_LEDBRIGHT: return !UI.set.led_mode;
     case S_VARIANT: return UI.th.nvariants < 2;
     case S_GRIDCOLS: case S_HOMESIZE: return is_list_layout() || is_bar_layout();
@@ -3444,7 +3446,7 @@ static void set_change(int item, int dir) {
     case S_MUSIC: {
         int was = s->music_vol;
         s->music_vol = was + dir < 0 ? 0 : was + dir > 10 ? 10 : was + dir;
-        if (!was && s->music_vol) music_next();
+        if (!was && s->music_vol) music_user_start();
         if (was && !s->music_vol) music_stop();
         break;
     }
@@ -5257,6 +5259,7 @@ static void upd_reboot(void) {
     bool charger = on_charger();
     if (charger) ui_log("aggiornamento installato con il caricatore collegato: la console si spegne");
     ui_busy(charger ? T("common.restart_charger") : T("update.restarting"), charger ? 4 : 0.5);
+    ui_exit_code(charger ? EXIT_POWEROFF : EXIT_REBOOT);
     music_quit();
     ui_exit_now(charger ? EXIT_POWEROFF : EXIT_REBOOT);
 }
@@ -5802,7 +5805,7 @@ static void settings_input(void) {
             spk_show(-1);
         }
         else if (set_sel == S_MUSIC && UI.set.music_vol && music_count()) {
-            music_next();
+            music_user_start();
             ui_sound(SND_OK);
         }
         else if (set_sel == S_INFO) { sdinfo_start(); ui_sound(SND_OK); }
@@ -6098,6 +6101,7 @@ static int dlg_buttons(void) { return plat_standalone() || plat_is_device() ? 3 
 
 static void quit_to_menu(void) {
     settings_save(&UI.set, UI.root);
+    ui_exit_code(EXIT_QUIT);
     music_quit();
     ui_shutdown_code(EXIT_QUIT);
     exit(EXIT_QUIT);
@@ -7007,7 +7011,7 @@ static void qp_do(int t) {
     case QT_SPEAKER: set_change(S_SPEAKER, +1); break;
     case QT_LED: set_change(S_LED, +1); break;
     case QT_MUSIC:
-        if (music_count()) { music_next(); ui_sound(SND_MOVE); }
+        if (music_count()) { music_user_start(); ui_sound(SND_MOVE); }
         else { ui_toast(T("quick.no_music")); ui_sound(SND_ERROR); }
         break;
     case QT_SHOT: {   /* la schermata sotto il pannello, chiuso prima di disegnare */
@@ -8752,6 +8756,7 @@ int main(int argc, char **argv) {
         ui_end();
     }
     settings_save(&UI.set, UI.root);
+    ui_exit_code(EXIT_QUIT);
     music_quit();
     ui_shutdown_code(EXIT_QUIT);
     return EXIT_QUIT;
