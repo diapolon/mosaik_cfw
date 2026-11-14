@@ -218,6 +218,9 @@
     "home_size": "Cover auf dem Startbildschirm",
     "theme_reset": "Design zurücksetzen",
     "theme_reset_done": "Design wie frisch installiert",
+    "autoboot": "Direktstart",
+    "auto_time": "Automatische Uhrzeit",
+    "battery": "Akku",
     "aspect": "Seitenverhältnis der Spiele",
     "filter": "Videofilter",
     "cpu": "Leistungsprofil",
@@ -274,6 +277,9 @@
     "grid_columns": "Wie viele Cover pro Reihe der Bibliothek angezeigt werden. Automatisch nutzt die Vorgabe des Themas.",
     "home_size": "Größe der Cover auf dem Startbildschirm, bei Karussell-Themen.",
     "theme_reset": "Variante, Vorschaubilder pro Zeile und Cover wie vom gewählten Design vorgesehen. Jedes Design merkt sich seine Auswahl.",
+    "autoboot": "Ein Spiel, das beim Einschalten von selbst von vorn startet; beim Verlassen geht es ins Menü. Auswahl auf der Spielseite (X), hier entfernen.",
+    "auto_time": "Mit WLAN holt die Konsole die genaue Uhrzeit aus dem Internet, einmal pro Einschalten.",
+    "battery": "Ladung der letzten Stunden, aktueller Verbrauch und Restzeit.",
     "aspect": "Original: die Proportionen des Spiels. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus. Auch pro Konsole (Y in Plattformen) oder pro Spiel.",
     "filter": "Effekte für das Spielbild, zum Beispiel die Linien alter Bildschirme (Scanlines). Auch pro Konsole oder pro Spiel.",
     "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3). Auch pro Konsole oder pro Spiel.",
@@ -460,6 +466,8 @@
     "search_empty": "(keine)",
     "sort": "Sortieren nach",
     "clear": "Filter zurücksetzen",
+    "random": "Zufälliges Spiel",
+    "random_none": "Kein Spiel zur Auswahl",
     "roms": "ROM-Status",
     "roms_bad": "Nur fehlerhafte"
   },
@@ -520,7 +528,17 @@
   "battery": {
     "low": "Akku bei %d %%",
     "critical": "Akku fast leer (%d %%): Ladegerät anschließen",
-    "saved": "Akku fast leer: Spiel gespeichert"
+    "saved": "Akku fast leer: Spiel gespeichert",
+    "title": "Akku",
+    "charging": "Wird geladen",
+    "full": "Voll geladen",
+    "left": "Restzeit: etwa %s",
+    "left_wait": "Restzeit: geschätzt nach 15 Minuten im Akkubetrieb",
+    "draw": "Verbrauch jetzt: %d mA",
+    "charge_rate": "Laden: %d mA",
+    "hours_ago": "-%d h",
+    "now": "jetzt",
+    "no_history": "Der Verlauf beginnt beim Einschalten: in ein paar Minuten wiederkommen"
   },
   "rom": {
     "title": "ROM-Prüfung",
@@ -667,7 +685,7 @@
     "display": "Helligkeit, Lautstärke, Musik, LEDs",
     "look": "Thema, Sprache, Bildschirmschoner",
     "games": "Bild, Filter, Leistung",
-    "system": "WLAN, Datum und Uhrzeit, Ausschalten",
+    "system": "Akku, WLAN, Datum und Uhrzeit",
     "tools": "ROMs prüfen, Bilder laden und aufräumen",
     "updates": "Update, Kanal, Protokoll, Infos",
     "card": "Dateien übertragen, Sicherung, zurücksetzen"
@@ -678,7 +696,7 @@
     "display": "Bildschirmhelligkeit, Lautstärke, Hintergrundmusik und Konsolenlichter.",
     "look": "Launcher-Thema, Variante, Sprache und Bildschirmschoner.",
     "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung.",
-    "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
+    "system": "Akku, WLAN, Datum, Uhrzeit (auch automatisch) und Zeitzone, automatisches Ausschalten.",
     "tools": "ROMs prüfen, Spielbilder herunterladen und nicht mehr benötigte entfernen.",
     "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte.",
     "card": "Dateien und Sicherungen per WLAN übertragen, Einstellungen oder die ganze Karte zurücksetzen."
@@ -1076,5 +1094,12 @@
     "clear": "Entfernen",
     "game_cleared": "Dieses Spiel folgt jetzt der Konsole",
     "console_cleared": "Die Konsole folgt jetzt den Einstellungen"
+  },
+  "autoboot": {
+    "row": "Beim Einschalten starten",
+    "on": "Startet beim Einschalten",
+    "off": "Direktstart entfernt",
+    "how": "Spiel auf seiner Seite wählen: X, Beim Einschalten starten",
+    "not_here": "Dieses Spiel kann nicht von selbst starten"
   }
 }

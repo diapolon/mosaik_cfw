@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 bool plat_standalone(void) { const char *e = getenv("ARCADE_STANDALONE"); return e && *e == '1'; }
 
@@ -420,9 +421,33 @@ bool plat_set_time(time_t t) {
     return true;
 }
 
+bool plat_sync_time(void) {
+    /* una richiesta e poi esce (-q), in primo piano (-n); timeout di BusyBox per la rete lenta */
+    int r = system("timeout 20 ntpd -n -q -p pool.ntp.org -p time.cloudflare.com > /dev/null 2>&1");
+    if (r != 0) { ui_log("ora automatica: nessuna risposta (%d)", r); return false; }
+    int w = system("hwclock -w -u 2>/dev/null");
+    ui_log("ora automatica: presa da internet, orologio della console %s", w == 0 ? "aggiornato" : "non aggiornato");
+    return true;
+}
+
 int plat_battery(bool *charging) {
     *charging = get_int("/sys/class/power_supply/axp2202-usb/online") == 1;
     return get_int("/sys/class/power_supply/axp2202-battery/capacity");
+}
+
+bool plat_battery_detail(int *ma, long *tte_s, long *full_mah) {
+    const char *b = "/sys/class/power_supply/axp2202-battery";
+    char p[128];
+    snprintf(p, sizeof p, "%s/current_now", b);
+    int ua = get_int(p);   /* µA; -1 se manca, che vale meno di 1 mA */
+    *ma = ua / 1000;
+    snprintf(p, sizeof p, "%s/time_to_empty_now", b);
+    *tte_s = get_int(p);
+    snprintf(p, sizeof p, "%s/charge_full", b);
+    long full = get_int(p);
+    if (full <= 0) { snprintf(p, sizeof p, "%s/charge_full_design", b); full = get_int(p); }
+    *full_mah = full > 0 ? full / 1000 : -1;
+    return access("/sys/class/power_supply/axp2202-battery/current_now", R_OK) == 0;
 }
 
 #elif !defined(R36S_DEVICE)   /* R36S: src/common/platform_r36s.c */
@@ -439,6 +464,21 @@ int plat_battery(bool *charging) { *charging = false; return -1; }
 void plat_poll(plat_keys_t *k) { memset(k, 0, sizeof *k); k->fn = -1; }
 bool plat_device_name(const char *path, char *out, int n) { (void)path; if (n) out[0] = 0; return false; }
 bool plat_set_time(time_t t) { (void)t; return false; }
+void ui_log(const char *fmt, ...);
+bool plat_battery_detail(int *ma, long *tte_s, long *full_mah) {   /* Mac: ARCADE_BATT_MA per le prove */
+    const char *e = getenv("ARCADE_BATT_MA");
+    *ma = e ? atoi(e) : 0;
+    *tte_s = -1;
+    *full_mah = -1;
+    return e != NULL;
+}
+bool plat_sync_time(void) {   /* Mac: simulata per le prove */
+    const char *e = getenv("ARCADE_NTP_TEST");
+    if (!e || !*e) return false;
+    sleep(1);
+    ui_log("ora automatica: simulata (%s)", e);
+    return !strcmp(e, "1");
+}
 void plat_led_theme(unsigned rgb) { (void)rgb; }
 bool plat_suspend(void) { return false; }
 void plat_audio_release(void) {}

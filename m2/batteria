@@ -1,0 +1,23 @@
+#!/bin/sh
+# Storia della batteria per Impostazioni → Sistema → Batteria (0.9.64): la avvia sempre
+# system-init. Ogni minuto una riga in /run/batteria.tsv, in memoria e mai sulla SD: secondi
+# dall'accensione (con il tempo in sospensione, /proc/uptime: non salta quando l'ora cambia),
+# carica in %, corrente in mA (negativa mentre si scarica) e stato. Tiene le ultime 24 ore.
+OUT=${BATTERIA_OUT:-/run/batteria.tsv}
+EVERY=${BATTERIA_EVERY:-60}
+KEEP=${BATTERIA_KEEP:-1440}
+B=${BATTERIA_SYS:-/sys}/class/power_supply/axp2202-battery
+UP=${BATTERIA_UPTIME:-/proc/uptime}
+n=0
+while :; do
+    pct=$(cat "$B/capacity" 2>/dev/null)
+    ua=$(cat "$B/current_now" 2>/dev/null)
+    st=$(cat "$B/status" 2>/dev/null)
+    up=$(cut -d. -f1 "$UP" 2>/dev/null)
+    case $ua in ''|*[!0-9-]*) ua=0 ;; esac
+    [ -n "$pct" ] && [ -n "$up" ] && printf '%s\t%s\t%s\t%s\n' "$up" "$pct" "$((ua / 1000))" "${st:-?}" >> "$OUT"
+    n=$((n + 1))
+    # ogni 60 righe si tengono solo le ultime KEEP (24 ore)
+    if [ $n -ge 60 ]; then tail -n "$KEEP" "$OUT" > "$OUT.tmp" && mv -f "$OUT.tmp" "$OUT"; n=0; fi
+    sleep "$EVERY"
+done

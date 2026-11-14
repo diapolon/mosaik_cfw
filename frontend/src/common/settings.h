@@ -19,6 +19,7 @@ typedef struct {
     int autosuspend_min; /* sospensione nel launcher, 0 = mai */
     int update_channel;  /* aggiornamenti: 0 stabile, 1 sviluppo */
     bool update_notify;  /* controllo automatico una volta al giorno, con avviso in home */
+    bool auto_time;      /* ora presa da internet quando il Wi-Fi si collega (0.9.64) */
     bool setup_done;     /* primo avvio guidato già fatto */
     int key_f1, key_f2;  /* XK_* */
     int key_home;        /* XH_* */

@@ -218,6 +218,9 @@
     "home_size": "Copertine in home",
     "theme_reset": "Ripristina il tema",
     "theme_reset_done": "Tema come appena installato",
+    "autoboot": "Avvio diretto",
+    "auto_time": "Ora automatica",
+    "battery": "Batteria",
     "aspect": "Proporzioni dei giochi",
     "filter": "Filtro video",
     "cpu": "Profilo prestazioni",
@@ -274,6 +277,9 @@
     "grid_columns": "Quante copertine mostrare in ogni riga della libreria. Automatico usa quelle previste dal tema.",
     "home_size": "Grandezza delle copertine nella schermata iniziale, nei temi a carosello.",
     "theme_reset": "Variante, miniature per riga e copertine come le prevede il tema scelto. Ogni tema ricorda le sue scelte.",
+    "autoboot": "Un gioco che parte da solo all'accensione, da capo; uscendo si torna al menu. Si sceglie dalla scheda del gioco (X), qui si toglie.",
+    "auto_time": "Con il Wi-Fi collegato la console prende l'ora esatta da internet, una volta per accensione.",
+    "battery": "Carica delle ultime ore, consumo adesso e tempo rimasto.",
     "aspect": "Originale: le proporzioni del gioco. Pixel interi: immagine nitida. Schermo intero: riempie tutto. Anche per una console (Y in Piattaforme) o un gioco.",
     "filter": "Effetti sull'immagine dei giochi, per esempio le righe dei vecchi schermi (scanline). Anche per una console o un gioco.",
     "cpu": "Risparmio allunga la batteria, Prestazioni aiuta i giochi più pesanti (CPS3). Anche per una console o un gioco.",
@@ -460,6 +466,8 @@
     "search_empty": "(nessuna)",
     "sort": "Ordina per",
     "clear": "Azzera i filtri",
+    "random": "Gioco a caso",
+    "random_none": "Nessun gioco da scegliere",
     "roms": "Stato ROM",
     "roms_bad": "Solo da sistemare"
   },
@@ -520,7 +528,17 @@
   "battery": {
     "low": "Batteria al %d%%",
     "critical": "Batteria quasi esaurita (%d%%): collega il caricatore",
-    "saved": "Batteria quasi esaurita: partita salvata"
+    "saved": "Batteria quasi esaurita: partita salvata",
+    "title": "Batteria",
+    "charging": "In carica",
+    "full": "Carica completa",
+    "left": "Tempo rimasto: circa %s",
+    "left_wait": "Tempo rimasto: lo stimo dopo un quarto d'ora a batteria",
+    "draw": "Consumo adesso: %d mA",
+    "charge_rate": "In carica: %d mA",
+    "hours_ago": "-%d h",
+    "now": "adesso",
+    "no_history": "La storia parte all'accensione: torna tra qualche minuto"
   },
   "rom": {
     "title": "Verifica delle ROM",
@@ -667,7 +685,7 @@
     "display": "Luminosità, volume, musica, LED",
     "look": "Tema, lingua, salvaschermo",
     "games": "Immagine, filtri, prestazioni",
-    "system": "Wi-Fi, data e ora, spegnimento",
+    "system": "Batteria, Wi-Fi, data e ora",
     "tools": "Verifica ROM, scarica e pulisci immagini",
     "updates": "Aggiorna, canale, registro, informazioni",
     "card": "Trasferisci file, backup, reimposta"
@@ -678,7 +696,7 @@
     "display": "Luminosità dello schermo, volume, musica di sottofondo e luci della console.",
     "look": "Tema del launcher, sua variante, lingua e salvaschermo.",
     "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni.",
-    "system": "Wi-Fi, data, ora e fuso orario, spegnimento automatico.",
+    "system": "Batteria, Wi-Fi, data, ora (anche automatica) e fuso orario, spegnimento automatico.",
     "tools": "Verifica delle ROM, scaricamento delle immagini dei giochi e pulizia di quelle che non servono più.",
     "updates": "Aggiornamento del sistema, canale, avviso, registro diagnostico e spazio sulla scheda.",
     "card": "Trasferimento di file e backup via Wi-Fi, reimpostazione delle impostazioni o di tutta la scheda."
@@ -1076,5 +1094,12 @@
     "clear": "Togli",
     "game_cleared": "Questo gioco ora segue la console",
     "console_cleared": "La console ora segue le Impostazioni"
+  },
+  "autoboot": {
+    "row": "Avvia all'accensione",
+    "on": "Partirà all'accensione",
+    "off": "Avvio diretto tolto",
+    "how": "Scegli un gioco dalla sua scheda: X, Avvia all'accensione",
+    "not_here": "Questo gioco non può partire da solo"
   }
 }

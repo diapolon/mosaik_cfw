@@ -63,5 +63,17 @@ check "analisi: menu" "si" "$(grep -q '^menu' analisi.txt && echo si || echo no)
 check "analisi: gioco fbneo" "si" "$(grep -q 'gioco fbneo' analisi.txt && echo si || echo no)"
 check "analisi: standby 0.5 %/h" "si" "$(grep -q 'standby.*0.50 %/h' analisi.txt && echo si || echo no)"
 check "analisi: launcher che cresce" "si" "$(grep -q 'launcher.*+' analisi.txt && echo si || echo no)"
+
+# storia della batteria (m2/batteria, 0.9.64): righe al secondo, poi solo le ultime KEEP
+echo 1234.56 7 > $W/uptime
+export BATTERIA_OUT=$W/batteria.tsv BATTERIA_EVERY=0.05 BATTERIA_KEEP=5 BATTERIA_SYS=$W/sys BATTERIA_UPTIME=$W/uptime
+sh /trimui/m2/batteria & BT=$!
+sleep 4; kill $BT; wait $BT 2>/dev/null || true
+check "batteria: secondi, carica, mA, stato" "1234 $(cat $B/capacity) $(( $(cat $B/current_now) / 1000 )) $(cat $B/status)" "$(head -1 batteria.tsv | tr '\t' ' ')"
+check "batteria: solo le ultime righe" "si" "$([ "$(wc -l < batteria.tsv)" -le 64 ] && echo si || echo no)"
+echo xx > $B/current_now
+sh /trimui/m2/batteria & BT=$!
+sleep 0.3; kill $BT; wait $BT 2>/dev/null || true
+check "batteria: corrente illeggibile vale 0" "0" "$(tail -1 batteria.tsv | cut -f3)"
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

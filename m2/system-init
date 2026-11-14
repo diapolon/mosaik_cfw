@@ -548,6 +548,8 @@ sync
 # registro dei consumi (m2/consumi): memoria, processore, batteria ogni 30 s in Logs/consumi.tsv,
 # con il registro diagnostico "Prestazioni" o "Completo"
 [ "$DEBUG" -ge 2 ] && ROOT="$ROOT" consumi > /dev/null 2>&1 &
+# storia della batteria per Impostazioni → Sistema → Batteria (m2/batteria): sempre, in /run
+batteria > /dev/null 2>&1 &
 fails=0
 while :; do
     step "10 AVVIO DEL LAUNCHER"

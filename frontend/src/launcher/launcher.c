@@ -1487,6 +1487,72 @@ static void sw_write_list(const game_t *g) {
 
 /* Il runner ha chiesto un altro gioco ("Cambia gioco"): System/cambio.txt con core e chiave.
    Si avvia subito, come la ripresa all'accensione, dal salvataggio automatico se c'è. */
+/* Avvio diretto (0.9.64): un gioco scelto dalla sua scheda parte da solo alla prima schermata
+   dopo l'accensione, da capo; uscendo si torna al menu. System/avvio-gioco.txt: "core<TAB>chiave".
+   Il segno in /run dice che il primo launcher di questa accensione è già partito. */
+#ifdef TRIMUI_DEVICE
+#define BOOT_MARK "/run/avvio-launcher"
+#else
+#define BOOT_MARK "/tmp/mosaik-avvio-launcher"
+#endif
+static char autoboot_core[64], autoboot_key[ROM_NAME + 40];
+
+static void autoboot_load(void) {
+    char p[1100], line[600];
+    autoboot_core[0] = autoboot_key[0] = 0;
+    snprintf(p, sizeof p, "%s/System/avvio-gioco.txt", UI.root);
+    FILE *f = fopen(p, "r");
+    if (!f) return;
+    if (fgets(line, sizeof line, f)) {
+        line[strcspn(line, "\r\n")] = 0;
+        char *tab = strchr(line, '\t');
+        if (tab) {
+            *tab = 0;
+            snprintf(autoboot_core, sizeof autoboot_core, "%s", line);
+            snprintf(autoboot_key, sizeof autoboot_key, "%s", tab + 1);
+        }
+    }
+    fclose(f);
+}
+
+static bool autoboot_is(const game_t *g) {
+    return autoboot_core[0] && !strcmp(g->core, autoboot_core) && !strcasecmp(g->key[0] ? g->key : g->name, autoboot_key);
+}
+
+static int autoboot_game(void) {
+    for (int i = 0; i < ngames; i++)
+        if (autoboot_is(&games[i]) && !games[i].missing) return i;
+    return -1;
+}
+
+/* g NULL: niente avvio diretto */
+static bool autoboot_set(const game_t *g) {
+    char p[1100], tmp[1110];
+    snprintf(p, sizeof p, "%s/System/avvio-gioco.txt", UI.root);
+    if (!g) {
+        if (unlink(p) != 0 && errno != ENOENT) return false;
+        sync();
+        autoboot_core[0] = autoboot_key[0] = 0;
+        return true;
+    }
+    snprintf(tmp, sizeof tmp, "%s.tmp", p);
+    FILE *f = fopen(tmp, "w");
+    if (!f) return false;
+    bool ok = fprintf(f, "%s\t%s\n", g->core, g->key[0] ? g->key : g->name) > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    ok = fclose(f) == 0 && ok;
+    if (!ok || durable_replace(tmp, p) != 0) { unlink(tmp); return false; }
+    autoboot_load();
+    return true;
+}
+
+static void autoboot_start(void) {
+    if (!autoboot_core[0]) return;
+    int i = autoboot_game();
+    if (i < 0) { ui_log("avvio diretto: %s/%s non trovato, resta il menu", autoboot_core, autoboot_key); return; }
+    ui_log("avvio diretto: %s", games[i].title);
+    launch_ex(&games[i], false);   /* esce se l'avvio riesce */
+}
+
 static bool consume_switch(void) {
     char p[1100], line[600];
     snprintf(p, sizeof p, "%s/System/cambio.txt", UI.root);
@@ -3409,12 +3475,12 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_AUTOBOOT, S_AUTOTIME, S_BATTERY, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset", "autoboot", "auto_time", "battery",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
@@ -3422,9 +3488,9 @@ static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "contro
 static const int cat_items[SC_COUNT][12] = {
     { S_BRIGHT, S_VOLUME, S_SPEAKER, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_THEMERESET, S_BOXCOVER, S_SAVER, -1 },
-    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
+    { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOBOOT, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
-    { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
+    { S_BATTERY, S_WIFI, S_WIFINETS, S_AUTOTIME, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },          /* ROM e immagini */
     { S_FILESERVER, S_RESETSET, S_ERASE, -1 },  /* scheda e dati (lo Store sta nella home dalla 0.9.49) */
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUPPORT, -1 },
@@ -3696,6 +3762,12 @@ static void set_value(int item, char *buf, size_t n) {
         else snprintf(buf, n, "%s", T("common.never"));
         break;
     case S_RESUME: snprintf(buf, n, "%s", T(s->resume_last ? "common.yes" : "common.no")); break;
+    case S_AUTOTIME: snprintf(buf, n, "%s", T(s->auto_time ? "common.yes" : "common.no")); break;
+    case S_AUTOBOOT: {
+        int gi = autoboot_game();
+        snprintf(buf, n, "%s", gi >= 0 ? games[gi].title : autoboot_core[0] ? autoboot_key : T("common.no"));
+        break;
+    }
     case S_AUTOSAVE: snprintf(buf, n, "%s", T(s->autosave_exit ? "common.yes" : "common.no")); break;
     case S_BOXCOVER: snprintf(buf, n, "%s", T(s->box_covers ? "common.yes" : "common.no")); break;
     case S_SPEAKER: { static const char *k[3] = { "speaker.always", "speaker.rest_a", "speaker.rest_b" }; snprintf(buf, n, "%s", T(k[s->speaker_rest % 3])); break; }
@@ -3717,6 +3789,9 @@ static void set_value(int item, char *buf, size_t n) {
     default: buf[0] = 0;
     }
 }
+
+static int ntp_tries;   /* ora automatica: definita più avanti */
+static double ntp_next;
 
 static void set_change(int item, int dir) {
     settings_t *s = &UI.set;
@@ -3808,6 +3883,15 @@ static void set_change(int item, int dir) {
         if (s->update_channel) ui_toast(T("update.channel_warn"));
         break;
     case S_RESUME: s->resume_last = !s->resume_last; break;
+    case S_AUTOTIME:
+        s->auto_time = !s->auto_time;
+        if (s->auto_time) { ntp_tries = 0; ntp_next = 0; }
+        break;
+    case S_AUTOBOOT:   /* si sceglie dalla scheda del gioco; qui si toglie */
+        if (!autoboot_core[0]) { ui_toast(T("autoboot.how")); break; }
+        if (autoboot_set(NULL)) { ui_log("avvio diretto: tolto"); ui_toast(T("autoboot.off")); }
+        else ui_toast(T("update.err6"));
+        break;
     case S_AUTOSAVE: s->autosave_exit = !s->autosave_exit; break;
     case S_BOXCOVER: s->box_covers = !s->box_covers; break;
     case S_SPEAKER: s->speaker_rest = (s->speaker_rest + dir + 3) % 3; plat_amp_config(s->speaker_rest); break;
@@ -4669,6 +4753,46 @@ static void sto_draw(void) {
     }
 }
 
+/* Ora automatica (0.9.64): con il Wi-Fi collegato si chiede l'ora a internet (NTP) una volta per
+   accensione, in un thread; se non risponde si riprova dopo 5 minuti, al massimo 3 volte */
+#ifdef TRIMUI_DEVICE
+#define TIME_MARK "/run/ora-presa"
+#else
+#define TIME_MARK "/tmp/mosaik-ora-presa"
+#endif
+static atomic_int ntp_state;   /* 0 fermo, 1 in corso, 2 riuscito, 3 non riuscito */
+static int ntp_tries;
+static double ntp_next;
+
+static int ntp_run(void *arg) {
+    (void)arg;
+    atomic_store(&ntp_state, plat_sync_time() ? 2 : 3);
+    return 0;
+}
+
+static void ntp_tick(void) {
+    int st = atomic_load(&ntp_state);
+    if (st == 2) {
+        FILE *f = fopen(TIME_MARK, "w");
+        if (f) fclose(f);
+        atomic_store(&ntp_state, 0);
+        ntp_tries = 3;   /* fatto per questa accensione */
+        return;
+    }
+    if (st == 3) { ntp_next = UI.t + 300; atomic_store(&ntp_state, 0); return; }
+    if (st != 0 || !UI.set.auto_time || ntp_tries >= 3 || UI.t < ntp_next) return;
+    static double last_check;
+    if (UI.t - last_check < 2) return;   /* lo stato del Wi-Fi ogni 2 s, non a ogni fotogramma */
+    last_check = UI.t;
+    if (access(TIME_MARK, F_OK) == 0) { ntp_tries = 3; return; }
+    if (wifi_status(false)->state != WIFI_CONNECTED) return;
+    ntp_tries++;
+    atomic_store(&ntp_state, 1);
+    SDL_Thread *th = SDL_CreateThread(ntp_run, "ora", NULL);
+    if (th) SDL_DetachThread(th);
+    else atomic_store(&ntp_state, 3);
+}
+
 /* Data e ora: giorno, mese, anno, ore, minuti. Su/giù cambiano il campo scelto con
    sinistra/destra; A salva (anche nell'orologio della console), B annulla. */
 static bool clock_open;
@@ -5299,6 +5423,152 @@ static void support_draw(void) {
     ui_popup_buttons(x, y, w, h, labels, 1, 0, -1);
 }
 
+/* ---------------------------------------------------------- batteria */
+/* Impostazioni → Sistema → Batteria (0.9.64): carica delle ultime ore dalla storia che scrive
+   m2/batteria in /run/batteria.tsv (una riga al minuto: secondi, %, mA, stato), consumo adesso e
+   tempo rimasto. La stima viene dalla discesa della carica nelle ultime 2 ore a batteria (almeno
+   un quarto d'ora e 2 punti); senza, dal driver se la dà. */
+static void thick_line(int x1, int y1, int x2, int y2, int th, color_t c);
+#define BATT_MAX 1500
+static bool batt_open;
+static int batt_n, batt_pct_now, batt_ma;
+static long batt_t[BATT_MAX];
+static short batt_pct[BATT_MAX];
+static bool batt_chg[BATT_MAX], batt_charging, batt_detail;
+static long batt_left_min;   /* -1: non ancora stimabile */
+static double batt_read_t;
+
+static const char *batt_log(void) {
+    const char *e = getenv("ARCADE_BATT_LOG");
+    if (e && *e) return e;
+    return plat_is_device() ? "/run/batteria.tsv" : "/tmp/mosaik-batteria.tsv";
+}
+
+/* minuti rimasti dalla discesa recente; -1 se non basta la storia */
+static long batt_estimate(void) {
+    if (batt_n < 2 || batt_charging) return -1;
+    int last = batt_n - 1, first = last;
+    while (first > 0 && !batt_chg[first - 1] && batt_t[first] - batt_t[first - 1] <= 600 && batt_t[last] - batt_t[first - 1] <= 7200) first--;
+    long span = batt_t[last] - batt_t[first];
+    int drop = batt_pct[first] - batt_pct[last];
+    if (batt_chg[last] || span < 900 || drop < 2) return -1;
+    double per_s = (double)drop / span;
+    return (long)(batt_pct_now / per_s / 60.0);
+}
+
+static void batt_load(void) {
+    batt_read_t = UI.t;
+    batt_n = 0;
+    FILE *f = fopen(batt_log(), "r");
+    char line[128];
+    while (f && fgets(line, sizeof line, f)) {
+        long t;
+        int pct, ma;
+        char st[32] = "";
+        if (sscanf(line, "%ld\t%d\t%d\t%31s", &t, &pct, &ma, st) < 3 || pct < 0 || pct > 100) continue;
+        if (batt_n == BATT_MAX) {   /* le più vecchie escono */
+            memmove(batt_t, batt_t + 1, (BATT_MAX - 1) * sizeof batt_t[0]);
+            memmove(batt_pct, batt_pct + 1, (BATT_MAX - 1) * sizeof batt_pct[0]);
+            memmove(batt_chg, batt_chg + 1, (BATT_MAX - 1) * sizeof batt_chg[0]);
+            batt_n--;
+        }
+        if (batt_n && t < batt_t[batt_n - 1]) batt_n = 0;   /* storia di un'altra accensione */
+        batt_t[batt_n] = t;
+        batt_pct[batt_n] = (short)pct;
+        batt_chg[batt_n] = !strcmp(st, "Charging") || !strcmp(st, "Full");
+        batt_n++;
+    }
+    if (f) fclose(f);
+    batt_pct_now = ui_battery(&batt_charging);
+    long tte, full;
+    batt_detail = plat_battery_detail(&batt_ma, &tte, &full);
+    batt_left_min = batt_estimate();
+    if (batt_left_min < 0 && !batt_charging && batt_detail) {
+        if (tte > 0) batt_left_min = tte / 60;
+        else if (full > 0 && batt_ma < -20) batt_left_min = (long)(full * batt_pct_now / 100.0 / -batt_ma * 60.0);
+    }
+}
+
+static void batt_show(void) {
+    batt_open = true;
+    batt_load();
+    ui_log("batteria: %d%%, %d mA, storia di %d misure, tempo rimasto %ld min", batt_pct_now, batt_ma, batt_n, batt_left_min);
+    ui_sound(SND_OK);
+}
+
+static void batt_input(void) {
+    if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { batt_open = false; ui_sound(SND_BACK); return; }
+    if (UI.t - batt_read_t > 30) batt_load();
+}
+
+static void batt_fmt_min(long m, char *out, size_t n) {
+    if (m >= 60) snprintf(out, n, "%ld h %02ld min", m / 60, m % 60);
+    else snprintf(out, n, "%ld min", m);
+}
+
+static void batt_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    TTF_Font *f = UI.f_normal, *fs = UI.f_small;
+    int fh = TTF_FontHeight(f), sh = TTF_FontHeight(fs), pad = M(0.04f);
+    int w = UI.w - 2 * M(t->margin) < M(1.2f) ? UI.w - 2 * M(t->margin) : M(1.2f);
+    int gh = M(0.32f);
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + 2 * (fh + M(0.01f)) + M(0.02f) + gh + sh + M(0.02f) + ui_popup_buttons_h();
+    if (h > UI.h - M(0.04f)) { gh -= h - (UI.h - M(0.04f)); h = UI.h - M(0.04f); }
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    int lx = x + pad, rx = x + w - pad, cy = y + pad;
+    ui_text(UI.f_title, T("battery.title"), lx, cy, t->text, ALIGN_LEFT);
+    char v[64], line[160];
+    snprintf(v, sizeof v, "%d%%", batt_pct_now);
+    ui_text(UI.f_title, v, rx, cy, batt_pct_now <= 15 && !batt_charging ? rgba(220, 70, 70, 255) : t->accent, ALIGN_RIGHT);
+    cy += TTF_FontHeight(UI.f_title) + M(0.02f);
+    /* stato e tempo rimasto */
+    if (batt_charging) snprintf(line, sizeof line, "%s", T(batt_pct_now >= 100 ? "battery.full" : "battery.charging"));
+    else if (batt_left_min >= 0) { batt_fmt_min(batt_left_min, v, sizeof v); snprintf(line, sizeof line, T("battery.left"), v); }
+    else snprintf(line, sizeof line, "%s", T("battery.left_wait"));
+    ui_text(f, line, lx, cy, t->text, ALIGN_LEFT);
+    cy += fh + M(0.01f);
+    if (batt_detail && batt_ma) snprintf(line, sizeof line, T(batt_ma > 0 ? "battery.charge_rate" : "battery.draw"), batt_ma > 0 ? batt_ma : -batt_ma);
+    else line[0] = 0;
+    ui_text(f, line, lx, cy, t->text_dim, ALIGN_LEFT);
+    cy += fh + M(0.01f) + M(0.02f);
+    /* grafico: 0-100 % in verticale, le ultime ore (da 1 a 12) in orizzontale, adesso a destra */
+    int lw = ui_text_w(fs, "100%") + M(0.015f), gx = lx + lw, gw = rx - gx, gy = cy, gb = cy + gh - sh;
+    for (int k = 0; k <= 4; k++) {
+        int yy = gb - (gb - gy) * k / 4;
+        ui_rect(gx, yy, gw, 1, with_alpha(t->text_dim, k == 0 ? 120 : 50));
+        if (k % 2 == 0) { snprintf(v, sizeof v, "%d%%", k * 25); ui_text(fs, v, gx - M(0.01f), yy - sh / 2, t->text_dim, ALIGN_RIGHT); }
+    }
+    if (batt_n >= 2) {
+        long now = batt_t[batt_n - 1], span = now - batt_t[0];
+        long hours = (span + 3599) / 3600;
+        if (hours < 1) hours = 1;
+        if (hours > 12) hours = 12;
+        long from = now - hours * 3600;
+        int th = M(0.006f) + 1, px = -1, py = 0;
+        color_t chg = rgba(80, 190, 110, 255);
+        for (int i = 0; i < batt_n; i++) {
+            if (batt_t[i] < from) continue;
+            int xx = gx + (int)((double)gw * (batt_t[i] - from) / (hours * 3600));
+            int yy = gb - (gb - gy) * batt_pct[i] / 100;
+            if (px >= 0 && batt_t[i] - batt_t[i - 1] <= 600) thick_line(px, py, xx, yy, th, batt_chg[i] ? chg : t->accent);
+            px = xx;
+            py = yy;
+        }
+        snprintf(v, sizeof v, T("battery.hours_ago"), (int)hours);
+        ui_text(fs, v, gx, gb + M(0.005f), t->text_dim, ALIGN_LEFT);
+        ui_text(fs, T("battery.now"), rx, gb + M(0.005f), t->text_dim, ALIGN_RIGHT);
+    } else {
+        char lines[2][160];
+        int nl = ui_wrap(fs, T("battery.no_history"), gw - 2 * pad, lines, 2);
+        for (int k = 0; k < nl; k++) ui_text(fs, lines[k], gx + gw / 2, gy + (gb - gy) / 2 - nl * sh / 2 + k * sh, t->text_dim, ALIGN_CENTER);
+    }
+    const char *labels[1] = { T("support.close") };
+    ui_popup_buttons(x, y, w, h, labels, 1, 0, -1);
+}
+
 static void sdinfo_input(void) {
     if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { sdinfo_open = false; ui_sound(SND_BACK); }
 }
@@ -5512,7 +5782,7 @@ static bool upd_busy(void) {
 static void upd_audio(void) {
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
-                || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open || fsrv_open
+                || romcheck_open || scrape_open || clean_open || sdinfo_open || batt_open || wpanel_open || fsrv_open
                 || (screen == SCR_STORE && store_status()->phase == ST_WORKING)
                 || atomic_load(&imp_state) == IMP_RUN || atomic_load(&imp_state) == IMP_DONE || atomic_load(&rst_state);
     if (want == audio_quiet) return;
@@ -6068,6 +6338,7 @@ static void settings_input(void) {
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
         else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_THEMERESET) theme_reset();
+        else if (set_sel == S_BATTERY) batt_show();
         else if (set_sel == S_UPDATE) upd_start();
         else if (set_sel == S_GENRES) gp_show(GP_MANAGE);
         else if (set_sel == S_COLLS) {
@@ -6120,9 +6391,9 @@ static const char *set_cat_sub(int row) {
     snprintf(k, sizeof k, "settings_cat_sum.%s", cat_key[row - ROW_CAT]);
     return T(k);
 }
-static bool set_has_value(int i) { return i != S_THEMERESET && i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
+static bool set_has_value(int i) { return i != S_BATTERY && i != S_THEMERESET && i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
-static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER; }
+static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER || i == S_AUTOTIME; }
 
 /* riquadro di una voce: bordo del colore del tema se scelto */
 static void set_box(int x, int y, int w, int h, int r, bool sel) {
@@ -6162,7 +6433,7 @@ static void set_draw_value(int i, TTF_Font *f, int x, int cy, int maxw, bool sel
         return;
     }
     if (set_switch(i)) {
-        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : i == S_AUTOSAVE ? UI.set.autosave_exit : i == S_BOXCOVER ? UI.set.box_covers : UI.set.resume_last;
+        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : i == S_AUTOSAVE ? UI.set.autosave_exit : i == S_BOXCOVER ? UI.set.box_covers : i == S_AUTOTIME ? UI.set.auto_time : UI.set.resume_last;
         int sh = f == UI.f_small ? M(0.032f) : M(0.04f), sw = sh * 9 / 5;
         draw_switch(right ? x - sw : x, cy - sh / 2, sh, on);
         return;
@@ -6353,7 +6624,7 @@ static void settings_draw(void) {
         for (int k = 0; k < n; k++) ui_text(fs, lines[k], mx, bottom - desc_h + M(0.012f) + k * fsh, t->text_dim, ALIGN_LEFT);
     }
     /* con una finestra aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || support_open || wpanel_open || clean_open || fsrv_open) return;
+    if (clock_open || sdinfo_open || batt_open || support_open || wpanel_open || clean_open || fsrv_open) return;
     int end;
     if (set_page < 0) {
         const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
@@ -6362,7 +6633,7 @@ static void settings_draw(void) {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
                    set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
                    set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER ||
-                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT || set_sel == S_THEMERESET;
+                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT || set_sel == S_THEMERESET || set_sel == S_BATTERY;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
                             "L/R", T("common.section"), "" };
         end = ui_keybar(h, onda ? 9 : 6);
@@ -7028,7 +7299,7 @@ static atomic_int rst_count;
 static bool rst_all;
 
 static const char *const RST_SYSTEM[] = { "settings.json", "favorites.txt", "recent.txt", "hidden.txt", "core-options.txt",
-                                          "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "wifi.conf", "temi.txt",
+                                          "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "wifi.conf", "temi.txt", "avvio-gioco.txt",
                                           "fileserver-browsers.txt", "resume.txt", "next.txt", "next.env", "backup-visti.txt",
                                           "menu-rotazione", "scrape-scelta.txt", "cambio.tsv", "cambio.txt", NULL };
 static const char *const RST_SYSTEM_ALL[] = { "stats.tsv", "romcheck.tsv", NULL };
@@ -7619,12 +7890,21 @@ static void lists_changed(void) {
 static void gopt_input(void) {
     input_t *in = &UI.in;
     game_t *g = &games[detail_idx];
-    int rows = NCOLLS + 3 + (diag_possible(g) ? 2 : 0);
+    int boot_row = NCOLLS + 3 + (diag_possible(g) ? 2 : 0), rows = boot_row + 1;
     if (in->pressed[BTN_UP]) { gopt_sel = (gopt_sel + rows - 1) % rows; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { gopt_sel = (gopt_sel + 1) % rows; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B] || in->pressed[BTN_X]) { gopt_open = false; ui_sound(SND_BACK); return; }
     if (!in->pressed[BTN_A]) return;
     char msg[200];
+    if (gopt_sel == boot_row) {   /* avvio diretto all'accensione: uno solo, si sceglie o si toglie qui */
+        bool on = !autoboot_is(g);
+        if (on && (g->missing || !strcmp(g->core, "app"))) { ui_toast(T("autoboot.not_here")); ui_sound(SND_ERROR); return; }
+        if (!autoboot_set(on ? g : NULL)) { ui_toast(T("update.err6")); ui_sound(SND_ERROR); return; }
+        ui_log("avvio diretto: %s", on ? g->title : "tolto");
+        ui_toast(T(on ? "autoboot.on" : "autoboot.off"));
+        ui_sound(SND_OK);
+        return;
+    }
     if (gopt_sel < NCOLLS) {
         bool in_c = !(g->colls >> gopt_sel & 1u);
         games_set_coll(UI.root, g, gopt_sel, in_c);
@@ -7650,7 +7930,7 @@ static void gopt_input(void) {
         reset_step = 1;
         reset_sel = 0;
         ui_sound(SND_OK);
-    } else {
+    } else if (gopt_sel == NCOLLS + 1) {
         games_set_hidden(UI.root, g, !g->user_hidden);
         ui_toast(T(g->user_hidden ? "coll.hidden_toast" : "coll.shown_toast"));
         lists_changed();
@@ -7673,7 +7953,7 @@ static void gopt_draw(void) {
     theme_t *t = &UI.th;
     if (detail_idx < 0) return;
     game_t *g = &games[detail_idx];
-    int rows = NCOLLS + 3 + (diag_possible(g) ? 2 : 0), rh = M(t->list_row_h), pad = M(0.04f);
+    int boot_row = NCOLLS + 3 + (diag_possible(g) ? 2 : 0), rows = boot_row + 1, rh = M(t->list_row_h), pad = M(0.04f);
     int maxrows = (UI.h - M(t->hintbar_h) - M(0.2f) - TTF_FontHeight(UI.f_title)) / rh;
     int vis = rows < maxrows ? rows : maxrows;
     int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
@@ -7711,6 +7991,17 @@ static void gopt_draw(void) {
         } else if (i == NCOLLS) {
             ui_text(f, "+", bx + box / 2, ty, sel ? c : t->accent, ALIGN_CENTER);
             ui_text(f, T("coll.new"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
+        } else if (i == boot_row) {   /* casella: avvio diretto all'accensione */
+            bool on = autoboot_is(g);
+            int by = ty + (fh - box) / 2;
+            if (on) {
+                ui_rrect(bx, by, box, box, box / 4, sel ? t->accent_text : t->accent);
+                color_t tick = sel ? t->accent : t->accent_text;
+                int th = box / 7 + 1;
+                thick_line(bx + box * 22 / 100, by + box * 52 / 100, bx + box * 42 / 100, by + box * 72 / 100, th, tick);
+                thick_line(bx + box * 42 / 100, by + box * 72 / 100, bx + box * 80 / 100, by + box * 30 / 100, th, tick);
+            } else ui_rborder(bx, by, box, box, box / 4, M(0.004f) + 1, sel ? c : t->text_dim);
+            ui_text(f, T("autoboot.row"), bx + box + M(0.025f), ty, c, ALIGN_LEFT);
         } else if (i == NCOLLS + 2) {
             char gl[48];
             genre_label(g->genre, gl, sizeof gl);
@@ -8004,7 +8295,7 @@ static void romcheck_draw(void) {
 /* SELECT apre il pannello: ricerca, genere, ordinamento. La tastiera a schermo
    filtra la libreria mentre si scrive. */
 
-enum { FP_SEARCH, FP_GENRE, FP_COLL, FP_SORT, FP_ROMS, FP_CLEAR, FP_COUNT };
+enum { FP_SEARCH, FP_RANDOM, FP_GENRE, FP_COLL, FP_SORT, FP_ROMS, FP_CLEAR, FP_COUNT };
 static const char *sort_keys[4] = { "sort.name", "sort.year", "sort.played", "sort.recent" };
 
 static void filters_changed(void) {
@@ -8013,8 +8304,26 @@ static void filters_changed(void) {
     build_view();
 }
 
+/* Gioco a caso: fra quelli mostrati (piattaforma, collezione, filtri), solo quelli con la ROM;
+   si apre la sua scheda, da cui si avvia o si torna indietro */
+static void random_game(void) {
+    int cand[nview > 0 ? nview : 1], n = 0;
+    for (int i = 0; i < nview; i++)
+        if (!games[view[i]].missing) cand[n++] = i;
+    if (!n) { ui_toast(T("filters.random_none")); ui_sound(SND_ERROR); return; }
+    static bool seeded;
+    if (!seeded) { srand((unsigned)time(NULL) ^ (unsigned)getpid()); seeded = true; }
+    int pick = cand[rand() % n];
+    for (int k = 0; k < 8 && n > 1 && pick == lib_sel; k++) pick = cand[rand() % n];   /* possibilmente non quello di prima */
+    lib_sel = pick;
+    fpanel_open = false;
+    ui_log("gioco a caso: %s", games[view[pick]].title);
+    open_detail(view[pick]);
+}
+
 static void fpanel_input(void) {
     input_t *in = &UI.in;
+    if (in->pressed[BTN_A] && fpanel_sel == FP_RANDOM) { random_game(); return; }
     if (in->pressed[BTN_UP]) { fpanel_sel = (fpanel_sel + FP_COUNT - 1) % FP_COUNT; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { fpanel_sel = (fpanel_sel + 1) % FP_COUNT; ui_sound(SND_MOVE); }
     int dir = in->pressed[BTN_RIGHT] ? 1 : in->pressed[BTN_LEFT] ? -1 : 0;
@@ -8087,7 +8396,7 @@ static void fpanel_draw(void) {
         if (sel) ui_rrect(x + M(0.02f), ry, w - M(0.04f), rh - M(0.008f), M(t->panel_radius), t->accent);
         color_t c = sel ? t->accent_text : t->text;
         char val[120] = "", g[64];
-        const char *label = i == FP_SEARCH ? T("filters.search") : i == FP_GENRE ? T("library.genre") : i == FP_COLL ? T("coll.filter")
+        const char *label = i == FP_RANDOM ? T("filters.random") : i == FP_SEARCH ? T("filters.search") : i == FP_GENRE ? T("library.genre") : i == FP_COLL ? T("coll.filter")
                           : i == FP_SORT ? T("filters.sort") : i == FP_ROMS ? T("filters.roms") : T("filters.clear");
         if (i == FP_COLL) {
             int nh = 0;
@@ -8764,6 +9073,9 @@ int main(int argc, char **argv) {
        partita: con una non richiusa non si riprende e non si scrive niente (verifica audit R40-01) */
     rec_st_bad = !store_recover(UI.root);
     rec_pending = rec_fs_bad || rec_st_bad || getenv("ARCADE_TEST_RECOVER") != NULL;
+    /* primo launcher di questa accensione? (avvio diretto in un gioco) */
+    bool boot_first = access(BOOT_MARK, F_OK) != 0;
+    if (boot_first) { FILE *bm = fopen(BOOT_MARK, "w"); if (bm) fclose(bm); }
     if (!auto_script && !rec_pending && consume_resume()) {
         ui_log("riprendo l'ultima partita");
         /* il sistema è arrivato fin qui: vale come prima schermata per l'aggiornamento */
@@ -8785,6 +9097,11 @@ int main(int argc, char **argv) {
        (prima la musica non parte); con un'operazione a metà si resta qui (rec_pending) */
     if (!auto_script && !rec_pending) consume_switch();
     else { char cp[1100]; snprintf(cp, sizeof cp, "%s/System/cambio.txt", UI.root); unlink(cp); }
+    autoboot_load();
+    if (boot_first && !rec_pending && UI.set.setup_done && (!auto_script || getenv("ARCADE_TEST_AUTOBOOT"))) {
+        update_confirm_boot(UI.root);   /* il sistema è arrivato fin qui, come per la ripresa */
+        autoboot_start();
+    }
     music_init(UI.root);
     plat_amp_config(UI.set.speaker_rest);   /* fruscio della Brick Pro (issue #4) */
     ui_mark("musica");
@@ -8831,7 +9148,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = batt_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -8839,6 +9156,7 @@ int main(int argc, char **argv) {
         }
         /* il layout può cambiare col tema: la home a carosello non esiste nel layout a elenco */
 
+        ntp_tick();
         /* controllo degli aggiornamenti: una volta per avvio, appena il Wi-Fi è collegato */
         static bool notify_started;
         if (!notify_started && UI.set.update_notify && update_supported() && !upd_open && wifi_status(false)->state == WIFI_CONNECTED) {
@@ -8885,6 +9203,7 @@ int main(int argc, char **argv) {
         else if (wpanel_open) wpanel_input();
         else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
+        else if (batt_open) batt_input();
         else if (support_open) support_input();
         else if (fsrv_open) fsrv_input();
         else if (qp_open) qp_input();
@@ -8950,6 +9269,7 @@ int main(int argc, char **argv) {
         if (wpanel_open) wpanel_draw();
         if (clean_open) clean_draw();
         if (sdinfo_open) sdinfo_draw();
+        if (batt_open) batt_draw();
         if (support_open) support_draw();
         if (fsrv_open) fsrv_draw();
         if (fpanel_open) fpanel_draw();

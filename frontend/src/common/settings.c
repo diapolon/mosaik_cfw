@@ -60,6 +60,7 @@ void settings_defaults(settings_t *s) {
     s->autosleep_min = 0;
     s->autosuspend_min = 5;
     s->update_notify = true;
+    s->auto_time = true;
     s->key_f1 = XK_SAVE;
     s->key_f2 = XK_LOAD;
     s->aspect = ASPECT_ORIGINAL;
@@ -102,6 +103,7 @@ bool settings_load(settings_t *s, const char *root) {
     s->autosuspend_min = json_int(j, "autosuspend_min", s->autosuspend_min);
     s->update_channel = json_int(j, "update_channel", 0) ? 1 : 0;
     s->update_notify = json_bool(j, "update_notify", s->update_notify);
+    s->auto_time = json_bool(j, "auto_time", s->auto_time);
     /* le schede già in uso non hanno la voce: per loro il primo avvio è passato */
     s->setup_done = json_bool(j, "setup_done", true);
     s->key_f1 = json_int(j, "key_f1", s->key_f1);
@@ -181,6 +183,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"autosuspend_min\": %d,\n"
             "  \"update_channel\": %d,\n"
             "  \"update_notify\": %s,\n"
+            "  \"auto_time\": %s,\n"
             "  \"setup_done\": %s,\n"
             "  \"key_f1\": %d,\n"
             "  \"key_f2\": %d,\n"
@@ -210,7 +213,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "}\n",
             json_esc(s->theme, e_theme, sizeof e_theme), json_esc(s->variant, e_var, sizeof e_var),
             json_esc(s->device, e_dev, sizeof e_dev), json_esc(s->lang, e_lang, sizeof e_lang), s->brightness, s->volume, s->cpu_profile,
-            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, json_esc(s->filter, e_filter, sizeof e_filter), s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
+            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->auto_time ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, json_esc(s->filter, e_filter, sizeof e_filter), s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->autosave_exit ? "true" : "false",
             s->box_covers ? "true" : "false", s->speaker_rest,
             s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol > 0 ? "true" : "false", s->music_vol, json_esc(s->tz, e_tz, sizeof e_tz), s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);

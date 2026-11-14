@@ -777,7 +777,7 @@ static void do_zip(req_t *r) {
 /* file di System che vanno nel backup e si possono ripristinare (non la calibrazione delle
    levette, che è dell'hardware, né i file degli aggiornamenti o dei giochi in corso) */
 static const char *const BACKUP_SYSTEM[] = { "settings.json", "favorites.txt", "recent.txt", "stats.tsv", "hidden.txt",
-                                             "core-options.txt", "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "temi.txt", NULL };
+                                             "core-options.txt", "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "temi.txt", "avvio-gioco.txt", NULL };
 #define BACKUP_INFO "mosaik-backup.txt"
 
 /* cornici: nel backup quelle messe dall'utente, non le due predefinite che porta il sistema né

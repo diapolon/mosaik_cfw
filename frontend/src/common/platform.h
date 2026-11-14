@@ -41,6 +41,12 @@ bool plat_device_name(const char *path, char *out, int n);
 /* imposta data e ora del sistema e le scrive nell'orologio della console (RTC), che le
    conserva da spenta; false se non riesce (sul Mac non fa nulla) */
 bool plat_set_time(time_t t);
+/* ora presa da internet (NTP, BusyBox ntpd), poi scritta nell'orologio della console; blocca
+   fino a 20 s: da chiamare in un thread. false se non riesce (sul Mac solo con ARCADE_NTP_TEST=1) */
+bool plat_sync_time(void);
+/* batteria in dettaglio: corrente in mA (negativa mentre si scarica), tempo alla fine in secondi
+   e capacità in mAh se il driver li dà (-1 altrimenti); false se non c'è niente da leggere */
+bool plat_battery_detail(int *ma, long *tte_s, long *full_mah);
 /* colore principale del tema, per i LED con "colore del tema" (0xRRGGBB) */
 void plat_led_theme(unsigned rgb);
 /* sospende la console (m2/arcade-suspend) e torna al risveglio; poi plat_apply riapplica

@@ -218,6 +218,9 @@
     "home_size": "Jaquettes de l'accueil",
     "theme_reset": "Réinitialiser le thème",
     "theme_reset_done": "Thème comme à l'installation",
+    "autoboot": "Démarrage direct",
+    "auto_time": "Heure automatique",
+    "battery": "Batterie",
     "aspect": "Format des jeux",
     "filter": "Filtre vidéo",
     "cpu": "Profil de performances",
@@ -274,6 +277,9 @@
     "grid_columns": "Nombre de jaquettes par ligne de la bibliothèque. Automatique utilise celles du thème.",
     "home_size": "Taille des jaquettes sur l'écran d'accueil, pour les thèmes en carrousel.",
     "theme_reset": "Variante, vignettes par ligne et jaquettes comme le prévoit le thème choisi. Chaque thème garde ses propres choix.",
+    "autoboot": "Un jeu qui démarre tout seul à l'allumage, depuis le début ; en le quittant on revient au menu. Il se choisit dans la fiche du jeu (X) et s'enlève ici.",
+    "auto_time": "Avec le Wi-Fi connecté, la console prend l'heure exacte sur internet, une fois par allumage.",
+    "battery": "Charge des dernières heures, consommation actuelle et temps restant.",
     "aspect": "Original : les proportions du jeu. Pixels entiers : image nette. Plein écran : remplit tout. Aussi par console (Y dans Plateformes) ou par jeu.",
     "filter": "Effets sur l'image du jeu, comme les lignes des anciens écrans (scanlines). Aussi par console ou par jeu.",
     "cpu": "Économie prolonge la batterie, Performances aide les jeux lourds (CPS3). Aussi par console ou par jeu.",
@@ -460,6 +466,8 @@
     "search_empty": "(aucune)",
     "sort": "Trier par",
     "clear": "Effacer les filtres",
+    "random": "Jeu au hasard",
+    "random_none": "Aucun jeu à choisir",
     "roms": "État des ROM",
     "roms_bad": "Seulement à corriger"
   },
@@ -520,7 +528,17 @@
   "battery": {
     "low": "Batterie à %d %%",
     "critical": "Batterie presque vide (%d %%) : branchez le chargeur",
-    "saved": "Batterie presque vide : partie sauvegardée"
+    "saved": "Batterie presque vide : partie sauvegardée",
+    "title": "Batterie",
+    "charging": "En charge",
+    "full": "Charge complète",
+    "left": "Temps restant : environ %s",
+    "left_wait": "Temps restant : estimé après un quart d'heure sur batterie",
+    "draw": "Consommation actuelle : %d mA",
+    "charge_rate": "En charge : %d mA",
+    "hours_ago": "-%d h",
+    "now": "maintenant",
+    "no_history": "L'historique commence à l'allumage : revenez dans quelques minutes"
   },
   "rom": {
     "title": "Vérification des ROM",
@@ -667,7 +685,7 @@
     "display": "Luminosité, volume, musique, LED",
     "look": "Thème, langue, écran de veille",
     "games": "Image, filtres, performances",
-    "system": "Wi-Fi, date et heure, extinction",
+    "system": "Batterie, Wi-Fi, date et heure",
     "tools": "Vérifier les ROM, télécharger et nettoyer les images",
     "updates": "Mise à jour, canal, journal, infos",
     "card": "Transfert, sauvegarde, réinitialiser"
@@ -678,7 +696,7 @@
     "display": "Luminosité de l'écran, volume, musique de fond et lumières de la console.",
     "look": "Thème du launcher, sa variante, langue et écran de veille.",
     "games": "Affichage et jeu : proportions, filtres, cadres, doublons, performances.",
-    "system": "Wi-Fi, date, heure et fuseau horaire, extinction automatique.",
+    "system": "Batterie, Wi-Fi, date, heure (aussi automatique) et fuseau horaire, extinction automatique.",
     "tools": "Vérifier les ROM, télécharger les images des jeux et supprimer celles qui ne servent plus.",
     "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte.",
     "card": "Transfert de fichiers et sauvegarde par Wi-Fi, réinitialiser les réglages ou toute la carte."
@@ -1076,5 +1094,12 @@
     "clear": "Retirer",
     "game_cleared": "Ce jeu suit maintenant la console",
     "console_cleared": "La console suit maintenant les Paramètres"
+  },
+  "autoboot": {
+    "row": "Lancer à l'allumage",
+    "on": "Il démarrera à l'allumage",
+    "off": "Démarrage direct retiré",
+    "how": "Choisissez un jeu dans sa fiche : X, Lancer à l'allumage",
+    "not_here": "Ce jeu ne peut pas démarrer tout seul"
   }
 }

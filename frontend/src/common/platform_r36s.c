@@ -177,6 +177,8 @@ static bool is_charger(const char *dir) {
     return get_str(p, t, sizeof t) && (!strcmp(t, "USB") || !strcmp(t, "Mains"));
 }
 
+bool plat_battery_detail(int *ma, long *tte_s, long *full_mah) { *ma = 0; *tte_s = -1; *full_mah = -1; return false; }
+
 int plat_battery(bool *charging) {
     static char bat[256], chg[256];
     static bool looked;
@@ -264,6 +266,15 @@ bool plat_set_time(time_t t) {
     if (settimeofday(&tv, NULL) != 0) { ui_log("data e ora: settimeofday non riuscita"); return false; }
     int r = system("hwclock -w -u 2>/dev/null");
     ui_log("data e ora impostate, orologio %s", r == 0 ? "aggiornato" : "non aggiornato");
+    return true;
+}
+
+bool plat_sync_time(void) {
+    /* una richiesta e poi esce (-q), in primo piano (-n); timeout di BusyBox per la rete lenta */
+    int r = system("timeout 20 ntpd -n -q -p pool.ntp.org -p time.cloudflare.com > /dev/null 2>&1");
+    if (r != 0) { ui_log("ora automatica: nessuna risposta (%d)", r); return false; }
+    int w = system("hwclock -w -u 2>/dev/null");
+    ui_log("ora automatica: presa da internet, orologio della console %s", w == 0 ? "aggiornato" : "non aggiornato");
     return true;
 }
 

@@ -218,6 +218,9 @@
     "home_size": "Home covers",
     "theme_reset": "Reset theme",
     "theme_reset_done": "Theme back to how it was installed",
+    "autoboot": "Start a game at power on",
+    "auto_time": "Automatic time",
+    "battery": "Battery",
     "aspect": "Game aspect ratio",
     "filter": "Video filter",
     "cpu": "Performance profile",
@@ -274,6 +277,9 @@
     "grid_columns": "How many covers to show on each library row. Auto uses the theme's default.",
     "home_size": "Size of the covers on the home screen, in carousel themes.",
     "theme_reset": "Variant, thumbnails per row and covers as the chosen theme intends. Each theme remembers its own choices.",
+    "autoboot": "A game that starts by itself at power on, from the beginning; leaving it goes to the menu. Choose it from the game page (X), remove it here.",
+    "auto_time": "With Wi-Fi connected the console gets the exact time from the internet, once per power on.",
+    "battery": "Charge over the last hours, current draw and time left.",
     "aspect": "Original: the game's own proportions. Integer pixels: sharp image. Full screen: fills everything. Also per console (Y in Platforms) or per game.",
     "filter": "Effects on the game picture, such as the lines of old screens (scanlines). Also per console or per game.",
     "cpu": "Power saving extends battery life, Performance helps heavier games (CPS3). Also per console or per game.",
@@ -460,6 +466,8 @@
     "search_empty": "(none)",
     "sort": "Sort by",
     "clear": "Clear filters",
+    "random": "Random game",
+    "random_none": "No game to choose from",
     "roms": "ROM status",
     "roms_bad": "Only with problems"
   },
@@ -520,7 +528,17 @@
   "battery": {
     "low": "Battery at %d%%",
     "critical": "Battery almost empty (%d%%): plug in the charger",
-    "saved": "Battery almost empty: game saved"
+    "saved": "Battery almost empty: game saved",
+    "title": "Battery",
+    "charging": "Charging",
+    "full": "Fully charged",
+    "left": "Time left: about %s",
+    "left_wait": "Time left: estimated after 15 minutes on battery",
+    "draw": "Draw now: %d mA",
+    "charge_rate": "Charging: %d mA",
+    "hours_ago": "-%d h",
+    "now": "now",
+    "no_history": "The history starts at power on: come back in a few minutes"
   },
   "rom": {
     "title": "ROM verification",
@@ -667,7 +685,7 @@
     "display": "Brightness, volume, music, LEDs",
     "look": "Theme, language, screensaver",
     "games": "Picture, filters, performance",
-    "system": "Wi-Fi, date and time, power",
+    "system": "Battery, Wi-Fi, date and time",
     "tools": "Verify ROMs, download and clean images",
     "updates": "Update, channel, log, information",
     "card": "Transfer files, backup, reset"
@@ -678,7 +696,7 @@
     "display": "Screen brightness, volume, background music and console lights.",
     "look": "Launcher theme, its variant, language and screensaver.",
     "games": "How games look and play: aspect, filters, bezels, duplicates, performance.",
-    "system": "Wi-Fi, date, time and time zone, automatic power off.",
+    "system": "Battery, Wi-Fi, date, time (also automatic) and time zone, automatic power off.",
     "tools": "Verify ROMs, download game images and remove the ones no longer needed.",
     "updates": "System updates, channel, notice, diagnostic log and card space.",
     "card": "File transfer and backup over Wi-Fi, reset the settings or the whole card."
@@ -1076,5 +1094,12 @@
     "clear": "Remove",
     "game_cleared": "This game now follows the console",
     "console_cleared": "The console now follows Settings"
+  },
+  "autoboot": {
+    "row": "Start at power on",
+    "on": "It will start at power on",
+    "off": "No game at power on",
+    "how": "Choose a game from its page: X, Start at power on",
+    "not_here": "This game cannot start by itself"
   }
 }

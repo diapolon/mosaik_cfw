@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.64
+it Gioco a caso: SELECT in libreria
+en Random game: SELECT in the library
+it Avvio diretto: un gioco che parte da solo all'accensione (opzioni del gioco)
+en Start a game at power on (game options)
+it Batteria: grafico delle ultime ore e tempo rimasto (Impostazioni → Sistema)
+en Battery: chart of the last hours and time left (Settings → System)
+it Ora automatica da internet quando il Wi-Fi è collegato
+en Automatic time from the internet when Wi-Fi is connected
+
 0.9.63
 it Impostazioni di una console dal menu: Y su Piattaforme, Opzioni
 en Settings of a console from the menu: Y on Platforms, Options

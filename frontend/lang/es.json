@@ -218,6 +218,9 @@
     "home_size": "Carátulas en inicio",
     "theme_reset": "Restablecer tema",
     "theme_reset_done": "Tema como recién instalado",
+    "autoboot": "Arranque directo",
+    "auto_time": "Hora automática",
+    "battery": "Batería",
     "aspect": "Proporción de los juegos",
     "filter": "Filtro de vídeo",
     "cpu": "Perfil de rendimiento",
@@ -274,6 +277,9 @@
     "grid_columns": "Cuántas carátulas mostrar en cada fila de la biblioteca. Automático usa las del tema.",
     "home_size": "Tamaño de las carátulas en la pantalla de inicio, en los temas de carrusel.",
     "theme_reset": "Variante, miniaturas por fila y portadas como las prevé el tema elegido. Cada tema recuerda sus elecciones.",
+    "autoboot": "Un juego que se inicia solo al encender, desde el principio; al salir se vuelve al menú. Se elige en la ficha del juego (X) y se quita aquí.",
+    "auto_time": "Con el Wi-Fi conectado la consola toma la hora exacta de internet, una vez por encendido.",
+    "battery": "Carga de las últimas horas, consumo actual y tiempo restante.",
     "aspect": "Original: las proporciones del juego. Píxeles enteros: imagen nítida. Pantalla completa: lo llena todo. También por consola (Y en Plataformas) o por juego.",
     "filter": "Efectos sobre la imagen del juego, como las líneas de las pantallas antiguas (scanlines). También por consola o por juego.",
     "cpu": "Ahorro alarga la batería, Rendimiento ayuda a los juegos pesados (CPS3). También por consola o por juego.",
@@ -460,6 +466,8 @@
     "search_empty": "(ninguna)",
     "sort": "Ordenar por",
     "clear": "Borrar filtros",
+    "random": "Juego al azar",
+    "random_none": "Ningún juego para elegir",
     "roms": "Estado de las ROM",
     "roms_bad": "Solo con problemas"
   },
@@ -520,7 +528,17 @@
   "battery": {
     "low": "Batería al %d%%",
     "critical": "Batería casi agotada (%d%%): conecta el cargador",
-    "saved": "Batería casi agotada: partida guardada"
+    "saved": "Batería casi agotada: partida guardada",
+    "title": "Batería",
+    "charging": "Cargando",
+    "full": "Carga completa",
+    "left": "Tiempo restante: unos %s",
+    "left_wait": "Tiempo restante: lo calculo tras un cuarto de hora con batería",
+    "draw": "Consumo actual: %d mA",
+    "charge_rate": "Cargando: %d mA",
+    "hours_ago": "-%d h",
+    "now": "ahora",
+    "no_history": "El historial empieza al encender: vuelve en unos minutos"
   },
   "rom": {
     "title": "Verificación de ROM",
@@ -667,7 +685,7 @@
     "display": "Brillo, volumen, música, LED",
     "look": "Tema, idioma, salvapantallas",
     "games": "Imagen, filtros, rendimiento",
-    "system": "Wi-Fi, fecha y hora, apagado",
+    "system": "Batería, Wi-Fi, fecha y hora",
     "tools": "Verificar ROM, descargar y limpiar imágenes",
     "updates": "Actualizar, canal, registro, información",
     "card": "Transferir archivos, copia, restablecer"
@@ -678,7 +696,7 @@
     "display": "Brillo de la pantalla, volumen, música de fondo y luces de la consola.",
     "look": "Tema del launcher, su variante, idioma y salvapantallas.",
     "games": "Cómo se ven y se juegan los juegos: proporción, filtros, marcos, duplicados, rendimiento.",
-    "system": "Wi-Fi, fecha, hora y zona horaria, apagado automático.",
+    "system": "Batería, Wi-Fi, fecha, hora (también automática) y zona horaria, apagado automático.",
     "tools": "Verificar las ROM, descargar imágenes de los juegos y borrar las que ya no sirven.",
     "updates": "Actualización del sistema, canal, aviso, registro de diagnóstico y espacio de la tarjeta.",
     "card": "Transferencia de archivos y copias por Wi-Fi, restablecer los ajustes o toda la tarjeta."
@@ -1076,5 +1094,12 @@
     "clear": "Quitar",
     "game_cleared": "Este juego ahora sigue a la consola",
     "console_cleared": "La consola ahora sigue los Ajustes"
+  },
+  "autoboot": {
+    "row": "Iniciar al encender",
+    "on": "Se iniciará al encender",
+    "off": "Arranque directo quitado",
+    "how": "Elige un juego en su ficha: X, Iniciar al encender",
+    "not_here": "Este juego no puede iniciarse solo"
   }
 }
