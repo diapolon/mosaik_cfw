@@ -149,6 +149,7 @@
     "no_recent": "No recent games"
   },
   "plat": {
+    "console_settings": "Options",
     "title": "Platforms",
     "open": "Open library",
     "one": "1 game",
@@ -270,9 +271,9 @@
     "language": "Menu language. Also passed to the emulators.",
     "grid_columns": "How many covers to show on each library row. Auto uses the theme's default.",
     "home_size": "Size of the covers on the home screen, in carousel themes.",
-    "aspect": "Original: the game's own proportions. Integer pixels: sharp image. Full screen: fills everything.",
-    "filter": "Effects on the game picture, such as the lines of old screens (scanlines).",
-    "cpu": "Power saving extends battery life, Performance helps heavier games (CPS3).",
+    "aspect": "Original: the game's own proportions. Integer pixels: sharp image. Full screen: fills everything. Also per console (Y in Platforms) or per game.",
+    "filter": "Effects on the game picture, such as the lines of old screens (scanlines). Also per console or per game.",
+    "cpu": "Power saving extends battery life, Performance helps heavier games (CPS3). Also per console or per game.",
     "wifi": "Turns Wi-Fi on or off.",
     "wifi_nets": "Shows the available networks to connect to.",
     "sleep": "Turns the console off after a period without input, in the launcher.",
@@ -281,16 +282,16 @@
     "clock": "Set the date and time: they are kept by the console's clock even when it's off.",
     "timezone": "Your time zone: the time shown also follows daylight saving time.",
     "device": "Simulates the Smart Pro or Brick Pro screen on the Mac.",
-    "info": "Space on the SD card and what uses it: games per emulator, images, saves, music.",
+    "info": "Space on the SD card and what uses it: games per emulator, images, saves, music, videos.",
     "power": "Saves and powers off.",
-    "duplicates": "Game present in both FinalBurn Neo and MAME 2003+: show both or only one.",
-    "scrape": "Downloads screenshots, titles and marquees from the internet; for consoles also the box, year, publisher, genre and players. Works with Wi-Fi connected.",
+    "duplicates": "Game present in more than one arcade emulator (FinalBurn Neo, MAME 2003+, MAME 2010): show all or only one.",
+    "scrape": "With the “Download images” app from the Store: screenshots, titles and marquees; for consoles also the box, year, publisher, genre and players. Needs Wi-Fi connected.",
     "clean_media": "Deletes downloaded images of games that are no longer on the card.",
     "update": "Downloads and installs the new version over Wi-Fi. Your ROMs, saves and settings stay as they are.",
     "channel": "Stable: released versions. Development: test builds. Going back to Stable applies from the next stable version.",
     "update_notify": "Once a day, with Wi-Fi connected, checks GitHub for a new version and shows a notice on the home screen. Nothing is downloaded.",
     "log_level": "Records what happens in the Arcade/Logs folder, useful when reporting a problem. “Off” is fine for normal use.",
-    "bezel": "A decorative frame around the game: the game's own if there is one, otherwise the default.",
+    "bezel": "A decorative frame around the game: the game's own if there is one, otherwise the default. Also per console or per game.",
     "missing": "Also show catalog games you don't have (main versions only, not clones).",
     "genres": "Rename genres, merge them or go back to the originals. A single game's genre is changed from its page (X, then X).",
     "screensaver": "After a while without input: your games' screenshots or a blank screen.",
@@ -662,11 +663,11 @@
     "controls": "Controllers, button and stick test",
     "display": "Brightness, volume, music, LEDs",
     "look": "Theme, language, screensaver",
-    "games": "Picture, filters",
+    "games": "Picture, filters, performance",
     "system": "Wi-Fi, date and time, power",
     "tools": "Verify ROMs, download and clean images",
     "updates": "Update, channel, log, information",
-    "card": "Transfer files, backup, reset, erase all"
+    "card": "Transfer files, backup, reset"
   },
   "settings_cat_desc": {
     "power": "Put the console to sleep, restart it or turn it off.",
@@ -677,7 +678,7 @@
     "system": "Wi-Fi, date, time and time zone, automatic power off.",
     "tools": "Verify ROMs, download game images and remove the ones no longer needed.",
     "updates": "System updates, channel, notice, diagnostic log and card space.",
-    "card": "Emulator store, file transfer and backup over Wi-Fi, reset the settings or the whole card."
+    "card": "File transfer and backup over Wi-Fi, reset the settings or the whole card."
   },
   "loglvl": {
     "off": "Off",
@@ -1052,6 +1053,9 @@
     "volume": "Volume",
     "select": "Choose",
     "adjust": "Adjust"
+  },
+  "ccfg": {
+    "note": "Controls and emulator options: from a game's menu, with Change for."
   },
   "layer": {
     "target": "Change for",

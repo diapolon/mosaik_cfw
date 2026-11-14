@@ -16,7 +16,7 @@ COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/la
 
 all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest $(BUILD)/scraper $(BUILD)/sdgrow $(BUILD)/diag $(VIDEO_MAC)
 
-LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
+LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c src/runner/gamecfg.c
 
 # VERSION e UPDATE_URL entrano solo come -D: sono prerequisiti, così cambiarli ricompila (audit BUG-010).
 # UPDATE_URL passa da .update-url, che cambia solo quando cambia il valore, anche se il file

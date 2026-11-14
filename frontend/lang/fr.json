@@ -149,6 +149,7 @@
     "no_recent": "Aucun jeu récent"
   },
   "plat": {
+    "console_settings": "Options",
     "title": "Plateformes",
     "open": "Ouvrir la bibliothèque",
     "one": "1 jeu",
@@ -270,9 +271,9 @@
     "language": "Langue des menus. Également transmise aux émulateurs.",
     "grid_columns": "Nombre de jaquettes par ligne de la bibliothèque. Automatique utilise celles du thème.",
     "home_size": "Taille des jaquettes sur l'écran d'accueil, pour les thèmes en carrousel.",
-    "aspect": "Original : les proportions du jeu. Pixels entiers : image nette. Plein écran : remplit tout.",
-    "filter": "Effets sur l'image du jeu, comme les lignes des anciens écrans (scanlines).",
-    "cpu": "Économie prolonge la batterie, Performances aide les jeux lourds (CPS3).",
+    "aspect": "Original : les proportions du jeu. Pixels entiers : image nette. Plein écran : remplit tout. Aussi par console (Y dans Plateformes) ou par jeu.",
+    "filter": "Effets sur l'image du jeu, comme les lignes des anciens écrans (scanlines). Aussi par console ou par jeu.",
+    "cpu": "Économie prolonge la batterie, Performances aide les jeux lourds (CPS3). Aussi par console ou par jeu.",
     "wifi": "Allume ou éteint le Wi-Fi.",
     "wifi_nets": "Affiche les réseaux disponibles pour se connecter.",
     "sleep": "Éteint la console après un moment sans utiliser les touches, dans le lanceur.",
@@ -281,16 +282,16 @@
     "clock": "Règle la date et l'heure : l'horloge de la console les conserve même éteinte.",
     "timezone": "Ton fuseau horaire : l'heure affichée suit aussi l'heure d'été.",
     "device": "Simule l'écran de la Smart Pro ou de la Brick Pro sur le Mac.",
-    "info": "Espace sur la carte SD et ce qui l'occupe : jeux par émulateur, images, sauvegardes, musique.",
+    "info": "Espace sur la carte SD et ce qui l'occupe : jeux par émulateur, images, sauvegardes, musique, vidéos.",
     "power": "Enregistre et éteint.",
-    "duplicates": "Jeu présent dans FinalBurn Neo et MAME 2003+ : afficher les deux ou un seul.",
-    "scrape": "Télécharge depuis internet captures, écrans titres et marquees ; pour les consoles aussi la boîte, l'année, l'éditeur, le genre et les joueurs. Fonctionne avec le Wi-Fi connecté.",
+    "duplicates": "Jeu présent dans plusieurs émulateurs arcade (FinalBurn Neo, MAME 2003+, MAME 2010) : afficher tous ou un seul.",
+    "scrape": "Avec l'app « Télécharger les images » de la Boutique : captures, écrans titres et marquees ; pour les consoles aussi la boîte, l'année, l'éditeur, le genre et les joueurs. Wi-Fi connecté nécessaire.",
     "clean_media": "Supprime les images téléchargées des jeux qui ne sont plus sur la carte.",
     "update": "Télécharge et installe la nouvelle version en Wi-Fi. Vos ROM, sauvegardes et réglages restent tels quels.",
     "channel": "Stable : versions publiées. Développement : versions de test. Le retour à Stable s'applique à la prochaine version stable.",
     "update_notify": "Une fois par jour, en Wi-Fi, vérifie sur GitHub s'il y a une nouvelle version et l'indique à l'accueil. Rien n'est téléchargé.",
     "log_level": "Enregistre ce qui se passe dans le dossier Arcade/Logs, utile pour signaler un problème. « Désactivé » suffit pour un usage normal.",
-    "bezel": "Un cadre décoratif autour du jeu : celui du jeu s'il existe, sinon celui par défaut.",
+    "bezel": "Un cadre décoratif autour du jeu : celui du jeu s'il existe, sinon celui par défaut. Aussi par console ou par jeu.",
     "missing": "Affiche aussi les jeux du catalogue que vous n'avez pas (versions principales seulement).",
     "genres": "Renomme les genres, fusionne-les ou reviens aux originaux. Le genre d'un jeu se change depuis sa fiche (X, puis X).",
     "screensaver": "Après un moment sans action : captures de vos jeux ou écran éteint.",
@@ -662,11 +663,11 @@
     "controls": "Manettes, test des touches et sticks",
     "display": "Luminosité, volume, musique, LED",
     "look": "Thème, langue, écran de veille",
-    "games": "Image, filtres",
+    "games": "Image, filtres, performances",
     "system": "Wi-Fi, date et heure, extinction",
     "tools": "Vérifier les ROM, télécharger et nettoyer les images",
     "updates": "Mise à jour, canal, journal, infos",
-    "card": "Transfert, sauvegarde, réinitialiser, tout effacer"
+    "card": "Transfert, sauvegarde, réinitialiser"
   },
   "settings_cat_desc": {
     "power": "Mettre la console en veille, la redémarrer ou l’éteindre.",
@@ -677,7 +678,7 @@
     "system": "Wi-Fi, date, heure et fuseau horaire, extinction automatique.",
     "tools": "Vérifier les ROM, télécharger les images des jeux et supprimer celles qui ne servent plus.",
     "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte.",
-    "card": "Boutique d'émulateurs, transfert de fichiers et sauvegarde par Wi-Fi, réinitialiser les réglages ou toute la carte."
+    "card": "Transfert de fichiers et sauvegarde par Wi-Fi, réinitialiser les réglages ou toute la carte."
   },
   "loglvl": {
     "off": "Désactivé",
@@ -1052,6 +1053,9 @@
     "volume": "Volume",
     "select": "Choisir",
     "adjust": "Régler"
+  },
+  "ccfg": {
+    "note": "Commandes et options de l'émulateur : depuis le menu d'un jeu, avec Modifier pour."
   },
   "layer": {
     "target": "Modifier pour",

@@ -15,6 +15,7 @@
 #include "fileserver.h"
 #include "store.h"
 #include "qrcode.h"
+#include "../runner/gamecfg.h"
 #include <ctype.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -43,6 +44,7 @@ static int detail_idx = -1;   /* gioco mostrato nella scheda */
 static void open_detail(int idx);
 static void panel_box(int w, int h, int *x, int *y);
 static void spk_show(int only_emu);
+static bool ccfg_possible(int emu);
 static void tzp_show(void);
 
 static game_t *games;
@@ -2663,11 +2665,13 @@ static void plat_draw(void) {
     /* console in arrivo: niente da aprire */
     bool plan = nptabs && is_plan(ptabs[plat_sel]);
     bool emu = nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL;
-    const char *h[] = { "A", T("plat.open"), NULL, "X", T("scrape.pick_hint"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
+    const char *h[] = { "A", T("plat.open"), NULL, "X", T("scrape.pick_hint"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL,
+                        "Y", T("plat.console_settings"), NULL };
+    bool cfg = emu && ccfg_possible(ptabs[plat_sel] - TAB_EMU);
     const char *hp[] = { "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
     const char *ho[] = { "A", T("plat.open"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
     if (plan) ui_keybar(hp, 6);
-    else if (emu) ui_keybar(h, 12);
+    else if (emu) ui_keybar(h, cfg ? 15 : 12);
     else ui_keybar(ho, 9);
 }
 
@@ -3113,6 +3117,183 @@ static void gl_input(void) {
     }
 }
 
+static filter_t filters[24];
+static int nfilters;
+
+/* ------------------------------------------ impostazioni di una console (fase 2) */
+/* Y su una console (o un arcade) in Piattaforme: Proporzioni, Filtro, Cornice e Profilo per tutti i
+   suoi giochi, senza avviarne uno. È lo strato Console del runner, lo stesso file
+   System/console/<id>.cfg (runner/gamecfg.c): tasti e parametri dello shader scelti dal menu di un
+   gioco restano. L'id è quello che il runner riceve: l'emulatore per le console, il core per gli
+   arcade (launch_ex, campo "system" di next.txt). Docs: STUDIO-IMPOSTAZIONI-STRATI.md. */
+enum { CC_ASPECT, CC_FILTER, CC_BEZEL, CC_CPU, CC_CLEAR, CC_ROWS };
+static bool ccfg_open, ccfg_ask;
+static int ccfg_sel, ccfg_ask_sel, ccfg_emu;
+static gc_layer_t ccfg_lay;
+static char ccfg_cfg[1100], ccfg_opt[1100];
+static const char *ccfg_aspect[] = { "aspect.original", "aspect.integer", "aspect.full" };
+static const char *ccfg_cpu[] = { "cpu.auto", "cpu.min", "cpu.save", "cpu.balanced", "cpu.perf" };
+
+/* l'emulatore passa dal runner? (Deadcast e gli altri con "launch" no) */
+static bool ccfg_possible(int emu) { return emu >= 0 && emu < NEMUS && !EMUS[emu].launch[0]; }
+
+static void ccfg_show(int emu) {
+    if (!ccfg_possible(emu)) return;
+    const emulator_t *e = &EMUS[emu];
+    char id[80];
+    if (e->console) snprintf(id, sizeof id, "%s", e->id);
+    else {
+        /* come core_id nel runner: il nome del file del core fino a "_libretro" */
+        const char *b = strrchr(e->core, '/');
+        snprintf(id, sizeof id, "%s", b ? b + 1 : e->core);
+        char *us = strstr(id, "_libretro");
+        if (us) *us = 0;
+    }
+    snprintf(ccfg_cfg, sizeof ccfg_cfg, "%s/System/console/%s.cfg", UI.root, id);
+    snprintf(ccfg_opt, sizeof ccfg_opt, "%s/System/console/%s.opt", UI.root, id);
+    bool v2;
+    gc_read(ccfg_cfg, &ccfg_lay, &v2, filter_legacy_id);
+    ccfg_lay.rotate = ccfg_lay.slot = 0;   /* solo dei giochi */
+    if (!nfilters) nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
+    ccfg_emu = emu;
+    ccfg_sel = 0;
+    ccfg_ask = false;
+    ccfg_open = true;
+    ui_sound(SND_OK);
+}
+
+static bool ccfg_has_choices(void) {
+    if (ccfg_lay.has_aspect || ccfg_lay.has_filter || ccfg_lay.has_bezel || ccfg_lay.has_cpu || ccfg_lay.nsp) return true;
+    for (int i = 0; i < 16; i++) if (ccfg_lay.has_map[i]) return true;
+    return access(ccfg_opt, F_OK) == 0;
+}
+
+static void ccfg_save(void) {
+    char d[1100];
+    snprintf(d, sizeof d, "%s/System/console", UI.root);
+    mkdir(d, 0755);
+    if (!gc_write(ccfg_cfg, &ccfg_lay)) { ui_log("impostazioni della console non salvate: %s", ccfg_cfg); ui_toast(T("update.err6")); }
+}
+
+static int ccfg_filter_index(void) {
+    const char *id = ccfg_lay.has_filter ? ccfg_lay.filter : UI.set.filter;
+    for (int i = 0; i < nfilters; i++)
+        if (!strcmp(filters[i].id, id)) return i;
+    return 0;
+}
+
+/* il valore va nello strato Console solo se diverso da quello delle Impostazioni */
+static void ccfg_change(int dir) {
+    gc_layer_t *l = &ccfg_lay;
+    switch (ccfg_sel) {
+    case CC_ASPECT: {
+        int v = ((l->has_aspect ? l->aspect : UI.set.aspect) + dir + 3) % 3;
+        l->aspect = v;
+        l->has_aspect = v != UI.set.aspect;
+        break;
+    }
+    case CC_FILTER: {
+        if (!nfilters) return;
+        const char *id = filters[(ccfg_filter_index() + dir + nfilters) % nfilters].id;
+        snprintf(l->filter, sizeof l->filter, "%s", id);
+        l->has_filter = strcmp(id, UI.set.filter) != 0;
+        break;
+    }
+    case CC_BEZEL: {
+        int v = !(l->has_bezel ? l->bezel : UI.set.bezel);
+        l->bezel = v;
+        l->has_bezel = v != (UI.set.bezel != 0);
+        break;
+    }
+    case CC_CPU: {
+        int v = ((l->has_cpu ? l->cpu : 0) + dir + 5) % 5;
+        l->cpu = v;
+        l->has_cpu = v != 0;
+        break;
+    }
+    default: return;
+    }
+    ccfg_save();
+    ui_sound(SND_MOVE);
+}
+
+static void ccfg_input(void) {
+    input_t *in = &UI.in;
+    if (ccfg_ask) {   /* "Come le Impostazioni": conferma, con Annulla già scelto */
+        int r = ui_confirm_input(&ccfg_ask_sel);
+        if (r < 0) return;
+        ccfg_ask = false;
+        if (r != 1) return;
+        gc_clear(&ccfg_lay);
+        ccfg_save();
+        remove(ccfg_opt);
+        ui_toast(T("layer.console_cleared"));
+        ui_sound(SND_OK);
+        return;
+    }
+    if (in->pressed[BTN_UP]) { ccfg_sel = (ccfg_sel + CC_ROWS - 1) % CC_ROWS; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN]) { ccfg_sel = (ccfg_sel + 1) % CC_ROWS; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B] || in->pressed[BTN_Y]) { ccfg_open = false; ui_sound(SND_BACK); return; }
+    int dir = in->pressed[BTN_RIGHT] ? 1 : in->pressed[BTN_LEFT] ? -1 : 0;
+    if (dir && ccfg_sel != CC_CLEAR) ccfg_change(dir);
+    if (!in->pressed[BTN_A]) return;
+    if (ccfg_sel == CC_CLEAR) {
+        if (!ccfg_has_choices()) { ui_sound(SND_ERROR); return; }
+        ccfg_ask = true;
+        ccfg_ask_sel = 0;
+        ui_sound(SND_OK);
+    } else ccfg_change(1);
+}
+
+static void ccfg_draw(void) {
+    theme_t *t = &UI.th;
+    const emulator_t *e = &EMUS[ccfg_emu];
+    int rh = M(t->list_row_h), pad = M(0.04f), fsh = TTF_FontHeight(UI.f_small);
+    int w = M(0.95f) < UI.w - 2 * M(t->margin) ? M(0.95f) : UI.w - 2 * M(t->margin);
+    int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.02f) + rh * CC_ROWS + M(0.02f) + fsh * 2, x, y;
+    panel_box(w, h, &x, &y);
+    char title[160], fit[300];
+    snprintf(title, sizeof title, T("layer.all_games"), e->name);
+    ui_text_fit(UI.f_title, title, w - 2 * pad, fit, sizeof fit);
+    ui_text(UI.f_title, fit, x + pad, y + pad, t->text, ALIGN_LEFT);
+    int ry = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    TTF_Font *f = UI.f_normal;
+    int fh = TTF_FontHeight(f);
+    const gc_layer_t *l = &ccfg_lay;
+    for (int i = 0; i < CC_ROWS; i++, ry += rh) {
+        bool sel = i == ccfg_sel, set = false, off = i == CC_CLEAR && !ccfg_has_choices();
+        const char *label = "", *value = "";
+        char vbuf[96];
+        switch (i) {
+        case CC_ASPECT: label = T("game.aspect"); set = l->has_aspect; value = T(ccfg_aspect[(set ? l->aspect : UI.set.aspect) % 3]); break;
+        case CC_FILTER: label = T("game.filter"); set = l->has_filter; value = nfilters ? filters[ccfg_filter_index()].name : (set ? l->filter : UI.set.filter); break;
+        case CC_BEZEL: label = T("game.bezel"); set = l->has_bezel; value = T((set ? l->bezel : UI.set.bezel) ? "common.yes" : "common.no"); break;
+        case CC_CPU: label = T("game.cpu"); set = l->has_cpu; value = T(ccfg_cpu[(set ? l->cpu : 0) % 5]); break;
+        default: label = T("layer.reset_console"); break;
+        }
+        if (sel) ui_rrect(x + M(0.02f), ry, w - M(0.04f), rh - M(0.008f), M(t->panel_radius), t->accent);
+        color_t c = off ? with_alpha(sel ? t->accent_text : t->text_dim, 120) : sel ? t->accent_text : t->text;
+        int ty = ry + (rh - M(0.008f) - fh) / 2, right = x + w - M(0.05f), vw = 0;
+        if (value[0]) {
+            snprintf(vbuf, sizeof vbuf, sel ? "‹ %s ›" : "%s", value);
+            ui_text_fit(f, vbuf, w / 3, fit, sizeof fit);
+            vw = ui_text(f, fit, right, ty, sel ? c : t->text_dim, ALIGN_RIGHT) + M(0.03f);
+            if (set) vw += ui_text(UI.f_small, T("layer.from_console"), right - vw, ty + (fh - fsh) / 2, sel ? c : with_alpha(t->accent, 220), ALIGN_RIGHT) + M(0.02f);
+        }
+        ui_text_fit(f, label, right - vw - (x + M(0.05f)), fit, sizeof fit);
+        ui_text(f, fit, x + M(0.05f), ty, c, ALIGN_LEFT);
+    }
+    ui_text_fit(UI.f_small, T("ccfg.note"), w - 2 * pad, fit, sizeof fit);
+    ui_text(UI.f_small, fit, x + pad, ry + M(0.02f), t->text_dim, ALIGN_LEFT);
+    const char *hint[] = { "B", T("common.back"), "<>", T("common.change") };
+    ui_hints(hint, 4);
+    if (ccfg_ask) {
+        char body[300];
+        snprintf(body, sizeof body, T("layer.ask_console_body"), e->name);
+        ui_confirm_draw(T("layer.ask_console_title"), body, T("common.cancel"), T("layer.clear"), ccfg_ask_sel);
+    }
+}
+
 static void plat_input(void) {
     input_t *in = &UI.in;
     int old = plat_sel;
@@ -3130,6 +3311,10 @@ static void plat_input(void) {
     } else if (in->pressed[BTN_B]) { go(SCR_HOME); ui_sound(SND_BACK); }
     else if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
     else if (in->pressed[BTN_X] && nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL) spk_show(ptabs[plat_sel] - TAB_EMU);
+    else if (in->pressed[BTN_Y] && nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL) {
+        if (ccfg_possible(ptabs[plat_sel] - TAB_EMU)) ccfg_show(ptabs[plat_sel] - TAB_EMU);
+        else ui_sound(SND_ERROR);
+    }
 }
 
 static void library_draw(void) {
@@ -3310,8 +3495,6 @@ static const char *set_text(const char *group, int item) {
 }
 
 static const char *aspect_names[] = { "aspect.original", "aspect.integer", "aspect.full" };
-static filter_t filters[24];
-static int nfilters;
 
 static int filter_index(void) {
     for (int i = 0; i < nfilters; i++)
@@ -8571,7 +8754,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -8617,6 +8800,7 @@ int main(int argc, char **argv) {
         else if (gp_open) gp_input();
         else if (cp_open) cp_input();
         else if (gopt_open && screen == SCR_DETAIL) gopt_input();
+        else if (ccfg_open && screen == SCR_PLATFORMS) ccfg_input();
         else if (fpanel_open) fpanel_input();
         else if (dlg_open) dialog_input();
         else if (clock_open) clock_input();
@@ -8694,6 +8878,7 @@ int main(int argc, char **argv) {
         if (sw_open) sw_draw();
         if (qp_open) qp_draw();
         if (gopt_open && screen == SCR_DETAIL) gopt_draw();
+        if (ccfg_open && screen == SCR_PLATFORMS) ccfg_draw();
         if (gp_open) gp_draw();
         if (cp_open) cp_draw();
         if (kb_open) keyboard_draw();

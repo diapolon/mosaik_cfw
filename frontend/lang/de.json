@@ -149,6 +149,7 @@
     "no_recent": "Keine zuletzt gespielten Spiele"
   },
   "plat": {
+    "console_settings": "Optionen",
     "title": "Plattformen",
     "open": "Bibliothek öffnen",
     "one": "1 Spiel",
@@ -270,9 +271,9 @@
     "language": "Sprache der Menüs. Wird auch an die Emulatoren übergeben.",
     "grid_columns": "Wie viele Cover pro Reihe der Bibliothek angezeigt werden. Automatisch nutzt die Vorgabe des Themas.",
     "home_size": "Größe der Cover auf dem Startbildschirm, bei Karussell-Themen.",
-    "aspect": "Original: die Proportionen des Spiels. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus.",
-    "filter": "Effekte für das Spielbild, zum Beispiel die Linien alter Bildschirme (Scanlines).",
-    "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3).",
+    "aspect": "Original: die Proportionen des Spiels. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus. Auch pro Konsole (Y in Plattformen) oder pro Spiel.",
+    "filter": "Effekte für das Spielbild, zum Beispiel die Linien alter Bildschirme (Scanlines). Auch pro Konsole oder pro Spiel.",
+    "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3). Auch pro Konsole oder pro Spiel.",
     "wifi": "Schaltet das WLAN ein oder aus.",
     "wifi_nets": "Zeigt die verfügbaren Netze zum Verbinden.",
     "sleep": "Schaltet die Konsole nach einer Weile ohne Eingabe im Launcher aus.",
@@ -281,16 +282,16 @@
     "clock": "Datum und Uhrzeit einstellen: die Uhr der Konsole behält sie auch ausgeschaltet.",
     "timezone": "Deine Zeitzone: die angezeigte Uhrzeit berücksichtigt auch die Sommerzeit.",
     "device": "Simuliert den Bildschirm von Smart Pro oder Brick Pro auf dem Mac.",
-    "info": "Speicherplatz auf der SD-Karte und was ihn belegt: Spiele pro Emulator, Bilder, Spielstände, Musik.",
+    "info": "Speicherplatz auf der SD-Karte und was ihn belegt: Spiele pro Emulator, Bilder, Spielstände, Musik, Videos.",
     "power": "Speichert und schaltet aus.",
-    "duplicates": "Spiel in FinalBurn Neo und MAME 2003+ vorhanden: beide oder nur eines anzeigen.",
-    "scrape": "Lädt Screenshots, Titelbilder und Marquees aus dem Internet; bei Konsolen auch Verpackung, Jahr, Publisher, Genre und Spielerzahl. Funktioniert mit verbundenem WLAN.",
+    "duplicates": "Spiel in mehreren Arcade-Emulatoren (FinalBurn Neo, MAME 2003+, MAME 2010): alle oder nur eines anzeigen.",
+    "scrape": "Mit der App „Bilder herunterladen“ aus dem Store: Screenshots, Titelbilder und Marquees; bei Konsolen auch Verpackung, Jahr, Publisher, Genre und Spielerzahl. Braucht verbundenes WLAN.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
     "update": "Lädt die neue Version über WLAN und installiert sie. ROMs, Spielstände und Einstellungen bleiben, wie sie sind.",
     "channel": "Stabil: veröffentlichte Versionen. Entwicklung: Testversionen. Zurück zu Stabil gilt ab der nächsten stabilen Version.",
     "update_notify": "Prüft einmal täglich bei WLAN-Verbindung auf GitHub, ob es eine neue Version gibt, und zeigt es an. Es wird nichts heruntergeladen.",
     "log_level": "Protokolliert im Ordner Arcade/Logs, was passiert, hilfreich, um ein Problem zu melden. Für den normalen Gebrauch genügt „Aus“.",
-    "bezel": "Ein dekorativer Rahmen um das Spiel: der des Spiels, falls vorhanden, sonst der Standardrahmen.",
+    "bezel": "Ein dekorativer Rahmen um das Spiel: der des Spiels, falls vorhanden, sonst der Standardrahmen. Auch pro Konsole oder pro Spiel.",
     "missing": "Zeigt auch Katalogspiele, die du nicht hast (nur Hauptversionen, keine Klone).",
     "genres": "Genres umbenennen, zusammenführen oder zurücksetzen. Das Genre eines Spiels ändert man auf seiner Seite (X, dann X).",
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
@@ -662,11 +663,11 @@
     "controls": "Controller, Tasten- und Sticktest",
     "display": "Helligkeit, Lautstärke, Musik, LEDs",
     "look": "Thema, Sprache, Bildschirmschoner",
-    "games": "Bild, Filter",
+    "games": "Bild, Filter, Leistung",
     "system": "WLAN, Datum und Uhrzeit, Ausschalten",
     "tools": "ROMs prüfen, Bilder laden und aufräumen",
     "updates": "Update, Kanal, Protokoll, Infos",
-    "card": "Dateien übertragen, Sicherung, zurücksetzen, alles löschen"
+    "card": "Dateien übertragen, Sicherung, zurücksetzen"
   },
   "settings_cat_desc": {
     "power": "Konsole in den Ruhezustand versetzen, neu starten oder ausschalten.",
@@ -677,7 +678,7 @@
     "system": "WLAN, Datum, Uhrzeit und Zeitzone, automatisches Ausschalten.",
     "tools": "ROMs prüfen, Spielbilder herunterladen und nicht mehr benötigte entfernen.",
     "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte.",
-    "card": "Emulator-Store, Dateien und Sicherungen per WLAN übertragen, Einstellungen oder die ganze Karte zurücksetzen."
+    "card": "Dateien und Sicherungen per WLAN übertragen, Einstellungen oder die ganze Karte zurücksetzen."
   },
   "loglvl": {
     "off": "Aus",
@@ -1052,6 +1053,9 @@
     "volume": "Lautstärke",
     "select": "Wählen",
     "adjust": "Einstellen"
+  },
+  "ccfg": {
+    "note": "Steuerung und Emulator-Optionen: im Menü eines Spiels, mit Ändern für."
   },
   "layer": {
     "target": "Ändern für",
