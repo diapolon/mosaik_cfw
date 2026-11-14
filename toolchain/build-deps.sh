@@ -58,5 +58,38 @@ build curl-8.10.1 --with-openssl="$SDK" --with-zlib="$SDK" --disable-ldap --disa
     --disable-mqtt --disable-manual --without-libpsl --without-zstd --without-brotli --without-nghttp2 \
     --without-libidn2 --without-libssh2 --disable-docs
 
+# Le stesse tre SDL anche condivise, per i giochi Linux compilati da altri che le chiedono
+# (libSDL2_image-2.0.so.0 e le altre: stesso nome di libreria delle 2.0.x del firmware, che nel
+# nostro sistema non ci sono). Stesse opzioni, decoder inclusi: nessun'altra libreria. Vanno in
+# /usr/lib del sistema (m2/build-in-container.sh), che è nel LD_LIBRARY_PATH dei giochi.
+SHARED=/build/out/syslibs
+build_shared() {   # cartella, opzioni di configure
+    dir=$1; shift
+    [ -f "$SRC/$dir-shared/.fatto" ] && return
+    echo "== compilo $dir condivisa"
+    rm -rf "$SRC/$dir-shared"
+    cp -a "$SRC/$dir" "$SRC/$dir-shared"
+    cd "$SRC/$dir-shared"
+    make distclean > /dev/null 2>&1 || true
+    ./configure --host=$HOST --prefix=/build/prefix-shared --enable-shared --disable-static "$@" > configure.log 2>&1 \
+        || { tail -30 configure.log; exit 1; }
+    make -j"$JOBS" > make.log 2>&1 || { tail -40 make.log; exit 1; }
+    make install > install.log 2>&1
+    touch .fatto
+}
+build_shared SDL2_ttf-2.22.0 --enable-freetype-builtin --disable-harfbuzz
+build_shared SDL2_image-2.8.2 --enable-stb-image --disable-avif --disable-jxl --disable-tif --disable-webp \
+    --disable-qoi --disable-lbm --disable-pcx --disable-pnm --disable-svg --disable-xcf --disable-xpm --disable-xv
+build_shared SDL2_mixer-2.8.0 --enable-music-mp3 --enable-music-mp3-minimp3 --disable-music-mp3-mpg123 \
+    --enable-music-ogg --enable-music-ogg-stb --disable-music-ogg-vorbis --disable-music-ogg-tremor \
+    --enable-music-flac --enable-music-flac-drflac --disable-music-flac-libflac \
+    --disable-music-mod --disable-music-midi --disable-music-opus --disable-music-wavpack
+rm -rf "$SHARED" && mkdir -p "$SHARED"
+for l in libSDL2_image-2.0.so.0 libSDL2_mixer-2.0.so.0 libSDL2_ttf-2.0.so.0; do
+    cp -L /build/prefix-shared/lib/$l "$SHARED/$l"
+    $STRIP --strip-unneeded "$SHARED/$l"
+done
+ls -la "$SHARED"
+
 echo "== librerie pronte in $PREFIX"
 ls "$PREFIX/lib"
