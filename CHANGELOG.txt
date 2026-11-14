@@ -10,6 +10,8 @@ it Il backup porta anche le impostazioni per console e, con immagini e musica, i
 en Backups also keep the console settings and, with images and music, your videos
 it SD che non risponde al risveglio: niente musica, subito la finestra per riavviare
 en Card not responding after sleep: no music, the restart window comes at once
+it Ogni tema ricorda variante e copertine; Ripristina il tema le azzera
+en Each theme remembers its variant and covers; Reset theme clears them
 it Descrizioni delle Impostazioni aggiornate
 en Settings descriptions brought up to date
 

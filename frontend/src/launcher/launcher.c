@@ -3,6 +3,7 @@
 #include "../common/ui.h"
 #include "../common/json.h"
 #include "../common/filters.h"
+#include "../common/durable.h"
 #include "savesplit.h"
 #include "games.h"
 #include "scraper.h"
@@ -3408,19 +3409,19 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
 static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "card", "updates", "power" };
 static const int cat_items[SC_COUNT][12] = {
     { S_BRIGHT, S_VOLUME, S_SPEAKER, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
-    { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_BOXCOVER, S_SAVER, -1 },
+    { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_THEMERESET, S_BOXCOVER, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
     { S_WIFI, S_WIFINETS, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
@@ -3529,6 +3530,48 @@ static int lang_index(void) {
 static const int sleep_vals[] = { 0, 5, 10, 30 };
 static const int suspend_vals[] = { 0, 2, 5, 10, 30 };
 
+/* Scelte di ogni tema (variante, miniature per riga, copertine in home) in System/temi.txt, una
+   riga "tema<TAB>variante<TAB>colonne<TAB>copertine": cambiando tema tornano quelle che aveva.
+   Un tema mai personalizzato tiene le scelte del tema di prima (la variante se ce l'ha). */
+static bool theme_prefs_get(const char *id, settings_t *s) {
+    char p[1100], line[200];
+    snprintf(p, sizeof p, "%s/System/temi.txt", UI.root);
+    FILE *f = fopen(p, "r");
+    if (!f) return false;
+    bool found = false;
+    while (!found && fgets(line, sizeof line, f)) {
+        char *t1 = strchr(line, '\t'), *t2 = t1 ? strchr(t1 + 1, '\t') : NULL, *t3 = t2 ? strchr(t2 + 1, '\t') : NULL;
+        if (!t3) continue;
+        *t1 = *t2 = *t3 = 0;
+        if (strcmp(line, id)) continue;
+        int c = atoi(t2 + 1), h = atoi(t3 + 1);
+        snprintf(s->variant, sizeof s->variant, "%s", t1 + 1);
+        s->grid_columns = c >= 3 && c <= 7 ? c : 0;
+        s->home_size = h >= 0 && h <= 2 ? h : 1;
+        found = true;
+    }
+    fclose(f);
+    return found;
+}
+
+/* scrive (o con s NULL toglie) la riga del tema id; le altre restano */
+static bool theme_prefs_put(const char *id, const settings_t *s) {
+    char p[1100], tmp[1110], line[200];
+    snprintf(p, sizeof p, "%s/System/temi.txt", UI.root);
+    snprintf(tmp, sizeof tmp, "%s.tmp", p);
+    FILE *in = fopen(p, "r"), *out = fopen(tmp, "w");
+    if (!out) { if (in) fclose(in); return false; }
+    size_t n = strlen(id);
+    while (in && fgets(line, sizeof line, in))
+        if (!(strncmp(line, id, n) == 0 && line[n] == '\t')) fputs(line, out);
+    if (in) fclose(in);
+    if (s) fprintf(out, "%s\t%s\t%d\t%d\n", id, s->variant, s->grid_columns, s->home_size);
+    bool ok = fflush(out) == 0 && fsync(fileno(out)) == 0;
+    ok = fclose(out) == 0 && ok;
+    if (!ok || durable_replace(tmp, p) != 0) { unlink(tmp); ui_log("scelte del tema non salvate: %s", p); return false; }
+    return true;
+}
+
 static int theme_index(void) {
     for (int i = 0; i < nthemes; i++)
         if (!strcmp(theme_ids[i], UI.set.theme)) return i;
@@ -3539,6 +3582,22 @@ static int variant_index(void) {
     for (int i = 0; i < UI.th.nvariants; i++)
         if (!strcmp(UI.th.variants[i], UI.set.variant)) return i;
     return 0;
+}
+
+/* Impostazioni → Aspetto → Ripristina il tema: variante, miniature e copertine come appena
+   installato; il tema scelto resta */
+static void theme_reset(void) {
+    settings_t *s = &UI.set;
+    snprintf(s->variant, sizeof s->variant, "%s", UI.th.nvariants ? UI.th.variants[0] : "");
+    s->grid_columns = 0;
+    s->home_size = 1;
+    if (!theme_prefs_put(s->theme, NULL)) { ui_toast(T("update.err6")); ui_sound(SND_ERROR); return; }
+    settings_save(s, UI.root);
+    lib_scroll = lib_scroll_target = 0;
+    ring_init = false;
+    ui_reload_theme();
+    ui_toast(T("settings.theme_reset_done"));
+    ui_sound(SND_OK);
 }
 
 static const char *variant_label(const char *v) {
@@ -3674,7 +3733,10 @@ static void set_change(int item, int dir) {
     case S_THEME:
         if (nthemes > 1) {
             int i = (theme_index() + dir + nthemes) % nthemes;
+            theme_prefs_put(s->theme, s);   /* le scelte del tema lasciato, per quando si torna */
             snprintf(s->theme, sizeof s->theme, "%s", theme_ids[i]);
+            theme_prefs_get(s->theme, s);
+            lib_scroll = lib_scroll_target = 0;
             ui_reload_theme();
             if (UI.th.nvariants && strcmp(UI.th.variants[variant_index()], s->variant)) {
                 snprintf(s->variant, sizeof s->variant, "%s", UI.th.variants[0]);
@@ -6005,6 +6067,7 @@ static void settings_input(void) {
         }
         else if (set_sel == S_CLOCK) { clock_start(); ui_sound(SND_OK); }
         else if (set_sel == S_CLEANMEDIA) clean_start();
+        else if (set_sel == S_THEMERESET) theme_reset();
         else if (set_sel == S_UPDATE) upd_start();
         else if (set_sel == S_GENRES) gp_show(GP_MANAGE);
         else if (set_sel == S_COLLS) {
@@ -6057,7 +6120,7 @@ static const char *set_cat_sub(int row) {
     snprintf(k, sizeof k, "settings_cat_sum.%s", cat_key[row - ROW_CAT]);
     return T(k);
 }
-static bool set_has_value(int i) { return i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
+static bool set_has_value(int i) { return i != S_THEMERESET && i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
 static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER; }
 
@@ -6299,7 +6362,7 @@ static void settings_draw(void) {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
                    set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
                    set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER ||
-                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT;
+                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT || set_sel == S_THEMERESET;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
                             "L/R", T("common.section"), "" };
         end = ui_keybar(h, onda ? 9 : 6);
@@ -6965,7 +7028,7 @@ static atomic_int rst_count;
 static bool rst_all;
 
 static const char *const RST_SYSTEM[] = { "settings.json", "favorites.txt", "recent.txt", "hidden.txt", "core-options.txt",
-                                          "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "wifi.conf",
+                                          "fuso-orario.txt", "genre-custom.tsv", "genre-groups.tsv", "wifi.conf", "temi.txt",
                                           "fileserver-browsers.txt", "resume.txt", "next.txt", "next.env", "backup-visti.txt",
                                           "menu-rotazione", "scrape-scelta.txt", "cambio.tsv", "cambio.txt", NULL };
 static const char *const RST_SYSTEM_ALL[] = { "stats.tsv", "romcheck.tsv", NULL };
