@@ -72,8 +72,14 @@ PACKAGES = {
     # giochi Linux (0.9.58): nome, versione, colore e testi da frontend/package/linux/<id>/pack.json
     "freedoom": ("Freedoom", None, "linux"),
     "mrboom": ("Mr.Boom", None, "linux"),
-    "devilutionx": ("Diablo", None, "linux"),   # allarga la SD (issue #7)   # senza launch.sh: lo avvia il launcher (0.9.48)
+    "devilutionx": ("Diablo", None, "linux"),
 }
+# giochi Linux tenuti fuori dal repository (frontend/package/linux-diapolon, solo locale: vedi
+# toolchain/package.sh): ogni cartella con pack.json è un pacchetto della cartella Giochi Linux
+EXTRA_GAMES = os.path.join(top, "frontend", "package", "linux-diapolon")
+for _id in sorted(os.listdir(EXTRA_GAMES)) if os.path.isdir(EXTRA_GAMES) else []:
+    if os.path.exists(os.path.join(EXTRA_GAMES, _id, "pack.json")):
+        PACKAGES.setdefault(_id, (_id, None, "linux"))
 # cartelle in cui un pacchetto può scrivere (la console controlla le stesse)
 ALLOWED = ("Cores/", "Emulators/", "Dats/", "Apps/", "Themes/", "Filters/", "Bezels/", "Linux/")
 # Linux/ solo per i giochi Linux, che vanno nell'elenco "packages2" del catalogo: i sistemi fino
@@ -171,6 +177,12 @@ labels = commits()
 # il catalogo è lo stesso per i due canali del sistema. STORE_STATO lo cambia nelle prove
 stato_file = os.environ.get("STORE_STATO") or os.path.join(top, "frontend", "package", "store-stato.json")
 stato = json.load(open(stato_file, encoding="utf-8")) if os.path.exists(stato_file) else {}
+# lo stato dei giochi fuori dal repository sta accanto a loro
+_extra = os.path.join(EXTRA_GAMES, "store-stato.json")
+if os.path.exists(_extra) and not os.environ.get("STORE_STATO"):
+    _x = json.load(open(_extra, encoding="utf-8"))
+    stato.setdefault("experimental", []).extend(_x.get("experimental", []))
+    stato.setdefault("min_system", {}).update(_x.get("min_system", {}))
 catalog = {"format": 1, "packages": [], "packages2": []}
 for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
@@ -217,6 +229,8 @@ for pid in sorted(os.listdir(args.src)):
            "console": ems[first].get("kind") == "console"} if first is not None else {}
     texts = None
     linuxj = os.path.join(top, "frontend", "package", "linux", pid, "pack.json")
+    if not os.path.exists(linuxj):
+        linuxj = os.path.join(EXTRA_GAMES, pid, "pack.json")
     lmeta = json.load(open(linuxj, encoding="utf-8")) if category == "linux" and os.path.exists(linuxj) else None
     if lmeta:
         texts = lmeta.get("texts")
@@ -228,7 +242,16 @@ for pid in sorted(os.listdir(args.src)):
         texts = aj.get("texts")
     if bezel:   # le console delle cornici, per la scheda del pacchetto (i sistemi fino alla 0.9.36 le mettono in Console)
         systems = bezel[4]
-    if lmeta:
+    if lmeta and lmeta.get("version") == "date":   # giochi in sviluppo: "version" del loro game.json, altrimenti la data
+        gj = [r for r in files if r.count("/") == 2 and r.endswith("/game.json")]
+        gv = str(json.load(open(os.path.join(root, gj[0]), encoding="utf-8")).get("version", "")) if gj else ""
+        if gv:
+            label = gv
+        else:
+            import datetime
+            newest = max(os.path.getmtime(os.path.join(root, r)) for r in files)
+            label = datetime.date.fromtimestamp(newest).strftime("%Y.%m.%d")
+    elif lmeta:
         label = str(lmeta.get("version", "1.0"))
     elif theme or bezel:
         label, texts = (theme or bezel)[1], (theme or bezel)[3]

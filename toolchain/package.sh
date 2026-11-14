@@ -213,6 +213,50 @@ if [ -f "$DIST/linux/devilutionx/devilutionx" ]; then
     cp "$DIST/linux/devilutionx/devilutionx" "$DIST/linux/devilutionx/devilutionx.mpq" "$DIST/linux/devilutionx/LICENSE-devilutionx.md" "$PKG/devilutionx/Linux/Diablo/"
     chmod +x "$PKG/devilutionx/Linux/Diablo/devilutionx" "$PKG/devilutionx/Linux/Diablo/launch.sh"
 fi
+# Giochi Linux tenuti fuori dal repository (quelli dell'autore, distribuiti dal sito): ogni
+# cartella di frontend/package/linux-diapolon (solo locale, esclusa da git) ha un pack.json con
+# "source" (la cartella pronta per Mosaik nel progetto del gioco, sotto GAMES_DIR) e "folder" (il
+# nome in Arcade/Linux). Fuori le cose di sviluppo (save/, registri, i file vuoti che accendono le
+# prove); partite in Arcade/Saves/<folder> (toolchain/linux-game-saves.py); licenza della cartella
+# locale se il gioco non ne ha una; programmi senza simboli. Un gioco che non c'è si salta.
+# Solo su richiesta: senza GIOCHI_DIAPOLON=1 non entrano nei pacchetti, così una release fatta con
+# i comandi soliti non li pubblica per sbaglio (audit del 14 novembre).
+EXTRA_GAMES="$FE/package/linux-diapolon"
+GAMES_DIR="${GAMES_DIR:-$TOP/../games}"
+games_built=""
+for pj in "$EXTRA_GAMES"/*/pack.json; do
+    [ -f "$pj" ] || break
+    [ "$GIOCHI_DIAPOLON" = 1 ] || { echo "giochi fuori dal repository: non richiesti (GIOCHI_DIAPOLON=1), saltati"; break; }
+    src=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("source",""))' "$pj")
+    [ -n "$src" ] || continue
+    id=$(basename "$(dirname "$pj")")
+    folder=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["folder"])' "$pj")
+    if [ ! -f "$GAMES_DIR/$src/launch.sh" ]; then echo "gioco $id: manca $GAMES_DIR/$src, saltato"; continue; fi
+    mkdir -p "$PKG/$id/Linux/$folder"
+    rsync -a --exclude save --exclude .DS_Store --exclude '*.log' --exclude perf --exclude perf-novsync \
+        --exclude bench --exclude probe --exclude autopilot --exclude autoplay --exclude fps30 --exclude noart \
+        --exclude diag --exclude joydebug --exclude inputdebug --exclude bot "$GAMES_DIR/$src/" "$PKG/$id/Linux/$folder/"
+    python3 "$TOP/toolchain/linux-game-saves.py" "$PKG/$id/Linux/$folder/launch.sh" "$folder"
+    # licenza della cartella locale (LICENZA-GIOCHI-DIAPOLON.txt: gratis per uso personale, niente
+    # ridistribuzione), se il gioco non ne ha una sua nella cartella
+    if ! ls "$PKG/$id/Linux/$folder" | grep -qi '^licen[cs]e\|^licenza'; then
+        title=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["texts"]["en"]["title"])' "$pj")
+        sed "s|{TITOLO}|$title|" "$EXTRA_GAMES/LICENZA-GIOCHI-DIAPOLON.txt" > "$PKG/$id/Linux/$folder/LICENSE.txt"
+    fi
+    games_built="$games_built $id"
+done
+# programmi e librerie dei giochi senza simboli: più difficili da capire e modificare, e più piccoli
+# (strip dell'aarch64 nel kit; sul Mac non c'è)
+if [ -n "$games_built" ]; then
+    elfs=$(cd "$PKG" && for id in $games_built; do find "$id" -type f; done | while IFS= read -r f; do
+        if [ "$(head -c 4 "$f" | od -An -c | tr -d ' ')" = '177ELF' ]; then printf '%s\n' "$f"; fi; done)
+    if [ -n "$elfs" ]; then
+        printf '%s\n' "$elfs" > "$PKG/.da-strip.txt"
+        docker run --rm --platform linux/amd64 -v "$PKG":/p trimui-tg5040 sh -c \
+            'cd /p && while IFS= read -r f; do aarch64-linux-gnu-strip --strip-unneeded "$f" || echo "strip non riuscito: $f"; done < .da-strip.txt'
+        rm -f "$PKG/.da-strip.txt"
+    fi
+fi
 # temi: nel sistema solo Tessera (frontend/themes) e i font condivisi; gli altri sono nello Store
 # (0.9.55). Non dalla SD simulata del Mac, dove ci sono anche quelli dello Store
 mkdir -p "$DATA/Themes"
