@@ -4,8 +4,8 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.64
-it Gioco a caso: SELECT in libreria
-en Random game: SELECT in the library
+it Gioco a caso: prima voce della lista dei giochi
+en Random game: first item of the game list
 it Avvio diretto: un gioco che parte da solo all'accensione (opzioni del gioco)
 en Start a game at power on (game options)
 it Batteria: grafico delle ultime ore e tempo rimasto (Impostazioni → Sistema)

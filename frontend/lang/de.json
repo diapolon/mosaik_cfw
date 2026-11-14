@@ -468,6 +468,9 @@
     "clear": "Filter zurücksetzen",
     "random": "Zufälliges Spiel",
     "random_none": "Kein Spiel zur Auswahl",
+    "random_hint": "Eines der Spiele der Liste",
+    "random_pick": "Wählen",
+    "random_count": "Wählt eines der %d Spiele",
     "roms": "ROM-Status",
     "roms_bad": "Nur fehlerhafte"
   },

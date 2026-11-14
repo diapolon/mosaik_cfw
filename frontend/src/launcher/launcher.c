@@ -428,6 +428,11 @@ static int view_cmp(const void *a, const void *b) {
     return d ? (d > 0 ? 1 : -1) : ia - ib;
 }
 
+#define VIEW_RANDOM (-1)
+static bool sel_random(void) { return nview && view[lib_sel] == VIEW_RANDOM; }
+static int view_games(void) { return nview && view[0] == VIEW_RANDOM ? nview - 1 : nview; }   /* senza la voce */
+static void random_game(void);
+
 static void build_view(void) {
     free(view);
     view = malloc(sizeof(int) * (size_t)(ngames + 1));
@@ -444,6 +449,15 @@ static void build_view(void) {
         view[nview++] = i;
     }
     if (UI.set.sort_mode) qsort(view, (size_t)nview, sizeof(int), view_cmp);
+    /* "Gioco a caso" come prima voce (0.9.64), con almeno due giochi da cui scegliere e senza una
+       ricerca in corso: VIEW_RANDOM al posto dell'indice di un gioco */
+    int real = 0;
+    for (int i = 0; i < nview; i++) real += !games[view[i]].missing;
+    if (real >= 2 && !search[0]) {
+        memmove(view + 1, view, sizeof(int) * (size_t)nview);
+        view[0] = VIEW_RANDOM;
+        nview++;
+    }
     if (lib_sel >= nview) lib_sel = nview ? nview - 1 : 0;
 }
 
@@ -959,10 +973,12 @@ static void lib_common_input(int cols) {
         if ((in->pressed[BTN_LEFT] || in->pressed[BTN_L2])) lib_sel = lib_sel - page > 0 ? lib_sel - page : 0;
     }
     if (lib_sel != old) ui_sound(SND_MOVE);
+    if (in->pressed[BTN_A] && sel_random()) { random_game(); return; }
     if (in->pressed[BTN_A] && nview) {
         if (game_autosave(view[lib_sel], NULL)) launch_ex(&games[view[lib_sel]], true);
         else launch(&games[view[lib_sel]]);
     }
+    if (sel_random()) in->pressed[BTN_X] = in->pressed[BTN_Y] = false;   /* niente scheda né preferito */
     if (in->pressed[BTN_X] && nview) { open_detail(view[lib_sel]); return; }
     if (in->pressed[BTN_Y] && nview) {
         game_t *g = &games[view[lib_sel]];
@@ -1181,6 +1197,40 @@ static void game_panel(const game_t *g, int gi, int x, int y, int w, int h, bool
     if (gi >= 0 && game_autosave(gi, NULL)) ui_text(fs, T("lib.autosave"), tx, by + fsh, t->accent, ALIGN_LEFT);
 }
 
+/* la voce "Gioco a caso": un dado con la scritta sotto */
+static void dice(int cx, int cy, int s, color_t body, color_t dot) {
+    ui_rrect(cx - s / 2, cy - s / 2, s, s, s / 5, body);
+    int d = s / 4, rr = s / 12 + 1;
+    ui_circle(cx - d, cy - d, rr, dot);
+    ui_circle(cx + d, cy - d, rr, dot);
+    ui_circle(cx, cy, rr, dot);
+    ui_circle(cx - d, cy + d, rr, dot);
+    ui_circle(cx + d, cy + d, rr, dot);
+}
+static void random_tile(int x, int y, int w, int h, int r) {
+    theme_t *t = &UI.th;
+    ui_rrect(x, y, w, h, r, t->accent);
+    TTF_Font *f = UI.f_small;
+    int fh = TTF_FontHeight(f), s = h * 42 / 100;
+    bool label = h > fh * 3;
+    dice(x + w / 2, y + (label ? h * 42 / 100 : h / 2), s, t->accent_text, t->accent);
+    if (label) {
+        char fit[100];
+        ui_text_fit(f, T("filters.random"), w - M(0.02f), fit, sizeof fit);
+        ui_text(f, fit, x + w / 2, y + h - fh - h / 12, t->accent_text, ALIGN_CENTER);
+    }
+}
+static void random_panel(int x, int y, int w, int h) {
+    theme_t *t = &UI.th;
+    int r = M(t->panel_radius) * 2, s = h / 3;
+    ui_rrect(x, y, w, h, r, t->surface);
+    dice(x + w / 2, y + h * 38 / 100, s, t->accent, t->surface);
+    char msg[160];
+    snprintf(msg, sizeof msg, T("filters.random_count"), view_games());
+    ui_text(UI.f_title, T("filters.random"), x + w / 2, y + h * 62 / 100, t->text, ALIGN_CENTER);
+    ui_text(UI.f_small, msg, x + w / 2, y + h * 62 / 100 + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
+}
+
 /* griglia di riquadri con la sola immagine (Tessera): quattro per riga, si scorre in verticale */
 enum { GRID_COLS = 4 };
 static void card_grid(int y, int h) {
@@ -1200,6 +1250,7 @@ static void card_grid(int y, int h) {
         int x = mx + (i % GRID_COLS) * (cw + gap), yy = y + (int)((i / GRID_COLS) * (ch + gap) - lib_scroll);
         if (yy + ch < y - ring || yy > y + h + ring) continue;
         ui_shadow(x, yy + M(0.004f), cw, ch, r, M(0.012f), t->shadow);
+        if (view[i] == VIEW_RANDOM) { random_tile(x, yy, cw, ch, r); continue; }
         cover_tile(&games[view[i]], x, yy, cw, ch, r);
         if (games[view[i]].fav) {   /* stellina dei preferiti nell'angolo */
             int sr = M(0.022f);
@@ -1226,10 +1277,16 @@ static void onda_list(int x, int y, int w, int h) {
         int yy = y + (int)(d * rh);
         if (d < -0.5f) continue;
         if (yy > y + h) break;
-        const game_t *g = &games[view[i]];
         bool sel = i == lib_sel;
         if (sel) ui_rrect(x, yy, w, rh, r, t->surface);
         int th = rh * 78 / 100, tw = th * 4 / 3, ix = x + M(0.012f), iy = yy + (rh - th) / 2;
+        if (view[i] == VIEW_RANDOM) {
+            random_tile(ix, iy, tw, th, M(0.006f));
+            TTF_Font *f = sel ? UI.f_title : UI.f_normal;
+            ui_text(f, T("filters.random"), ix + tw + M(0.022f), yy + (rh - TTF_FontHeight(f)) / 2, sel ? t->text : with_alpha(t->text, 170), ALIGN_LEFT);
+            continue;
+        }
+        const game_t *g = &games[view[i]];
         SDL_Texture *img = media_image(g, t->cover_types, t->ncover);
         if (img) ui_image_fill(img, ix, iy, tw, th, M(0.006f));
         else ui_rrect(ix, iy, tw, th, M(0.006f), with_alpha(t->text, 40));
@@ -1269,11 +1326,17 @@ static void title_list(int x, int y, int w, int h) {
     for (int i = 0; i < nview; i++) {
         int yy = y + (int)(i * (rh + gap) - lib_scroll);
         if (yy > y + h || yy + rh < y) continue;
-        const game_t *g = &games[view[i]];
         ui_rrect(x, yy, w, rh, r, t->surface);
         if (i == lib_sel) ui_rborder(x, yy, w, rh, r, M(0.004f) < 2 ? 2 : M(0.004f), t->accent);
         else ui_rborder(x, yy, w, rh, r, 1, t->line);
         char fit[200];
+        if (view[i] == VIEW_RANDOM) {
+            ui_text(fn, T("filters.random"), x + M(0.016f), yy + M(0.006f), t->accent, ALIGN_LEFT);
+            ui_text_fit(fs, T("filters.random_hint"), w - 2 * M(0.016f), fit, sizeof fit);
+            ui_text(fs, fit, x + M(0.016f), yy + M(0.006f) + fnh, t->text_dim, ALIGN_LEFT);
+            continue;
+        }
+        const game_t *g = &games[view[i]];
         ui_text_fit(fn, g->title, w - 2 * M(0.016f), fit, sizeof fit);
         ui_text(fn, fit, x + M(0.016f), yy + M(0.006f), t->text, ALIGN_LEFT);
         const char *sub = media_image(g, t->cover_types, t->ncover) ? games_core_label(g->core) : T("lib.no_image");
@@ -3407,14 +3470,14 @@ static void library_draw(void) {
     int y = M(t->topbar_h) + M(0.016f);
     y += pills(y) + M(0.022f);
     char label[200];
-    snprintf(label, sizeof label, T("lib.count"), nview);
+    snprintf(label, sizeof label, T("lib.count"), view_games());
     if (search[0]) { size_t l = strlen(label); snprintf(label + l, sizeof label - l, " · «%s»", search); }
     if (lib_style() == LS_CARDS) {   /* Tessera: il nome del gioco scelto, e a destra quanti sono */
         int cwid = ui_text_w(fs, label), lh = fnh;
         ui_text(fs, label, mx + W, y + (lh - fsh) / 2, t->text_dim, ALIGN_RIGHT);
         if (nview) {
             char fit[300];
-            ui_text_fit(fn, games[view[lib_sel]].title, W - cwid - M(0.03f), fit, sizeof fit);
+            ui_text_fit(fn, sel_random() ? T("filters.random") : games[view[lib_sel]].title, W - cwid - M(0.03f), fit, sizeof fit);
             ui_text(fn, fit, mx, y, t->accent, ALIGN_LEFT);
         }
         y += lh + M(0.018f);
@@ -3434,14 +3497,20 @@ static void library_draw(void) {
     } else if (style == LS_LIST) {
         int lw = W * 47 / 100;
         title_list(mx, y, lw, area_h);
-        game_panel(&games[view[lib_sel]], view[lib_sel], mx + lw + M(0.025f), y, W - lw - M(0.025f), area_h, false);
+        if (sel_random()) random_panel(mx + lw + M(0.025f), y, W - lw - M(0.025f), area_h);
+        else game_panel(&games[view[lib_sel]], view[lib_sel], mx + lw + M(0.025f), y, W - lw - M(0.025f), area_h, false);
     } else {
         int lw = W * 52 / 100;   /* elenco verticale a sinistra, a destra il gioco scelto */
         onda_list(mx, y, lw, area_h);
-        game_panel(&games[view[lib_sel]], view[lib_sel], mx + lw + M(0.03f), y, W - lw - M(0.03f), area_h, false);
+        if (sel_random()) random_panel(mx + lw + M(0.03f), y, W - lw - M(0.03f), area_h);
+        else game_panel(&games[view[lib_sel]], view[lib_sel], mx + lw + M(0.03f), y, W - lw - M(0.03f), area_h, false);
     }
 
-    if (nview) {
+    if (sel_random()) {
+        const char *h[] = { "A", T("filters.random_pick"), NULL, "B", T("common.back"), "", "L/R", T("lib.category"), "",
+                            "SELECT", T("lib.search_filters"), T("lib.search_short"), "START", T("common.settings"), NULL };
+        ui_keybar(h, 15);
+    } else if (nview) {
         bool resume = game_autosave(view[lib_sel], NULL);
         const char *h[] = { "A", T(resume ? "home.resume" : "common.play"), NULL, "B", T("common.back"), "",
                             "X", T("common.info"), NULL, "Y", T(games[view[lib_sel]].fav ? "common.unfavorite" : "common.favorite"), NULL,
@@ -8298,7 +8367,7 @@ static void romcheck_draw(void) {
 /* SELECT apre il pannello: ricerca, genere, ordinamento. La tastiera a schermo
    filtra la libreria mentre si scrive. */
 
-enum { FP_SEARCH, FP_RANDOM, FP_GENRE, FP_COLL, FP_SORT, FP_ROMS, FP_CLEAR, FP_COUNT };
+enum { FP_SEARCH, FP_GENRE, FP_COLL, FP_SORT, FP_ROMS, FP_CLEAR, FP_COUNT };
 static const char *sort_keys[4] = { "sort.name", "sort.year", "sort.played", "sort.recent" };
 
 static void filters_changed(void) {
@@ -8307,12 +8376,12 @@ static void filters_changed(void) {
     build_view();
 }
 
-/* Gioco a caso: fra quelli mostrati (piattaforma, collezione, filtri), solo quelli con la ROM;
-   si apre la sua scheda, da cui si avvia o si torna indietro */
+/* Gioco a caso, prima voce della lista: fra quelli mostrati (piattaforma, collezione, filtri),
+   solo quelli con la ROM; si apre la sua scheda, da cui si avvia o si torna indietro */
 static void random_game(void) {
     int cand[nview > 0 ? nview : 1], n = 0;
     for (int i = 0; i < nview; i++)
-        if (!games[view[i]].missing) cand[n++] = i;
+        if (view[i] != VIEW_RANDOM && !games[view[i]].missing) cand[n++] = i;
     if (!n) { ui_toast(T("filters.random_none")); ui_sound(SND_ERROR); return; }
     static bool seeded;
     if (!seeded) { srand((unsigned)time(NULL) ^ (unsigned)getpid()); seeded = true; }
@@ -8326,7 +8395,6 @@ static void random_game(void) {
 
 static void fpanel_input(void) {
     input_t *in = &UI.in;
-    if (in->pressed[BTN_A] && fpanel_sel == FP_RANDOM) { random_game(); return; }
     if (in->pressed[BTN_UP]) { fpanel_sel = (fpanel_sel + FP_COUNT - 1) % FP_COUNT; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { fpanel_sel = (fpanel_sel + 1) % FP_COUNT; ui_sound(SND_MOVE); }
     int dir = in->pressed[BTN_RIGHT] ? 1 : in->pressed[BTN_LEFT] ? -1 : 0;
@@ -8399,7 +8467,7 @@ static void fpanel_draw(void) {
         if (sel) ui_rrect(x + M(0.02f), ry, w - M(0.04f), rh - M(0.008f), M(t->panel_radius), t->accent);
         color_t c = sel ? t->accent_text : t->text;
         char val[120] = "", g[64];
-        const char *label = i == FP_RANDOM ? T("filters.random") : i == FP_SEARCH ? T("filters.search") : i == FP_GENRE ? T("library.genre") : i == FP_COLL ? T("coll.filter")
+        const char *label = i == FP_SEARCH ? T("filters.search") : i == FP_GENRE ? T("library.genre") : i == FP_COLL ? T("coll.filter")
                           : i == FP_SORT ? T("filters.sort") : i == FP_ROMS ? T("filters.roms") : T("filters.clear");
         if (i == FP_COLL) {
             int nh = 0;
@@ -8420,7 +8488,7 @@ static void fpanel_draw(void) {
         }
     }
     char res[64];
-    snprintf(res, sizeof res, T("kb.results"), nview);
+    snprintf(res, sizeof res, T("kb.results"), view_games());
     ui_text(UI.f_small, res, x + pad, ry + M(0.01f), t->text_dim, ALIGN_LEFT);
     const char *hint[] = { "B", T("common.back"), "A", T("common.ok") };
     ui_hints(hint, 4);
@@ -8549,7 +8617,7 @@ static void keyboard_draw(void) {
         }
     }
     char res[64];
-    snprintf(res, sizeof res, T("kb.results"), nview);
+    snprintf(res, sizeof res, T("kb.results"), view_games());
     if (kb_mode == KBM_SEARCH) ui_text(UI.f_small, res, x + pad, ky - gap + M(0.008f), t->text_dim, ALIGN_LEFT);
     static const char *layout_keys[3] = { "kb.lower", "kb.symbols", "kb.upper" };
     const char *hint[] = { "X", T(layout_keys[kb_layout % 3]), "Y", T("kb.space"), "B", T("kb.delete"), "START", T("kb.done"), "A", T("kb.type") };

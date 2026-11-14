@@ -468,6 +468,9 @@
     "clear": "Limpar filtros",
     "random": "Jogo ao acaso",
     "random_none": "Nenhum jogo para escolher",
+    "random_hint": "Um dos jogos da lista",
+    "random_pick": "Escolher",
+    "random_count": "Escolhe um dos %d jogos",
     "roms": "Estado das ROM",
     "roms_bad": "Só com problemas"
   },
