@@ -26,6 +26,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 #include "../common/json.h"
 #include "../common/platform.h"
 
@@ -133,8 +134,25 @@ static void cover_load(int i);
 static void silence_mark(void);
 static int spec_rate = 48000, spec_ch = 2;
 
+/* Limite di tempo per le operazioni sull'uscita audio che con un driver bloccato non tornano più
+   (passaggio dall'audio dei menu al mixer, apertura, chiusura e riapertura dopo la sospensione):
+   allo scadere il segnale chiude l'app e gamewatch torna al menu, invece di un'app ferma
+   (verifica Codex M61-002). A contatore: le chiamate annidate non lo spengono prima del tempo. */
+static int guard_depth;
+static void guard_begin(void) { if (guard_depth++ == 0) alarm(8); }
+static void guard_end(void) { if (guard_depth > 0 && --guard_depth == 0) alarm(0); }
+
+static bool mixer_open_guarded(void);
 static bool mixer_open(void) {
     if (mixer_on) return true;
+    if (getenv("ARCADE_NO_AUDIO")) return false;   /* audio non funzionante (system-init): niente mixer */
+    guard_begin();
+    bool ok = mixer_open_guarded();
+    guard_end();
+    return ok;
+}
+
+static bool mixer_open_guarded(void) {
     /* quali codec ci sono davvero: un brano di un formato mancante non parte e lo dice il log */
     static bool told;
     int got = Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_FLAC);
@@ -258,6 +276,7 @@ static void resume_check(void) {
     bool was_paused = paused;
     double pos = position();
     ui_log("musica: ripresa dalla sospensione, riapro l'audio (brano %d, %.0f s)", idx, pos);
+    guard_begin();
     Mix_HookMusicFinished(NULL);
     Mix_HaltMusic();
     if (mus) { Mix_FreeMusic(mus); mus = NULL; }
@@ -267,6 +286,7 @@ static void resume_check(void) {
         if (pos > 0 && Mix_SetMusicPosition(pos) < 0) ui_log("musica: ripresa da %.0f s non riuscita (%s)", pos, Mix_GetError());
         if (was_paused) { Mix_PauseMusic(); paused = true; }
     }
+    guard_end();
 #endif
 }
 

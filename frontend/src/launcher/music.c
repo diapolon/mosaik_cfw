@@ -153,6 +153,7 @@ static long hw_ptr(void) {
 
 static bool mixer_open(void) {
     if (mixer_on) return true;
+    if (getenv("ARCADE_NO_AUDIO")) return false;   /* audio non funzionante (system-init): niente mixer */
     wd("Mix_Init");
     Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_FLAC);   /* quelli della build (toolchain/build-deps.sh) */
     /* All'accensione system-init lascia spente le uscite audio (arcade-suspend mute) finché il
@@ -194,32 +195,23 @@ static bool mixer_open(void) {
 
 static bool silenced(void) { return access(SILENCE_RUN, F_OK) == 0; }
 
-void music_init(const char *root) {
-    char dir[1100];
-    /* nota del Lettore musicale: qualunque contenuto vale silenzio. "riprendi" (app 1.6) faceva
-       continuare il brano anche con Music/Menu vuota, senza un modo per fermarlo (M61-001) */
-    char hp[1100];
-    snprintf(hp, sizeof hp, "%s/System/musica-app.txt", root);
-    if (access(hp, F_OK) == 0) {
-        unlink(hp);
-        FILE *mf = fopen(SILENCE_RUN, "w");
-        if (mf) fclose(mf);
-        ui_log("musica: dopo il Lettore musicale il menu resta in silenzio fino allo spegnimento");
-        if (!silenced()) silent_once = true;   /* senza /run (sul Mac) vale solo per questo avvio */
-    }
-    /* la musica del menu sta in Music/Menu: il resto di Music è del Lettore musicale (prima il menu
-       suonava anche i brani copiati per l'app, issue #8); la cartella si crea per farla trovare */
-    snprintf(dir, sizeof dir, "%s/Music", root);
-    mkdir(dir, 0755);
-    snprintf(dir, sizeof dir, "%s/Music/Menu", root);
-    mkdir(dir, 0755);
+/* la musica del menu sta in Music/Menu: il resto di Music è del Lettore musicale (prima il menu
+   suonava anche i brani copiati per l'app, issue #8); la cartella si crea per farla trovare.
+   Al massimo 2000 brani e 20000 voci lette */
+static char menu_dir[1100];
+static bool scanned;
+static void scan_menu(void) {
+    if (scanned || !menu_dir[0]) return;
+    scanned = true;
+    const char *dir = menu_dir;
     DIR *d = opendir(dir);
     if (!d) return;
-    int cap = 64;
+    int cap = 64, seen = 0;
     tracks = malloc(sizeof *tracks * (size_t)cap);
     struct dirent *e;
     bool cut = false;
     while (tracks && (e = readdir(d))) {
+        if (++seen > 20000) { cut = true; break; }
         if (!is_audio(e->d_name)) continue;
         if (strlen(dir) + 1 + strlen(e->d_name) >= sizeof tracks[0]) { cut = true; continue; }   /* percorso troppo lungo */
         if (ntracks == MAX_TRACKS) { cut = true; break; }
@@ -240,6 +232,27 @@ void music_init(const char *root) {
         memcpy(t, tracks[i], 512); memcpy(tracks[i], tracks[j], 512); memcpy(tracks[j], t, 512);
     }
     ui_log("musica: %d brani in Music/Menu%s", ntracks, cut ? " (elenco incompleto)" : "");
+}
+
+void music_init(const char *root) {
+    /* nota del Lettore musicale: qualunque contenuto vale silenzio. "riprendi" (app 1.6) faceva
+       continuare il brano anche con Music/Menu vuota, senza un modo per fermarlo (M61-001) */
+    char hp[1100];
+    snprintf(hp, sizeof hp, "%s/System/musica-app.txt", root);
+    if (access(hp, F_OK) == 0) {
+        unlink(hp);
+        FILE *mf = fopen(SILENCE_RUN, "w");
+        if (mf) fclose(mf);
+        ui_log("musica: dopo il Lettore musicale il menu resta in silenzio fino allo spegnimento");
+        if (!silenced()) silent_once = true;   /* senza /run (sul Mac) vale solo per questo avvio */
+    }
+    snprintf(menu_dir, sizeof menu_dir, "%s/Music", root);
+    mkdir(menu_dir, 0755);
+    snprintf(menu_dir, sizeof menu_dir, "%s/Music/Menu", root);
+    mkdir(menu_dir, 0755);
+    /* con la musica spenta la cartella si legge solo quando serve (Impostazioni, pannello rapido):
+       una SD lenta o una cartella grande non ritardano l'avvio (verifica Codex M61-008) */
+    if (UI.set.music_vol > 0) scan_menu();
     /* all'avvio prima la musica si era bloccata (cane da guardia): all'accensione non parte */
     char bp[1100], why[200] = "";
     snprintf(bp, sizeof bp, "%s/System/musica-bloccata.txt", root);
@@ -254,6 +267,7 @@ void music_init(const char *root) {
 }
 
 static void music_next_steps(void) {
+    scan_menu();
     if (!ntracks || !mixer_open()) return;
     /* al massimo 8 brani di fila: con file tutti illeggibili non si resta a provarli tutti (M61-008) */
     for (int tries = 0; tries < ntracks && tries < 8; tries++) {
@@ -328,5 +342,54 @@ void music_quit(void) {
     ui_audio_detach();   /* si sta uscendo: l'audio dei menu non si riapre (verifica Codex M61-002) */
 }
 
-int music_count(void) { return ntracks; }
+int music_count(void) { scan_menu(); return ntracks; }
+
+/* Sospensione (verifica Codex M61-002): il mixer si chiude prima, sotto il cane da guardia, e
+   l'uscita torna all'audio dei menu, che ui_suspend chiude e riapre con il suo limite di tempo;
+   al risveglio lo stesso brano riparte dallo stesso punto, con il controllo del flusso */
+static int sleep_track = -1;
+static double sleep_pos;
+void music_before_sleep(void) {
+    if (!mixer_on) return;
+    sleep_track = title[0] && mus ? cur : -1;
+    sleep_pos = mus ? Mix_GetMusicPosition(mus) : 0;
+    wd("chiusura della musica per la sospensione");
+    Mix_HookMusicFinished(NULL);
+    Mix_HaltMusic();
+    Mix_HaltChannel(-1);
+    if (mus) Mix_FreeMusic(mus);
+    mus = NULL;
+    if (fx) Mix_FreeChunk(fx);
+    fx = NULL;
+    free(fx_buf);
+    fx_buf = NULL;
+    Mix_CloseAudio();
+    mixer_on = false;
+    wd(NULL);
+    title[0] = 0;
+    ui_audio_takeover(NULL);
+}
+void music_after_sleep(void) {
+    int i = sleep_track;
+    sleep_track = -1;
+    if (i < 0 || i >= ntracks || UI.set.music_vol <= 0 || !mixer_open()) { wd(NULL); return; }
+    cur = i;
+    finished = false;
+    wd("Mix_LoadMUS");
+    mus = Mix_LoadMUS(tracks[i]);
+    wd("Mix_FadeInMusicPos");
+    if (!mus || Mix_FadeInMusicPos(mus, 0, 400, sleep_pos > 0 ? sleep_pos : 0) < 0) {
+        ui_log("musica: dopo la sospensione non riparte (%s)", Mix_GetError());
+        if (mus) Mix_FreeMusic(mus);
+        mus = NULL;
+    } else {
+        const char *base = strrchr(tracks[i], '/');
+        snprintf(title, sizeof title, "%s", base ? base + 1 : tracks[i]);
+        char *dot = strrchr(title, '.');
+        if (dot) *dot = 0;
+        last_vol = -1;
+        ui_log("musica: dopo la sospensione riparte %s da %.0f s", title, sleep_pos);
+    }
+    wd(NULL);
+}
 const char *music_title(void) { return title; }

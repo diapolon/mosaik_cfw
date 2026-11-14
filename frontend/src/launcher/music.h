@@ -9,6 +9,8 @@ void music_update(void);             /* ogni fotogramma: volume e brano successi
 void music_next(void);
 void music_user_start(void);         /* scelta esplicita: toglie il silenzio lasciato dal Lettore musicale */
 void music_stop(void);
+void music_before_sleep(void);       /* chiude il mixer prima della sospensione */
+void music_after_sleep(void);        /* al risveglio riprende il brano */
 void music_quit(void);              /* solo uscendo: chiama prima ui_exit_code */
 int music_count(void);
 const char *music_title(void);       /* brano in riproduzione, "" se nessuno */

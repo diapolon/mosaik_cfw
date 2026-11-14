@@ -725,6 +725,13 @@ static void launch_ex(game_t *g, bool resume) {
 
 static void launch(game_t *g) { launch_ex(g, false); }
 
+/* sospensione con la musica del menu: il mixer si chiude prima e il brano riparte dopo (M61-002) */
+static void launcher_suspend(void) {
+    music_before_sleep();
+    ui_suspend();
+    music_after_sleep();
+}
+
 static void leave_system(int code, const char *msg) {
     char p[1100];
     snprintf(p, sizeof p, "%s/System/resume.txt", UI.root);
@@ -5794,7 +5801,7 @@ static void settings_input(void) {
     if (in->pressed[BTN_RIGHT]) set_change(set_sel, +1);
     if (in->pressed[BTN_A]) {
         if (set_sel == S_POWER) { dlg_open = true; dlg_suspend = false; dlg_sel = 0; ui_sound(SND_OK); }
-        else if (set_sel == S_SUSPENDNOW) { ui_sound(SND_OK); ui_suspend(); last_input = UI.t; }
+        else if (set_sel == S_SUSPENDNOW) { ui_sound(SND_OK); launcher_suspend(); last_input = UI.t; }
         else if (set_sel == S_RESTART) {
             if (plat_standalone()) { cfm_kind = CFM_RESTART; cfm_sel = 0; ui_sound(SND_OK); }
             else quit_to_menu();
@@ -7046,7 +7053,7 @@ static void qp_do(int t) {
         ui_sound(SND_OK);
         break;
     }
-    case QT_SUSPEND: qp_open = false; ui_sound(SND_OK); ui_suspend(); last_input = UI.t; break;
+    case QT_SUSPEND: qp_open = false; ui_sound(SND_OK); launcher_suspend(); last_input = UI.t; break;
     case QT_RESTART: qp_open = false; cfm_kind = CFM_RESTART; cfm_sel = 0; ui_sound(SND_OK); break;
     case QT_POWER: qp_open = false; dlg_open = true; dlg_suspend = false; dlg_sel = 0; ui_sound(SND_OK); break;
     }
@@ -8589,7 +8596,7 @@ int main(int argc, char **argv) {
         else if (dlg_open && dlg_suspend) {
             int r = ui_confirm_input(&dlg_sel);
             if (r >= 0) dlg_open = dlg_suspend = false;
-            if (r == 1) { ui_suspend(); last_input = UI.t; }
+            if (r == 1) { launcher_suspend(); last_input = UI.t; }
         }
         else if (rdy_open) rdy_input();
         else if (atomic_load(&rst_state)) rst_input();
@@ -8655,7 +8662,7 @@ int main(int argc, char **argv) {
         }
         if (idle && UI.set.autosuspend_min && plat_standalone() && UI.t - last_input > UI.set.autosuspend_min * 60.0) {
             ui_log("sospensione automatica");
-            ui_suspend();
+            launcher_suspend();
             last_input = UI.t;
             saver_on = false;
             continue;
