@@ -48,7 +48,13 @@ if grep -q '^xradio_wlan ' /proc/modules; then
 fi
 # LED spenti: le animazioni le calcola il driver led_anim sul processore, e in sospensione si
 # fermano (provato su Brick Pro con un respiro lento: si spegne appena la console dorme)
+# Il file giusto è effect_enable (come keymon e MainUI del firmware; "enable" non esiste): con
+# l'animazione accesa il controller dei LED va in timeout mentre ci si sospende e il kernel
+# annulla il tentativo ("sunxi_ledc_complete - led xfer timeout", "noirq suspend of devices
+# failed": Smart Pro, 14 novembre, 2 tentativi su 3). Si aspetta che l'ultimo invio finisca.
+echo 0 > /sys/class/led_anim/effect_enable 2> /dev/null
 echo 0 > /sys/class/led_anim/enable 2> /dev/null
+sleep 0.2
 # vibrazione spenta: un programma che sospende a motore acceso lo lascerebbe girare (NextUI #898)
 echo 0 > /sys/class/gpio/gpio227/value 2> /dev/null
 # audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
@@ -121,6 +127,7 @@ while [ $tries -lt $max ] && [ "$r" != riuscita ]; do
         busy=0; bat=0
         dmesg | tail -14 | grep -q 'phy0 failed to suspend' && { busy=1; max=15; }
         dmesg | tail -14 | grep -q 'wakeup source: axp2202-battery' && bat=1
+        dmesg | tail -20 | grep -q 'led xfer timeout' && echo "=== $(date) tentativo $tries: timeout del controller dei LED" >> "$LOGDIR/sospensione.txt"
         # del rifiuto del Wi-Fi basta il primo tentativo: è previsto e il file crescerebbe; per la
         # batteria una riga sola, con i contatori
         if [ $bat = 1 ]; then
@@ -150,6 +157,7 @@ for k in /sys/class/rfkill/rfkill*; do
 done
 rm -f /tmp/system_suspend
 touch /tmp/wakeup_from_suspend
+echo 1 > /sys/class/led_anim/effect_enable 2> /dev/null   # il launcher o il runner riapplicano i LED
 echo 1 > /sys/class/led_anim/enable 2> /dev/null
 # audio: interruttori e uscita del codec come all'avvio (system-init)
 if [ "$(cat "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
