@@ -71,7 +71,7 @@ void settings_defaults(settings_t *s) {
     s->box_covers = true;
     s->speaker_rest = 0;
     s->wifi = true;
-    s->music_vol = 5;
+    s->music_vol = 0;   /* musica del menu spenta finché non la si accende (14 novembre 2026) */
     strcpy(s->tz, "Europe/Rome");
     s->led_mode = 1;
     s->led_color = 0;
@@ -124,6 +124,9 @@ bool settings_load(settings_t *s, const char *root) {
     s->wifi = json_bool(j, "wifi", s->wifi);
     s->ext_p1 = json_bool(j, "external_p1", s->ext_p1);
     s->music_vol = json_int(j, "music_volume", s->music_vol);
+    /* "menu_music" arriva con la 0.9.61: le impostazioni scritte prima hanno music_volume 5, il
+       vecchio valore di partenza, anche se nessuno l'ha scelto; senza la chiave la musica è spenta */
+    if (!json_bool(j, "menu_music", false)) s->music_vol = 0;
     copy(s->tz, sizeof s->tz, json_str(j, "timezone", NULL));
     s->led_mode = json_int(j, "led_mode", s->led_mode) & 3;
     s->led_color = json_int(j, "led_color", s->led_color);
@@ -136,7 +139,7 @@ bool settings_load(settings_t *s, const char *root) {
     s->log_level = json_int(j, "debug_level", 0);
     if (s->log_level < 0 || s->log_level > 3) s->log_level = 0;
     if (s->led_bright < 1 || s->led_bright > 10) s->led_bright = 5;
-    if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 5;
+    if (s->music_vol < 0 || s->music_vol > 10) s->music_vol = 0;
     /* file modificato a mano o rovinato: questi valori fanno da indici nei menu */
     IN_RANGE(brightness, 1, 10, 8);
     IN_RANGE(key_f1, 0, 3, XK_SAVE);
@@ -195,6 +198,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"speaker_rest\": %d,\n"
             "  \"wifi\": %s,\n"
             "  \"external_p1\": %s,\n"
+            "  \"menu_music\": %s,\n"
             "  \"music_volume\": %d,\n"
             "  \"timezone\": \"%s\",\n"
             "  \"led_mode\": %d,\n"
@@ -209,7 +213,7 @@ bool settings_save(const settings_t *s, const char *root) {
             s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, json_esc(s->filter, e_filter, sizeof e_filter), s->bezel ? "true" : "false", s->dup_mode, s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->autosave_exit ? "true" : "false",
             s->box_covers ? "true" : "false", s->speaker_rest,
-            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol, json_esc(s->tz, e_tz, sizeof e_tz), s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
+            s->wifi ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol > 0 ? "true" : "false", s->music_vol, json_esc(s->tz, e_tz, sizeof e_tz), s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);
     bool ok = written > 0 && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
     /* solo un file scritto per intero prende il posto del precedente */

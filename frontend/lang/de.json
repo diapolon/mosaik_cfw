@@ -296,7 +296,7 @@
     "screensaver": "Nach einer Weile ohne Eingabe: Bilder deiner Spiele oder ausgeschalteter Bildschirm.",
     "romcheck": "Prüft, dass keinem Spiel eine Datei fehlt. Die vollständige Prüfung liest auch die Daten und findet beschädigte Dateien.",
     "pads": "Die Konsole ist Spieler 1, ein Bluetooth- oder USB-Controller Spieler 2. Mit „Spieler 1“ spielt man allein mit dem externen Controller.",
-    "music": "Hintergrundmusik aus dem Ordner Music der SD-Karte (MP3, OGG, FLAC). A springt zum nächsten Titel.",
+    "music": "Hintergrundmusik für das Menü aus dem Ordner Music/Menu der SD-Karte (MP3, OGG, FLAC). A springt zum nächsten Titel.",
     "led": "Lichteffekt der Konsole: aus, dauerhaft, Atmen oder Pulsieren. Bei schwachem Akku blinken sie rot.",
     "led_color": "Lichtfarbe; „Thema“ nutzt die Hauptfarbe des gewählten Themas.",
     "led_brightness": "Helligkeit der Konsolenlichter.",
@@ -572,7 +572,7 @@
     "hidden_tag": "Ausgeblendet"
   },
   "music": {
-    "none": "Keine Titel: kopiere Musik in den Ordner Arcade/Music"
+    "none": "Keine Titel: Musik in den Ordner Arcade/Music/Menu kopieren"
   },
   "fn": {
     "on": "FN: maximale Leistung",
@@ -1045,7 +1045,7 @@
     "restart": "Neu starten",
     "power": "Ausschalten",
     "no_track": "Kein Titel",
-    "no_music": "Keine Titel im Ordner Music",
+    "no_music": "Keine Titel im Ordner Music/Menu",
     "shot_done": "Bildschirmfoto in Screenshots gespeichert",
     "brightness": "Helligkeit",
     "volume": "Lautstärke",

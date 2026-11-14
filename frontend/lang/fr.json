@@ -296,7 +296,7 @@
     "screensaver": "Après un moment sans action : captures de vos jeux ou écran éteint.",
     "romcheck": "Vérifie qu'aucun jeu ne manque de fichier. La vérification complète lit aussi les données et trouve les fichiers abîmés.",
     "pads": "Les commandes de la console sont le joueur 1, une manette Bluetooth ou USB le 2. Avec « joueur 1 » on joue seul avec la manette externe.",
-    "music": "Musique de fond depuis le dossier Music de la carte SD (MP3, OGG, FLAC). A passe au morceau suivant.",
+    "music": "Musique de fond du menu depuis le dossier Music/Menu de la carte SD (MP3, OGG, FLAC). A passe au morceau suivant.",
     "led": "Effet des lumières de la console : éteintes, fixes, respiration ou pulsation. Batterie faible : elles clignotent en rouge.",
     "led_color": "Couleur des lumières ; « Thème » utilise la couleur principale du thème choisi.",
     "led_brightness": "Intensité des lumières de la console.",
@@ -572,7 +572,7 @@
     "hidden_tag": "Masqué"
   },
   "music": {
-    "none": "Aucun morceau : copiez votre musique dans le dossier Arcade/Music"
+    "none": "Aucun morceau : copiez votre musique dans le dossier Arcade/Music/Menu"
   },
   "fn": {
     "on": "FN : performances maximales",
@@ -1045,7 +1045,7 @@
     "restart": "Redémarrer",
     "power": "Éteindre",
     "no_track": "Aucun morceau",
-    "no_music": "Aucun morceau dans le dossier Music",
+    "no_music": "Aucun morceau dans le dossier Music/Menu",
     "shot_done": "Capture enregistrée dans Screenshots",
     "brightness": "Luminosité",
     "volume": "Volume",

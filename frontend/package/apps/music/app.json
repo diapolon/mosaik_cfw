@@ -2,7 +2,7 @@
  "title": "Music player",
  "description": "Listen to the Music folder: covers, spectrum and selectable looks, repeat, shuffle, even with the screen off.",
  "author": "Mosaik",
- "version": "1.7",
+ "version": "1.8",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },

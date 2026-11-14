@@ -35,7 +35,7 @@ typedef struct {
     int speaker_rest;    /* amplificatore a riposo (fruscio, issue #4): 0 sempre acceso, 1 spento con
                             /sys/class/speaker/mute, 2 spento con "HpSpeaker Switch" (prova) */
     bool wifi;
-    int music_vol;       /* musica del launcher: 0 spenta, 1..10 */
+    int music_vol;       /* musica del launcher: 0 spenta (la partenza), 1..10; salvata con "menu_music" */
     bool ext_p1;         /* controller esterno come giocatore 1 (la console diventa il 2) */
     int led_mode;        /* LED: 0 spenti, 1 fissi, 2 respiro, 3 pulsazione */
     int led_color;       /* indice in LED_COLORS (0 = colore del tema) */

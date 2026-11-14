@@ -296,7 +296,7 @@
     "screensaver": "Tras un rato sin usar los botones: capturas de tus juegos o pantalla apagada.",
     "romcheck": "Comprueba que a ningún juego le falte un archivo. La verificación completa también lee los datos y encuentra archivos dañados.",
     "pads": "Los controles de la consola son el jugador 1, un mando Bluetooth o USB el 2. Con «jugador 1» se juega solo con el mando externo.",
-    "music": "Música de fondo desde la carpeta Music de la SD (MP3, OGG, FLAC). A pasa a la siguiente pista.",
+    "music": "Música de fondo del menú desde la carpeta Music/Menu de la SD (MP3, OGG, FLAC). A pasa a la siguiente pista.",
     "led": "Efecto de las luces de la consola: apagadas, fijas, respiración o pulso. Con batería baja parpadean en rojo.",
     "led_color": "Color de las luces; «Tema» usa el color principal del tema elegido.",
     "led_brightness": "Intensidad de las luces de la consola.",
@@ -572,7 +572,7 @@
     "hidden_tag": "Oculto"
   },
   "music": {
-    "none": "No hay pistas: copia tu música en la carpeta Arcade/Music"
+    "none": "Sin pistas: copia la música en la carpeta Arcade/Music/Menu"
   },
   "fn": {
     "on": "FN: máximo rendimiento",
@@ -1045,7 +1045,7 @@
     "restart": "Reiniciar",
     "power": "Apagar",
     "no_track": "Sin canción",
-    "no_music": "No hay canciones en la carpeta Music",
+    "no_music": "No hay pistas en la carpeta Music/Menu",
     "shot_done": "Captura guardada en Screenshots",
     "brightness": "Brillo",
     "volume": "Volumen",

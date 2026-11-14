@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.61
+it Il menu non si blocca più su "caricamento" quando parte la musica all'accensione
+en The menu no longer freezes on "loading" when music starts at power-on
+it Musica del menu spenta di partenza; si accende da Impostazioni → Musica
+en Menu music off by default; turn it on in Settings → Music
+it La musica del menu sta nella cartella Music/Menu, il resto di Music è del Lettore musicale
+en Menu music lives in Music/Menu; the rest of Music belongs to the Music player
+
 0.9.60
 it Lettore musicale 1.6: uscendo, il menu continua il brano o resta in silenzio
 en Music player 1.6: on exit the menu continues your track or stays silent

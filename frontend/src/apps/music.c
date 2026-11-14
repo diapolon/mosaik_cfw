@@ -1,8 +1,9 @@
 /* Lettore musicale: app di Mosaik, pacchetto dello Store (Arcade/Apps/music).
 
-   I brani della cartella Music (anche nelle sottocartelle, una per album): MP3, OGG, FLAC, WAV,
-   in ordine naturale. Nell'elenco A suona il brano scelto e apre la sua schermata (copertina dal
-   file o dalla cartella, titolo e artista dai tag, spettro, controlli); lì A mette in pausa, B
+   I brani della cartella Music (anche nelle sottocartelle, una per album, tranne Music/Menu che è
+   la musica del menu di Mosaik): MP3, OGG, FLAC, WAV, in ordine naturale. Nell'elenco A suona il
+   brano scelto e apre la sua schermata (copertina dal file o dalla cartella, titolo e artista dai
+   tag, spettro, controlli); lì A mette in pausa, B
    torna all'elenco. Ovunque L/R brano precedente e successivo, sinistra/destra tenuti indietro e
    avanti di 10 secondi, X ripeti (no, tutti, uno), Y casuale, START cambia aspetto (cartella
    skins), SELECT spegne lo schermo mentre la musica continua (un tasto qualsiasi lo riaccende),
@@ -85,7 +86,11 @@ static void scan(const char *dir, const char *rel, int depth) {
         int lr = rel[0] ? snprintf(r, sizeof r, "%s/%s", rel, e->d_name) : snprintf(r, sizeof r, "%s", e->d_name);
         if (lp >= (int)sizeof p || lr >= (int)sizeof r || lr >= (int)sizeof tracks[0].rel) { scan_cut = true; continue; }
         if (stat(p, &sb) != 0) continue;
-        if (S_ISDIR(sb.st_mode)) { scan(p, r, depth + 1); continue; }
+        if (S_ISDIR(sb.st_mode)) {
+            if (depth == 0 && !strcasecmp(e->d_name, "Menu")) continue;   /* musica del menu di Mosaik */
+            scan(p, r, depth + 1);
+            continue;
+        }
         if (!is_audio(e->d_name)) continue;
         if (ntracks == cap_tracks) {
             int nc = cap_tracks ? cap_tracks * 2 : 128;

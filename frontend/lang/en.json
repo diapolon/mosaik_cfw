@@ -296,7 +296,7 @@
     "screensaver": "After a while without input: your games' screenshots or a blank screen.",
     "romcheck": "Checks that no game is missing any file. The full check also reads the data and finds damaged files.",
     "pads": "The console controls are player 1, a Bluetooth or USB controller is player 2. With “player 1” you play alone with the external controller.",
-    "music": "Background music from the files in the SD card's Music folder (MP3, OGG, FLAC). A skips to the next track.",
+    "music": "Background music for the menu from the SD card's Music/Menu folder (MP3, OGG, FLAC). A skips to the next track.",
     "led": "Console lights effect: off, steady, breathing or pulse. They blink red when the battery is low.",
     "led_color": "Light colour; “Theme” uses the main colour of the chosen theme.",
     "led_brightness": "Brightness of the console lights.",
@@ -572,7 +572,7 @@
     "hidden_tag": "Hidden"
   },
   "music": {
-    "none": "No tracks: copy your music to the Arcade/Music folder"
+    "none": "No tracks: copy your music to the Arcade/Music/Menu folder"
   },
   "fn": {
     "on": "FN: maximum performance",
@@ -1045,7 +1045,7 @@
     "restart": "Restart",
     "power": "Power off",
     "no_track": "No track",
-    "no_music": "No tracks in the Music folder",
+    "no_music": "No tracks in the Music/Menu folder",
     "shot_done": "Screenshot saved in Screenshots",
     "brightness": "Brightness",
     "volume": "Volume",
