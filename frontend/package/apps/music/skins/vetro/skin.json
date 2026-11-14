@@ -1,0 +1,29 @@
+{
+ "order": 1,
+ "name": "Glass",
+ "texts": {
+  "it": "Vetro",
+  "en": "Glass",
+  "es": "Cristal",
+  "fr": "Verre",
+  "de": "Glas",
+  "pt": "Vidro"
+ },
+ "layout": "cover",
+ "background": "blobs",
+ "glass": true,
+ "colors": {
+  "background": "#0c0d10",
+  "background2": "#16181d",
+  "panel": "#ffffff1c",
+  "border": "#ffffff4a",
+  "text": "#f4f5f7",
+  "text_dim": "#f4f5f7a6",
+  "accent": "#ffffff",
+  "accent_text": "#14161a",
+  "bars": "#ffffffc8",
+  "blob1": "#8a94a866",
+  "blob2": "#5b6b8a59",
+  "blob3": "#c8ccd440"
+ }
+}

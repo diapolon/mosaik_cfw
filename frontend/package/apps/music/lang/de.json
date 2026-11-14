@@ -18,6 +18,10 @@
   "repeat_one": "Wiederholen: einen",
   "shuffle_on": "Zufall: an",
   "shuffle_off": "Zufall: aus",
-  "bad_file": "Titel nicht abspielbar"
+  "bad_file": "Titel nicht abspielbar",
+  "list": "Liste",
+  "skin": "Aussehen",
+  "skin_now": "Aussehen: %s",
+  "open": "Öffnen"
  }
 }

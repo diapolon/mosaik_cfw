@@ -18,6 +18,10 @@
   "repeat_one": "Répéter : un",
   "shuffle_on": "Aléatoire : oui",
   "shuffle_off": "Aléatoire : non",
-  "bad_file": "Morceau illisible"
+  "bad_file": "Morceau illisible",
+  "list": "Liste",
+  "skin": "Apparence",
+  "skin_now": "Apparence : %s",
+  "open": "Ouvrir"
  }
 }

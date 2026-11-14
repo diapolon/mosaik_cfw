@@ -1,35 +1,35 @@
 {
  "title": "Music player",
- "description": "Listen to the Music folder: tracks and albums, repeat, shuffle, even with the screen off.",
+ "description": "Listen to the Music folder: covers, spectrum and selectable looks, repeat, shuffle, even with the screen off.",
  "author": "Mosaik",
- "version": "1.6",
+ "version": "1.7",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },
  "texts": {
   "it": {
    "title": "Lettore musicale",
-   "description": "Ascolta la cartella Music: brani e album, ripeti, casuale, anche a schermo spento."
+   "description": "Ascolta la cartella Music: copertine, spettro e aspetti a scelta, ripeti, casuale, anche a schermo spento."
   },
   "en": {
    "title": "Music player",
-   "description": "Listen to the Music folder: tracks and albums, repeat, shuffle, even with the screen off."
+   "description": "Listen to the Music folder: covers, spectrum and selectable looks, repeat, shuffle, even with the screen off."
   },
   "de": {
    "title": "Musikplayer",
-   "description": "Den Ordner Music hören: Titel und Alben, Wiederholen, Zufall, auch bei ausgeschaltetem Bildschirm."
+   "description": "Den Ordner Music hören: Cover, Spektrum und wählbares Aussehen, Wiederholen, Zufall, auch bei ausgeschaltetem Bildschirm."
   },
   "es": {
    "title": "Reproductor de música",
-   "description": "Escucha la carpeta Music: pistas y álbumes, repetir, aleatorio, también con la pantalla apagada."
+   "description": "Escucha la carpeta Music: portadas, espectro y aspectos a elegir, repetir, aleatorio, también con la pantalla apagada."
   },
   "fr": {
    "title": "Lecteur de musique",
-   "description": "Écoutez le dossier Music : morceaux et albums, répétition, aléatoire, même écran éteint."
+   "description": "Écoutez le dossier Music : pochettes, spectre et apparences au choix, répétition, aléatoire, même écran éteint."
   },
   "pt": {
    "title": "Leitor de música",
-   "description": "Ouça a pasta Music: faixas e álbuns, repetir, aleatório, também com o ecrã desligado."
+   "description": "Ouça a pasta Music: capas, espetro e aspetos à escolha, repetir, aleatório, também com o ecrã desligado."
   }
  }
 }

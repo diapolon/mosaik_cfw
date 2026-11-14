@@ -18,6 +18,10 @@
   "repeat_one": "Ripeti: uno",
   "shuffle_on": "Casuale: sì",
   "shuffle_off": "Casuale: no",
-  "bad_file": "Brano non leggibile"
+  "bad_file": "Brano non leggibile",
+  "list": "Elenco",
+  "skin": "Aspetto",
+  "skin_now": "Aspetto: %s",
+  "open": "Apri"
  }
 }

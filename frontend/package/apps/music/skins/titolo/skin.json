@@ -1,0 +1,29 @@
+{
+ "order": 3,
+ "name": "Title",
+ "texts": {
+  "it": "Titolo",
+  "en": "Title",
+  "es": "Título",
+  "fr": "Titre",
+  "de": "Titel",
+  "pt": "Título"
+ },
+ "layout": "title",
+ "background": "blobs",
+ "glass": true,
+ "colors": {
+  "background": "#140c10",
+  "background2": "#211218",
+  "panel": "#ffffff18",
+  "border": "#ffd6c050",
+  "text": "#fff6f2",
+  "text_dim": "#fff6f2a0",
+  "accent": "#ffb38a",
+  "accent_text": "#2a120a",
+  "bars": "#ffb38ad0",
+  "blob1": "#e0606a80",
+  "blob2": "#ff9a5070",
+  "blob3": "#a050c060"
+ }
+}

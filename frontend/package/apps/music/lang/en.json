@@ -18,6 +18,10 @@
   "repeat_one": "Repeat: one",
   "shuffle_on": "Shuffle: on",
   "shuffle_off": "Shuffle: off",
-  "bad_file": "Track can't be played"
+  "bad_file": "Track can't be played",
+  "list": "List",
+  "skin": "Look",
+  "skin_now": "Look: %s",
+  "open": "Open"
  }
 }

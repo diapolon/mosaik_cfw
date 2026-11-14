@@ -1,0 +1,29 @@
+{
+ "order": 2,
+ "name": "Wave",
+ "texts": {
+  "it": "Onda",
+  "en": "Wave",
+  "es": "Onda",
+  "fr": "Onde",
+  "de": "Welle",
+  "pt": "Onda"
+ },
+ "layout": "spectrum",
+ "background": "blobs",
+ "glass": true,
+ "colors": {
+  "background": "#07121a",
+  "background2": "#0b1f24",
+  "panel": "#ffffff18",
+  "border": "#9ff5e550",
+  "text": "#effffb",
+  "text_dim": "#effffba0",
+  "accent": "#5ef0d0",
+  "accent_text": "#05201a",
+  "bars": "#5ef0d0d0",
+  "blob1": "#1fb5a080",
+  "blob2": "#2a6fd080",
+  "blob3": "#5ef0d040"
+ }
+}

@@ -1,0 +1,29 @@
+{
+ "order": 4,
+ "name": "Cover",
+ "texts": {
+  "it": "Copertina",
+  "en": "Cover",
+  "es": "Portada",
+  "fr": "Pochette",
+  "de": "Cover",
+  "pt": "Capa"
+ },
+ "layout": "cover",
+ "background": "cover",
+ "glass": true,
+ "colors": {
+  "background": "#101114",
+  "background2": "#1a1c21",
+  "panel": "#ffffff1a",
+  "border": "#ffffff45",
+  "text": "#ffffff",
+  "text_dim": "#ffffffa8",
+  "accent": "#ffffff",
+  "accent_text": "#121316",
+  "bars": "#ffffffc0",
+  "blob1": "#80808060",
+  "blob2": "#60606050",
+  "blob3": "#a0a0a040"
+ }
+}

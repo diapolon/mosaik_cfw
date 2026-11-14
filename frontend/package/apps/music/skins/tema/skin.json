@@ -1,0 +1,15 @@
+{
+ "order": 5,
+ "name": "Theme",
+ "texts": {
+  "it": "Tema",
+  "en": "Theme",
+  "es": "Tema",
+  "fr": "Thème",
+  "de": "Design",
+  "pt": "Tema"
+ },
+ "layout": "cover",
+ "background": "theme",
+ "glass": false
+}
