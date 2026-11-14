@@ -279,7 +279,7 @@
     "theme_reset": "Variante, miniaturas por linha e capas como o tema escolhido prevê. Cada tema lembra as suas escolhas.",
     "autoboot": "Um jogo que arranca sozinho ao ligar, do início; ao sair volta-se ao menu. Escolhe-se na ficha do jogo (X) e tira-se aqui.",
     "auto_time": "Com o Wi-Fi ligado a consola obtém a hora exata da internet, uma vez por arranque.",
-    "battery": "Carga das últimas horas, consumo atual e tempo restante.",
+    "battery": "Carga das últimas horas e tempo restante.",
     "aspect": "Original: as proporções do jogo. Píxeis inteiros: imagem nítida. Ecrã inteiro: preenche tudo. Também por consola (Y em Plataformas) ou por jogo.",
     "filter": "Efeitos na imagem do jogo, como as linhas dos ecrãs antigos (scanlines). Também por consola ou por jogo.",
     "cpu": "Poupança prolonga a bateria, Desempenho ajuda os jogos pesados (CPS3). Também por consola ou por jogo.",

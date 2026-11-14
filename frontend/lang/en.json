@@ -279,7 +279,7 @@
     "theme_reset": "Variant, thumbnails per row and covers as the chosen theme intends. Each theme remembers its own choices.",
     "autoboot": "A game that starts by itself at power on, from the beginning; leaving it goes to the menu. Choose it from the game page (X), remove it here.",
     "auto_time": "With Wi-Fi connected the console gets the exact time from the internet, once per power on.",
-    "battery": "Charge over the last hours, current draw and time left.",
+    "battery": "Charge over the last hours and time left.",
     "aspect": "Original: the game's own proportions. Integer pixels: sharp image. Full screen: fills everything. Also per console (Y in Platforms) or per game.",
     "filter": "Effects on the game picture, such as the lines of old screens (scanlines). Also per console or per game.",
     "cpu": "Power saving extends battery life, Performance helps heavier games (CPS3). Also per console or per game.",

@@ -12,6 +12,10 @@ it Batteria: grafico delle ultime ore e tempo rimasto (Impostazioni → Sistema)
 en Battery: chart of the last hours and time left (Settings → System)
 it Ora automatica da internet quando il Wi-Fi è collegato
 en Automatic time from the internet when Wi-Fi is connected
+it La console si sospende al primo tentativo (Brick Pro)
+en The console sleeps at the first attempt (Brick Pro)
+it I giochi con un proprio Esci (ScummVM, DOSBox) tornano al menu
+en Games with their own Quit (ScummVM, DOSBox) go back to the menu
 
 0.9.63
 it Impostazioni di una console dal menu: Y su Piattaforme, Opzioni

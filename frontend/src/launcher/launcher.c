@@ -5483,10 +5483,13 @@ static void batt_load(void) {
     long tte, full;
     batt_detail = plat_battery_detail(&batt_ma, &tte, &full);
     batt_left_min = batt_estimate();
-    if (batt_left_min < 0 && !batt_charging && batt_detail) {
-        if (tte > 0) batt_left_min = tte / 60;
-        else if (full > 0 && batt_ma < -20) batt_left_min = (long)(full * batt_pct_now / 100.0 / -batt_ma * 60.0);
-    }
+    /* Il driver AXP2202 di serie non dà la corrente (current_now c'è ma la lettura fallisce: port
+       mainline leow149, docs/axp717-ibat-re.md), e time_to_empty_now ha unità non verificate: la
+       stima viene solo dalla discesa della carica. Nel registro i valori, per controllarli. */
+    static bool logged;
+    if (!logged && batt_detail) { logged = true; ui_log("batteria: corrente %d mA, time_to_empty_now %ld, capacità %ld mAh", batt_ma, tte, full); }
+    if (batt_left_min < 0 && !batt_charging && full > 0 && batt_ma < -20)
+        batt_left_min = (long)(full * batt_pct_now / 100.0 / -batt_ma * 60.0);
 }
 
 static void batt_show(void) {

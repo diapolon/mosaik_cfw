@@ -279,7 +279,7 @@
     "theme_reset": "Variante, vignettes par ligne et jaquettes comme le prévoit le thème choisi. Chaque thème garde ses propres choix.",
     "autoboot": "Un jeu qui démarre tout seul à l'allumage, depuis le début ; en le quittant on revient au menu. Il se choisit dans la fiche du jeu (X) et s'enlève ici.",
     "auto_time": "Avec le Wi-Fi connecté, la console prend l'heure exacte sur internet, une fois par allumage.",
-    "battery": "Charge des dernières heures, consommation actuelle et temps restant.",
+    "battery": "Charge des dernières heures et temps restant.",
     "aspect": "Original : les proportions du jeu. Pixels entiers : image nette. Plein écran : remplit tout. Aussi par console (Y dans Plateformes) ou par jeu.",
     "filter": "Effets sur l'image du jeu, comme les lignes des anciens écrans (scanlines). Aussi par console ou par jeu.",
     "cpu": "Économie prolonge la batterie, Performances aide les jeux lourds (CPS3). Aussi par console ou par jeu.",

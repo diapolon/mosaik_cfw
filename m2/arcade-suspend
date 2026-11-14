@@ -49,6 +49,8 @@ fi
 # LED spenti: le animazioni le calcola il driver led_anim sul processore, e in sospensione si
 # fermano (provato su Brick Pro con un respiro lento: si spegne appena la console dorme)
 echo 0 > /sys/class/led_anim/enable 2> /dev/null
+# vibrazione spenta: un programma che sospende a motore acceso lo lascerebbe girare (NextUI #898)
+echo 0 > /sys/class/gpio/gpio227/value 2> /dev/null
 # audio muto prima di dormire: al risveglio il codec si riavvia e l'amplificatore farebbe un "crack"
 mute
 # registro dei consumi (Registro diagnostico "Prestazioni"): una misura subito prima di dormire

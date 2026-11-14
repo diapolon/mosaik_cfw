@@ -90,8 +90,8 @@ static void wd_dump(const char *step, Uint32 ms) {
         cat_file(o, q);
     }
     if (d) closedir(d);
-    static const char *snd[] = { "/proc/asound/cards", "/proc/asound/card0/pcm0p/sub0/status",
-                                 "/proc/asound/card0/pcm0p/sub0/hw_params", "/proc/asound/card0/pcm0p/sub0/sw_params" };
+    static const char *snd[] = { "/proc/asound/cards", "/proc/asound/audiocodec/pcm0p/sub0/status",
+                                 "/proc/asound/audiocodec/pcm0p/sub0/hw_params", "/proc/asound/audiocodec/pcm0p/sub0/sw_params" };
     for (size_t i = 0; i < sizeof snd / sizeof snd[0]; i++) { fprintf(o, "%s:\n", snd[i]); cat_file(o, snd[i]); }
     fflush(o);
     fsync(fileno(o));
@@ -141,7 +141,7 @@ static void wd(const char *step) {
 /* posizione del flusso audio nella scheda (/proc/asound): se tra due letture non cambia, il
    chip non sta consumando e chiudere il flusso si bloccherebbe */
 static long hw_ptr(void) {
-    FILE *f = fopen("/proc/asound/card0/pcm0p/sub0/status", "r");
+    FILE *f = fopen("/proc/asound/audiocodec/pcm0p/sub0/status", "r");
     if (!f) return -1;
     char line[128];
     long v = -1;

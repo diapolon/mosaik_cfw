@@ -625,6 +625,10 @@ static char input_desc[16][64];
 /* tipo di controller per porta, scelto da SET_CONTROLLER_INFO (DualShock per la PlayStation) */
 static unsigned port_dev[4] = { RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD };
 static void build_option_view(void);
+/* il core ha chiesto di chiudere (il suo "Esci": ScummVM, DOSBox Pure, Mr.Boom...): si torna al
+   menu senza salvataggio automatico, il core potrebbe non essere più in uno stato salvabile */
+static bool core_shutdown;
+
 static bool environment(unsigned cmd, void *data) {
     switch (cmd) {
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
@@ -706,6 +710,10 @@ static bool environment(unsigned cmd, void *data) {
             }
         return true;
     }
+    case RETRO_ENVIRONMENT_SHUTDOWN:
+        if (!core_shutdown) ui_log("il core chiede di chiudere: si torna al menu");
+        core_shutdown = true;
+        return true;
     case RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME:
     case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
     case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
@@ -2446,6 +2454,7 @@ int main(int argc, char **argv) {
         if (UI.in.quit) { power_off_from_game(); break; }   /* chiusura finestra = tasto di accensione */
         /* tasti extra della Brick Pro: HOME torna al launcher, F1 salva, F2 carica */
         if (UI.in.home && UI.set.key_home == XH_LAUNCHER) { exit_code = EXIT_MENU; break; }
+        if (core_shutdown) { exit_code = EXIT_MENU; break; }
         /* tasto di accensione (sistema su SD): breve chiede se sospendere (il gioco riprende da
            dove era), tenuto premuto salva la partita e spegne */
         if (UI.in.power_long) { power_off_from_game(); break; }
@@ -2550,7 +2559,7 @@ int main(int argc, char **argv) {
     /* uscendo al menu (menu in gioco o HOME) la partita va nel salvataggio automatico, se
        l'impostazione è accesa: in home la si riprende con "Riprendi" */
     /* cambio gioco: lo stato è già salvato (swr_input), un secondo giro ruoterebbe di nuovo i salvataggi */
-    if (exit_code == EXIT_MENU && (UI.set.autosave_exit || switching) && !switch_saved && state_save(true)) ui_log("salvataggio automatico all'uscita");
+    if (exit_code == EXIT_MENU && !core_shutdown && (UI.set.autosave_exit || switching) && !switch_saved && state_save(true)) ui_log("salvataggio automatico all'uscita");
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
     ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : "common.leaving"), 0.35);
     stats_update();

@@ -17,6 +17,12 @@ export TRIMUI_MODEL="$(cat /run/trimui-model)" ARCADE_STANDALONE=1
 # esempio TRIMUI_JOYDEBUG=1 (tasti nel log) o ARCADE_DEBUG_SHOT=1 (istantanea dei giochi)
 [ -f "$ROOT/System/device-env.sh" ] && . "$ROOT/System/device-env.sh"
 BIN=/usr/arcade/bin
+# Messaggi del kernel sulla porta seriale: solo gli errori. A 115200 baud una raffica di messaggi
+# (memoria finita, il Wi-Fi che si collega) tiene occupato il processore 0, l'I2C dei tasti va in
+# timeout e sulla Brick Pro il driver va in panico (issue #1; spruceOS f9a5821a: 0 timeout in 16
+# prove). loglevel=4 nell'ambiente di U-Boot vale solo dal secondo avvio: qui da subito. dmesg li
+# tiene tutti comunque.
+echo "3 4 1 7" > /proc/sys/kernel/printk 2>/dev/null
 # Registro diagnostico (Impostazioni > Strumenti): spento di base. Da spento i passi restano in
 # memoria e sulla SD finiscono solo se l'avvio si blocca; le uscite dei programmi non si tengono.
 DEBUG=$(sed -n 's/.*"debug_level": *\([0-9]\).*/\1/p' "$ROOT/System/settings.json" 2>/dev/null)
@@ -184,10 +190,11 @@ step "9 GPU PRONTA"
 
 # ---- audio
 # Senza la preparazione del firmware la riproduzione resta ferma anche sull'hardware
-# (aplay -D hw:0,0 non avanza). Si prova la scheda con un secondo di silenzio e, se non va,
+# (aplay -D hw:audiocodec,0 non avanza; per nome: una scheda audio USB collegata all'accensione
+# diventa la carta 0, NextUI #865). Si prova la scheda con un secondo di silenzio e, se non va,
 # si cambia la configurazione dei controlli finché non va; tutto finisce in audio.txt.
 AUDIO="$LOGDIR/audio.txt"
-audio_test() { timeout -s KILL 3 aplay -q -D hw:0,0 -f S16_LE -r 48000 -c 2 -d 1 /dev/zero >/dev/null 2>&1; }
+audio_test() { timeout -s KILL 3 aplay -q -D hw:audiocodec,0 -f S16_LE -r 48000 -c 2 -d 1 /dev/zero >/dev/null 2>&1; }
 setc() { amixer -q cset name="$1" "$2" >> "$AUDIO" 2>&1 || echo "  (non riuscito: $1 = $2)" >> "$AUDIO"; }
 { echo "=== $(date)"; cat /proc/asound/cards; } > "$AUDIO" 2>&1
 # altoparlante muto finché il launcher non ha aperto l'uscita audio: configurare il codec con
@@ -415,6 +422,9 @@ sd_check() {
 zombie_note() {
     zn=$(grep -l '^State:[[:space:]]*Z' /proc/[0-9]*/status 2> /dev/null | wc -l)
     [ "$zn" -gt 0 ] && step "processi morti non raccolti dopo $1: $zn"
+    # motore della vibrazione (PH3) spento dopo ogni programma: uno che esce a motore acceso lo
+    # lascerebbe girare (NextUI #898)
+    [ -w /sys/class/gpio/gpio227/value ] && echo 0 > /sys/class/gpio/gpio227/value 2> /dev/null
     return 0
 }
 run_app() {

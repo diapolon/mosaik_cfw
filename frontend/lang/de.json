@@ -279,7 +279,7 @@
     "theme_reset": "Variante, Vorschaubilder pro Zeile und Cover wie vom gewählten Design vorgesehen. Jedes Design merkt sich seine Auswahl.",
     "autoboot": "Ein Spiel, das beim Einschalten von selbst von vorn startet; beim Verlassen geht es ins Menü. Auswahl auf der Spielseite (X), hier entfernen.",
     "auto_time": "Mit WLAN holt die Konsole die genaue Uhrzeit aus dem Internet, einmal pro Einschalten.",
-    "battery": "Ladung der letzten Stunden, aktueller Verbrauch und Restzeit.",
+    "battery": "Ladung der letzten Stunden und Restzeit.",
     "aspect": "Original: die Proportionen des Spiels. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus. Auch pro Konsole (Y in Plattformen) oder pro Spiel.",
     "filter": "Effekte für das Spielbild, zum Beispiel die Linien alter Bildschirme (Scanlines). Auch pro Konsole oder pro Spiel.",
     "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3). Auch pro Konsole oder pro Spiel.",
