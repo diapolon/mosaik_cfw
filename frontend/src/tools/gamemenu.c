@@ -38,7 +38,9 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
 static void draw_base(int px, int py, int pw, int ph) {
     theme_t *t = &UI.th;
     int r = M(t->panel_radius) * 2;
-    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 150));
+    /* tutto lo schermo coperto, senza trasparenza: i pulsanti del gioco visti sotto il velo si
+       confondevano con le voci del menu (Smart Pro, 14 novembre) */
+    ui_rect(0, 0, UI.w, UI.h, with_alpha(t->bg, 255));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
     /* fondo pieno: sotto il gioco Linux continua a muoversi e con una superficie semitrasparente
        (tema Copertina) il menu si leggeva male, come per le finestre delle app (app_panel) */
@@ -65,7 +67,7 @@ static void draw_static(const char *title) {
     int note_h = TTF_FontHeight(UI.f_small) + M(0.02f);
     ui_text_fit(UI.f_small, T("game.linux_note"), pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_small, buf, px + pad, py + ph - pad / 2 - note_h + M(0.01f), t->text_dim, ALIGN_LEFT);
-    ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, 235));
+    ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, 255));
     const char *h[] = { "B", T("game.back_to_game"), "<>", T("common.change"), "A", T("common.ok") };
     ui_hints(h, 6);
     g_px = px; g_py = py; g_pw = pw; g_ph = ph; g_rows_y = y; g_rh = M(t->list_row_h);
