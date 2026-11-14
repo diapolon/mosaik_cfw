@@ -342,6 +342,10 @@ printf '#!/bin/sh\necho doom2\n' > pkgsrc/freedoom/Linux/Freedoom2/launch.sh
 check "secondo gioco senza game.json: catalogo rifiutato" "rifiutato" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && echo fatto || echo rifiutato)"
 echo '{"title":"Freedoom 2"}' > pkgsrc/freedoom/Linux/Freedoom2/game.json
 check "secondo gioco senza min_system: catalogo rifiutato" "rifiutato" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && echo fatto || echo rifiutato)"
+for v in null '"  "' '"nuova"' 59; do
+    echo '{"title":"Freedoom 2","min_system":'"$v"'}' > pkgsrc/freedoom/Linux/Freedoom2/game.json
+    check "min_system $v: catalogo rifiutato" "rifiutato" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && echo fatto || echo rifiutato)"
+done
 echo '{"title":"Freedoom 2","min_system":"0.9.59"}' > pkgsrc/freedoom/Linux/Freedoom2/game.json
 check "due giochi con il requisito: vale il più alto" "0.9.59" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && python3 -c "import json;d=json.load(open('www2/store.json'));print([p for p in d['packages2'] if p['id']=='freedoom'][0].get('min_system'))")"
 echo

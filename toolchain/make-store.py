@@ -306,9 +306,10 @@ for pid in sorted(os.listdir(args.src)):
         need = []
     for rel in need:
         mj = os.path.join(root, rel)
-        m = str(json.load(open(mj, encoding="utf-8")).get("min_system", "")) if os.path.exists(mj) else ""
-        if not m:
-            sys.exit(f"{pid}: {rel} senza \"min_system\" (il sistema di cui ha bisogno)")
+        m = json.load(open(mj, encoding="utf-8")).get("min_system") if os.path.exists(mj) else None
+        # solo una versione vera ("0.9.58"): null, numeri, spazi o testo non valgono (verifica Codex)
+        if not isinstance(m, str) or not re.fullmatch(r"\d+(\.\d+)+", m):
+            sys.exit(f"{pid}: {rel} senza \"min_system\" valido (il sistema di cui ha bisogno, come \"0.9.58\")")
         mins.append(m)
     min_sys = max(mins, key=vkey) if mins else stato.get("min_system", {}).get(pid, "")
     if min_sys:
