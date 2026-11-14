@@ -27,6 +27,7 @@ static void test_sync(void) { syncs++; }
 #define sync test_sync
 #define fsync test_fsync
 #include "/trimui/frontend/src/common/durable.h"
+#include "/trimui/frontend/src/runner/gamecfg.h"
 #define LIST_KEY 208
 #define RETRO_MEMORY_SAVE_RAM 0
 #define RETRO_MEMORY_RTC 1
@@ -46,11 +47,15 @@ static bool ser(void *b, size_t n) { memcpy(b, payload, n); return true; }
 static struct { size_t (*serialize_size)(void); bool (*serialize)(void *, size_t); } core = { ser_size, ser };
 static char root[512], core_path[8] = "c", rom_path[8] = "r", title[8] = "t";
 static char system_id[32];   /* vuoto: un gioco arcade */
+static char core_id[8] = "c";
 static char game_key[200];   /* vuoto: il nome della ROM */
 static void IMG_SavePNG(SDL_Surface *s, const char *p) { (void)s; FILE *f = fopen(p, "w"); fputs(payload, f); fclose(f); }
 C
 awk '/^static struct \{$/ {s=""; on=1} on {s=s $0 "\n"} /^} [a-z_]*;/ {if ($2=="gcfg;") {printf "%s", s; exit} on=0}' $R
-grep -E '^enum \{ NSLOTS|^static const char \*const save_ext' $R
+grep -E '^enum \{ NSLOTS|^static const char \*const save_ext|^static gc_layer_t lay_con' $R
+fn $R '^static void console_file'
+fn $R '^static gc_vals_t base_vals'
+fn $R '^static void gamecfg_resolve'
 for f in gamecfg_load state_path; do fn $R "^static void $f"; done
 fn $R '^static bool copy_whole'
 fn $R '^static void auto_keep_previous'
@@ -204,7 +209,7 @@ int main(void) {
 }
 C
 } > t.c
-gcc -g -O0 -Wall -Wextra -Wno-unused-function -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -o t t.c
+gcc -g -O0 -Wall -Wextra -Wno-unused-function -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -o t t.c /trimui/frontend/src/runner/gamecfg.c
 ./t
 
 echo "--- blocco del Wi-Fi"

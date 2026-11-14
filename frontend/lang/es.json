@@ -1051,5 +1051,22 @@
     "volume": "Volumen",
     "select": "Elegir",
     "adjust": "Ajustar"
+  },
+  "layer": {
+    "target": "Cambiar para",
+    "this_game": "Este juego",
+    "all_games": "Todos los juegos de %s",
+    "reset_game": "Como los demás juegos",
+    "reset_console": "Como los Ajustes",
+    "from_game": "juego",
+    "from_console": "consola",
+    "console_note": "Para todos los juegos de %s.",
+    "ask_game_title": "¿Quitar las elecciones?",
+    "ask_game_body": "El juego vuelve a ser como los demás de %s. Partidas y estados se quedan.",
+    "ask_console_title": "¿Quitar las elecciones?",
+    "ask_console_body": "Los juegos de %s vuelven a los Ajustes, salvo las elecciones de cada juego.",
+    "clear": "Quitar",
+    "game_cleared": "Este juego ahora sigue a la consola",
+    "console_cleared": "La consola ahora sigue los Ajustes"
   }
 }

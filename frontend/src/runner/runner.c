@@ -4,6 +4,7 @@
 #include "../common/platform.h"
 #include "libretro.h"
 #include "glshader.h"
+#include "gamecfg.h"
 #include "ratectl.h"
 #include "../common/filters.h"
 #include "../common/json.h"
@@ -67,12 +68,18 @@ static char rom_tmp[1200];   /* ROM estratta da uno zip, in /tmp (in RAM sulla c
 
 /* ---------------------------------------------------------- opzioni core */
 /* Il core dichiara le opzioni come "Descrizione; valore1|valore2|...": il primo è il
-   predefinito. Valgono poi, in ordine, System/core-options.txt (per tutti i giochi) e
-   Saves/<core>/<rom>.opt, scritto dal menu "Opzioni del gioco". FBNeo espone qui anche
+   predefinito. Valgono poi, in ordine, le "options" del JSON dell'emulatore e
+   System/core-options.txt (base), lo strato Console System/console/<console>.opt e lo strato
+   Gioco Saves/<console>/<rom>.opt, scritti dal menu "Opzioni del gioco" secondo "Cambia per".
+   Ogni strato tiene solo le opzioni diverse da quello che erediterebbe. FBNeo espone qui anche
    i DIP switch del gioco e l'accesso al menu di servizio. */
+
+/* strato in cui vanno le scelte del menu: 0 questo gioco, 1 tutti i giochi della console */
+static int cfg_target;
 
 typedef struct {
     char key[96], desc[128], value[96];
+    char base[96], con[96], gam[96];   /* ereditato, strato Console, strato Gioco ("" = non scelto) */
     char *raw;           /* copia dei valori separati da '\0' */
     const char *vals[96];
     int nvals;
@@ -113,7 +120,12 @@ static void copt_declare(const char *key, const char *spec) {
     if (o->nvals && !o->value[0]) snprintf(o->value, sizeof o->value, "%s", o->vals[0]);
 }
 
-static void opts_load_file(const char *path) {
+enum { OL_BASE, OL_CON, OL_GAME };
+static char *copt_layer(coreopt_t *o, int layer) { return layer == OL_CON ? o->con : layer == OL_GAME ? o->gam : o->base; }
+/* valore che il core vede: il primo strato che ha una scelta, partendo dal gioco */
+static void copt_value(coreopt_t *o) { snprintf(o->value, sizeof o->value, "%s", o->gam[0] ? o->gam : o->con[0] ? o->con : o->base); }
+
+static void opts_load_file(const char *path, int layer) {
     char line[320];
     FILE *f = fopen(path, "r");
     if (!f) return;
@@ -127,9 +139,20 @@ static void opts_load_file(const char *path) {
         while (*v == ' ' || *v == '"') v++;
         v[strcspn(v, "\"\r\n")] = 0;
         coreopt_t *o = copt_find(k);
-        if (o) snprintf(o->value, sizeof o->value, "%s", v);
+        if (o) snprintf(copt_layer(o, layer), sizeof o->base, "%s", v);
     }
     fclose(f);
+}
+
+/* System/console/<console>.<ext>: lo strato Console; la console è quella dei salvataggi
+   (--system), o il core per gli arcade */
+static void console_file(char *out, size_t n, const char *ext) {
+    snprintf(out, n, "%s/System/console/%s.%s", root, system_id[0] ? system_id : core_id, ext);
+}
+static void console_dir(void) {
+    char d[1100];
+    snprintf(d, sizeof d, "%s/System/console", root);
+    mkdir(d, 0755);
 }
 
 static void game_file(char *out, size_t n, const char *ext) {
@@ -262,49 +285,75 @@ static void opts_load_emulator(void) {
     jval *j = emulator_json(), *o = json_get(j, "options");
     for (jval *c = o && o->t == J_OBJ ? o->child : NULL; c; c = c->next) {
         coreopt_t *co = c->key && c->t == J_STR ? copt_find(c->key) : NULL;
-        if (co) snprintf(co->value, sizeof co->value, "%s", c->s);
+        if (co) snprintf(co->base, sizeof co->base, "%s", c->s);
     }
     json_free(j);
 }
 
 static void opts_load_overrides(void) {
     char p[1200];
+    for (int i = 0; i < ncopts; i++) {
+        coreopt_t *o = &copts[i];
+        snprintf(o->base, sizeof o->base, "%s", o->nvals ? o->vals[0] : o->value);
+        o->con[0] = o->gam[0] = 0;
+    }
     opts_load_emulator();
     snprintf(p, sizeof p, "%s/System/core-options.txt", root);
-    opts_load_file(p);
+    opts_load_file(p, OL_BASE);
+    console_file(p, sizeof p, "opt");
+    opts_load_file(p, OL_CON);
     game_file(p, sizeof p, "opt");
-    opts_load_file(p);
+    opts_load_file(p, OL_GAME);
+    for (int i = 0; i < ncopts; i++) copt_value(&copts[i]);
 }
 
-/* nel file del gioco finiscono solo le opzioni diverse dal predefinito */
-static void opts_save_game(void) {
-    char p[1200];
-    game_file(p, sizeof p, "opt");
-    FILE *f = fopen(p, "w");
-    if (!f) return;
+/* un file per strato, con le sole opzioni scelte lì; senza scelte il file si toglie */
+static void opts_save_layer(int layer) {
+    char p[1200], tmp[1300];
+    if (layer == OL_CON) { console_dir(); console_file(p, sizeof p, "opt"); }
+    else game_file(p, sizeof p, "opt");
     int n = 0;
-    for (int i = 0; i < ncopts; i++)
-        if (copts[i].nvals && strcmp(copts[i].value, copts[i].vals[0])) {
-            fprintf(f, "%s = \"%s\"\n", copts[i].key, copts[i].value);
-            n++;
-        }
-    fclose(f);
-    if (!n) remove(p);
+    for (int i = 0; i < ncopts; i++) n += copt_layer(&copts[i], layer)[0] != 0;
+    if (!n) { remove(p); return; }
+    snprintf(tmp, sizeof tmp, "%s.tmp", p);
+    FILE *f = fopen(tmp, "w");
+    if (!f) { ui_log("opzioni non salvate: %s", p); return; }
+    for (int i = 0; i < ncopts; i++) {
+        const char *v = copt_layer(&copts[i], layer);
+        if (v[0]) fprintf(f, "%s = \"%s\"\n", copts[i].key, v);
+    }
+    bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    if (fclose(f) != 0) ok = false;
+    if (!ok || durable_replace(tmp, p) != 0) { remove(tmp); ui_log("opzioni non salvate: %s", p); }
 }
 
+/* La scelta va nello strato di "Cambia per" e vi resta solo se è diversa da quello che lo strato
+   erediterebbe (prima il gioco la confrontava con il predefinito del core: un'opzione cambiata da
+   core-options.txt o dall'emulatore e rimessa al valore del core non restava). Nello strato
+   Console toglie anche la scelta di questo gioco, perché la si veda subito. */
 static void copt_cycle(coreopt_t *o, int dir) {
     if (o->nvals < 2) return;
     int cur = 0;
     for (int i = 0; i < o->nvals; i++)
         if (!strcmp(o->vals[i], o->value)) cur = i;
-    snprintf(o->value, sizeof o->value, "%s", o->vals[(cur + dir + o->nvals) % o->nvals]);
+    const char *v = o->vals[(cur + dir + o->nvals) % o->nvals];
+    if (cfg_target) {
+        snprintf(o->con, sizeof o->con, "%s", strcmp(v, o->base) ? v : "");
+        o->gam[0] = 0;
+        opts_save_layer(OL_CON);
+    } else {
+        const char *inh = o->con[0] ? o->con : o->base;
+        snprintf(o->gam, sizeof o->gam, "%s", strcmp(v, inh) ? v : "");
+    }
+    opts_save_layer(OL_GAME);
+    copt_value(o);
     copts_dirty = true;
-    opts_save_game();
 }
 
 /* ----------------------------------------------- impostazioni del gioco */
-/* Saves/<core>/<rom>.cfg: proporzioni, filtro, rotazione e tasti di questo gioco.
-   Senza file valgono proporzioni e filtro scelti nelle impostazioni generali. */
+/* A strati (gamecfg.h): Generale (settings.json, tasti e processore dal JSON dell'emulatore),
+   Console (System/console/<console>.cfg), Gioco (Saves/<console>/<rom>.cfg, anche rotazione e
+   slot degli stati). gcfg tiene i valori effettivi; il menu cambia lo strato di "Cambia per". */
 
 enum { ROT_NONE = 0, ROT_LEFT = 1, ROT_RIGHT = 3 };
 static const int rot_values[3] = { ROT_NONE, ROT_LEFT, ROT_RIGHT };
@@ -329,11 +378,9 @@ static int emu_map[16];
 static struct {
     int aspect, rotate, bezel, cpu, map[16];   /* cpu: 0 automatico, 1 minimo, 2 risparmio, 3 bilanciato, 4 prestazioni */
     char filter[32];
-    char sp_name[32][48];   /* parametri shader cambiati dal menu */
-    float sp_val[32];
-    int nsp;
     int slot;   /* slot degli stati in uso: 0..2 */
 } gcfg;
+static gc_layer_t lay_con, lay_game;
 
 /* tasti di partenza: default_map, poi "buttons" del JSON dell'emulatore */
 static void emu_map_load(void) {
@@ -353,40 +400,47 @@ static void emu_map_load(void) {
     json_free(j);
 }
 
+/* valori di partenza dello strato Console: le impostazioni generali e l'emulatore */
+static gc_vals_t base_vals(void) {
+    gc_vals_t v;
+    v.aspect = UI.set.aspect;
+    snprintf(v.filter, sizeof v.filter, "%s", UI.set.filter);
+    v.bezel = UI.set.bezel;
+    v.cpu = 0;
+    memcpy(v.map, emu_map, sizeof v.map);
+    return v;
+}
+
+/* gcfg dagli strati */
+static void gamecfg_resolve(void) {
+    gc_vals_t v = base_vals();
+    gc_apply(&v, &lay_con);
+    gc_apply(&v, &lay_game);
+    gcfg.aspect = v.aspect >= 0 && v.aspect < 3 ? v.aspect : 0;
+    snprintf(gcfg.filter, sizeof gcfg.filter, "%s", v.filter);
+    gcfg.bezel = v.bezel != 0;
+    gcfg.cpu = v.cpu >= 0 && v.cpu <= 4 ? v.cpu : 0;
+    for (int i = 0; i < 16; i++) gcfg.map[i] = v.map[i] >= -1 && v.map[i] < BTN_COUNT ? v.map[i] : emu_map[i];
+    gcfg.rotate = lay_game.rotate;
+    gcfg.slot = lay_game.slot;
+}
+
 static void gamecfg_load(void) {
-    gcfg.aspect = UI.set.aspect;
-    snprintf(gcfg.filter, sizeof gcfg.filter, "%s", UI.set.filter);
-    gcfg.bezel = UI.set.bezel;
-    gcfg.rotate = ROT_NONE;
-    gcfg.cpu = 0;
-    gcfg.slot = 0;
-    memcpy(gcfg.map, emu_map, sizeof gcfg.map);
-    char p[1200], line[128];
+    char p[1200];
+    bool v2;
+    console_file(p, sizeof p, "cfg");
+    gc_read(p, &lay_con, &v2, filter_legacy_id);
+    lay_con.rotate = lay_con.slot = 0;   /* solo del gioco */
     game_file(p, sizeof p, "cfg");
-    FILE *f = fopen(p, "r");
-    if (!f) return;
-    while (fgets(line, sizeof line, f)) {
-        int id, v;
-        if (sscanf(line, "aspect=%d", &v) == 1) { if (v >= 0 && v < 3) gcfg.aspect = v; }
-        else if (!strncmp(line, "filter=", 7)) {
-            char id[32];
-            if (sscanf(line + 7, "%31s", id) == 1)
-                snprintf(gcfg.filter, sizeof gcfg.filter, "%s", id[0] >= '0' && id[0] <= '9' ? filter_legacy_id(atoi(id)) : id);
-        }
-        else if (sscanf(line, "bezel=%d", &v) == 1) gcfg.bezel = v != 0;
-        else if (!strncmp(line, "sp.", 3) && gcfg.nsp < 32) {
-            char *eq = strchr(line, '=');
-            if (eq && eq - line - 3 < 48) {
-                snprintf(gcfg.sp_name[gcfg.nsp], sizeof gcfg.sp_name[0], "%.*s", (int)(eq - line - 3), line + 3);
-                gcfg.sp_val[gcfg.nsp++] = (float)atof(eq + 1);
-            }
-        }
-        else if (sscanf(line, "rotate=%d", &v) == 1) gcfg.rotate = v & 3;
-        else if (sscanf(line, "cpu=%d", &v) == 1) gcfg.cpu = v >= 0 && v <= 4 ? v : 0;
-        else if (sscanf(line, "slot=%d", &v) == 1) gcfg.slot = v >= 0 && v <= 2 ? v : 0;
-        else if (sscanf(line, "map.%d=%d", &id, &v) == 2 && id >= 0 && id < 16 && v >= -1 && v < BTN_COUNT) gcfg.map[id] = v;
+    if (gc_read(p, &lay_game, &v2, filter_legacy_id) && !v2) {
+        /* scritto prima della 0.9.62: aveva sempre formato, filtro, cornice e processore; quelli
+           uguali alle impostazioni generali di adesso erano copiati, non scelti */
+        gc_vals_t in = base_vals();
+        gc_apply(&in, &lay_con);
+        gc_migrate(&lay_game, &in);
+        ui_log("impostazioni del gioco: file di prima della 0.9.62, tenute le voci diverse dalle generali");
     }
-    fclose(f);
+    gamecfg_resolve();
 }
 
 /* profilo predefinito dell'emulatore: voce "cpu" in Emulators/<id>.json (0-4, come gcfg.cpu) */
@@ -453,20 +507,80 @@ static void apply_cpu(void) {
     plat_cpu_game(khz[gcfg.cpu ? gcfg.cpu : emu_cpu]);
 }
 
+/* strato del gioco (con rotazione e slot); con "Cambia per: tutti i giochi" anche quello della console */
 static void gamecfg_save(void) {
     char p[1200];
+    lay_game.rotate = gcfg.rotate;
+    lay_game.slot = gcfg.slot;
     game_file(p, sizeof p, "cfg");
-    FILE *f = fopen(p, "w");
-    if (!f) return;
-    fprintf(f, "aspect=%d\nfilter=%s\nbezel=%d\nrotate=%d\ncpu=%d\n", gcfg.aspect, gcfg.filter, gcfg.bezel, gcfg.rotate, gcfg.cpu);
-    fprintf(f, "slot=%d\n", gcfg.slot);
-    for (int i = 0; i < 16; i++)
-        if (gcfg.map[i] != emu_map[i]) fprintf(f, "map.%d=%d\n", i, gcfg.map[i]);
-    for (int i = 0; i < glsh_param_count(); i++) {
-        glsh_param_t *q = glsh_param(i);
-        if (q->value != q->def) fprintf(f, "sp.%s=%g\n", q->name, q->value);
+    if (!gc_write(p, &lay_game)) ui_log("impostazioni del gioco non salvate: %s", p);
+    if (cfg_target) {
+        console_dir();
+        console_file(p, sizeof p, "cfg");
+        if (!gc_write(p, &lay_con)) ui_log("impostazioni della console non salvate: %s", p);
     }
-    fclose(f);
+}
+
+/* Voci a strati del menu: aspect, bezel, cpu, poi map.0..map.15. Il valore va nello strato
+   scelto e vi resta solo se diverso da quello ereditato; nello strato Console toglie anche la
+   scelta del gioco, così l'effetto si vede subito. */
+enum { GF_ASPECT, GF_BEZEL, GF_CPU, GF_MAP };
+static int *gf_ptr(gc_layer_t *l, int f, bool **has) {
+    if (f == GF_ASPECT) { *has = &l->has_aspect; return &l->aspect; }
+    if (f == GF_BEZEL) { *has = &l->has_bezel; return &l->bezel; }
+    if (f == GF_CPU) { *has = &l->has_cpu; return &l->cpu; }
+    *has = &l->has_map[f - GF_MAP];
+    return &l->map[f - GF_MAP];
+}
+static int gf_val(const gc_vals_t *v, int f) {
+    return f == GF_ASPECT ? v->aspect : f == GF_BEZEL ? v->bezel : f == GF_CPU ? v->cpu : v->map[f - GF_MAP];
+}
+static void layer_set(int f, int value) {
+    gc_vals_t inh = base_vals();
+    bool *has;
+    int *x;
+    if (cfg_target) {
+        bool *game_has;
+        gf_ptr(&lay_game, f, &game_has);
+        *game_has = false;
+        x = gf_ptr(&lay_con, f, &has);
+    } else {
+        gc_apply(&inh, &lay_con);
+        x = gf_ptr(&lay_game, f, &has);
+    }
+    *x = value;
+    *has = value != gf_val(&inh, f);
+    gamecfg_resolve();
+}
+static void layer_set_filter(const char *id) {
+    gc_vals_t inh = base_vals();
+    gc_layer_t *l = &lay_game;
+    if (cfg_target) { l = &lay_con; lay_game.has_filter = false; }
+    else gc_apply(&inh, &lay_con);
+    snprintf(l->filter, sizeof l->filter, "%s", id);
+    l->has_filter = strcmp(id, inh.filter) != 0;
+    gamecfg_resolve();
+}
+/* da quale strato viene il valore effettivo: 2 gioco, 1 console, 0 generale */
+static int gf_origin(int f) {
+    bool *has;
+    gf_ptr(&lay_game, f, &has);
+    if (*has) return 2;
+    gf_ptr(&lay_con, f, &has);
+    return *has ? 1 : 0;
+}
+
+/* parametri dello shader: stesso schema, con l'ereditato del gioco = console o predefinito */
+static float sp_inherited(const glsh_param_t *q) {
+    int i = cfg_target ? -1 : gc_sp_find(&lay_con, q->name);
+    return i >= 0 ? lay_con.sp_val[i] : q->def;
+}
+static void sp_set(glsh_param_t *q, float v) {
+    q->value = v;
+    gc_layer_t *l = cfg_target ? &lay_con : &lay_game;
+    if (cfg_target) gc_sp_del(&lay_game, q->name);
+    if (fabsf(v - sp_inherited(q)) < 1e-5f) gc_sp_del(l, q->name);
+    else gc_sp_set(l, q->name, v);
 }
 
 /* ------------------------------------------------------------ callback */
@@ -510,6 +624,7 @@ static char input_desc[16][64];
 
 /* tipo di controller per porta, scelto da SET_CONTROLLER_INFO (DualShock per la PlayStation) */
 static unsigned port_dev[4] = { RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD };
+static void build_option_view(void);
 static bool environment(unsigned cmd, void *data) {
     switch (cmd) {
     case RETRO_ENVIRONMENT_GET_LOG_INTERFACE:
@@ -544,6 +659,7 @@ static bool environment(unsigned cmd, void *data) {
     case RETRO_ENVIRONMENT_SET_VARIABLES:
         for (const struct retro_variable *v = data; v && v->key; v++) copt_declare(v->key, v->value ? v->value : "");
         opts_load_overrides();
+        build_option_view();   /* subito: con l'elenco vuoto la voce del menu restava grigia e la pagina non si apriva (dall'8 novembre) */
         return true;
     case RETRO_ENVIRONMENT_GET_VARIABLE: {
         struct retro_variable *v = data;
@@ -970,10 +1086,12 @@ static void filter_apply(void) {
         } else ui_log("maschera non leggibile: %s", flt.mask);
     }
     if (flt.shader[0] && glsh_load(flt.shader)) {
-        for (int i = 0; i < gcfg.nsp; i++) {
-            glsh_param_t *q = glsh_param_find(gcfg.sp_name[i]);
-            if (q) q->value = gcfg.sp_val[i];
-        }
+        const gc_layer_t *ls[2] = { &lay_con, &lay_game };
+        for (int k = 0; k < 2; k++)
+            for (int i = 0; i < ls[k]->nsp; i++) {
+                glsh_param_t *q = glsh_param_find(ls[k]->sp_name[i]);
+                if (q) q->value = ls[k]->sp_val[i];
+            }
     }
     else glsh_unload();
     if (flt.vignette > 0) {
@@ -1155,11 +1273,36 @@ static void draw_game(void) {
 /* Tre pagine con la stessa grafica: principale, opzioni del gioco (core), comandi. */
 
 enum { PAGE_MAIN, PAGE_OPTIONS, PAGE_CONTROLS, PAGE_SHADER, PAGE_SAVES, PAGE_HOTKEYS };
-enum { MI_RESUME, MI_SWITCH, MI_SAVE, MI_LOAD, MI_SAVES, MI_DISC, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS, MI_HOTKEYS,
-       MI_RESET, MI_EXIT, MI_COUNT };
-static const char *main_keys[MI_COUNT] = { "game.resume", "switch.menu", "game.save_state", "game.load_state", "saves.title", "game.disc", "game.aspect",
+enum { MI_RESUME, MI_SWITCH, MI_SAVE, MI_LOAD, MI_SAVES, MI_DISC, MI_TARGET, MI_ASPECT, MI_FILTER, MI_BEZEL, MI_ROTATE, MI_CPU, MI_SHADER, MI_OPTIONS, MI_CONTROLS, MI_HOTKEYS,
+       MI_LAYER, MI_RESET, MI_EXIT, MI_COUNT };
+static const char *main_keys[MI_COUNT] = { "game.resume", "switch.menu", "game.save_state", "game.load_state", "saves.title", "game.disc", "layer.target", "game.aspect",
                                            "game.filter", "game.bezel", "game.rotation", "game.cpu", "game.shader_params", "game.options", "game.controls", "hotkey.page",
-                                           "game.reset", "game.exit" };
+                                           "layer.reset_game", "game.reset", "game.exit" };
+
+/* nome della console per "Tutti i giochi ...": dal JSON dell'emulatore (--system), o del core */
+static char con_name[96];
+static void console_name_load(void) {
+    char p[1200];
+    jval *j = NULL;
+    if (system_id[0]) { snprintf(p, sizeof p, "%s/Emulators/%s.json", root, system_id); j = json_load(p); }
+    if (!j) j = emulator_json();
+    snprintf(con_name, sizeof con_name, "%s", json_str(j, "name", system_id[0] ? system_id : core_id));
+    json_free(j);
+}
+static const char *target_label(void) {
+    static char b[160];
+    if (!cfg_target) return T("layer.this_game");
+    snprintf(b, sizeof b, T("layer.all_games"), con_name);
+    return b;
+}
+/* lo strato di "Cambia per" ha scelte da togliere? */
+static bool layer_has_choices(void) {
+    const gc_layer_t *l = cfg_target ? &lay_con : &lay_game;
+    if (l->has_aspect || l->has_filter || l->has_bezel || l->has_cpu || l->nsp) return true;
+    for (int i = 0; i < 16; i++) if (l->has_map[i]) return true;
+    for (int i = 0; i < ncopts; i++) if ((cfg_target ? copts[i].con : copts[i].gam)[0]) return true;
+    return false;
+}
 static const char *cpu_names[] = { "cpu.auto", "cpu.min", "cpu.save", "cpu.balanced", "cpu.perf" };
 static const char *aspect_names[] = { "aspect.original", "aspect.integer", "aspect.full" };
 static filter_t filters[24];
@@ -1446,7 +1589,8 @@ static void swr_draw(void) {
 
 /* voci del menu senza effetto per questo gioco: in grigio */
 static bool row_disabled(int i) {
-    return page == PAGE_MAIN && ((i == MI_SHADER && !glsh_param_count()) || (i == MI_OPTIONS && !noptv) || (i == MI_DISC && disk_count() < 2));
+    return page == PAGE_MAIN && ((i == MI_SHADER && !glsh_param_count()) || (i == MI_OPTIONS && !noptv) || (i == MI_DISC && disk_count() < 2) ||
+                                 (i == MI_ROTATE && cfg_target) || (i == MI_LAYER && !layer_has_choices()));
 }
 
 static int page_rows(void) {
@@ -1481,20 +1625,21 @@ static void disc_change(int dir) {
 static void main_change(int item, int dir) {
     switch (item) {
     case MI_DISC: disc_change(dir); return;
-    case MI_ASPECT: gcfg.aspect = (gcfg.aspect + dir + 3) % 3; break;
+    case MI_TARGET: cfg_target = !cfg_target; ui_sound(SND_MOVE); return;   /* solo la scelta dello strato */
+    case MI_ASPECT: layer_set(GF_ASPECT, (gcfg.aspect + dir + 3) % 3); break;
     case MI_FILTER: {
         if (!nfilters) nfilters = filters_list(root, UI.set.lang, filters, 24);
         if (!nfilters) return;
         int cur = 0;
         for (int i = 0; i < nfilters; i++)
             if (!strcmp(filters[i].id, gcfg.filter)) cur = i;
-        snprintf(gcfg.filter, sizeof gcfg.filter, "%s", filters[(cur + dir + nfilters) % nfilters].id);
+        layer_set_filter(filters[(cur + dir + nfilters) % nfilters].id);
         filter_apply();
         break;
     }
-    case MI_BEZEL: gcfg.bezel = !gcfg.bezel; break;
-    case MI_ROTATE: gcfg.rotate = rot_values[(rot_index() + dir + 3) % 3]; break;
-    case MI_CPU: gcfg.cpu = (gcfg.cpu + dir + 5) % 5; apply_cpu(); break;
+    case MI_BEZEL: layer_set(GF_BEZEL, !gcfg.bezel); break;
+    case MI_ROTATE: if (cfg_target) return; gcfg.rotate = rot_values[(rot_index() + dir + 3) % 3]; break;   /* solo del gioco */
+    case MI_CPU: layer_set(GF_CPU, (gcfg.cpu + dir + 5) % 5); apply_cpu(); break;
     default: return;
     }
     gamecfg_save();
@@ -1506,7 +1651,7 @@ static void remap_change(int row, int dir) {
     int id = remap_ids[row], cur = 0;
     for (int i = 0; i < NCONSOLE; i++)
         if (console_btns[i] == gcfg.map[id]) cur = i;
-    gcfg.map[id] = console_btns[(cur + dir + NCONSOLE) % NCONSOLE];
+    layer_set(GF_MAP + id, console_btns[(cur + dir + NCONSOLE) % NCONSOLE]);
     gamecfg_save();
     ui_sound(SND_MOVE);
 }
@@ -1520,7 +1665,7 @@ static void open_page(int p) {
 }
 
 /* azioni che fanno perdere qualcosa: si chiede conferma, con Annulla già selezionato */
-enum { ASK_NONE, ASK_RESTART, ASK_CONTROLS, ASK_OVERWRITE, ASK_SWITCH };
+enum { ASK_NONE, ASK_RESTART, ASK_CONTROLS, ASK_OVERWRITE, ASK_SWITCH, ASK_LAYER };
 static int ask_kind, ask_kind_sel, ask_row;
 
 static void ask_start(int kind) {
@@ -1796,12 +1941,12 @@ static void menu_input(void) {
         if (page == PAGE_SHADER && glsh_param_count() && dir) {
             glsh_param_t *q = glsh_param(*s);
             float v = q->value + dir * q->step;
-            q->value = v < q->min ? q->min : v > q->max ? q->max : v;
+            sp_set(q, v < q->min ? q->min : v > q->max ? q->max : v);
             gamecfg_save();
             ui_sound(SND_MOVE);
         }
         if (page == PAGE_SHADER && glsh_param_count() && ok) {
-            glsh_param(*s)->value = glsh_param(*s)->def;   /* A: valore predefinito */
+            sp_set(glsh_param(*s), sp_inherited(glsh_param(*s)));   /* A: il valore ereditato */
             gamecfg_save();
             ui_sound(SND_OK);
         }
@@ -1824,7 +1969,8 @@ static void menu_input(void) {
         if (state_load(false)) { ui_toast(T("game.state_loaded")); menu_open = false; }
         else ui_toast(T("game.no_state"));
         break;
-    case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: case MI_CPU: case MI_DISC: main_change(*s, 1); return;
+    case MI_TARGET: case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: case MI_CPU: case MI_DISC: main_change(*s, 1); return;
+    case MI_LAYER: ask_start(ASK_LAYER); return;
     case MI_OPTIONS: open_page(PAGE_OPTIONS); return;
     case MI_CONTROLS: open_page(PAGE_CONTROLS); return;
     case MI_HOTKEYS: open_page(PAGE_HOTKEYS); return;
@@ -1841,7 +1987,8 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
     *sub = false;
     value[0] = 0;
     if (page == PAGE_MAIN) {
-        snprintf(label, ln, "%s", T(main_keys[i]));
+        snprintf(label, ln, "%s", T(i == MI_LAYER && cfg_target ? "layer.reset_console" : main_keys[i]));
+        if (i == MI_TARGET) snprintf(value, vn, "%s", target_label());
         if (i == MI_ASPECT) snprintf(value, vn, "%s", T(aspect_names[gcfg.aspect % 3]));
         if (i == MI_FILTER) snprintf(value, vn, "%s", flt.name);
         if (i == MI_BEZEL) snprintf(value, vn, "%s", T(gcfg.bezel ? "common.yes" : "common.no"));
@@ -1886,12 +2033,35 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn, bool
     }
 }
 
+/* da dove viene il valore della riga, se non dalle impostazioni generali */
+static const char *row_origin(int i) {
+    int o = 0;
+    if (page == PAGE_MAIN) {
+        if (i == MI_ASPECT) o = gf_origin(GF_ASPECT);
+        else if (i == MI_BEZEL) o = gf_origin(GF_BEZEL);
+        else if (i == MI_CPU) o = gf_origin(GF_CPU);
+        else if (i == MI_FILTER) o = lay_game.has_filter ? 2 : lay_con.has_filter ? 1 : 0;
+    } else if (page == PAGE_CONTROLS && i < NREMAP) o = gf_origin(GF_MAP + remap_ids[i]);
+    else if (page == PAGE_OPTIONS && noptv) { coreopt_t *c = &copts[optv[i]]; o = c->gam[0] ? 2 : c->con[0] ? 1 : 0; }
+    else if (page == PAGE_SHADER && glsh_param_count()) {
+        const char *n = glsh_param(i)->name;
+        o = gc_sp_find(&lay_game, n) >= 0 ? 2 : gc_sp_find(&lay_con, n) >= 0 ? 1 : 0;
+    }
+    return o == 2 ? T("layer.from_game") : o == 1 ? T("layer.from_console") : NULL;
+}
+
 static bool row_changeable(int i) {
     if (page == PAGE_SAVES || page == PAGE_HOTKEYS) return false;
-    if (page == PAGE_MAIN) return i == MI_ASPECT || i == MI_FILTER || i == MI_BEZEL || i == MI_ROTATE || i == MI_CPU || (i == MI_DISC && disk_count() > 1);
+    if (page == PAGE_MAIN) return i == MI_TARGET || i == MI_ASPECT || i == MI_FILTER || i == MI_BEZEL || i == MI_ROTATE || i == MI_CPU || (i == MI_DISC && disk_count() > 1);
     if (page == PAGE_OPTIONS) return noptv > 0;
     if (page == PAGE_SHADER) return glsh_param_count() > 0;
     return i < NREMAP;
+}
+
+static const char *con_note(void) {
+    static char b[300];
+    snprintf(b, sizeof b, T("layer.console_note"), con_name);
+    return b;
 }
 
 static void menu_draw(void) {
@@ -1914,8 +2084,12 @@ static void menu_draw(void) {
     ui_text(UI.f_title, buf, px + pad, y, t->text, ALIGN_LEFT);
     y += TTF_FontHeight(UI.f_title);
     if (page != PAGE_MAIN) {
-        ui_text(UI.f_small, T(page == PAGE_OPTIONS ? "game.options" : page == PAGE_SHADER ? "game.shader_params" : page == PAGE_SAVES ? "saves.title" : page == PAGE_HOTKEYS ? "hotkey.title" : "game.controls"),
-                px + pad, y, t->accent, ALIGN_LEFT);
+        char hdr[300];
+        const char *pn = T(page == PAGE_OPTIONS ? "game.options" : page == PAGE_SHADER ? "game.shader_params" : page == PAGE_SAVES ? "saves.title" : page == PAGE_HOTKEYS ? "hotkey.title" : "game.controls");
+        if (page == PAGE_OPTIONS || page == PAGE_SHADER || page == PAGE_CONTROLS) snprintf(hdr, sizeof hdr, "%s  ·  %s", pn, target_label());
+        else snprintf(hdr, sizeof hdr, "%s", pn);
+        ui_text_fit(UI.f_small, hdr, pw - 2 * pad, buf, sizeof buf);
+        ui_text(UI.f_small, buf, px + pad, y, t->accent, ALIGN_LEFT);
         y += TTF_FontHeight(UI.f_small);
     }
     y += M(0.02f);
@@ -1923,7 +2097,7 @@ static void menu_draw(void) {
     /* nota in fondo al pannello */
     const char *note = page == PAGE_OPTIONS ? T("game.options_note") : page == PAGE_SHADER ? T("game.shader_note")
                      : page == PAGE_CONTROLS ? T("game.controls_note") : page == PAGE_SAVES ? T("saves.note")
-                     : page == PAGE_HOTKEYS ? T("hotkey.note") : T("game.per_game_note");
+                     : page == PAGE_HOTKEYS ? T("hotkey.note") : cfg_target ? con_note() : T("game.per_game_note");
     int note_h = TTF_FontHeight(UI.f_small) + M(0.02f);
     ui_text_fit(UI.f_small, note, pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_small, buf, px + pad, py + ph - pad / 2 - note_h + M(0.01f), t->text_dim, ALIGN_LEFT);
@@ -1957,6 +2131,11 @@ static void menu_draw(void) {
             char fitv[160];
             ui_text_fit(f, buf, page == PAGE_SAVES ? list_w / 2 : list_w / 3, fitv, sizeof fitv);
             vw = ui_text(f, fitv, right, ty, is_sel ? c : t->text_dim, ALIGN_RIGHT) + M(0.03f);
+            const char *org = row_origin(i);
+            if (org) {
+                int sh = TTF_FontHeight(UI.f_small);
+                vw += ui_text(UI.f_small, org, right - vw, ry_i + (rh - sh) / 2, is_sel ? c : with_alpha(t->accent, 220), ALIGN_RIGHT) + M(0.02f);
+            }
         } else if (sub) {
             vw = ui_text(f, "›", right, ty, is_sel ? c : t->text_dim, ALIGN_RIGHT) + M(0.03f);
         }
@@ -2103,8 +2282,32 @@ static void ask_do(int kind) {
     } else if (kind == ASK_RESTART) {
         core.reset();
         menu_open = false;
+    } else if (kind == ASK_LAYER) {
+        /* lo strato di "Cambia per" torna vuoto: segue quello sopra (rotazione e slot restano) */
+        gc_layer_t *l = cfg_target ? &lay_con : &lay_game;
+        int rot = l->rotate, slot = l->slot;
+        gc_clear(l);
+        l->rotate = rot;
+        l->slot = slot;
+        for (int i = 0; i < ncopts; i++) {
+            (cfg_target ? copts[i].con : copts[i].gam)[0] = 0;
+            copt_value(&copts[i]);
+        }
+        copts_dirty = true;
+        opts_save_layer(cfg_target ? OL_CON : OL_GAME);
+        gamecfg_resolve();
+        filter_apply();
+        apply_cpu();
+        gamecfg_save();
+        ui_toast(T(cfg_target ? "layer.console_cleared" : "layer.game_cleared"));
+        ui_sound(SND_OK);
     } else {
-        memcpy(gcfg.map, emu_map, sizeof gcfg.map);
+        /* comandi predefiniti nello strato scelto; per la console anche quelli di questo gioco */
+        for (int i = 0; i < 16; i++) {
+            lay_game.has_map[i] = false;
+            if (cfg_target) lay_con.has_map[i] = false;
+        }
+        gamecfg_resolve();
         gamecfg_save();
         ui_toast(T("game.controls_restored"));
         ui_sound(SND_OK);
@@ -2216,6 +2419,7 @@ int main(int argc, char **argv) {
     }
     emu_map_load();
     gamecfg_load();
+    console_name_load();
     emu_cpu = emulator_cpu();
     apply_cpu();
     filter_apply();
@@ -2309,6 +2513,11 @@ int main(int argc, char **argv) {
         if (ask_kind == ASK_SWITCH) ui_confirm_draw(T("switch.lose_title"), T(switch_failed ? "switch.fail_body" : "switch.lose_body"), T("common.cancel"), T("switch.go"), ask_kind_sel);
         if (ask_kind == ASK_RESTART) ui_confirm_draw(T("confirm.restart_title"), T("confirm.restart_body"), T("common.cancel"), T("game.reset"), ask_kind_sel);
         if (ask_kind == ASK_CONTROLS) ui_confirm_draw(T("confirm.controls_title"), T("confirm.controls_body"), T("common.cancel"), T("confirm.restore"), ask_kind_sel);
+        if (ask_kind == ASK_LAYER) {
+            char body[300];
+            snprintf(body, sizeof body, T(cfg_target ? "layer.ask_console_body" : "layer.ask_game_body"), con_name);
+            ui_confirm_draw(T(cfg_target ? "layer.ask_console_title" : "layer.ask_game_title"), body, T("common.cancel"), T("layer.clear"), ask_kind_sel);
+        }
         if (suspend_ask) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
         osd_draw();
         ui_end();

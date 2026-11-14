@@ -29,7 +29,7 @@ FORCE:
 $(BUILD)/launcher: $(COMMON) $(LAUNCHER) src/common/*.h src/launcher/*.h ../VERSION $(BUILD)/.update-url | $(BUILD)
 	$(CC) $(CFLAGS) $(shell pkg-config --cflags openssl) -o $@ $(COMMON) $(LAUNCHER) $(LDLIBS) $(shell pkg-config --libs SDL2_mixer) -lcurl -lz $(shell pkg-config --libs openssl)
 
-RUNNER := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c
+RUNNER := src/runner/runner.c src/runner/glshader.c src/runner/romzip.c src/runner/gamecfg.c
 
 $(BUILD)/runner: $(COMMON) $(RUNNER) src/runner/*.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(RUNNER) $(LDLIBS) -ldl -lz

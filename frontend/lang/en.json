@@ -1051,5 +1051,22 @@
     "volume": "Volume",
     "select": "Choose",
     "adjust": "Adjust"
+  },
+  "layer": {
+    "target": "Change for",
+    "this_game": "This game",
+    "all_games": "All %s games",
+    "reset_game": "Like the other games",
+    "reset_console": "Like Settings",
+    "from_game": "game",
+    "from_console": "console",
+    "console_note": "For all %s games.",
+    "ask_game_title": "Remove the choices?",
+    "ask_game_body": "This game goes back to the other %s games. Saves and states stay.",
+    "ask_console_title": "Remove the choices?",
+    "ask_console_body": "%s games go back to Settings, except single-game choices.",
+    "clear": "Remove",
+    "game_cleared": "This game now follows the console",
+    "console_cleared": "The console now follows Settings"
   }
 }

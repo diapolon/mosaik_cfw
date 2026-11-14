@@ -1051,5 +1051,22 @@
     "volume": "Volume",
     "select": "Choisir",
     "adjust": "Régler"
+  },
+  "layer": {
+    "target": "Modifier pour",
+    "this_game": "Ce jeu",
+    "all_games": "Tous les jeux %s",
+    "reset_game": "Comme les autres jeux",
+    "reset_console": "Comme les Paramètres",
+    "from_game": "jeu",
+    "from_console": "console",
+    "console_note": "Pour tous les jeux %s.",
+    "ask_game_title": "Retirer les choix ?",
+    "ask_game_body": "Le jeu redevient comme les autres jeux %s. Sauvegardes et états restent.",
+    "ask_console_title": "Retirer les choix ?",
+    "ask_console_body": "Les jeux %s reviennent aux Paramètres, sauf les choix propres à un jeu.",
+    "clear": "Retirer",
+    "game_cleared": "Ce jeu suit maintenant la console",
+    "console_cleared": "La console suit maintenant les Paramètres"
   }
 }

@@ -1051,5 +1051,22 @@
     "volume": "Lautstärke",
     "select": "Wählen",
     "adjust": "Einstellen"
+  },
+  "layer": {
+    "target": "Ändern für",
+    "this_game": "Dieses Spiel",
+    "all_games": "Alle Spiele: %s",
+    "reset_game": "Wie die anderen Spiele",
+    "reset_console": "Wie die Einstellungen",
+    "from_game": "Spiel",
+    "from_console": "Konsole",
+    "console_note": "Für alle Spiele (%s).",
+    "ask_game_title": "Wahl entfernen?",
+    "ask_game_body": "Das Spiel wird wie die anderen Spiele für %s. Spielstände bleiben.",
+    "ask_console_title": "Wahl entfernen?",
+    "ask_console_body": "Die Spiele für %s folgen wieder den Einstellungen, außer der Wahl einzelner Spiele.",
+    "clear": "Entfernen",
+    "game_cleared": "Dieses Spiel folgt jetzt der Konsole",
+    "console_cleared": "Die Konsole folgt jetzt den Einstellungen"
   }
 }
