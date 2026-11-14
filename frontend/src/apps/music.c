@@ -5,6 +5,8 @@
    precedente e successivo, sinistra/destra tenuti indietro e avanti di 10 secondi, X ripeti
    (no, tutti, uno), Y casuale, SELECT spegne lo schermo mentre la musica continua (un tasto
    qualsiasi lo riaccende), B o MENU escono. Il volume è quello della console (tasti laterali).
+   Uscendo con un brano in riproduzione, il menu di Mosaik lo continua dallo stesso punto; con un
+   brano in pausa o fermo il menu resta in silenzio (System/musica-app.txt, issue #8).
 
    Sul Mac: build/music --root sdcard --app package/apps/music [--auto "..."] */
 #include "appkit.h"
@@ -189,6 +191,24 @@ static void skip(int dir, bool user) {
 
 static double position(void) { return mus ? Mix_GetMusicPosition(mus) : 0; }
 
+/* Al menu di Mosaik, che all'avvio fa partire la sua musica dalla stessa cartella Music (prima
+   sembrava che l'app continuasse e ricominciasse il brano da capo, issue #8): con un brano in
+   riproduzione gli si dice quale e da che punto continuare, con un brano in pausa o fermo di non
+   far partire niente. Se nell'app non si è ascoltato niente, nessuna nota: il menu fa come sempre.
+   Lo legge launcher/music.c (music_init), una volta sola. */
+static void handoff_write(void) {
+    if (cur < 0) return;
+    char p[1200];
+    snprintf(p, sizeof p, "%s/System/musica-app.txt", app_root);
+    FILE *f = fopen(p, "w");
+    if (!f) return;
+    if (mixer_on && mus && !paused && Mix_PlayingMusic())
+        fprintf(f, "riprendi\t%s/Music/%s\t%.1f\n", app_root, tracks[cur].rel, position());
+    else
+        fputs("silenzio\n", f);
+    if (fclose(f) != 0) remove(p);
+}
+
 /* Dopo una sospensione della console (gamewatch ferma l'app, arcade-suspend, poi la riprende)
    l'uscita audio può non rispondere più: il mixer si riapre e il brano riparte da dove era,
    in pausa se lo era (verifica audit). La sospensione si riconosce dal tempo: CLOCK_BOOTTIME la
@@ -363,6 +383,7 @@ int main(int argc, char **argv) {
     }
     app_exit_begin();
     plat_screen_off(false);
+    handoff_write();
     if (mixer_on) {
         Mix_HookMusicFinished(NULL);
         Mix_HaltMusic();

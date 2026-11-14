@@ -1839,6 +1839,14 @@ void ui_apply_device(void) {
     ui_reload_theme();
 }
 
+/* senza caratteri ogni disegno di testo andrebbe in crash: meglio non partire e dirlo nel registro
+   (succede solo con una cartella Arcade senza Themes, per esempio una --root sbagliata sul Mac) */
+static bool fonts_ok(void) {
+    if (UI.f_small && UI.f_normal && UI.f_title && UI.f_big) return true;
+    ui_log("nessun carattere leggibile: manca anche %s", fallback_font());
+    return false;
+}
+
 bool ui_init(const char *app, const char *root, const char *auto_script, int audio_rate, bool vsync) {
     memset(&UI, 0, sizeof UI);
     snprintf(UI.root, sizeof UI.root, "%s", root);
@@ -1903,6 +1911,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     audio_open();
     ui_mark("audio");
     ui_apply_device();
+    if (!fonts_ok()) return false;
     ui_mark("tema e caratteri");
     t0 = tprev = SDL_GetPerformanceCounter();
     return true;
@@ -2022,6 +2031,7 @@ bool ui_init_offscreen(const char *app, const char *root) {
     }
     SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
     ui_apply_device();
+    if (!fonts_ok()) return false;
     t0 = tprev = SDL_GetPerformanceCounter();
     return true;
 }

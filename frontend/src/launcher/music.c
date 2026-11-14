@@ -6,6 +6,8 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <stdio.h>
+#include <unistd.h>
 
 static char (*tracks)[512];
 static int ntracks, cur = -1, last_vol = -1;
@@ -56,8 +58,53 @@ static bool mixer_open(void) {
     return true;
 }
 
+/* un brano preciso da un punto preciso (quello che suonava nel Lettore musicale) */
+static bool music_play_from(const char *path, double pos) {
+    if (!mixer_open()) return false;
+    if (mus) { Mix_HaltMusic(); Mix_FreeMusic(mus); mus = NULL; }
+    finished = false;
+    mus = Mix_LoadMUS(path);
+    if (!mus) { ui_log("musica: %s non leggibile (%s)", path, Mix_GetError()); return false; }
+    const char *base = strrchr(path, '/');
+    snprintf(title, sizeof title, "%s", base ? base + 1 : path);
+    char *dot = strrchr(title, '.');
+    if (dot) *dot = 0;
+    last_vol = (int)(MIX_MAX_VOLUME * UI.set.music_vol / 10.0f * ui_gain());
+    Mix_VolumeMusic(last_vol);
+    if (Mix_FadeInMusicPos(mus, 0, 800, pos > 0 ? pos : 0) < 0) {
+        ui_log("musica: %s non parte (%s)", path, Mix_GetError());
+        Mix_FreeMusic(mus);
+        mus = NULL;
+        title[0] = 0;
+        return false;
+    }
+    ui_log("musica: continuo dal Lettore musicale %s da %.0f s", title, pos);
+    return true;
+}
+
 void music_init(const char *root) {
     char dir[1100];
+    /* nota del Lettore musicale appena chiuso (apps/music.c, issue #8): continuare il suo brano
+       o restare in silenzio; vale una volta sola */
+    char hp[1100], line[1400] = "";
+    snprintf(hp, sizeof hp, "%s/System/musica-app.txt", root);
+    FILE *hf = fopen(hp, "r");
+    if (hf) {
+        if (!fgets(line, sizeof line, hf)) line[0] = 0;
+        fclose(hf);
+        unlink(hp);
+        line[strcspn(line, "\r\n")] = 0;
+    }
+    bool silent = !strcmp(line, "silenzio");
+    bool resumed = false;
+    if (!strncmp(line, "riprendi\t", 9) && UI.set.music_vol > 0) {
+        char *path = line + 9, *tab = strrchr(path, '\t');
+        if (tab && tab != path) {
+            *tab = 0;
+            resumed = music_play_from(path, atof(tab + 1));
+        }
+    }
+    if (silent) ui_log("musica: il Lettore musicale era in pausa, menu in silenzio");
     snprintf(dir, sizeof dir, "%s/Music", root);
     DIR *d = opendir(dir);
     if (!d) return;
@@ -78,7 +125,7 @@ void music_init(const char *root) {
         memcpy(t, tracks[i], 512); memcpy(tracks[i], tracks[j], 512); memcpy(tracks[j], t, 512);
     }
     ui_log("musica: %d brani", ntracks);
-    if (ntracks && UI.set.music_vol > 0) music_next();
+    if (ntracks && UI.set.music_vol > 0 && !silent && !resumed) music_next();
 }
 
 void music_next(void) {
