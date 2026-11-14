@@ -1,0 +1,25 @@
+{
+ "video": {
+  "title": "Video",
+  "count": "%d video",
+  "folder": "Cartella Video",
+  "empty": "Nessun video. Copia MP4, MKV, WEBM, AVI o MOV nella cartella Video, anche in sottocartelle.",
+  "list_incomplete": "Elenco incompleto: nomi troppo lunghi o memoria esaurita",
+  "open": "Guarda",
+  "pause": "Pausa",
+  "continue": "Continua",
+  "quit": "Esci",
+  "bar": "Barra",
+  "list": "Elenco",
+  "resume_at": "Eri arrivato a %s.",
+  "restart": "Ricomincia",
+  "resume": "Riprendi",
+  "cannot_play": "Video non riproducibile",
+  "bad_file": "Il file è danneggiato o in un formato che l'app non legge.",
+  "no_video": "Il file non contiene video.",
+  "unsupported": "Formato video non supportato (%s).",
+  "too_big": "Video troppo grande (%s): al massimo 1920x1080.",
+  "no_audio_codec": "Audio %s non supportato: video senza suono",
+  "too_heavy": "Video troppo pesante: alcune immagini saltano"
+ }
+}

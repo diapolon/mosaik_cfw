@@ -81,6 +81,8 @@ models | while IFS="|" read -r id fw name file; do
     AP=; for a in /build/out/apps/*; do [ -f "$a" ] && AP="$AP $a"; done
     # Nintendo 64: mupen64plus e i suoi moduli (toolchain/build-mupen64plus.sh)
     for a in /build/out/mupen64plus/mupen64plus /build/out/mupen64plus/lib/*.so*; do [ -f "$a" ] && AP="$AP $a"; done
+    # app Video: le librerie di FFmpeg che porta in Apps/video/lib (toolchain/build-ffmpeg.sh)
+    for a in /build/out/video/lib/*.so*; do [ -f "$a" ] && AP="$AP $a"; done
     python3 -I $T/toolchain/libclosure.py $F /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch /build/out/bin/gamemenu \
         /build/out/cores/*.so $DC $PS $AP \
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \

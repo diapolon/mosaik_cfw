@@ -9,9 +9,12 @@ CFLAGS  += -std=c11 -O2 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-fiel
 LDLIBS  += $(shell pkg-config --libs $(PKGS)) -lm
 
 BUILD   := build
+# Video: FFmpeg di Homebrew (brew install ffmpeg); senza, l'app non si compila e basta
+FFMPEG_PKGS := libavformat libavcodec libswscale libswresample libavutil
+VIDEO_MAC := $(if $(shell pkg-config --exists $(FFMPEG_PKGS) && echo si),$(BUILD)/video)
 COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 
-all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest $(BUILD)/scraper $(BUILD)/sdgrow $(BUILD)/diag
+all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest $(BUILD)/scraper $(BUILD)/sdgrow $(BUILD)/diag $(VIDEO_MAC)
 
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c
 
@@ -45,6 +48,9 @@ $(BUILD)/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c sr
 
 $(BUILD)/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDLIBS) $(shell pkg-config --libs SDL2_mixer)
+
+$(BUILD)/video: $(COMMON) $(APPKIT) src/apps/video.c src/apps/appkit.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) $(shell pkg-config --cflags $(FFMPEG_PKGS)) -o $@ $(COMMON) $(APPKIT) src/apps/video.c $(LDLIBS) $(shell pkg-config --libs $(FFMPEG_PKGS))
 
 # Diagnostica (scarica 4 MB per la prova del Wi-Fi: libcurl)
 $(BUILD)/diag: $(COMMON) $(APPKIT) src/apps/diag.c src/apps/appkit.h src/common/*.h | $(BUILD)

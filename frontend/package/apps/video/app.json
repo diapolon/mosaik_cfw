@@ -1,0 +1,35 @@
+{
+ "title": "Video",
+ "description": "Watch the Video folder: MP4, MKV, WEBM, AVI, MOV up to 1080p, resumes where you left off.",
+ "author": "Mosaik",
+ "version": "1.0",
+ "env": {
+  "GAMEWATCH_NOMENU": "1"
+ },
+ "texts": {
+  "it": {
+   "title": "Video",
+   "description": "Guarda i video della cartella Video: MP4, MKV, WEBM, AVI, MOV fino a 1080p, riprende da dove eri rimasto."
+  },
+  "en": {
+   "title": "Video",
+   "description": "Watch the Video folder: MP4, MKV, WEBM, AVI, MOV up to 1080p, resumes where you left off."
+  },
+  "de": {
+   "title": "Video",
+   "description": "Videos aus dem Ordner Video ansehen: MP4, MKV, WEBM, AVI, MOV bis 1080p, macht dort weiter, wo du aufgehört hast."
+  },
+  "es": {
+   "title": "Vídeo",
+   "description": "Mira la carpeta Video: MP4, MKV, WEBM, AVI, MOV hasta 1080p, sigue donde lo dejaste."
+  },
+  "fr": {
+   "title": "Vidéo",
+   "description": "Regardez le dossier Video : MP4, MKV, WEBM, AVI, MOV jusqu'en 1080p, reprend là où vous vous étiez arrêté."
+  },
+  "pt": {
+   "title": "Vídeo",
+   "description": "Veja a pasta Video: MP4, MKV, WEBM, AVI, MOV até 1080p, retoma onde parou."
+  }
+ }
+}

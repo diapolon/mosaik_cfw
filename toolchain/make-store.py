@@ -69,6 +69,7 @@ PACKAGES = {
     "scraper": ("Download images", None, "apps"),
     "sdgrow": ("SD card space", None, "apps"),
     "diag": ("Diagnostics", None, "apps"),
+    "video": ("Video", None, "apps"),   # porta in Apps/video/lib le librerie LGPL di FFmpeg
     # giochi Linux (0.9.58): nome, versione, colore e testi da frontend/package/linux/<id>/pack.json
     "freedoom": ("Freedoom", None, "linux"),
     "mrboom": ("Mr.Boom", None, "linux"),

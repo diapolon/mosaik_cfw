@@ -18,7 +18,7 @@ mkdir -p "$APP/bin" "$APP/lib" "$DATA"
 
 # programmi e core compilati, dal volume Docker
 docker run --rm -v trimui-build:/build -v "$DIST":/dist alpine:3.20 \
-    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; } && rm -rf /dist/ppsspp && { [ ! -f /build/out/ppsspp/PPSSPPSDL ] || cp -a /build/out/ppsspp /dist/ppsspp; } && rm -rf /dist/mupen64plus && { [ ! -f /build/out/mupen64plus/mupen64plus ] || cp -a /build/out/mupen64plus /dist/mupen64plus; } && rm -rf /dist/linux && { [ ! -d /build/out/linux ] || cp -a /build/out/linux /dist/linux; }'
+    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; } && rm -rf /dist/ppsspp && { [ ! -f /build/out/ppsspp/PPSSPPSDL ] || cp -a /build/out/ppsspp /dist/ppsspp; } && rm -rf /dist/mupen64plus && { [ ! -f /build/out/mupen64plus/mupen64plus ] || cp -a /build/out/mupen64plus /dist/mupen64plus; } && rm -rf /dist/linux && { [ ! -d /build/out/linux ] || cp -a /build/out/linux /dist/linux; } && rm -rf /dist/video && { [ ! -d /build/out/video ] || cp -a /build/out/video /dist/video; }'
 cp "$FE/package/trimui/launch.sh" "$FE/package/trimui/config.json" "$FE/package/trimui/icon.png" "$APP/"
 chmod +x "$APP/launch.sh" "$APP/bin/"*
 
@@ -155,6 +155,14 @@ app sdtest
 app scraper
 app sdgrow
 app diag
+# Video: con le librerie di FFmpeg (LGPL, toolchain/build-ffmpeg.sh) in Apps/video/lib e la licenza
+if [ -f "$DIST/apps/video" ] && [ -d "$DIST/video/lib" ]; then
+    app video
+    cp -R "$DIST/video/lib" "$PKG/video/Apps/video/lib"
+    cp "$DIST/video/LICENSE-ffmpeg.txt" "$PKG/video/Apps/video/" 2>/dev/null || true
+else
+    echo "attenzione: manca l'app Video o FFmpeg (toolchain/build-ffmpeg.sh): niente pacchetto Video" >&2
+fi
 # temi dello Store: ogni cartella di frontend/package/themes è un pacchetto (Themes/<id>), i
 # tre temi di base restano nella cartella Arcade dell'immagine
 for t in "$FE"/package/themes/*/; do

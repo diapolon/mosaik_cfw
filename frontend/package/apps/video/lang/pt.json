@@ -1,0 +1,25 @@
+{
+ "video": {
+  "title": "Vídeo",
+  "count": "%d vídeos",
+  "folder": "Pasta Video",
+  "empty": "Sem vídeos. Copie MP4, MKV, WEBM, AVI ou MOV para a pasta Video, também em subpastas.",
+  "list_incomplete": "Lista incompleta: nomes demasiado longos ou memória esgotada",
+  "open": "Ver",
+  "pause": "Pausa",
+  "continue": "Continuar",
+  "quit": "Sair",
+  "bar": "Barra",
+  "list": "Lista",
+  "resume_at": "Parou em %s.",
+  "restart": "Recomeçar",
+  "resume": "Retomar",
+  "cannot_play": "Não é possível reproduzir",
+  "bad_file": "O ficheiro está danificado ou num formato que a app não lê.",
+  "no_video": "O ficheiro não contém vídeo.",
+  "unsupported": "Formato de vídeo não suportado (%s).",
+  "too_big": "Vídeo demasiado grande (%s): no máximo 1920x1080.",
+  "no_audio_codec": "Áudio %s não suportado: vídeo sem som",
+  "too_heavy": "Vídeo demasiado pesado: algumas imagens saltam"
+ }
+}

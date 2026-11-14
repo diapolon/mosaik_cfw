@@ -1,0 +1,25 @@
+{
+ "video": {
+  "title": "Video",
+  "count": "%d videos",
+  "folder": "Video folder",
+  "empty": "No videos. Copy MP4, MKV, WEBM, AVI or MOV files to the Video folder, subfolders too.",
+  "list_incomplete": "Incomplete list: names too long or out of memory",
+  "open": "Watch",
+  "pause": "Pause",
+  "continue": "Play",
+  "quit": "Quit",
+  "bar": "Bar",
+  "list": "List",
+  "resume_at": "You stopped at %s.",
+  "restart": "Start over",
+  "resume": "Resume",
+  "cannot_play": "Can't play this video",
+  "bad_file": "The file is damaged or in a format the app can't read.",
+  "no_video": "The file has no video.",
+  "unsupported": "Video format not supported (%s).",
+  "too_big": "Video too large (%s): 1920x1080 at most.",
+  "no_audio_codec": "%s audio not supported: playing without sound",
+  "too_heavy": "Video too heavy: some frames are skipped"
+ }
+}

@@ -10,6 +10,9 @@ SDK     ?= /opt/sdk/usr
 PREFIX  ?= /build/prefix
 TCLIBC  := /opt/aarch64-linux-gnu-7.5.0-linaro/aarch64-linux-gnu/libc
 OUT     ?= /build/out
+# app Video: FFmpeg di toolchain/build-ffmpeg.sh (più sotto)
+FFMPEG    := /build/out/ffmpeg
+VIDEO_APP := $(if $(wildcard $(FFMPEG)/include/libavcodec/avcodec.h),$(OUT)/apps/video,video-assente)
 
 CFLAGS  := -std=c11 -O2 -mcpu=cortex-a53 -g -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers -Wno-format-truncation \
            -D_DEFAULT_SOURCE -D_GNU_SOURCE -DTRIMUI_DEVICE -D_REENTRANT -DARCADE_VERSION='"$(shell cat ../VERSION)"' -DUPDATE_DEFAULT_URL='"$(shell cat ../UPDATE_URL 2>/dev/null)"' \
@@ -56,6 +59,18 @@ $(OUT)/apps/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/co
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDFLAGS) -Wl,-Bstatic -lSDL2_mixer -Wl,-Bdynamic $(SDLLIBS)
 
 # Diagnostica (libcurl per la prova del Wi-Fi, come il launcher)
+# Video: collegata alle librerie condivise di FFmpeg (LGPL) di toolchain/build-ffmpeg.sh, che
+# l'app porta in Apps/video/lib. Sono compilate in Debian 11 e chiedono simboli della glibc 2.29,
+# più nuovi di quella del compilatore: --allow-shlib-undefined lascia la verifica alla console
+# (glibc 2.33) e a make check, che controlla anche le librerie. Senza FFmpeg compilato l'app si
+# salta, con un avviso.
+$(OUT)/apps/video: $(COMMON) $(APPKIT) src/apps/video.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
+	$(CC) $(CFLAGS) -I$(FFMPEG)/include -o $@ $(COMMON) $(APPKIT) src/apps/video.c $(LDFLAGS) -L$(FFMPEG)/lib \
+	    -Wl,--allow-shlib-undefined -Wl,-rpath,'$$ORIGIN/lib' -lavformat -lavcodec -lswscale -lswresample -lavutil $(SDLLIBS)
+video-assente:
+	@echo "attenzione: FFmpeg non compilato (toolchain/build-ffmpeg.sh): niente app Video" >&2
+.PHONY: video-assente
+
 $(OUT)/apps/diag: $(COMMON) $(APPKIT) src/apps/diag.c src/apps/appkit.h src/common/*.h | $(OUT)/apps
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/diag.c $(LDFLAGS) -Wl,-Bstatic -lcurl -Wl,-Bdynamic $(SDLLIBS) -lssl -lcrypto -lz
 
@@ -86,6 +101,6 @@ $(OUT)/bin:
 # sulla console non arriva in un'immagine (verifica audit)
 FW_GLIBC ?= $(shell for l in /build/fw/*/root/lib/libc.so.6; do [ -e $$l ] && strings $$l | grep -oE '^GLIBC_2\.[0-9]+' | sort -Vu | tail -1; done | sort -V | head -1 | sed 's/GLIBC_//')
 check: all
-	@sh ../toolchain/check-glibc.sh "$(FW_GLIBC)" $(OUT)/bin/* $(OUT)/apps/* $(wildcard $(OUT)/cores/*.so) $(wildcard $(OUT)/ppsspp/PPSSPPSDL) $(wildcard $(OUT)/mupen64plus/mupen64plus) $(wildcard $(OUT)/mupen64plus/lib/*) $(wildcard $(OUT)/syslibs/*)
+	@sh ../toolchain/check-glibc.sh "$(FW_GLIBC)" $(OUT)/bin/* $(OUT)/apps/* $(wildcard $(OUT)/cores/*.so) $(wildcard $(OUT)/ppsspp/PPSSPPSDL) $(wildcard $(OUT)/mupen64plus/mupen64plus) $(wildcard $(OUT)/mupen64plus/lib/*) $(wildcard $(OUT)/syslibs/*) $(wildcard $(OUT)/video/lib/*)
 
 .PHONY: all check

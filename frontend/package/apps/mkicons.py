@@ -77,10 +77,23 @@ def diag_icon(path):
     im.resize((256, 256), Image.LANCZOS).save(path)
 
 
+def video_icon(path):
+    S = 1024
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([96, 190, 928, 834], radius=110, fill=ACCENT)              # schermo
+    for x in range(182, 902, 120):                                                  # pellicola
+        d.rounded_rectangle([x, 222, x + 60, 262], radius=12, fill=LIGHT)
+        d.rounded_rectangle([x, 762, x + 60, 802], radius=12, fill=LIGHT)
+    d.polygon([(410, 360), (410, 664), (680, 512)], fill=(245, 248, 250))           # play
+    im.resize((256, 256), Image.LANCZOS).save(path)
+
+
 files_icon(os.path.join(D, "files", "icon.png"))
 diag_icon(os.path.join(D, "diag", "icon.png"))
 sdgrow_icon(os.path.join(D, "sdgrow", "icon.png"))
 sdtest_icon(os.path.join(D, "sdtest", "icon.png"))
 music_icon(os.path.join(D, "music", "icon.png"))
 viewer_icon(os.path.join(D, "viewer", "icon.png"))
+video_icon(os.path.join(D, "video", "icon.png"))
 print("icone fatte")

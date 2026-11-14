@@ -33,18 +33,20 @@ def versions(path):
     return wanted, defined
 todo, seen, missing = [], {}, set()
 ours = []
+given = set()   # librerie passate per nome di file (quelle dell'app Video): si cercano fra loro
 for a in sys.argv[2:]:
     if a.startswith("+"):
         p = find(a[1:]); (todo.append(p) if p else missing.add(a[1:]))
     else:
         todo.append(a)
+        given.add(os.path.basename(a))
         if not a.startswith(root): ours.append(a)
 while todo:
     p = todo.pop()
     if p in seen.values(): continue
     seen[os.path.basename(p)] = p
     for n in needed(p):
-        if n in seen: continue
+        if n in seen or n in given: continue
         q = find(n)
         if q: todo.append(q)
         else: missing.add(n)

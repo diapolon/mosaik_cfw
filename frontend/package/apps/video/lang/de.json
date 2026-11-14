@@ -1,0 +1,25 @@
+{
+ "video": {
+  "title": "Video",
+  "count": "%d Videos",
+  "folder": "Ordner Video",
+  "empty": "Keine Videos. Kopiere MP4, MKV, WEBM, AVI oder MOV in den Ordner Video, auch in Unterordner.",
+  "list_incomplete": "Liste unvollständig: Namen zu lang oder Speicher voll",
+  "open": "Ansehen",
+  "pause": "Pause",
+  "continue": "Weiter",
+  "quit": "Beenden",
+  "bar": "Leiste",
+  "list": "Liste",
+  "resume_at": "Du warst bei %s.",
+  "restart": "Von vorn",
+  "resume": "Fortsetzen",
+  "cannot_play": "Video nicht abspielbar",
+  "bad_file": "Die Datei ist beschädigt oder in einem Format, das die App nicht liest.",
+  "no_video": "Die Datei enthält kein Video.",
+  "unsupported": "Videoformat nicht unterstützt (%s).",
+  "too_big": "Video zu groß (%s): höchstens 1920x1080.",
+  "no_audio_codec": "Audio %s nicht unterstützt: Video ohne Ton",
+  "too_heavy": "Video zu aufwendig: einige Bilder werden übersprungen"
+ }
+}

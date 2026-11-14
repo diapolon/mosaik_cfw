@@ -1,0 +1,25 @@
+{
+ "video": {
+  "title": "Vidéo",
+  "count": "%d vidéos",
+  "folder": "Dossier Video",
+  "empty": "Aucune vidéo. Copiez des MP4, MKV, WEBM, AVI ou MOV dans le dossier Video, sous-dossiers compris.",
+  "list_incomplete": "Liste incomplète : noms trop longs ou mémoire épuisée",
+  "open": "Regarder",
+  "pause": "Pause",
+  "continue": "Lecture",
+  "quit": "Quitter",
+  "bar": "Barre",
+  "list": "Liste",
+  "resume_at": "Vous étiez à %s.",
+  "restart": "Recommencer",
+  "resume": "Reprendre",
+  "cannot_play": "Lecture impossible",
+  "bad_file": "Le fichier est endommagé ou dans un format que l'app ne lit pas.",
+  "no_video": "Le fichier ne contient pas de vidéo.",
+  "unsupported": "Format vidéo non pris en charge (%s).",
+  "too_big": "Vidéo trop grande (%s) : 1920x1080 au maximum.",
+  "no_audio_codec": "Audio %s non pris en charge : vidéo sans son",
+  "too_heavy": "Vidéo trop lourde : certaines images sautent"
+ }
+}

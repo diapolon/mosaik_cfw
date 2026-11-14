@@ -1,0 +1,25 @@
+{
+ "video": {
+  "title": "Vídeo",
+  "count": "%d vídeos",
+  "folder": "Carpeta Video",
+  "empty": "No hay vídeos. Copia MP4, MKV, WEBM, AVI o MOV en la carpeta Video, también en subcarpetas.",
+  "list_incomplete": "Lista incompleta: nombres demasiado largos o memoria agotada",
+  "open": "Ver",
+  "pause": "Pausa",
+  "continue": "Seguir",
+  "quit": "Salir",
+  "bar": "Barra",
+  "list": "Lista",
+  "resume_at": "Te quedaste en %s.",
+  "restart": "Desde el inicio",
+  "resume": "Reanudar",
+  "cannot_play": "No se puede reproducir",
+  "bad_file": "El archivo está dañado o en un formato que la app no lee.",
+  "no_video": "El archivo no contiene vídeo.",
+  "unsupported": "Formato de vídeo no compatible (%s).",
+  "too_big": "Vídeo demasiado grande (%s): como máximo 1920x1080.",
+  "no_audio_codec": "Audio %s no compatible: vídeo sin sonido",
+  "too_heavy": "Vídeo demasiado pesado: se saltan algunas imágenes"
+ }
+}
