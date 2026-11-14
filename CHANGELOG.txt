@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.59
+it Scheda rimasta a 2 GB: l'app Spazio della SD 1.3 la allarga (Store, App)
+en Card stuck at 2 GB: the SD card space 1.3 app expands it (Store, Apps)
+it Giochi Linux: SDL2_image, SDL2_mixer e SDL2_ttf nel sistema
+en Linux games: SDL2_image, SDL2_mixer and SDL2_ttf in the system
+
 0.9.58
 it Giochi Linux nello Store: Freedoom, Mr.Boom e Diablo (con i file del gioco originale)
 en Linux games in the Store: Freedoom, Mr.Boom and Diablo (with the original game files)
