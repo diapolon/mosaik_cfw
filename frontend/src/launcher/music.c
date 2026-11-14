@@ -106,6 +106,9 @@ static int wd_run(void *arg) {
         if (!st) return 0;   /* la musica è partita (o ha rinunciato) */
         Uint32 ms = SDL_GetTicks() - atomic_load(&wd_since);
         if (ms < WD_SECONDS * 1000u) continue;
+        /* SD che non risponde (audit A62-001): niente registro né sync, che non tornerebbero;
+           system-init vede /run/sd-guasta e riavvia */
+        if (UI.sd_failed || access("/run/sd-guasta", F_OK) == 0) _exit(3);
         ui_log("musica: ferma da %.0f s nel passo \"%s\": dettagli in Logs/musica-blocco.txt, il launcher riparte senza musica", ms / 1000.0, st);
         wd_dump(st, ms);
         char p[1200];
@@ -267,6 +270,7 @@ void music_init(const char *root) {
 }
 
 static void music_next_steps(void) {
+    if (UI.sd_failed) return;   /* SD che non risponde: nessuna lettura dei brani (A62-001) */
     scan_menu();
     if (!ntracks || !mixer_open()) return;
     /* al massimo 8 brani di fila: con file tutti illeggibili non si resta a provarli tutti (M61-008) */
@@ -378,6 +382,9 @@ void music_after_sleep(void) {
     bool detached = sleep_detached;
     sleep_track = -1;
     sleep_detached = false;
+    /* SD che non risponde dopo il risveglio (audit A62-001): il brano sta sulla scheda e
+       caricarlo può non tornare più. Nessun audio: si va dritti alla finestra del riavvio. */
+    if (UI.sd_failed) { title[0] = 0; return; }
     if (i < 0 || i >= ntracks || UI.set.music_vol <= 0 || !mixer_open()) {
         if (detached && !mixer_on) {   /* niente musica: torna l'audio dei menu, sotto il cane da guardia */
             wd("riapertura dell'audio dei menu dopo la sospensione");

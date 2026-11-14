@@ -795,7 +795,8 @@ static bool backup_path_ok(const char *rel, bool wifi) {
     if (!rel_ok(rel) || !*rel) return false;
     if (bezel_default(rel)) return false;
     if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "Bios/", 5) || !strncmp(rel, "Media/", 6) || !strncmp(rel, "System/collections/", 19)
-        || !strncmp(rel, "System/chiavi/", 14) || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Bezels/", 7) || backup_game(rel))
+        || !strncmp(rel, "System/chiavi/", 14) || !strncmp(rel, "System/console/", 15) || !strncmp(rel, "Music/", 6)
+        || !strncmp(rel, "Video/", 6) || !strncmp(rel, "Bezels/", 7) || backup_game(rel))
         return depth(rel) >= 2;
     if (wifi && !strcmp(rel, "System/wifi.conf")) return true;
     for (int i = 0; BACKUP_SYSTEM[i]; i++) {
@@ -815,6 +816,7 @@ static void do_backup(req_t *r) {
     zwalk(&z, "Bios", 0);
     zwalk(&z, "System/collections", 0);
     zwalk(&z, "System/chiavi", 0);   /* quale ROM usa quale salvataggio (registro delle identità) */
+    zwalk(&z, "System/console", 0);   /* impostazioni di ogni console, scelte nel gioco o in Piattaforme (A62-002) */
     for (int i = 0; BACKUP_SYSTEM[i]; i++) {
         char rel[64], full[1200];
         struct stat sb;
@@ -828,7 +830,7 @@ static void do_backup(req_t *r) {
         full_path(full, sizeof full, "System/wifi.conf");
         if (stat(full, &sb) == 0 && S_ISREG(sb.st_mode)) zadd(&z, "System/wifi.conf", (long long)sb.st_size);
     }
-    if (media) { zwalk(&z, "Media", 0); zwalk(&z, "Music", 0); }
+    if (media) { zwalk(&z, "Media", 0); zwalk(&z, "Music", 0); zwalk(&z, "Video", 0); }   /* Video: A62-004 */
     int nb = z.n;   /* cornici sempre (pesano poco), senza le due del sistema */
     zwalk(&z, "Bezels", 0);
     int w = nb;
@@ -1032,7 +1034,8 @@ static void restore_remove_zip(void) {
 static int backup_part(const char *rel) {
     if (!strncmp(rel, "Saves/", 6) || !strncmp(rel, "System/chiavi/", 14)) return FS_PART_SAVES;   /* il registro va con i salvataggi */
     if (!strncmp(rel, "Bios/", 5)) return FS_PART_BIOS;
-    if (!strncmp(rel, "Media/", 6) || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Bezels/", 7)) return FS_PART_MEDIA;
+    if (!strncmp(rel, "Media/", 6) || !strncmp(rel, "Music/", 6) || !strncmp(rel, "Video/", 6) || !strncmp(rel, "Bezels/", 7))
+        return FS_PART_MEDIA;
     if (backup_game(rel)) return FS_PART_GAMES;
     if (!strcmp(rel, "System/wifi.conf")) return FS_PART_WIFI;
     return FS_PART_SETTINGS;   /* impostazioni, liste, collezioni, tempo di gioco */

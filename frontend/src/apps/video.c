@@ -858,6 +858,8 @@ static void set_pause(bool on) {
     if (!on) { wall_pts = paused_at_clk; wall_time = now_s(); }   /* orologio monotono: riparte da qui */
     SDL_UnlockMutex(amtx);
     starve_since = 0;
+    /* dopo 4 s di pausa l'altoparlante a riposo è spento: si riaccende alla ripresa (A62-005) */
+    if (!on) plat_amp_wake();
 }
 
 static void seek_rel(double d) {

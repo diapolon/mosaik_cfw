@@ -138,6 +138,11 @@ check "backup: cornici dell'utente, non quelle del sistema né dello Store, nien
 check "backup con le immagini: anche la musica" "1" "$(unzip -l bzm.zip | grep -c Music/Album/a.mp3)"
 check "zip del backup valido dopo il filtro" "0" "$(unzip -tq bz.zip >/dev/null 2>&1; echo $?)"
 rm -rf sd/Music sd/Bezels
+# impostazioni per console sempre, video con le immagini (audit A62-002, A62-004)
+mkdir -p sd/System/console sd/Video/Film; echo 'versione=2' > sd/System/console/nes.cfg; echo opt > sd/System/console/nes.opt; echo mp4 > sd/Video/Film/v.mp4
+q -o bc.zip "$U/api/backup"; q -o bcm.zip "$U/api/backup?media=1"
+check "backup: impostazioni per console, video solo con le immagini" "2 0 1" "$(unzip -l bc.zip | grep -c 'System/console/nes\.') $(unzip -l bc.zip | grep -c Video/) $(unzip -l bcm.zip | grep -c Video/Film/v.mp4)"
+rm -rf sd/System/console sd/Video
 # ripristino: il salvataggio cambiato torna com'era, solo dopo la conferma
 echo cambiato > sd/Saves/fbneo/gioco.srm
 check "ripristino ricevuto" "true" "$(q -T b.zip "$U/api/restore" | sed 's/.*"ok":\([a-z]*\).*/\1/')"
@@ -213,6 +218,8 @@ mkdir -p rz/Saves/nuovo && echo nuovo > rz/Saves/nuovo/a.srm && rm -f r2.zip && 
 check "backup importato" "importato" "$(./imp $W/sd r2.zip 2>&1 | cut -d' ' -f2)"
 check "salvataggio importato" "vecchio" "$(cat sd/Saves/fbneo/gioco.srm)"
 check "cartella nuova creata" "nuovo" "$(cat sd/Saves/nuovo/a.srm)"
+check "impostazioni per console e video importati" "importato opt mp4" "$(./imp $W/sd bcm.zip 2>&1 | cut -d' ' -f2) $(cat sd/System/console/nes.opt) $(cat sd/Video/Film/v.mp4)"
+rm -rf sd/System/console sd/Video
 check "core non toccato dall'importazione" "core" "$(cat sd/Cores/core.so)"
 check "nessun .part dall'importazione" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"
 echo cambiato > sd/Saves/fbneo/gioco.srm; echo cambiato > sd/Saves/nuovo/a.srm

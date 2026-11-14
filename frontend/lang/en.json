@@ -65,7 +65,7 @@
     "backup_note": "Saves, settings, favorites, collections, play time, BIOS files and bezels, in one zip file.",
     "backup_download": "Download backup",
     "backup_wifi": "Also the Wi-Fi networks, with their passwords",
-    "backup_media": "Also images and music",
+    "backup_media": "Also images, music and videos",
     "backup_games": "Also games and apps (%s)",
     "backup_games_big": "Games too big for the backup (%s): copy them separately",
     "backup_restore": "Restore backup",
@@ -142,7 +142,7 @@
     "part_settings": "Settings and lists",
     "part_bios": "BIOS files",
     "part_wifi": "Wi-Fi networks",
-    "part_media": "Images and music",
+    "part_media": "Images, music and videos",
     "part_games": "Games and apps"
   },
   "gallery": {

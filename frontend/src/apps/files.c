@@ -44,7 +44,7 @@ static int nents, cap_ents, sel;
 static float scroll;
 static long long free_bytes;
 
-static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Linux", "Apps", "Bezels", "Themes", NULL };
+static const char *const WRITABLE[] = { "Roms", "Bios", "Saves", "Media", "Music", "Video", "Linux", "Apps", "Bezels", "Themes", NULL };   /* come il trasferimento file (A62-003) */
 
 static void join(char *out, size_t n, const char *a, const char *b) {
     if (!a[0]) snprintf(out, n, "%s", b);

@@ -65,7 +65,7 @@
     "backup_note": "Spielstände, Einstellungen, Favoriten, Sammlungen, Spielzeit, BIOS und Rahmen in einer ZIP-Datei.",
     "backup_download": "Sicherung herunterladen",
     "backup_wifi": "Auch die WLAN-Netze, mit Passwörtern",
-    "backup_media": "Auch Bilder und Musik",
+    "backup_media": "Auch Bilder, Musik und Videos",
     "backup_games": "Auch Spiele und Apps (%s)",
     "backup_games_big": "Spiele zu groß für die Sicherung (%s): separat kopieren",
     "backup_restore": "Sicherung wiederherstellen",
@@ -142,7 +142,7 @@
     "part_settings": "Einstellungen und Listen",
     "part_bios": "BIOS",
     "part_wifi": "WLAN-Netze",
-    "part_media": "Bilder und Musik",
+    "part_media": "Bilder, Musik und Videos",
     "part_games": "Spiele und Apps"
   },
   "gallery": {

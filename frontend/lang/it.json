@@ -65,7 +65,7 @@
     "backup_note": "Salvataggi, impostazioni, preferiti, collezioni, tempo di gioco, BIOS e cornici, in un file zip.",
     "backup_download": "Scarica backup",
     "backup_wifi": "Anche le reti Wi-Fi, con le password",
-    "backup_media": "Anche immagini e musica",
+    "backup_media": "Anche immagini, musica e video",
     "backup_games": "Anche giochi e app (%s)",
     "backup_games_big": "Giochi troppo grandi per il backup (%s): copiali a parte",
     "backup_restore": "Ripristina backup",
@@ -142,7 +142,7 @@
     "part_settings": "Impostazioni e liste",
     "part_bios": "BIOS",
     "part_wifi": "Reti Wi-Fi",
-    "part_media": "Immagini e musica",
+    "part_media": "Immagini, musica e video",
     "part_games": "Giochi e app"
   },
   "gallery": {

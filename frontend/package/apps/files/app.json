@@ -2,7 +2,7 @@
  "title": "Files",
  "description": "Browse the card: copy, move, rename and delete files and folders.",
  "author": "Mosaik",
- "version": "2.0",
+ "version": "2.1",
  "min_system": "0.9.40",
  "env": {
   "GAMEWATCH_NOMENU": "1"

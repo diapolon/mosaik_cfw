@@ -3137,6 +3137,13 @@ static const char *ccfg_cpu[] = { "cpu.auto", "cpu.min", "cpu.save", "cpu.balanc
 /* l'emulatore passa dal runner? (Deadcast e gli altri con "launch" no) */
 static bool ccfg_possible(int emu) { return emu >= 0 && emu < NEMUS && !EMUS[emu].launch[0]; }
 
+/* rilegge dal file ciò che è davvero salvato (dopo un errore di scrittura, A62-006) */
+static void ccfg_reload(void) {
+    bool v2;
+    gc_read(ccfg_cfg, &ccfg_lay, &v2, filter_legacy_id);
+    ccfg_lay.rotate = ccfg_lay.slot = 0;
+}
+
 static void ccfg_show(int emu) {
     if (!ccfg_possible(emu)) return;
     const emulator_t *e = &EMUS[emu];
@@ -3151,9 +3158,7 @@ static void ccfg_show(int emu) {
     }
     snprintf(ccfg_cfg, sizeof ccfg_cfg, "%s/System/console/%s.cfg", UI.root, id);
     snprintf(ccfg_opt, sizeof ccfg_opt, "%s/System/console/%s.opt", UI.root, id);
-    bool v2;
-    gc_read(ccfg_cfg, &ccfg_lay, &v2, filter_legacy_id);
-    ccfg_lay.rotate = ccfg_lay.slot = 0;   /* solo dei giochi */
+    ccfg_reload();   /* rotazione e slot sono solo dei giochi */
     if (!nfilters) nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
     ccfg_emu = emu;
     ccfg_sel = 0;
@@ -3168,11 +3173,16 @@ static bool ccfg_has_choices(void) {
     return access(ccfg_opt, F_OK) == 0;
 }
 
-static void ccfg_save(void) {
+static bool ccfg_save(void) {
     char d[1100];
     snprintf(d, sizeof d, "%s/System/console", UI.root);
     mkdir(d, 0755);
-    if (!gc_write(ccfg_cfg, &ccfg_lay)) { ui_log("impostazioni della console non salvate: %s", ccfg_cfg); ui_toast(T("update.err6")); }
+    if (gc_write(ccfg_cfg, &ccfg_lay)) return true;
+    ui_log("impostazioni della console non salvate: %s", ccfg_cfg);
+    ui_toast(T("update.err6"));
+    ui_sound(SND_ERROR);
+    ccfg_reload();
+    return false;
 }
 
 static int ccfg_filter_index(void) {
@@ -3213,8 +3223,7 @@ static void ccfg_change(int dir) {
     }
     default: return;
     }
-    ccfg_save();
-    ui_sound(SND_MOVE);
+    if (ccfg_save()) ui_sound(SND_MOVE);
 }
 
 static void ccfg_input(void) {
@@ -3225,8 +3234,13 @@ static void ccfg_input(void) {
         ccfg_ask = false;
         if (r != 1) return;
         gc_clear(&ccfg_lay);
-        ccfg_save();
-        remove(ccfg_opt);
+        if (!ccfg_save()) return;   /* il messaggio d'errore l'ha già dato */
+        if (remove(ccfg_opt) != 0 && errno != ENOENT) {   /* opzioni dell'emulatore rimaste: niente "ripristinato" */
+            ui_log("opzioni della console non tolte: %s (%s)", ccfg_opt, strerror(errno));
+            ui_toast(T("update.err6"));
+            ui_sound(SND_ERROR);
+            return;
+        }
         ui_toast(T("layer.console_cleared"));
         ui_sound(SND_OK);
         return;
@@ -8770,6 +8784,7 @@ int main(int argc, char **argv) {
         }
         /* SD bloccata dopo un risveglio: prima di tutto il resto */
         static double sdbad_t;
+        if (!sdbad_open && UI.sd_failed) sdbad_open = true;   /* visto da ui_suspend: subito (A62-001) */
         if (!sdbad_open && plat_standalone() && UI.t - sdbad_t > 1.0) {
             sdbad_t = UI.t;
             sdbad_open = access("/run/sd-guasta", F_OK) == 0 || getenv("ARCADE_TEST_SDBAD");

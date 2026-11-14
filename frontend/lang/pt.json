@@ -65,7 +65,7 @@
     "backup_note": "Jogos guardados, definições, favoritos, coleções, tempo de jogo, BIOS e molduras, num ficheiro zip.",
     "backup_download": "Descarregar cópia",
     "backup_wifi": "Também as redes Wi-Fi, com as palavras-passe",
-    "backup_media": "Também imagens e música",
+    "backup_media": "Também imagens, música e vídeos",
     "backup_games": "Também jogos e apps (%s)",
     "backup_games_big": "Jogos demasiado grandes para a cópia (%s): copie-os à parte",
     "backup_restore": "Restaurar cópia",
@@ -142,7 +142,7 @@
     "part_settings": "Definições e listas",
     "part_bios": "BIOS",
     "part_wifi": "Redes Wi-Fi",
-    "part_media": "Imagens e música",
+    "part_media": "Imagens, música e vídeos",
     "part_games": "Jogos e apps"
   },
   "gallery": {
