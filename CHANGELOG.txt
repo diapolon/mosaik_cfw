@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.63
+it Impostazioni di una console dal menu: Y su Piattaforme, Opzioni
+en Settings of a console from the menu: Y on Platforms, Options
+it Il backup porta anche le impostazioni per console e, con immagini e musica, i video
+en Backups also keep the console settings and, with images and music, your videos
+it SD che non risponde al risveglio: niente musica, subito la finestra per riavviare
+en Card not responding after sleep: no music, the restart window comes at once
+it Descrizioni delle Impostazioni aggiornate
+en Settings descriptions brought up to date
+
 0.9.62
 it Impostazioni per tutta la console: nel menu del gioco, Cambia per
 en Settings for the whole console: in the game menu, Change for
