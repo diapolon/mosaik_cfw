@@ -336,5 +336,13 @@ kill $SRV
 check "app con il sistema minimo nel suo app.json" "0.9.40" "$(python3 -c "import json;d=json.load(open('www/store.json'));print([p for p in d['packages'] if p['id']=='files'][0].get('min_system'))")"
 python3 -c "import json;p='pkgsrc/files/Apps/files/app.json';j=json.load(open(p));j.pop('min_system');json.dump(j,open(p,'w'))"
 check "app senza min_system: catalogo rifiutato" "rifiutato" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && echo fatto || echo rifiutato)"
+# ogni gioco del pacchetto, uno per uno (verifica Codex NEW-005)
+python3 -c "import json;p='pkgsrc/files/Apps/files/app.json';j=json.load(open(p));j['min_system']='0.9.40';json.dump(j,open(p,'w'))"
+printf '#!/bin/sh\necho doom2\n' > pkgsrc/freedoom/Linux/Freedoom2/launch.sh
+check "secondo gioco senza game.json: catalogo rifiutato" "rifiutato" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && echo fatto || echo rifiutato)"
+echo '{"title":"Freedoom 2"}' > pkgsrc/freedoom/Linux/Freedoom2/game.json
+check "secondo gioco senza min_system: catalogo rifiutato" "rifiutato" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && echo fatto || echo rifiutato)"
+echo '{"title":"Freedoom 2","min_system":"0.9.59"}' > pkgsrc/freedoom/Linux/Freedoom2/game.json
+check "due giochi con il requisito: vale il più alto" "0.9.59" "$(python3 /trimui/toolchain/make-store.py --src pkgsrc --out www2 --key key.pem --labels labels.txt >/dev/null 2>&1 && python3 -c "import json;d=json.load(open('www2/store.json'));print([p for p in d['packages2'] if p['id']=='freedoom'][0].get('min_system'))")"
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

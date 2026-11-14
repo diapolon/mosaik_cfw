@@ -294,17 +294,23 @@ for pid in sorted(os.listdir(args.src)):
     # pacchetti in store-stato.json; per app e giochi è obbligatorio
     def vkey(v):
         return [int(x) if x.isdigit() else 0 for x in str(v).split(".")]
+    # ogni app e ogni gioco, uno per uno (verifica Codex NEW-005: con due giochi bastava che lo
+    # dichiarasse uno, e il launcher controlla il game.json del singolo gioco); per loro niente
+    # riserva in store-stato.json, che nasconderebbe il dato mancante
     mins = []
-    if category == "apps" and os.path.exists(appj):
-        mins.append(json.load(open(appj, encoding="utf-8")).get("min_system", ""))
-    if category == "linux":
-        for r in files:
-            if r.count("/") == 2 and r.endswith("/game.json"):
-                mins.append(json.load(open(os.path.join(root, r), encoding="utf-8")).get("min_system", ""))
-    mins = [m for m in mins if m]
+    if category == "apps":
+        need = [f"Apps/{pid}/app.json"]
+    elif category == "linux":   # un gioco è una cartella Linux/<nome> con launch.sh
+        need = sorted(r.rsplit("/", 1)[0] + "/game.json" for r in files if r.count("/") == 2 and r.endswith("/launch.sh"))
+    else:
+        need = []
+    for rel in need:
+        mj = os.path.join(root, rel)
+        m = str(json.load(open(mj, encoding="utf-8")).get("min_system", "")) if os.path.exists(mj) else ""
+        if not m:
+            sys.exit(f"{pid}: {rel} senza \"min_system\" (il sistema di cui ha bisogno)")
+        mins.append(m)
     min_sys = max(mins, key=vkey) if mins else stato.get("min_system", {}).get(pid, "")
-    if category in ("apps", "linux") and not min_sys:
-        sys.exit(f"{pid}: manca \"min_system\" (app.json delle app, game.json dei giochi Linux)")
     if min_sys:
         entry["min_system"] = min_sys
     if texts:   # nomi e descrizioni delle app nelle lingue della console
