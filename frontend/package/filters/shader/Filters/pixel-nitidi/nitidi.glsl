@@ -48,8 +48,8 @@ void main() {
     vec2 cell = floor(pix);
     vec2 inside = fract(pix) - 0.5;                   // -0.5..0.5 dentro il pixel
     // zona piena al centro del pixel; la sfumatura occupa mezzo pixel di schermo per lato
-    vec2 flat = 0.5 - 0.5 / zoom;
-    vec2 blend = (inside - clamp(inside, -flat, flat)) * zoom + 0.5;
+    vec2 edge = 0.5 - 0.5 / zoom;   /* non "flat": è una parola riservata in GLSL ES (la GPU della console non lo compilava) */
+    vec2 blend = (inside - clamp(inside, -edge, edge)) * zoom + 0.5;
     FragColor = vec4(COMPAT_TEXTURE(Texture, (cell + blend) / TextureSize).rgb, 1.0);
 }
 #endif
