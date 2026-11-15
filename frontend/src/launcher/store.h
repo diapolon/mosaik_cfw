@@ -16,6 +16,7 @@
    la stessa impronta: un pacchetto sconosciuto si rifiuta (un'app gira come root). */
 #pragma once
 #include <stdbool.h>
+#include <stddef.h>
 
 enum { ST_IDLE, ST_LOADING, ST_READY, ST_WORKING, ST_DONE, ST_FAILED };
 enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL, SE_UNSIGNED, SE_SYSTEM };
@@ -38,6 +39,9 @@ typedef struct {
     char tested[32];             /* modelli su cui è provato: "brickpro smartpro" */
     char min_system[16];         /* versione minima del sistema, "" se va con tutte */
     bool needs_system;           /* il sistema in uso è più vecchio di min_system: prima va aggiornato */
+    char inst_label[32];         /* versione installata, come la mostra la scheda ("" se non installato) */
+    int nimg;                    /* immagini della scheda (dalla 0.9.67): file accanto agli zip */
+    char img[4][72], img_sha[4][65];
 } store_pkg_t;
 
 typedef struct {
@@ -73,6 +77,10 @@ void store_remove(int i, bool with_data);
 /* anteprima di Archivia ed Elimina: giochi, salvataggi e immagini delle console del pacchetto */
 typedef struct { int games, saves, media; long long games_bytes, saves_bytes; } store_usage_t;
 void store_usage(int i, store_usage_t *u);
+/* immagine k del pacchetto i per la scheda: true con il percorso se è già nella cache
+   (System/.store-img); altrimenti, con la rete, la scarica in un thread e la controlla con lo
+   SHA-256 del catalogo (si richiama a ogni fotogramma finché non c'è) */
+bool store_image(int i, int k, char *out, size_t n);
 void store_cancel(void);
 void store_join(void);
 /* dopo un'installazione o una rimozione: emulatori cambiati, la libreria va riletta */

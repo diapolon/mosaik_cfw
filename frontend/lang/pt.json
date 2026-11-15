@@ -924,6 +924,17 @@
     "empty_text": "Copie as apps para Arcade/Apps: uma pasta por app, com launch.sh dentro."
   },
   "store": {
+    "img_loading": "A descarregar a imagem…",
+    "images": "Imagens",
+    "row_version": "Versão",
+    "row_installed": "Instalada",
+    "row_size": "Tamanho",
+    "row_state": "Estado",
+    "row_compat": "Compatibilidade",
+    "row_requires": "Requer",
+    "requires": "Mosaik %s ou mais recente",
+    "sizes": "%s para descarregar, %s no cartão",
+    "compat_unknown": "Ainda não testado nas consolas",
     "not_this_model": "Testado em %s: ainda não funciona nesta consola.",
     "title": "Loja",
     "loading": "A carregar o catálogo…",

@@ -924,6 +924,17 @@
     "empty_text": "Apps nach Arcade/Apps kopieren: ein Ordner pro App, mit launch.sh darin."
   },
   "store": {
+    "img_loading": "Bild wird geladen…",
+    "images": "Bilder",
+    "row_version": "Version",
+    "row_installed": "Installiert",
+    "row_size": "Größe",
+    "row_state": "Status",
+    "row_compat": "Kompatibilität",
+    "row_requires": "Benötigt",
+    "requires": "Mosaik %s oder neuer",
+    "sizes": "%s zum Herunterladen, %s auf der Karte",
+    "compat_unknown": "Noch nicht auf den Konsolen getestet",
     "not_this_model": "Getestet auf %s: funktioniert auf dieser Konsole noch nicht.",
     "title": "Store",
     "loading": "Katalog wird geladen…",

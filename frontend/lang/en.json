@@ -924,6 +924,17 @@
     "empty_text": "Copy apps to Arcade/Apps: one folder per app, with launch.sh inside."
   },
   "store": {
+    "img_loading": "Downloading the picture…",
+    "images": "Pictures",
+    "row_version": "Version",
+    "row_installed": "Installed",
+    "row_size": "Size",
+    "row_state": "Status",
+    "row_compat": "Compatibility",
+    "row_requires": "Requires",
+    "requires": "Mosaik %s or later",
+    "sizes": "%s to download, %s on the card",
+    "compat_unknown": "Not tested on the consoles yet",
     "not_this_model": "Tested on %s: it does not work on this console yet.",
     "title": "Store",
     "loading": "Loading the catalogue…",

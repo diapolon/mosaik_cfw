@@ -14,6 +14,7 @@ La versione è l'impronta del contenuto: cambia solo se cambia un file. L'etiche
 commit del core (o la versione di Deadcast). La console scarica catalogo e firma dallo stesso
 indirizzo degli aggiornamenti (canale Stabile o Sviluppo)."""
 import argparse
+import shutil
 import hashlib
 import json, re
 import os
@@ -322,6 +323,22 @@ for pid in sorted(os.listdir(args.src)):
         entry["colors"] = bezel[2]
     if lmeta and lmeta.get("color"):
         entry["colors"] = [lmeta["color"]]
+    # immagini per la scheda dello Store (dalla 0.9.67): frontend/package/immagini/<id>/*.png o .jpg,
+    # al massimo 4, pubblicate accanto agli zip come store-img-<id>-<n>-<impronta>.<est>; la console le
+    # scarica quando si apre la scheda e le controlla con lo SHA-256 del catalogo firmato
+    imgdir = os.path.join(top, "frontend", "package", "immagini", pid)
+    if os.path.isdir(imgdir):
+        imgs = []
+        for n, fn in enumerate(sorted(f for f in os.listdir(imgdir) if f.lower().endswith((".png", ".jpg")))[:4]):
+            src = os.path.join(imgdir, fn)
+            h = sha256(src)
+            if os.path.getsize(src) > 600_000:
+                sys.exit(f"{pid}: {fn} supera 600 KB")
+            out = f"store-img-{pid}-{n + 1}-{h[:10]}{os.path.splitext(fn)[1].lower()}"
+            shutil.copyfile(src, os.path.join(args.out, out))
+            imgs.append({"file": out, "sha256": h, "size": os.path.getsize(src)})
+        if imgs:
+            entry["images"] = imgs
     new = any(rel.startswith(NEW_PATHS) for rel in files)
     if new and not min_sys:
         sys.exit(f"{pid}: i file in {NEW_PATHS} richiedono un min_system")

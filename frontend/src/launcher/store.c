@@ -314,6 +314,16 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
             }
             free(tl);
         }
+        {   /* immagini della scheda: solo nomi semplici, come gli zip */
+            jval *im = json_get(v, "images");
+            for (jval *iv = im && im->t == J_ARR ? im->child : NULL; iv && x->p.nimg < 4; iv = iv->next) {
+                const char *f = json_str(iv, "file", ""), *h = json_str(iv, "sha256", "");
+                if (!f[0] || strchr(f, '/') || strstr(f, "..") || strlen(f) >= sizeof x->p.img[0] || strlen(h) != 64) continue;
+                snprintf(x->p.img[x->p.nimg], sizeof x->p.img[0], "%s", f);
+                snprintf(x->p.img_sha[x->p.nimg], sizeof x->p.img_sha[0], "%s", h);
+                x->p.nimg++;
+            }
+        }
         int ns = 0;
         bool oom = false;
         char **sys = str_list(json_get(v, "systems"), &ns, &oom);
@@ -372,9 +382,11 @@ static bool archived(const char *id) {
 static void compute_states(entry_t *e, int n) {
     for (int i = 0; i < n; i++) {
         char v[64];
+        e[i].p.inst_label[0] = 0;
         if (archived(e[i].p.id)) { e[i].p.state = PKG_ARCHIVED; continue; }
         char lab[32];
         installed_version(e[i].p.id, v, sizeof v, lab, sizeof lab);
+        snprintf(e[i].p.inst_label, sizeof e[i].p.inst_label, "%s", lab[0] ? lab : v);
         /* app e temi: conta il loro numero di versione (app.json, theme.json), non l'impronta dei
            file, che cambia anche solo ricompilando con la libreria comune aggiornata */
         bool by_label = (!strcmp(e[i].p.category, "apps") || !strcmp(e[i].p.category, "themes") || !strcmp(e[i].p.category, "bezels") || !strcmp(e[i].p.category, "filters")) && lab[0] && e[i].p.label[0];
@@ -1377,4 +1389,78 @@ int store_offline_install(const char *root, const char *path) {
     int err = install_zip(path, NULL, NULL, 0);
     ui_log("store: %s dalla scheda: %s", b, err ? "non installato" : "installato");
     return err;
+}
+
+/* ---- immagini della scheda: scaricate una alla volta, a parte dai lavori dello Store ---- */
+static atomic_bool img_busy;
+static char img_name[72], img_hash[65];
+static char img_failed[8][72];   /* non riuscite in questa apertura: non si riprova a ogni fotogramma */
+static int nimg_failed;
+
+static size_t img_write(char *p, size_t s, size_t n, void *u) { return fwrite(p, s, n, u) * s; }
+
+static bool img_get(const char *base, const char *dest) {
+    if (!base[0]) return false;
+    char url[800];
+    snprintf(url, sizeof url, "%s/%s", base, img_name);
+    FILE *f = fopen(dest, "wb");
+    if (!f) return false;
+    CURL *c = curl_easy_init();
+    bool ok = false;
+    if (c) {
+        curl_easy_setopt(c, CURLOPT_URL, url);
+        curl_easy_setopt(c, CURLOPT_NOSIGNAL, 1L);
+        curl_easy_setopt(c, CURLOPT_FAILONERROR, 1L);
+        curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, 5L);
+        curl_easy_setopt(c, CURLOPT_TIMEOUT, 30L);
+        curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(c, CURLOPT_MAXREDIRS, 5L);
+        curl_easy_setopt(c, CURLOPT_REDIR_PROTOCOLS, (long)(CURLPROTO_HTTP | CURLPROTO_HTTPS));
+        curl_easy_setopt(c, CURLOPT_USERAGENT, "MosaikStore/1");
+        curl_easy_setopt(c, CURLOPT_MAXFILESIZE, 600000L);
+        char ca[1100];
+        struct stat cs;
+        snprintf(ca, sizeof ca, "%s/System/cacert.pem", root_dir);
+        if (stat(ca, &cs) == 0) curl_easy_setopt(c, CURLOPT_CAINFO, ca);
+        curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, img_write);
+        curl_easy_setopt(c, CURLOPT_WRITEDATA, f);
+        ok = curl_easy_perform(c) == CURLE_OK;
+        curl_easy_cleanup(c);
+    }
+    if (fclose(f) != 0) ok = false;
+    return ok;
+}
+
+static void *img_worker(void *arg) {
+    (void)arg;
+    char dir[1100], part[1300], path[1300], sha[65];
+    snprintf(dir, sizeof dir, "%s/System/.store-img", root_dir);
+    mkdir(dir, 0755);
+    snprintf(path, sizeof path, "%s/%s", dir, img_name);
+    snprintf(part, sizeof part, "%s.part", path);
+    bool ok = (img_get(base_url, part) || img_get(fallback_url, part)) && sha256_file(part, sha) && !strcmp(sha, img_hash) && rename(part, path) == 0;
+    if (!ok) {
+        remove(part);
+        if (nimg_failed < 8) snprintf(img_failed[nimg_failed++], sizeof img_failed[0], "%s", img_name);
+        ui_log("store: immagine %s non scaricata", img_name);
+    }
+    atomic_store(&img_busy, false);
+    return NULL;
+}
+
+bool store_image(int i, int k, char *out, size_t n) {
+    const store_pkg_t *p = store_pkg(i);
+    if (!p || k < 0 || k >= p->nimg) return false;
+    snprintf(out, n, "%s/System/.store-img/%s", root_dir, p->img[k]);
+    struct stat sb;
+    if (stat(out, &sb) == 0) return true;
+    if (!st.online || atomic_load(&img_busy)) return false;
+    for (int f = 0; f < nimg_failed; f++) if (!strcmp(img_failed[f], p->img[k])) return false;
+    snprintf(img_name, sizeof img_name, "%s", p->img[k]);
+    snprintf(img_hash, sizeof img_hash, "%s", p->img_sha[k]);
+    atomic_store(&img_busy, true);
+    pthread_t t;
+    if (pthread_create(&t, NULL, img_worker, NULL) != 0) { atomic_store(&img_busy, false); return false; }
+    pthread_detach(t);
+    return false;
 }
