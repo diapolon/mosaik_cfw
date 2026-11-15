@@ -3544,18 +3544,18 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_AUTOBOOT, S_AUTOTIME, S_BATTERY, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_AUTOBOOT, S_AUTOTIME, S_BATTERY, S_CHANTEST, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset", "autoboot", "auto_time", "battery",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset", "autoboot", "auto_time", "battery", "channel_test",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
 static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "card", "updates", "power" };
 static const int cat_items[SC_COUNT][12] = {
-    { S_BRIGHT, S_VOLUME, S_SPEAKER, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
+    { S_BRIGHT, S_VOLUME, S_SPEAKER, S_CHANTEST, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_THEMERESET, S_BOXCOVER, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOBOOT, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
@@ -5663,6 +5663,69 @@ static void batt_draw(void) {
     ui_popup_buttons(x, y, w, h, labels, 1, 0, -1);
 }
 
+/* Prova dei canali (Impostazioni → Schermo e suono): un tono a sinistra, poi a destra, con il lato
+   scritto in grande. Serve a sapere se i canali sono invertiti (TortOS e NextUI: "DAC Swap"). */
+static bool chtest_open;
+static int chtest_side = -1;   /* 0 sinistra, 1 destra, -1 finito */
+static double chtest_t0;
+
+static void chtest_play(int side) {
+    int rate = UI.audio_rate > 0 ? UI.audio_rate : 48000, n = rate * 7 / 10;
+    Sint16 *b = malloc(sizeof(Sint16) * 2 * (size_t)n);
+    chtest_side = side;
+    chtest_t0 = UI.t;
+    if (!b) return;
+    for (int i = 0; i < n; i++) {
+        float env = i < rate / 50 ? (float)i / (rate / 50) : i > n - rate / 50 ? (float)(n - i) / (rate / 50) : 1.0f;
+        Sint16 v = (Sint16)(sinf(2 * 3.14159265f * 660 * i / rate) * 9000 * env);
+        b[2 * i] = side == 0 ? v : 0;
+        b[2 * i + 1] = side == 1 ? v : 0;
+    }
+    plat_amp_wake();
+    ui_play_pcm(b, n);
+    free(b);
+}
+
+static void chtest_show(void) {
+    chtest_open = true;
+    ui_log("prova dei canali");
+    chtest_play(0);
+}
+
+static void chtest_input(void) {
+    if (UI.in.pressed[BTN_B]) { chtest_open = false; ui_sound(SND_BACK); return; }
+    if (UI.in.pressed[BTN_A]) { chtest_play(0); return; }
+    if (chtest_side == 0 && UI.t - chtest_t0 > 1.2) chtest_play(1);
+    else if (chtest_side == 1 && UI.t - chtest_t0 > 1.2) chtest_side = -1;
+}
+
+static void chtest_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    int w = M(0.9f), pad = M(0.04f), fh = TTF_FontHeight(UI.f_title), sh = TTF_FontHeight(UI.f_small);
+    char lines[3][160];
+    int nl = ui_wrap(UI.f_small, T("chtest.note"), w - 2 * pad, lines, 3);
+    int h = pad + fh + M(0.03f) + fh * 2 + M(0.03f) + nl * sh + pad + ui_keybar_h() / 2;
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->surface);
+    ui_text(UI.f_title, T("chtest.title"), x + pad, y + pad, t->text, ALIGN_LEFT);
+    int cy = y + pad + fh + M(0.03f);
+    /* i due lati: quello che suona pieno, l'altro solo il bordo */
+    int bw = (w - 3 * pad) / 2, bh = fh * 2;
+    for (int sd = 0; sd < 2; sd++) {
+        int bx = x + pad + sd * (bw + pad);
+        bool on = chtest_side == sd;
+        if (on) ui_rrect(bx, cy, bw, bh, M(t->panel_radius), t->accent);
+        else ui_rborder(bx, cy, bw, bh, M(t->panel_radius), M(0.003f) + 1, t->line);
+        ui_text(UI.f_title, T(sd ? "chtest.right" : "chtest.left"), bx + bw / 2, cy + (bh - fh) / 2, on ? t->accent_text : t->text_dim, ALIGN_CENTER);
+    }
+    cy += bh + M(0.03f);
+    for (int k = 0; k < nl; k++) ui_text(UI.f_small, lines[k], x + pad, cy + k * sh, t->text_dim, ALIGN_LEFT);
+    const char *hint[] = { "B", T("common.back"), "A", T("chtest.again") };
+    ui_hints(hint, 4);
+}
+
 static void sdinfo_input(void) {
     if (UI.in.pressed[BTN_A] || UI.in.pressed[BTN_B]) { sdinfo_open = false; ui_sound(SND_BACK); }
 }
@@ -5876,7 +5939,7 @@ static bool upd_busy(void) {
 static void upd_audio(void) {
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
-                || romcheck_open || scrape_open || clean_open || sdinfo_open || batt_open || wpanel_open || fsrv_open
+                || romcheck_open || scrape_open || clean_open || sdinfo_open || batt_open || chtest_open || wpanel_open || fsrv_open
                 || (screen == SCR_STORE && store_status()->phase == ST_WORKING)
                 || atomic_load(&imp_state) == IMP_RUN || atomic_load(&imp_state) == IMP_DONE || atomic_load(&rst_state);
     if (want == audio_quiet) return;
@@ -6433,6 +6496,7 @@ static void settings_input(void) {
         else if (set_sel == S_CLEANMEDIA) clean_start();
         else if (set_sel == S_THEMERESET) theme_reset();
         else if (set_sel == S_BATTERY) batt_show();
+        else if (set_sel == S_CHANTEST) chtest_show();
         else if (set_sel == S_UPDATE) upd_start();
         else if (set_sel == S_GENRES) gp_show(GP_MANAGE);
         else if (set_sel == S_COLLS) {
@@ -6485,7 +6549,7 @@ static const char *set_cat_sub(int row) {
     snprintf(k, sizeof k, "settings_cat_sum.%s", cat_key[row - ROW_CAT]);
     return T(k);
 }
-static bool set_has_value(int i) { return i != S_BATTERY && i != S_THEMERESET && i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
+static bool set_has_value(int i) { return i != S_CHANTEST && i != S_BATTERY && i != S_THEMERESET && i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
 static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER || i == S_AUTOTIME; }
 
@@ -6718,7 +6782,7 @@ static void settings_draw(void) {
         for (int k = 0; k < n; k++) ui_text(fs, lines[k], mx, bottom - desc_h + M(0.012f) + k * fsh, t->text_dim, ALIGN_LEFT);
     }
     /* con una finestra aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || batt_open || support_open || wpanel_open || clean_open || fsrv_open) return;
+    if (clock_open || sdinfo_open || batt_open || chtest_open || support_open || wpanel_open || clean_open || fsrv_open) return;
     int end;
     if (set_page < 0) {
         const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
@@ -6727,7 +6791,7 @@ static void settings_draw(void) {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
                    set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
                    set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER ||
-                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT || set_sel == S_THEMERESET || set_sel == S_BATTERY;
+                   set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT || set_sel == S_THEMERESET || set_sel == S_BATTERY || set_sel == S_CHANTEST;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
                             "L/R", T("common.section"), "" };
         end = ui_keybar(h, onda ? 9 : 6);
@@ -9253,7 +9317,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = batt_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = batt_open = chtest_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -9309,6 +9373,7 @@ int main(int argc, char **argv) {
         else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
         else if (batt_open) batt_input();
+        else if (chtest_open) chtest_input();
         else if (support_open) support_input();
         else if (fsrv_open) fsrv_input();
         else if (qp_open) qp_input();
@@ -9375,6 +9440,7 @@ int main(int argc, char **argv) {
         if (clean_open) clean_draw();
         if (sdinfo_open) sdinfo_draw();
         if (batt_open) batt_draw();
+        if (chtest_open) chtest_draw();
         if (support_open) support_draw();
         if (fsrv_open) fsrv_draw();
         if (fpanel_open) fpanel_draw();

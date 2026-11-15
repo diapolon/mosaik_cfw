@@ -221,6 +221,7 @@
     "autoboot": "Direktstart",
     "auto_time": "Automatische Uhrzeit",
     "battery": "Akku",
+    "channel_test": "Kanaltest",
     "aspect": "Seitenverhältnis der Spiele",
     "filter": "Videofilter",
     "cpu": "Leistungsprofil",
@@ -280,6 +281,7 @@
     "autoboot": "Ein Spiel, das beim Einschalten von selbst von vorn startet; beim Verlassen geht es ins Menü. Auswahl auf der Spielseite (X), hier entfernen.",
     "auto_time": "Mit WLAN holt die Konsole die genaue Uhrzeit aus dem Internet, einmal pro Einschalten.",
     "battery": "Ladung der letzten Stunden und Restzeit.",
+    "channel_test": "Ein Ton links, dann rechts: um zu prüfen, ob die Kanäle vertauscht sind, mit Kopfhörern oder Lautsprechern.",
     "aspect": "Original: die Proportionen des Spiels. Ganzzahlig: scharfes Bild. Vollbild: füllt alles aus. Auch pro Konsole (Y in Plattformen) oder pro Spiel.",
     "filter": "Effekte für das Spielbild, zum Beispiel die Linien alter Bildschirme (Scanlines). Auch pro Konsole oder pro Spiel.",
     "cpu": "Sparen verlängert die Akkulaufzeit, Leistung hilft anspruchsvollen Spielen (CPS3). Auch pro Konsole oder pro Spiel.",
@@ -1106,5 +1108,12 @@
     "off": "Direktstart entfernt",
     "how": "Spiel auf seiner Seite wählen: X, Beim Einschalten starten",
     "not_here": "Dieses Spiel kann nicht von selbst starten"
+  },
+  "chtest": {
+    "title": "Kanaltest",
+    "left": "Links",
+    "right": "Rechts",
+    "note": "Kommt der Ton von der Gegenseite der hervorgehobenen, sind die Kanäle vertauscht.",
+    "again": "Nochmal"
   }
 }

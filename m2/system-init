@@ -275,6 +275,19 @@ fi
 # Prova del muto (System/prova-muto.txt, una volta): 2 s di silenzio con il vecchio muto (Headphone
 # e HpSpeaker spenti), con quello nuovo (Headphone acceso) e con le uscite accese. Se il codec si
 # ferma la riproduzione non finisce: hw_ptr e tempo in Logs/prova-muto.txt (ipotesi da TortOS).
+# Controlli audio e dispositivi d'ingresso (System/prova-audio.txt, una volta): per la curva del
+# volume, i canali (DAC Swap) e il riconoscimento delle cuffie (ingresso "Audio Jack")
+if [ -f "$ROOT/System/prova-audio.txt" ]; then
+    { echo "=== $(date) $(cat /run/trimui-model 2> /dev/null)"; cat /proc/asound/cards; echo
+      echo "----- amixer contents"; amixer contents; echo
+      echo "----- amixer scontents"; amixer scontents; echo
+      echo "----- tinymix"; tinymix 2> /dev/null; echo
+      echo "----- /proc/bus/input/devices"; cat /proc/bus/input/devices
+    } > "$ROOT/Logs/audio-controlli.txt" 2>&1
+    rm -f "$ROOT/System/prova-audio.txt"
+    sync
+    step "controlli audio scritti: Logs/audio-controlli.txt"
+fi
 if [ -f "$ROOT/System/prova-muto.txt" ]; then
     PM="$ROOT/Logs/prova-muto.txt"
     prova_muto() {   # nome, poi i comandi amixer

@@ -221,6 +221,7 @@
     "autoboot": "Démarrage direct",
     "auto_time": "Heure automatique",
     "battery": "Batterie",
+    "channel_test": "Test des canaux",
     "aspect": "Format des jeux",
     "filter": "Filtre vidéo",
     "cpu": "Profil de performances",
@@ -280,6 +281,7 @@
     "autoboot": "Un jeu qui démarre tout seul à l'allumage, depuis le début ; en le quittant on revient au menu. Il se choisit dans la fiche du jeu (X) et s'enlève ici.",
     "auto_time": "Avec le Wi-Fi connecté, la console prend l'heure exacte sur internet, une fois par allumage.",
     "battery": "Charge des dernières heures et temps restant.",
+    "channel_test": "Un son à gauche, puis à droite : pour savoir si les canaux sont inversés, au casque ou sur les haut-parleurs.",
     "aspect": "Original : les proportions du jeu. Pixels entiers : image nette. Plein écran : remplit tout. Aussi par console (Y dans Plateformes) ou par jeu.",
     "filter": "Effets sur l'image du jeu, comme les lignes des anciens écrans (scanlines). Aussi par console ou par jeu.",
     "cpu": "Économie prolonge la batterie, Performances aide les jeux lourds (CPS3). Aussi par console ou par jeu.",
@@ -1106,5 +1108,12 @@
     "off": "Démarrage direct retiré",
     "how": "Choisissez un jeu dans sa fiche : X, Lancer à l'allumage",
     "not_here": "Ce jeu ne peut pas démarrer tout seul"
+  },
+  "chtest": {
+    "title": "Test des canaux",
+    "left": "Gauche",
+    "right": "Droite",
+    "note": "Si le son vient du côté opposé à celui allumé, les canaux sont inversés.",
+    "again": "Rejouer"
   }
 }

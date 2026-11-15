@@ -221,6 +221,7 @@
     "autoboot": "Start a game at power on",
     "auto_time": "Automatic time",
     "battery": "Battery",
+    "channel_test": "Channel test",
     "aspect": "Game aspect ratio",
     "filter": "Video filter",
     "cpu": "Performance profile",
@@ -280,6 +281,7 @@
     "autoboot": "A game that starts by itself at power on, from the beginning; leaving it goes to the menu. Choose it from the game page (X), remove it here.",
     "auto_time": "With Wi-Fi connected the console gets the exact time from the internet, once per power on.",
     "battery": "Charge over the last hours and time left.",
+    "channel_test": "A sound on the left, then on the right: to check whether the channels are swapped, in headphones or on the speakers.",
     "aspect": "Original: the game's own proportions. Integer pixels: sharp image. Full screen: fills everything. Also per console (Y in Platforms) or per game.",
     "filter": "Effects on the game picture, such as the lines of old screens (scanlines). Also per console or per game.",
     "cpu": "Power saving extends battery life, Performance helps heavier games (CPS3). Also per console or per game.",
@@ -1106,5 +1108,12 @@
     "off": "No game at power on",
     "how": "Choose a game from its page: X, Start at power on",
     "not_here": "This game cannot start by itself"
+  },
+  "chtest": {
+    "title": "Channel test",
+    "left": "Left",
+    "right": "Right",
+    "note": "If the sound comes from the side opposite the highlighted one, the channels are swapped.",
+    "again": "Again"
   }
 }

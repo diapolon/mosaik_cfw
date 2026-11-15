@@ -221,6 +221,7 @@
     "autoboot": "Avvio diretto",
     "auto_time": "Ora automatica",
     "battery": "Batteria",
+    "channel_test": "Prova dei canali",
     "aspect": "Proporzioni dei giochi",
     "filter": "Filtro video",
     "cpu": "Profilo prestazioni",
@@ -280,6 +281,7 @@
     "autoboot": "Un gioco che parte da solo all'accensione, da capo; uscendo si torna al menu. Si sceglie dalla scheda del gioco (X), qui si toglie.",
     "auto_time": "Con il Wi-Fi collegato la console prende l'ora esatta da internet, una volta per accensione.",
     "battery": "Carica delle ultime ore e tempo rimasto.",
+    "channel_test": "Un suono a sinistra, poi a destra: per sapere se i canali sono invertiti, in cuffia o dagli altoparlanti.",
     "aspect": "Originale: le proporzioni del gioco. Pixel interi: immagine nitida. Schermo intero: riempie tutto. Anche per una console (Y in Piattaforme) o un gioco.",
     "filter": "Effetti sull'immagine dei giochi, per esempio le righe dei vecchi schermi (scanline). Anche per una console o un gioco.",
     "cpu": "Risparmio allunga la batteria, Prestazioni aiuta i giochi più pesanti (CPS3). Anche per una console o un gioco.",
@@ -1106,5 +1108,12 @@
     "off": "Avvio diretto tolto",
     "how": "Scegli un gioco dalla sua scheda: X, Avvia all'accensione",
     "not_here": "Questo gioco non può partire da solo"
+  },
+  "chtest": {
+    "title": "Prova dei canali",
+    "left": "Sinistra",
+    "right": "Destra",
+    "note": "Se il suono arriva dal lato opposto a quello acceso, i canali sono invertiti.",
+    "again": "Ripeti"
   }
 }
