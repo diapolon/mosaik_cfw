@@ -5938,7 +5938,7 @@ static bool upd_busy(void) {
 static void upd_audio(void) {
     int p = update_status()->phase;
     bool want = (upd_open && (p == UPD_SEARCH || p == UPD_CHECK || p == UPD_DOWNLOAD || p == UPD_VERIFY || p == UPD_INSTALL || p == UPD_DONE))
-                || romcheck_open || scrape_open || clean_open || sdinfo_open || batt_open || chtest_open || wpanel_open || fsrv_open
+                || romcheck_open || scrape_open || clean_open || sdinfo_open || wpanel_open || fsrv_open
                 || (screen == SCR_STORE && store_status()->phase == ST_WORKING)
                 || atomic_load(&imp_state) == IMP_RUN || atomic_load(&imp_state) == IMP_DONE || atomic_load(&rst_state);
     if (want == audio_quiet) return;
