@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
         const char *var = (const char *)cur + i;
         size_t l = strnlen(var, SIZE - i);
         char tmp[4096];
+        if (l >= sizeof tmp) { fprintf(stderr, "envtool: variabile troppo lunga (%zu caratteri), nulla cambiato\n", l); return 2; }
         if (!strncmp(var, name, nl) && var[nl] == '=') {
             found = true;
             same = !strcmp(var + nl + 1, value);

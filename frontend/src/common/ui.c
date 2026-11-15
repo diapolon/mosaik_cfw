@@ -987,7 +987,12 @@ void ui_play_pcm(const Sint16 *stereo, int frames) {
     if ((!UI.audio && !pcm_hook) || frames <= 0) return;
     static Sint16 *tmp;
     static int cap;
-    if (frames * 2 > cap) { cap = frames * 2; tmp = realloc(tmp, sizeof(Sint16) * (size_t)cap); }
+    if (frames * 2 > cap) {
+        Sint16 *n = realloc(tmp, sizeof(Sint16) * (size_t)(frames * 2));
+        if (!n) return;   /* memoria finita: questo suono si salta */
+        tmp = n;
+        cap = frames * 2;
+    }
     float g = ui_gain();
     for (int i = 0; i < frames * 2; i++) tmp[i] = (Sint16)(stereo[i] * g);
     if (pcm_hook) pcm_hook(tmp, frames);

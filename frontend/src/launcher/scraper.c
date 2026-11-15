@@ -192,7 +192,13 @@ static meta_t *meta_find(const char *name) {
 static void meta_set(const char *name, const char *genre, const char *players) {
     meta_t *m = meta_find(name);
     if (!m) {
-        if (nmeta == cap_meta) meta = realloc(meta, sizeof(meta_t) * (size_t)(cap_meta = cap_meta ? cap_meta * 2 : 512));
+        if (nmeta == cap_meta) {
+            int nc = cap_meta ? cap_meta * 2 : 512;
+            meta_t *nm = realloc(meta, sizeof(meta_t) * (size_t)nc);
+            if (!nm) return;   /* memoria finita: questo gioco resta senza genere */
+            meta = nm;
+            cap_meta = nc;
+        }
         m = &meta[nmeta++];
         snprintf(m->name, sizeof m->name, "%s", name);
     }
@@ -358,7 +364,13 @@ static void lr_parse(lr_list_t *l, char *buf) {
         else if (!strncmp(p, "rom (", 5)) {
             char *c = strstr(p, "crc ");
             if (c && name && val) {
-                if (l->n == cap) l->e = realloc(l->e, sizeof(lr_t) * (size_t)(cap = cap ? cap * 2 : 1024));
+                if (l->n == cap) {
+                    int nc = cap ? cap * 2 : 1024;
+                    lr_t *ne = realloc(l->e, sizeof(lr_t) * (size_t)nc);
+                    if (!ne) break;   /* memoria finita: l'elenco si ferma qui */
+                    l->e = ne;
+                    cap = nc;
+                }
                 l->e[l->n++] = (lr_t){ (uint32_t)strtoul(c + 4, NULL, 16), name, val };
             }
         } else if (*p && *p != ')' && strncmp(p, "clrmamepro", 10) && strncmp(p, "name ", 5) && strncmp(p, "description ", 12)) {
@@ -475,7 +487,13 @@ static void index_update(const char *rel, ixrow_t *add, int nadd) {
         line[strcspn(line, "\r\n")] = 0;
         char *tab = strchr(line, '\t');
         if (!tab) continue;
-        if (n == cap) rows = realloc(rows, sizeof(ixrow_t) * (size_t)(cap = cap ? cap * 2 : 256));
+        if (n == cap) {
+            int nc = cap ? cap * 2 : 256;
+            ixrow_t *nr = realloc(rows, sizeof(ixrow_t) * (size_t)nc);
+            if (!nr) { if (f) fclose(f); free(rows); return; }   /* memoria finita: l'indice resta com'era */
+            rows = nr;
+            cap = nc;
+        }
         snprintf(rows[n].name, sizeof rows[n].name, "%.*s", (int)(tab - line), line);
         snprintf(rows[n].line, sizeof rows[n].line, "%s", line);
         n++;
@@ -485,7 +503,13 @@ static void index_update(const char *rel, ixrow_t *add, int nadd) {
         int k = 0;
         while (k < n && strcmp(rows[k].name, add[a].name)) k++;
         if (k == n) {
-            if (n == cap) rows = realloc(rows, sizeof(ixrow_t) * (size_t)(cap = cap ? cap * 2 : 256));
+            if (n == cap) {
+                int nc = cap ? cap * 2 : 256;
+                ixrow_t *nr = realloc(rows, sizeof(ixrow_t) * (size_t)nc);
+                if (!nr) { free(rows); return; }   /* memoria finita: l'indice resta com'era */
+                rows = nr;
+                cap = nc;
+            }
             n++;
         }
         rows[k] = add[a];

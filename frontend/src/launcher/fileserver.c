@@ -57,8 +57,10 @@ static char *page;
 static size_t page_len;
 static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
 static fs_status_t st;
-static int bad_pins;
-static time_t locked_until;
+/* PIN sbagliati per indirizzo: 5 errori bloccano per 30 s solo chi li ha fatti (prima il blocco era
+   unico e un altro dispositivo in rete poteva tenere fuori l'utente vero) */
+#define PIN_PEERS 16
+static struct { uint32_t ip; int bad; time_t until; } pin_peers[PIN_PEERS];
 static int msock = -1;
 static char browsers[MAX_BROWSERS][40];
 static int nbrowsers;
@@ -399,21 +401,41 @@ static int small_body(req_t *r, char *out, int n) {
 
 static void do_page(req_t *r) { reply(r->fd, 200, "text/html; charset=utf-8", page, page_len, NULL); }
 
+static int pin_peer(int fd, time_t now) {
+    struct sockaddr_in a;
+    socklen_t l = sizeof a;
+    uint32_t ip = getpeername(fd, (struct sockaddr *)&a, &l) == 0 && a.sin_family == AF_INET ? a.sin_addr.s_addr : 0;
+    int free_slot = -1;
+    for (int i = 0; i < PIN_PEERS; i++) {
+        if (pin_peers[i].ip == ip && (pin_peers[i].bad || pin_peers[i].until > now)) return i;
+        if (free_slot < 0 && !pin_peers[i].bad && pin_peers[i].until <= now) free_slot = i;
+    }
+    if (free_slot < 0) {   /* tutti occupati: si riusa quello che si sblocca prima */
+        free_slot = 0;
+        for (int i = 1; i < PIN_PEERS; i++) if (pin_peers[i].until < pin_peers[free_slot].until) free_slot = i;
+    }
+    pin_peers[free_slot].ip = ip;
+    pin_peers[free_slot].bad = 0;
+    pin_peers[free_slot].until = 0;
+    return free_slot;
+}
+
 static void do_login(req_t *r) {
     time_t now = time(NULL);
-    if (now < locked_until) { reply_err(r->fd, 429, "locked"); return; }
+    int pp = pin_peer(r->fd, now);
+    if (now < pin_peers[pp].until) { reply_err(r->fd, 429, "locked"); return; }
     char body[128], given[16];
     if (small_body(r, body, sizeof body) < 0) { reply_err(r->fd, 400, "path"); return; }
     qget(body, "pin", given, sizeof given);
     unsigned diff = strlen(given) != strlen(pin);
     for (size_t i = 0; i < strlen(pin) && i < strlen(given); i++) diff |= (unsigned)(given[i] ^ pin[i]);
     if (diff) {
-        if (++bad_pins >= 5) { bad_pins = 0; locked_until = now + 30; }
+        if (++pin_peers[pp].bad >= 5) { pin_peers[pp].bad = 0; pin_peers[pp].until = now + 30; }
         event(FS_EV_FAIL, "PIN");
         reply_err(r->fd, 403, "badpin");
         return;
     }
-    bad_pins = 0;
+    pin_peers[pp].bad = 0;
     char hdr[400], rem[8];
     int hn = snprintf(hdr, sizeof hdr, "Set-Cookie: mosaik=%s; Path=/; HttpOnly; SameSite=Strict\r\n", token);
     if (qget(body, "remember", rem, sizeof rem) && rem[0] == '1') {   /* le volte dopo senza PIN */
@@ -1670,8 +1692,7 @@ bool fs_start(const char *dir) {
     snprintf(pin, sizeof pin, "%06u", (unsigned)((rb[0] << 16 | rb[1] << 8 | rb[2]) % 1000000));
     for (int i = 0; i < 16; i++) snprintf(token + 2 * i, sizeof token - 2 * (size_t)i, "%02x", rb[4 + i]);
     if (getenv("ARCADE_FS_PIN")) snprintf(pin, sizeof pin, "%.6s", getenv("ARCADE_FS_PIN"));   /* prove automatiche */
-    bad_pins = 0;
-    locked_until = 0;
+    memset(pin_peers, 0, sizeof pin_peers);
     browsers_load();
     restore_remove_zip();   /* un ripristino lasciato a metà non si riprende: si ricarica dalla pagina */
     { char pz[1300]; full_path(pz, sizeof pz, RESTORE_ZIP ".part"); remove(pz); }

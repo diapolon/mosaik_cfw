@@ -166,7 +166,8 @@ touch /tmp/wakeup_from_suspend
 echo 1 > /sys/class/led_anim/effect_enable 2> /dev/null   # il launcher o il runner riapplicano i LED
 echo 1 > /sys/class/led_anim/enable 2> /dev/null
 # audio: interruttori e uscita del codec come all'avvio (system-init)
-if [ "$(cat "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
+# audio.conf è "configurazione modello" (dalla 0.9.33): conta la prima parola
+if [ "$(cut -d' ' -f1 "$ROOT/System/audio.conf" 2> /dev/null)" = knulli ]; then
     amixer -q cset name="LINEOUT Output Select" DAC_SINGLE
     amixer -q cset name="LINEOUT volume" 26
 fi

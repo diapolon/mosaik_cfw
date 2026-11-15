@@ -97,6 +97,9 @@ check "nessun .part rimasto" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"
 for i in 1 2 3 4 5; do curl -s -X POST -d pin=999999 $U/api/login >/dev/null; done
 check "PIN bloccato dopo 5 errori" '{"error":"locked"}' "$(curl -s -X POST -d pin=123456 $U/api/login)"
 check "sessione ancora valida" "200" "$(q -o /dev/null -w '%{http_code}' "$U/api/info")"
+# il blocco vale per chi ha sbagliato: dall'indirizzo di rete del container (non 127.0.0.1) si entra
+IP2=$(hostname -i 2>/dev/null | awk '{print $1}')
+[ -n "$IP2" ] && [ "$IP2" != 127.0.0.1 ] && check "un altro indirizzo non è bloccato" '{"ok":true}' "$(curl -s -X POST -d pin=123456 http://$IP2:8099/api/login)"
 sleep 31   # fine del blocco
 check "ricorda il browser" '{"ok":true}' "$(curl -s -c $W/cr -X POST -d 'pin=123456&remember=1' $U/api/login)"
 R=$(grep mosaikr $W/cr | awk '{print $7}')

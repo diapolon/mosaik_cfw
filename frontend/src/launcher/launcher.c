@@ -6795,6 +6795,14 @@ static void dialog_draw(void) {
 
 static char (*dlines)[220];
 static int ndlines, dlines_game = -1, dlines_w;
+/* raddoppia le righe della descrizione; false a memoria finita (la descrizione si ferma lì) */
+static bool dlines_grow(int *cap) {
+    char (*n)[220] = realloc(dlines, sizeof *dlines * (size_t)(*cap * 2));
+    if (!n) return false;
+    dlines = n;
+    *cap *= 2;
+    return true;
+}
 static float detail_scroll, detail_scroll_target;
 
 static void open_detail(int idx) {
@@ -6857,7 +6865,7 @@ static void wrap_history(const game_t *g, int w) {
             char test[440];
             snprintf(test, sizeof test, "%s%s%s", cur, cur[0] ? " " : "", word);
             if (cur[0] && ui_text_w(font, test) > w) {
-                if (ndlines == cap) dlines = realloc(dlines, sizeof *dlines * (size_t)(cap *= 2));
+                if (ndlines == cap && !dlines_grow(&cap)) break;
                 snprintf(dlines[ndlines++], 220, "%s", cur);
                 snprintf(cur, sizeof cur, "%s", word);
             } else {
@@ -6865,7 +6873,7 @@ static void wrap_history(const game_t *g, int w) {
             }
             any = true;
         }
-        if (ndlines == cap) dlines = realloc(dlines, sizeof *dlines * (size_t)(cap *= 2));
+        if (ndlines == cap && !dlines_grow(&cap)) break;
         snprintf(dlines[ndlines++], 220, "%s", any ? cur : "");
     }
     fclose(f);
