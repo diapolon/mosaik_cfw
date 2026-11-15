@@ -51,7 +51,8 @@ echo 1 >/proc/sys/kernel/printk 2>/dev/null
 # few pages". I giochi li disegna comunque a 640x480: se le pagine non bastano lo schermo parte
 # già in 640x480 (pagine da 480 righe) e alla fine torna com'era. Sulla Brick Pro ci stanno: nulla
 # cambia.
-GEOM="$(fbset 2>/dev/null | sed -n 's/^ *geometry *//p')"
+GEOM="$(fbset 2>/dev/null | sed -n 's/^[[:space:]]*geometry[[:space:]]*//p')"
+echo "deadcast: schermo (fbset geometry): ${GEOM:-non letto}"
 set -- $GEOM
 if [ $# -ge 5 ] && [ $((21 * $2)) -gt "$4" ]; then
 	echo "deadcast: schermo ${1}x${2}, righe $4: troppo poche per 21 pagine, parto in 640x480"
