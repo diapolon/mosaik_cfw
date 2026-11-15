@@ -37,6 +37,7 @@ BPP="$(cat $FB/bits_per_pixel 2>/dev/null)"
 # i messaggi del kernel sulla console rallentano il cambio dei fotogrammi: spenti mentre si gioca
 PRINTK="$(cut -f1 /proc/sys/kernel/printk 2>/dev/null)"
 cleanup() {
+	[ -n "$FBSET_BACK" ] && fbset -g $FBSET_BACK 2>/dev/null
 	[ -n "$PRINTK" ] && echo "$PRINTK" >/proc/sys/kernel/printk
 	[ -n "$BPP" ] && echo "$BPP" >$FB/bits_per_pixel 2>/dev/null
 	[ -n "$VSIZE" ] && echo "$VSIZE" >$FB/virtual_size 2>/dev/null
@@ -44,6 +45,19 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM HUP QUIT
 echo 1 >/proc/sys/kernel/printk 2>/dev/null
+
+# Deadcast mette le sue 5 pagine dopo 16 pagine dello schermo (come serve a NextUI), alte quanto
+# lo schermo: sulla Smart Pro (1280x720, fb0 da 64 MB) non ci stanno e si ferma con "fb0 has too
+# few pages". I giochi li disegna comunque a 640x480: se le pagine non bastano lo schermo parte
+# già in 640x480 (pagine da 480 righe) e alla fine torna com'era. Sulla Brick Pro ci stanno: nulla
+# cambia.
+GEOM="$(fbset 2>/dev/null | sed -n 's/^ *geometry *//p')"
+set -- $GEOM
+if [ $# -ge 5 ] && [ $((21 * $2)) -gt "$4" ]; then
+	echo "deadcast: schermo ${1}x${2}, righe $4: troppo poche per 21 pagine, parto in 640x480"
+	fbset -g 640 480 640 "$4" "$5" 2>/dev/null || echo "deadcast: fbset non riuscito"
+	FBSET_BACK="$GEOM"
+fi
 
 cd "$DIR" || exit 1
 # uscita 86: nel suo menu si è scelto un altro "core" (emulatore o modulo recomp), si riparte
