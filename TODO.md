@@ -6,7 +6,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 
 **Sound and buttons**
 - [x] Sound freezes when the speaker was muted: found and fixed (both outputs of the codec were turned off together; 0.9.65)
-- [ ] Left and right channels: check and fix with the codec's "DAC Swap" control
+- [x] Left and right channels were swapped (the codec starts with "DAC Swap" on): turned off at start and after sleep, confirmed by ear on the Smart Pro with Settings → Display and sound → Channel test; Brick Pro still to check
 - [ ] A new volume curve (the driver reports wrong steps, so today's curve is uneven) and quieter steps for headphones
 - [ ] Headphones detected when plugged in or out
 - [ ] Smart Pro: a fixed button program for the left stick that stops at the centre after a fast flick ([#9](https://github.com/diapolon/mosaik_cfw/issues/9))
