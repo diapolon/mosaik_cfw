@@ -272,6 +272,31 @@ fi
 # uscite accese (nella prova; con la configurazione ricordata sono già nella chiamata unica)
 [ -n "${PROBED:-}" ] && echo "$OUTPUTS" | amixer -q -s >> "$AUDIO" 2>&1
 [ -n "${PROBED:-}" ] && { echo "--- controlli dopo la preparazione"; amixer contents; } >> "$AUDIO" 2>&1
+# Prova del muto (System/prova-muto.txt, una volta): 2 s di silenzio con il vecchio muto (Headphone
+# e HpSpeaker spenti), con quello nuovo (Headphone acceso) e con le uscite accese. Se il codec si
+# ferma la riproduzione non finisce: hw_ptr e tempo in Logs/prova-muto.txt (ipotesi da TortOS).
+if [ -f "$ROOT/System/prova-muto.txt" ]; then
+    PM="$ROOT/Logs/prova-muto.txt"
+    prova_muto() {   # nome, poi i comandi amixer
+        nome=$1; shift
+        for c in "$@"; do amixer -q cset name="${c%=*}" "${c##*=}" 2> /dev/null; done
+        t0=$(cut -d' ' -f1 /proc/uptime)
+        aplay -q -D hw:audiocodec,0 -f S16_LE -r 48000 -c 2 -d 2 /dev/zero > /dev/null 2>&1 & ap=$!
+        sleep 1
+        st=$(grep -E "state|hw_ptr" /proc/asound/audiocodec/pcm0p/sub0/status 2> /dev/null | tr -s ' \n' ' ')
+        i=0; while kill -0 $ap 2> /dev/null && [ $i -lt 40 ]; do sleep 0.1; i=$((i + 1)); done
+        if kill -0 $ap 2> /dev/null; then kill -9 $ap 2> /dev/null; esito="BLOCCATA (terminata dopo 5 s)"; else esito="finita"; fi
+        t1=$(cut -d' ' -f1 /proc/uptime)
+        echo "$nome: $esito, da $t0 a $t1 s; a 1 s: $st" >> "$PM"
+    }
+    { echo "=== $(date) $(cat /run/trimui-model 2> /dev/null)"; amixer cget name="Headphone Switch" 2> /dev/null | tail -1; } >> "$PM"
+    prova_muto "vecchio muto (Headphone e HpSpeaker spenti)" "Headphone Switch=off" "HpSpeaker Switch=off" "LINEOUT Switch=off"
+    prova_muto "nuovo muto (Headphone acceso, HpSpeaker spento)" "Headphone Switch=on" "HpSpeaker Switch=off" "LINEOUT Switch=off"
+    prova_muto "uscite accese" "Headphone Switch=on" "HpSpeaker Switch=on"
+    rm -f "$ROOT/System/prova-muto.txt"
+    sync
+    step "prova del muto fatta: Logs/prova-muto.txt"
+fi
 arcade-suspend mute 2> /dev/null
 : > /run/arcade-audio-held
 

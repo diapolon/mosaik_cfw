@@ -9,9 +9,15 @@ LOGDIR=${ARCADE_LOG_DIR:-$ROOT/Logs}
 STEPS=$LOGDIR/passi.txt
 step() { echo "$(cut -d' ' -f1 /proc/uptime)s sospensione: $1" >> "$STEPS"; }
 
+# Muto senza fermare il codec: con "Headphone Switch" e "HpSpeaker Switch" spenti insieme il codec
+# smette di prendere campioni (hw_ptr fermo), chi scrive l'audio si blocca e anche la chiusura
+# dell'uscita resta appesa (misurato da TortOS sulla Brick, commit f941242; da noi i blocchi della
+# musica, issue #8, e la chiusura dell'audio prima di plat_audio_release). Headphone Switch resta
+# acceso: si spengono l'altoparlante (HpSpeaker e /sys/class/speaker/mute) e LINEOUT.
 mute() {
     [ -w /sys/class/speaker/mute ] && echo 1 > /sys/class/speaker/mute
-    for c in "Headphone Switch" "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" off 2> /dev/null; done
+    for c in "HpSpeaker Switch" "LINEOUT Switch"; do amixer -q cset name="$c" off 2> /dev/null; done
+    amixer -q cset name="Headphone Switch" on 2> /dev/null
 }
 unmute() {
     for c in "Headphone Switch" "HpSpeaker Switch"; do amixer -q cset name="$c" on 2> /dev/null; done
