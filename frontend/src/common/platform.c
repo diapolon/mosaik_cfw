@@ -63,13 +63,47 @@ static void set_brightness(int level) {
     close(fd);
 }
 
-/* volume: il controllo "digital volume" del codec è invertito (0 = massimo) */
+/* Cuffie: il dispositivo d'ingresso "audiocodec sunxi Audio Jack" ha l'interruttore
+   SW_HEADPHONE_INSERT (Smart Pro e Brick Pro, Logs/audio-controlli.txt del 15 novembre; TortOS fa
+   lo stesso). Letto con EVIOCGSW, senza consumare eventi. */
+static int jack_fd = -2;
+static bool headphones(void) {
+    if (jack_fd == -2) {
+        jack_fd = -1;
+        for (int i = 0; i < 16 && jack_fd < 0; i++) {
+            char p[64], name[128] = "";
+            snprintf(p, sizeof p, "/dev/input/event%d", i);
+            int fd = open(p, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+            if (fd < 0) continue;
+            if (ioctl(fd, EVIOCGNAME(sizeof name), name) > 0 && strstr(name, "Audio Jack")) { jack_fd = fd; ui_log("cuffie: lette da %s", p); }
+            else close(fd);
+        }
+    }
+    if (jack_fd < 0) return false;
+    unsigned long sw[(SW_MAX + 8 * sizeof(long)) / (8 * sizeof(long))] = { 0 };
+    if (ioctl(jack_fd, EVIOCGSW(sizeof sw), sw) < 0) return false;
+    return sw[SW_HEADPHONE_INSERT / (8 * sizeof(long))] >> (SW_HEADPHONE_INSERT % (8 * sizeof(long))) & 1;
+}
+
+/* Volume: "digital volume" va da 0 a 63 ed è invertito (0 = il più forte, ogni passo 1,16 dB in
+   meno); i suoi dati per il dB sono al contrario, quindi "amixer -M" dava una curva storta (quasi
+   silenzio fino a metà). I 20 livelli sono passi uguali in dB: altoparlante da 0 a 39 (0 e -45 dB),
+   cuffie da 8 a 61 (-9 e -71 dB: in cuffia il massimo del codec è troppo forte). Valori misurati
+   a orecchio da TortOS sulla Brick, stesso codec. Livello 0: muto. */
+static bool vol_hp;
 static void set_volume(int level) {
-    int pct = level * 5;   /* 0..20 -> 0..100 */
-    char cmd[160];
-    snprintf(cmd, sizeof cmd, "amixer sset 'digital volume' -M %d%% >/dev/null 2>&1", 100 - pct);
-    if (system(cmd) != 0) return;
-    if (system(pct ? "amixer sset 'DAC volume' 160 >/dev/null 2>&1" : "amixer sset 'DAC volume' 0 >/dev/null 2>&1")) {}
+    vol_hp = headphones();
+    int raw = 63;
+    if (level > 0) {
+        int lo = vol_hp ? 8 : 0, hi = vol_hp ? 61 : 39;
+        raw = lo + ((20 - (level > 20 ? 20 : level)) * (hi - lo) + 9) / 19;
+    }
+    char cmd[200];
+    snprintf(cmd, sizeof cmd, "amixer -q cset name='digital volume' %d >/dev/null 2>&1; amixer -q sset 'DAC volume' %d >/dev/null 2>&1",
+             raw, level ? 160 : 0);
+    if (system(cmd) != 0) ui_log("volume: amixer non riuscito");
+    static int logged;
+    if (logged++ < 3) ui_log("volume: livello %d, %s, digital volume %d", level, vol_hp ? "cuffie" : "altoparlante", raw);
 }
 
 /* Frequenza della CPU (verifica audit BUG-011): solo valori che il kernel dichiara, governor
@@ -214,6 +248,16 @@ void plat_apply(const settings_t *s) {
     int want_bright = screen_off ? BRIGHT_OFF : s->brightness;
     if (want_bright != bright) { bright = want_bright; set_brightness(bright); }
     if (s->volume != vol) { vol = s->volume; set_volume(vol); }
+    else {   /* cuffie collegate o tolte: il volume con l'intervallo giusto, controllato due volte al secondo */
+        static unsigned last;
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        unsigned ms = (unsigned)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+        if (vol >= 0 && ms - last > 500) {
+            last = ms;
+            if (headphones() != vol_hp) { ui_log("cuffie %s", vol_hp ? "tolte" : "collegate"); set_volume(vol); }
+        }
+    }
     /* FN attivo: prestazioni massime, qualunque sia il profilo scelto */
     /* l'interruttore FN (prestazioni massime) vale più della scelta per il gioco */
     int want = cpu_fixed ? cpu_fixed : cpu_game && fn_state != 1 ? cpu_game : profile_khz(s);
