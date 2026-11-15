@@ -5505,6 +5505,8 @@ static long batt_t[BATT_MAX];
 static short batt_pct[BATT_MAX];
 static bool batt_chg[BATT_MAX], batt_charging, batt_detail;
 static long batt_left_min;   /* -1: non ancora stimabile */
+static long batt_sleep_s;    /* ultima sospensione nella storia (un buco di oltre 10 minuti): durata */
+static int batt_sleep_drop;  /* e punti di carica persi */
 static double batt_read_t;
 
 static const char *batt_log(void) {
@@ -5552,6 +5554,16 @@ static void batt_load(void) {
     long tte, full;
     batt_detail = plat_battery_detail(&batt_ma, &tte, &full);
     batt_left_min = batt_estimate();
+    /* ultima sospensione: le misure si fermano mentre la console dorme, quindi è il buco più recente
+       fra due misure a batteria (Brick Pro, 15 novembre: 15 h 36 min senza perdere un punto) */
+    batt_sleep_s = 0;
+    batt_sleep_drop = 0;
+    for (int i = batt_n - 1; i > 0; i--)
+        if (batt_t[i] - batt_t[i - 1] > 600 && !batt_chg[i] && !batt_chg[i - 1]) {
+            batt_sleep_s = batt_t[i] - batt_t[i - 1];
+            batt_sleep_drop = batt_pct[i - 1] - batt_pct[i];
+            break;
+        }
     /* Il driver AXP2202 di serie non dà la corrente (current_now c'è ma la lettura fallisce: port
        mainline leow149, docs/axp717-ibat-re.md), e time_to_empty_now ha unità non verificate: la
        stima viene solo dalla discesa della carica. Nel registro i valori, per controllarli. */
@@ -5603,7 +5615,11 @@ static void batt_draw(void) {
     ui_text(f, line, lx, cy, t->text, ALIGN_LEFT);
     cy += fh + M(0.01f);
     if (batt_detail && batt_ma) snprintf(line, sizeof line, T(batt_ma > 0 ? "battery.charge_rate" : "battery.draw"), batt_ma > 0 ? batt_ma : -batt_ma);
-    else line[0] = 0;
+    else if (batt_sleep_s > 0) {
+        batt_fmt_min(batt_sleep_s / 60, v, sizeof v);
+        if (batt_sleep_drop > 0) snprintf(line, sizeof line, T("battery.sleep_drop"), v, batt_sleep_drop);
+        else snprintf(line, sizeof line, T("battery.sleep_same"), v);
+    } else line[0] = 0;
     ui_text(f, line, lx, cy, t->text_dim, ALIGN_LEFT);
     cy += fh + M(0.01f) + M(0.02f);
     /* grafico: 0-100 % in verticale, le ultime ore (da 1 a 12) in orizzontale, adesso a destra */
@@ -5622,10 +5638,16 @@ static void batt_draw(void) {
         int th = M(0.006f) + 1, px = -1, py = 0;
         color_t chg = rgba(80, 190, 110, 255);
         for (int i = 0; i < batt_n; i++) {
-            if (batt_t[i] < from) continue;
-            int xx = gx + (int)((double)gw * (batt_t[i] - from) / (hours * 3600));
+            if (batt_t[i] < from && (i + 1 >= batt_n || batt_t[i + 1] < from)) continue;
+            /* il punto prima della finestra serve solo da inizio della linea, sul bordo sinistro */
+            long ti = batt_t[i] < from ? from : batt_t[i];
+            int xx = gx + (int)((double)gw * (ti - from) / (hours * 3600));
             int yy = gb - (gb - gy) * batt_pct[i] / 100;
-            if (px >= 0 && batt_t[i] - batt_t[i - 1] <= 600) thick_line(px, py, xx, yy, th, batt_chg[i] ? chg : t->accent);
+            if (px >= 0) {
+                if (batt_t[i] - batt_t[i - 1] <= 600) thick_line(px, py, xx, yy, th, batt_chg[i] ? chg : t->accent);
+                else thick_line(px, py, xx, yy, 1, with_alpha(t->text_dim, 160));   /* sospensione: niente misure in mezzo */
+            }
+            if (batt_t[i] >= from) ui_circle(xx, yy, th, batt_chg[i] ? chg : t->accent);
             px = xx;
             py = yy;
         }
