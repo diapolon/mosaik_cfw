@@ -7,8 +7,8 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 **Sound and buttons**
 - [x] Sound freezes when the speaker was muted: found and fixed (both outputs of the codec were turned off together; 0.9.65)
 - [x] Left and right channels were swapped (the codec starts with "DAC Swap" on): turned off at start and after sleep, confirmed by ear on the Smart Pro and the Brick Pro with Settings → Display and sound → Channel test
-- [ ] A new volume curve (the driver reports wrong steps, so today's curve is uneven) and quieter steps for headphones
-- [ ] Headphones detected when plugged in or out
+- [x] A new volume curve in equal dB steps (the driver reports its dB backwards, so the old curve was nearly silent up to half) and a separate range for headphones; tried by ear on the Brick Pro
+- [x] Headphones detected when plugged in or out ("audiocodec sunxi Audio Jack", both models)
 - [ ] Smart Pro: a fixed button program for the left stick that stops at the centre after a fast flick ([#9](https://github.com/diapolon/mosaik_cfw/issues/9))
 - [ ] Brick Pro: speaker hiss at idle, choose the method to keep ([#4](https://github.com/diapolon/mosaik_cfw/issues/4))
 
