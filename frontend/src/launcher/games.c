@@ -86,6 +86,12 @@ int emulators_load(const char *root) {
         jval *bi = json_get(j, "bios");
         for (jval *v = bi && bi->t == J_ARR ? bi->child : NULL; v && m->nbios < 4; v = v->next)
             if (v->t == J_STR && !strchr(v->s, '/')) snprintf(m->bios[m->nbios++], sizeof m->bios[0], "%s", v->s);
+        jval *mo = json_get(j, "models");
+        for (jval *v = mo && mo->t == J_ARR ? mo->child : NULL; v; v = v->next)
+            if (v->t == J_STR && strlen(m->models) + strlen(v->s) + 2 < sizeof m->models) {
+                if (m->models[0]) strcat(m->models, " ");
+                strcat(m->models, v->s);
+            }
         jval *ex = json_get(j, "extensions");
         for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v && m->nexts < 8; v = v->next)
             if (v->t == J_STR) snprintf(m->exts[m->nexts++], sizeof m->exts[0], ".%s", v->s);

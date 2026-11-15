@@ -1,6 +1,7 @@
 {
   "_name": "Deutsch",
   "common": {
+    "not_this_model": "%s funktioniert auf dieser Konsole noch nicht",
     "info": "Info",
     "ok": "OK",
     "back": "Zurück",
@@ -923,6 +924,7 @@
     "empty_text": "Apps nach Arcade/Apps kopieren: ein Ordner pro App, mit launch.sh darin."
   },
   "store": {
+    "not_this_model": "Getestet auf %s: funktioniert auf dieser Konsole noch nicht.",
     "title": "Store",
     "loading": "Katalog wird geladen…",
     "online": "Katalog aktuell",

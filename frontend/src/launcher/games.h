@@ -57,6 +57,7 @@ typedef struct {
     char exts[8][12];
     char maker[24], year[8];   /* "maker", "year": produttore e anno della console (layout galleria) */
     char bios[4][32];   /* "bios": basta uno di questi file in Bios/ (Sega CD: uno per regione) */
+    char models[40];    /* "models": modelli su cui funziona ("brickpro"...), separati da spazi; vuoto = tutti */
     int nexts, nbios, order;
     bool console, planned;
 } emulator_t;

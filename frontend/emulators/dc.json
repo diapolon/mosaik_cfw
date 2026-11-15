@@ -4,6 +4,7 @@
   "core": "deadcast",
   "launch": "Cores/deadcast/launch.sh",
   "menu": false,
+  "models": ["brickpro"],
   "roms": "Roms/DC",
   "extensions": [
     "chd",

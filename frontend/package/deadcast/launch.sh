@@ -55,6 +55,13 @@ GEOM="$(fbset 2>/dev/null | sed -n 's/^[[:space:]]*geometry[[:space:]]*//p')"
 echo "deadcast: schermo (fbset geometry): ${GEOM:-non letto}"
 set -- $GEOM
 if [ $# -ge 5 ] && [ $((21 * $2)) -gt "$4" ]; then
+	# Smart Pro: in 640x480 Deadcast parte (si sente) ma lo schermo resta nero, perché il pannello
+	# è ruotato e Deadcast scrive direttamente in fb0 (15 novembre). Solo per le prove
+	# (System/prova-deadcast-640.txt); altrimenti si torna subito al menu.
+	if [ ! -f "$ROOT/System/prova-deadcast-640.txt" ]; then
+		echo "deadcast: schermo ${1}x${2}: Deadcast non funziona ancora su questa console"
+		exit 1
+	fi
 	echo "deadcast: schermo ${1}x${2}, righe $4: troppo poche per 21 pagine, parto in 640x480"
 	fbset -g 640 480 640 "$4" "$5" 2>/dev/null || echo "deadcast: fbset non riuscito"
 	FBSET_BACK="$GEOM"

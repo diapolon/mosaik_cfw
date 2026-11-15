@@ -1,6 +1,7 @@
 {
   "_name": "Français",
   "common": {
+    "not_this_model": "%s ne fonctionne pas encore sur cette console",
     "info": "Infos",
     "ok": "OK",
     "back": "Retour",
@@ -923,6 +924,7 @@
     "empty_text": "Copiez les apps dans Arcade/Apps : un dossier par app, avec launch.sh dedans."
   },
   "store": {
+    "not_this_model": "Testé sur %s : ne fonctionne pas encore sur cette console.",
     "title": "Boutique",
     "loading": "Chargement du catalogue…",
     "online": "Catalogue à jour",

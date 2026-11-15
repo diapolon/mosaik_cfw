@@ -1,6 +1,7 @@
 {
   "_name": "English",
   "common": {
+    "not_this_model": "%s does not work on this console yet",
     "info": "Info",
     "ok": "OK",
     "back": "Back",
@@ -923,6 +924,7 @@
     "empty_text": "Copy apps to Arcade/Apps: one folder per app, with launch.sh inside."
   },
   "store": {
+    "not_this_model": "Tested on %s: it does not work on this console yet.",
     "title": "Store",
     "loading": "Loading the catalogue…",
     "online": "Catalogue up to date",

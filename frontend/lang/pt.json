@@ -1,6 +1,7 @@
 {
   "_name": "Português",
   "common": {
+    "not_this_model": "%s ainda não funciona nesta consola",
     "info": "Info",
     "ok": "OK",
     "back": "Voltar",
@@ -923,6 +924,7 @@
     "empty_text": "Copie as apps para Arcade/Apps: uma pasta por app, com launch.sh dentro."
   },
   "store": {
+    "not_this_model": "Testado em %s: ainda não funciona nesta consola.",
     "title": "Loja",
     "loading": "A carregar o catálogo…",
     "online": "Catálogo atualizado",

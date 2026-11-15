@@ -634,6 +634,18 @@ static void launch_ex(game_t *g, bool resume) {
         ui_sound(SND_ERROR);
         return;
     }
+    /* emulatore che dichiara i modelli su cui funziona ("models"): Deadcast sulla Smart Pro parte
+       ma lo schermo resta nero (15 novembre), meglio dirlo che avviarlo */
+    const emulator_t *me = emulator_find(g->core);
+    const char *model = plat_model();
+    if (me && me->models[0] && model && !strstr(me->models, model)) {
+        char msg[200];
+        snprintf(msg, sizeof msg, T("common.not_this_model"), me->name);
+        ui_log("%s: %s non è fra i modelli dichiarati (%s)", g->title, model, me->models);
+        ui_toast(msg);
+        ui_sound(SND_ERROR);
+        return;
+    }
     bool sh = !strcmp(g->core, "linux") || !strcmp(g->core, "app");   /* script: giochi Linux e app */
     /* app e giochi Linux dichiarano il sistema di cui hanno bisogno ("min_system" in app.json o
        game.json, accanto a launch.sh): con uno più vecchio non partono e lo si dice */
@@ -4774,11 +4786,14 @@ static void sto_draw(void) {
             if (strstr(p.tested, "smartpro")) snprintf(models, sizeof models, "Smart Pro");
             if (strstr(p.tested, "brickpro")) { size_t l = strlen(models); snprintf(models + l, sizeof models - l, "%sBrick Pro", l ? ", " : ""); }
             if (models[0]) snprintf(note, sizeof note, T("store.tested"), models);
+            const char *model = plat_model();
+            if (model && !strstr(p.tested, model)) snprintf(note, sizeof note, T("store.not_this_model"), models);
         }
         if (note[0]) {
             ty += M(0.008f);
             nl = ui_wrap(fs, note, tw, lines, 2);
-            color_t nc = p.needs_system || p.experimental ? rgba(230, 130, 20, 255) : t->accent;
+            bool other = p.tested[0] && plat_model() && !strstr(p.tested, plat_model());
+            color_t nc = p.needs_system || p.experimental || other ? rgba(230, 130, 20, 255) : t->accent;
             for (int k = 0; k < nl; k++, ty += fsh) ui_text(fs, lines[k], tx, ty, nc, ALIGN_LEFT);
         }
         int bl[4], nb = sto_buttons(&p, bl), danger = -1;

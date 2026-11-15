@@ -1,6 +1,7 @@
 {
   "_name": "Italiano",
   "common": {
+    "not_this_model": "%s non funziona ancora su questa console",
     "info": "Info",
     "ok": "OK",
     "back": "Indietro",
@@ -923,6 +924,7 @@
     "empty_text": "Copia le app in Arcade/Apps: una cartella per app, con dentro launch.sh."
   },
   "store": {
+    "not_this_model": "Provato su %s: su questa console non funziona ancora.",
     "title": "Store",
     "loading": "Carico il catalogo…",
     "online": "Catalogo aggiornato",
