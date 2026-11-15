@@ -224,6 +224,8 @@ oom:
 
 static char lang_code[16] = "en";
 static char system_version[24];
+static char model_id[16];
+void store_model(const char *model) { snprintf(model_id, sizeof model_id, "%s", model ? model : ""); }
 void store_system(const char *version) { snprintf(system_version, sizeof system_version, "%s", version ? version : ""); }
 
 /* "0.9.37" contro "0.9.5": numero per numero */
@@ -313,6 +315,19 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
                 free(tl[k]);
             }
             free(tl);
+        }
+        {   /* modelli su cui il pacchetto funziona: gli altri non lo vedono */
+            int nm = 0;
+            bool toom = false, fits = false;
+            char **ml = str_list(json_get(v, "models"), &nm, &toom);
+            for (int k = 0; k < nm; k++) {
+                size_t l = strlen(x->p.models);
+                snprintf(x->p.models + l, sizeof x->p.models - l, "%s%s", l ? " " : "", ml[k]);
+                if (!strcmp(ml[k], model_id)) fits = true;
+                free(ml[k]);
+            }
+            free(ml);
+            x->p.other_model = nm > 0 && model_id[0] && !fits;
         }
         {   /* immagini della scheda: solo nomi semplici, come gli zip */
             jval *im = json_get(v, "images");
@@ -1103,6 +1118,7 @@ static void *restore_worker(void *arg) {
         for (int c = 0; c < ncat && i < 0; c++) if (!strcmp(cat[c].p.id, ids[k])) i = c;
         pthread_mutex_unlock(&lock);
         if (i < 0) { ui_log("store: %s del backup non è nel catalogo di questo canale", ids[k]); continue; }
+        if (cat[i].p.other_model) { ui_log("store: %s del backup non funziona su questo modello", ids[k]); continue; }
         if (st.cancel) { snprintf(left[nl++], 32, "%s", ids[k]); last = SE_CANCEL; continue; }
         job = i;
         st.done = st.total = 0;

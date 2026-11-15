@@ -185,6 +185,7 @@ if os.path.exists(_extra) and not os.environ.get("STORE_STATO"):
     _x = json.load(open(_extra, encoding="utf-8"))
     stato.setdefault("experimental", []).extend(_x.get("experimental", []))
     stato.setdefault("min_system", {}).update(_x.get("min_system", {}))
+    stato.setdefault("models", {}).update(_x.get("models", {}))
 catalog = {"format": 1, "packages": [], "packages2": []}
 for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
@@ -290,6 +291,8 @@ for pid in sorted(os.listdir(args.src)):
         entry["status"] = "experimental"
     if stato.get("tested", {}).get(pid):
         entry["tested"] = stato["tested"][pid]
+    if stato.get("models", {}).get(pid):   # funziona solo su questi modelli: gli altri non lo vedono (0.9.67)
+        entry["models"] = stato["models"][pid]
     # sistema di cui il pacchetto ha bisogno: app e giochi Linux lo dichiarano nei loro file
     # (app.json, game.json di ogni gioco: lo legge anche il launcher prima di avviarli), gli altri
     # pacchetti in store-stato.json; per app e giochi è obbligatorio

@@ -1021,6 +1021,7 @@
     "exp_note": "Experimentell: noch nicht auf den Konsolen getestet.",
     "tested": "Getestet auf %s.",
     "needs_system": "Benötigt Mosaik %s: zuerst das System aktualisieren.",
+    "only_models": "Nur für %s: funktioniert nicht auf dieser Konsole.",
     "err_system": "Zuerst das System aktualisieren"
   },
   "support": {

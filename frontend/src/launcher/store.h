@@ -37,6 +37,8 @@ typedef struct {
     /* stato del pacchetto nel catalogo, uguale per i canali Stabile e Sviluppo del sistema */
     bool experimental;           /* "status": "experimental": si installa, ma non è ancora provato sulle console */
     char tested[32];             /* modelli su cui è provato: "brickpro smartpro" */
+    char models[32];             /* modelli su cui funziona ("" tutti): "brickpro" per Deadcast (dalla 0.9.67) */
+    bool other_model;            /* non funziona su questo modello: lo Store non lo propone */
     char min_system[16];         /* versione minima del sistema, "" se va con tutte */
     bool needs_system;           /* il sistema in uso è più vecchio di min_system: prima va aggiornato */
     char inst_label[32];         /* versione installata, come la mostra la scheda ("" se non installato) */
@@ -59,6 +61,8 @@ void store_lang(const char *lang);
 /* versione del sistema in uso ("0.9.45"), per i pacchetti che ne chiedono una minima; prima di store_open */
 void store_system(const char *version);
 bool store_system_older(const char *min);   /* app e giochi: "min_system" del loro app.json/game.json */
+/* modello della console ("smartpro", "brickpro"; NULL sul Mac: vanno bene tutti); prima di store_open */
+void store_model(const char *model);
 /* carica subito il catalogo tenuto sulla scheda e, in un thread, quello in rete (se online) */
 void store_open(const char *root, int development, bool online);
 const store_status_t *store_status(void);

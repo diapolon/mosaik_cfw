@@ -4176,7 +4176,7 @@ static void wpanel_draw(void) {
    poi di tenere premuto A per 3 secondi, come Cancella tutto. */
 enum { SL_CATS, SL_PKGS };
 enum { SA_NONE, SA_ARCHIVE, SA_DELETE, SA_DELETE2 };
-static const char *const STO_CATS[] = { "arcade", "console", "computer", "apps", "themes", "bezels", "filters", "linux" };
+static const char *const STO_CATS[] = { "arcade", "console", "computer", "linux", "apps", "themes", "bezels", "filters" };   /* emulatori, giochi, app, estensioni */
 #define NSTO_CATS 8
 static int sto_level, sto_cat, sto_sel, sto_cats[NSTO_CATS], nsto_cats;
 static int sto_items[64], nsto_items;
@@ -4190,6 +4190,18 @@ static float sto_scroll;
 static bool sto_online(void) { return wifi_supported() ? wifi_status(false)->state == WIFI_CONNECTED : true; }
 static bool sto_was_offline;   /* aperto senza rete: appena il Wi-Fi si collega si scarica il catalogo */
 
+/* un pacchetto per un altro modello non si mostra, a meno che sia già sulla scheda (da togliere) */
+static bool sto_shown(const store_pkg_t *p) { return !p->other_model || p->state != PKG_ABSENT; }
+
+/* modello per lo Store; sul Mac ARCADE_MODEL lo simula nelle prove */
+static const char *sto_model(void) {
+    const char *m = plat_model();
+#ifndef TRIMUI_DEVICE
+    if (!m) m = getenv("ARCADE_MODEL");
+#endif
+    return m;
+}
+
 /* categorie presenti nel catalogo, e pacchetti della categoria scelta */
 static void sto_build(void) {
     nsto_cats = 0;
@@ -4198,7 +4210,7 @@ static void sto_build(void) {
     nsto_items = 0;
     if (nsto_cats)
         for (int i = 0; i < store_count() && nsto_items < 64; i++)
-            if (!strcmp(store_pkg(i)->category, STO_CATS[sto_cats[sto_cat]])) sto_items[nsto_items++] = i;
+            if (!strcmp(store_pkg(i)->category, STO_CATS[sto_cats[sto_cat]]) && sto_shown(store_pkg(i))) sto_items[nsto_items++] = i;
 }
 
 static bool sto_batch;     /* pacchetti di un backup da rimettere appena c'è il catalogo */
@@ -4208,6 +4220,7 @@ static void sto_start(void) {
     sto_was_offline = !sto_online();
     store_lang(UI.set.lang);
     store_system(update_current());
+    store_model(sto_model());
     store_open(UI.root, UI.set.update_channel, !sto_was_offline);
     sto_level = SL_CATS;
     sto_cat = sto_sel = 0;
@@ -4257,7 +4270,14 @@ static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_t
 
 /* pulsanti della scheda secondo lo stato del pacchetto */
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_ARCHIVE, SB_DELETE };
+static int sto_buttons_all(const store_pkg_t *p, int *b);
 static int sto_buttons(const store_pkg_t *p, int *b) {
+    int n = sto_buttons_all(p, b), k = 0;
+    for (int i = 0; i < n; i++)   /* per un altro modello: si può solo togliere */
+        if (!p->other_model || b[i] == SB_ARCHIVE || b[i] == SB_DELETE) b[k++] = b[i];
+    return k;
+}
+static int sto_buttons_all(const store_pkg_t *p, int *b) {
     int n = 0;
     if (sto_no_data(p)) {   /* niente da archiviare: app e temi non hanno giochi né salvataggi */
         if (p->state == PKG_ABSENT || p->state == PKG_ARCHIVED) b[n++] = SB_INSTALL;
@@ -4390,8 +4410,8 @@ static void sto_size(long long b, char *out, size_t n) {
 /* l'immagine di una cartella: il cabinato, una console, il cassetto delle app, il portatile */
 static void sto_cat_art(int c, color_t *col, emulator_t *em) {
     memset(em, 0, sizeof *em);
-    static const char *const arts[] = { "", "", "pc", "@apps", "@themes", "@bezel:t", "@filter", "@linux" };   /* Console: una console generica */
-    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x2E7D4F, 0x4B3C86, 0x9A4E2A, 0x2A6E78, 0x2E7D6B, 0x2F6B45 };
+    static const char *const arts[] = { "", "", "pc", "@linux", "@apps", "@themes", "@bezel:t", "@filter" };   /* Console: una console generica */
+    static const unsigned cols[] = { 0x8E2A45, 0x2B4C9B, 0x2E7D4F, 0x2F6B45, 0x4B3C86, 0x9A4E2A, 0x2A6E78, 0x2E7D6B };
     snprintf(em->art, sizeof em->art, "%s", arts[c]);
     em->console = c == 1;
     *col = hexc(cols[c]);
@@ -4540,9 +4560,50 @@ static void sto_art(const emulator_t *em, color_t c, const char *label, int ax, 
     else draw_emu_art(em, c, label, ax, ay, aw, ah);
 }
 
+/* icone di stato dei riquadri dello Store, disegnate (senza testo, uguali in tutte le lingue) */
+enum { SM_UPDATE, SM_EXPERIMENTAL, SM_SYSTEM, SM_ARCHIVED, SM_N };
+static void sto_mark_glyph(int k, int cx, int cy, int s, color_t fg, color_t bg) {
+#define F(v) ((int)((v) * s))
+    switch (k) {
+    case SM_UPDATE:   /* freccia in su */
+        ui_triangle(cx, cy - F(0.30f), cx - F(0.25f), cy - F(0.02f), cx + F(0.25f), cy - F(0.02f), fg);
+        ui_rect(cx - F(0.08f), cy - F(0.04f), F(0.16f), F(0.32f), fg);
+        break;
+    case SM_EXPERIMENTAL: {   /* beuta da laboratorio, piena, con due bolle */
+        int nw = F(0.08f), top = cy - F(0.16f), bot = cy + F(0.27f), bw = F(0.28f);
+        ui_rect(cx - F(0.13f), cy - F(0.31f), F(0.26f), F(0.06f), fg);
+        ui_rect(cx - nw, cy - F(0.27f), 2 * nw, F(0.12f), fg);
+        ui_triangle(cx - nw, top, cx + nw, top, cx + bw, bot, fg);
+        ui_triangle(cx - nw, top, cx + bw, bot, cx - bw, bot, fg);
+        ui_circle(cx - F(0.07f), cy + F(0.15f), F(0.045f), bg);
+        ui_circle(cx + F(0.06f), cy + F(0.06f), F(0.035f), bg);
+        break; }
+    case SM_SYSTEM:   /* punto esclamativo: prima va aggiornato il sistema */
+        ui_rrect(cx - F(0.07f), cy - F(0.30f), F(0.14f), F(0.36f), F(0.05f), fg);
+        ui_circle(cx, cy + F(0.20f), F(0.08f), fg);
+        break;
+    case SM_ARCHIVED:   /* scatola col coperchio */
+        ui_rect(cx - F(0.30f), cy - F(0.24f), F(0.60f), F(0.13f), fg);
+        ui_rect(cx - F(0.25f), cy - F(0.09f), F(0.50f), F(0.34f), fg);
+        ui_rect(cx - F(0.09f), cy - F(0.03f), F(0.18f), F(0.06f), bg);
+        break;
+    }
+#undef F
+}
+
+static void sto_mark(int k, int cx, int cy, int d) {
+    theme_t *t = &UI.th;
+    color_t bg = k == SM_UPDATE ? t->accent : k == SM_EXPERIMENTAL ? rgba(230, 130, 20, 255)
+               : k == SM_SYSTEM ? rgba(205, 60, 60, 255) : rgba(96, 102, 116, 255);
+    color_t fg = k == SM_UPDATE ? t->accent_text : rgba(255, 255, 255, 255);
+    ui_circle(cx, cy, d / 2 + 1, rgba(0, 0, 0, 90));
+    ui_circle(cx, cy, d / 2, bg);
+    sto_mark_glyph(k, cx, cy, d, fg, bg);
+}
+
 /* riquadro a righe come quelli delle Piattaforme, con l'immagine e il nome sotto */
 static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em, const char *label, const char *name,
-                     const char *sub, const char *badge, bool sel, bool gray) {
+                     const char *sub, int marks, int count, bool sel, bool gray) {
     theme_t *t = &UI.th;
     UI.gray = gray;   /* non installato: tutto in grigio, tranne etichetta e cornice della scelta */
     ui_shadow(x, y + M(0.006f), w, h, M(0.006f), M(0.016f), t->shadow);
@@ -4564,10 +4625,24 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
     ui_text_fit(fs, sub, w - M(0.02f), fit, sizeof fit);
     ui_text(fs, fit, x + w / 2, ty + TTF_FontHeight(fn), rgba(0xC8, 0xCC, 0xD4, 255), ALIGN_CENTER);
     UI.gray = false;
-    if (badge && badge[0]) {   /* stato in alto a destra */
-        int bw = ui_text_w(fs, badge) + M(0.02f), bh = TTF_FontHeight(fs) + M(0.006f);
-        ui_rrect(x + w - bw - M(0.008f), y + M(0.008f), bw, bh, bh / 2, t->accent);
-        ui_text(fs, badge, x + w - bw / 2 - M(0.008f), y + M(0.011f), t->accent_text, ALIGN_CENTER);
+    /* stato in alto a destra: icone tonde, da destra verso sinistra (15 novembre: prima erano
+       etichette scritte, che nei riquadri stretti si toccavano) */
+    int d = TTF_FontHeight(fs) * 3 / 2, mx2 = x + w - M(0.01f) - d / 2, my = y + M(0.01f) + d / 2;
+    for (int k = 0; k < SM_N; k++) {
+        if (!(marks & (1 << k))) continue;
+        if (k == SM_UPDATE && count > 0) {   /* cartella: la freccia e quanti pacchetti da aggiornare */
+            char n[12];
+            snprintf(n, sizeof n, "%d", count);
+            int nw = ui_text_w(fs, n), pw = d + nw + M(0.012f);
+            ui_rrect(mx2 + d / 2 - pw - 1, my - d / 2 - 1, pw + 2, d + 2, d / 2 + 1, rgba(0, 0, 0, 90));
+            ui_rrect(mx2 + d / 2 - pw, my - d / 2, pw, d, d / 2, t->accent);
+            sto_mark_glyph(k, mx2 + d / 2 - pw + d / 2, my, d, t->accent_text, t->accent);
+            ui_text(fs, n, mx2 + d / 2 - M(0.012f) - nw / 2 + M(0.002f), my - TTF_FontHeight(fs) / 2, t->accent_text, ALIGN_CENTER);
+            mx2 -= pw + M(0.008f);
+            continue;
+        }
+        sto_mark(k, mx2, my, d);
+        mx2 -= d + M(0.008f);
     }
     int bt = M(0.006f) + 1, o = M(0.004f);
     if (sel) ui_rborder(x - o, y - o, w + 2 * o, h + 2 * o, bt + 2, bt, t->accent);
@@ -4576,10 +4651,13 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
 
 /* installato: a colori e senza etichetta; non installato: in grigio; da aggiornare: a colori con
    l'etichetta; archiviato: in grigio con l'etichetta (giochi e salvataggi sono ancora lì) */
-static const char *sto_badge(const store_pkg_t *p) {
-    if (p->state == PKG_UPDATE || p->state == PKG_OLD) return T("store.update");
-    if (p->state == PKG_ARCHIVED) return T("store.archived");
-    return "";
+static int sto_marks(const store_pkg_t *p) {
+    int m = 0;
+    if (p->state == PKG_UPDATE || p->state == PKG_OLD) m |= 1 << SM_UPDATE;
+    if (p->state == PKG_ARCHIVED) m |= 1 << SM_ARCHIVED;
+    if (p->experimental) m |= 1 << SM_EXPERIMENTAL;   /* non ancora provato sulle console */
+    if (p->needs_system) m |= 1 << SM_SYSTEM;
+    return m;
 }
 
 static bool sto_gray(const store_pkg_t *p) { return p->state == PKG_ABSENT || p->state == PKG_ARCHIVED; }
@@ -4706,7 +4784,7 @@ static void sto_draw(void) {
                 int ci = sto_cats[i], cnt = 0, upd = 0;
                 for (int k = 0; k < store_count(); k++) {
                     const store_pkg_t *p = store_pkg(k);
-                    if (strcmp(p->category, STO_CATS[ci])) continue;
+                    if (strcmp(p->category, STO_CATS[ci]) || !sto_shown(p)) continue;
                     cnt++;
                     upd += p->state == PKG_UPDATE || p->state == PKG_OLD;
                 }
@@ -4720,9 +4798,7 @@ static void sto_draw(void) {
                                : games_cat ? (cnt == 1 ? "store.count1_games" : "store.count_games") : (cnt == 1 ? "store.count1" : "store.count");
                 if (cnt) snprintf(sub, sizeof sub, T(ck), cnt);
                 else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
-                char badge[48] = "";
-                if (upd) snprintf(badge, sizeof badge, "%d", upd);
-                sto_tile(x, yy, tw, th, c, &em, T(title), T(title), sub, badge, i == sto_cat, false);
+                sto_tile(x, yy, tw, th, c, &em, T(title), T(title), sub, upd ? 1 << SM_UPDATE : 0, upd, i == sto_cat, false);
             } else {
                 store_pkg_t p = *store_pkg(sto_items[i]);
                 sto_pkg_art(&p, &c, &em);
@@ -4731,15 +4807,7 @@ static void sto_draw(void) {
                 sto_size(p.size, size, sizeof size);
                 if (sto_no_data(&p)) snprintf(sub, sizeof sub, "%s", size);
                 else snprintf(sub, sizeof sub, "%s · %s", p.name, size);
-                sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_badge(&p), i == sto_sel, sto_gray(&p));
-                if (p.experimental) {   /* non ancora provato sulle console: etichetta arancione a sinistra, sempre */
-                    const char *ex = T("store.experimental");
-                    int bw = ui_text_w(fs, ex) + M(0.02f), bh = TTF_FontHeight(fs) + M(0.006f);
-                    /* con l'etichetta Aggiorna a destra, nei riquadri stretti si toccavano: una riga sotto */
-                    int ey = yy + M(0.008f) + (sto_badge(&p)[0] ? bh + M(0.006f) : 0);
-                    ui_rrect(x + M(0.008f), ey, bw, bh, bh / 2, rgba(230, 130, 20, 255));
-                    ui_text(fs, ex, x + M(0.008f) + bw / 2, ey + M(0.003f), rgba(255, 255, 255, 255), ALIGN_CENTER);
-                }
+                sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_marks(&p), 0, i == sto_sel, sto_gray(&p));
             }
         }
         ui_clip_pop();
@@ -4804,14 +4872,21 @@ static void sto_draw(void) {
         sto_size(p.installed, b2, sizeof b2);
         char compat[200] = "";
         color_t cc = t->text;
-        if (p.needs_system) { snprintf(compat, sizeof compat, T("store.needs_system"), p.min_system); cc = rgba(230, 130, 20, 255); }
+        if (p.other_model) {   /* rimasto sulla scheda da prima: si può solo togliere */
+            char models[80] = "";
+            if (strstr(p.models, "smartpro")) snprintf(models, sizeof models, "Smart Pro");
+            if (strstr(p.models, "brickpro")) { size_t l = strlen(models); snprintf(models + l, sizeof models - l, "%sBrick Pro", l ? ", " : ""); }
+            snprintf(compat, sizeof compat, T("store.only_models"), models);
+            cc = rgba(205, 60, 60, 255);
+        }
+        else if (p.needs_system) { snprintf(compat, sizeof compat, T("store.needs_system"), p.min_system); cc = rgba(230, 130, 20, 255); }
         else if (p.experimental) { snprintf(compat, sizeof compat, "%s", T("store.exp_note")); cc = rgba(230, 130, 20, 255); }
         else if (p.tested[0]) {
             char models[80] = "";
             if (strstr(p.tested, "smartpro")) snprintf(models, sizeof models, "Smart Pro");
             if (strstr(p.tested, "brickpro")) { size_t l = strlen(models); snprintf(models + l, sizeof models - l, "%sBrick Pro", l ? ", " : ""); }
             if (models[0]) snprintf(compat, sizeof compat, T("store.tested"), models);
-            const char *model = plat_model();
+            const char *model = sto_model();
             if (model && !strstr(p.tested, model)) { snprintf(compat, sizeof compat, T("store.not_this_model"), models); cc = rgba(230, 130, 20, 255); }
         }
         /* emulatori senza prove: lo si dice; temi, cornici, filtri e app non ne hanno bisogno */
@@ -9308,6 +9383,7 @@ int main(int argc, char **argv) {
     rec_open = rec_pending;
     if (rec_open) ui_log("avvio: %s non chiuso, si chiede di riprovare", rec_fs_bad ? "ripristino del backup" : "Store");
     store_system(update_current());   /* anche per il "min_system" di app e giochi Linux, non solo nello Store */
+    store_model(sto_model());
     reload_games();
     ui_mark("giochi pronti");
     /* "Cambia gioco" dal menu del runner: si avvia il gioco scelto senza mostrare il menu
