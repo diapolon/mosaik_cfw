@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.66
+it Destra e sinistra non sono più invertite
+en Left and right are no longer swapped
+it Volume a passi regolari, e più basso in cuffia
+en Volume in even steps, and lower in headphones
+it Prova dei canali in Impostazioni → Schermo e suono
+en Channel test in Settings → Display and sound
+it Finestre sempre piene, anche con i temi trasparenti
+en Pop-up windows always solid, also with see-through themes
+
 0.9.65
 it L'audio non si blocca più quando si spegne l'altoparlante (aggiornamenti, sospensione, accensione)
 en Sound no longer freezes when the speaker is muted (updates, sleep, power on)
