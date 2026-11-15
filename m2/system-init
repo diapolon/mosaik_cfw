@@ -219,9 +219,12 @@ audio_lines() {
     esac
 }
 # uscite accese come nel firmware (altoparlante e cuffie); il volume lo regola il launcher
+# "DAC Swap" è acceso di partenza e incrocia i canali: sinistra e destra invertiti in cuffia e
+# dagli altoparlanti (Smart Pro, Prova dei canali del 15 novembre; TortOS e NextUI lo spengono)
 OUTPUTS='cset name="Headphone Switch" on
 cset name="HpSpeaker Switch" on
-cset name="LINEOUT Switch" on'
+cset name="LINEOUT Switch" on
+cset name="DAC Swap" Off'
 audio_apply() {
     audio_lines "$1" | amixer -q -s >> "$AUDIO" 2>&1 || echo "  (amixer -s: errore con $1)" >> "$AUDIO"
 }

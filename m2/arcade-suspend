@@ -21,6 +21,7 @@ mute() {
 }
 unmute() {
     for c in "Headphone Switch" "HpSpeaker Switch"; do amixer -q cset name="$c" on 2> /dev/null; done
+    amixer -q cset name="DAC Swap" Off 2> /dev/null   # canali nel verso giusto anche dopo il risveglio
     # LINEOUT resta spenta: non serve all'altoparlante né alle cuffie e con Wi-Fi e SD in attività
     # faceva rumore (provato su Brick Pro e Smart Pro). System/lineout-on la riaccende.
     [ -f "$ROOT/System/lineout-on" ] && amixer -q cset name="LINEOUT Switch" on 2> /dev/null
