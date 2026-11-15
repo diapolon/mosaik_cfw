@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.65
+it L'audio non si blocca più quando si spegne l'altoparlante (aggiornamenti, sospensione, accensione)
+en Sound no longer freezes when the speaker is muted (updates, sleep, power on)
+it Batteria: ultima sospensione e quanta carica è costata
+en Battery: last sleep and how much charge it cost
+
 0.9.64
 it Gioco a caso: prima voce della lista dei giochi
 en Random game: first item of the game list
