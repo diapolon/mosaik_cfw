@@ -2083,7 +2083,7 @@ static void menu_draw(void) {
     int ph = UI.h - hb - 2 * my;
     int px = M(t->margin) - (int)((1 - menu_anim) * pw), py = my, r = M(t->panel_radius) * 2;
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_rrect(px, py, pw, ph, r, t->popup);
 
     /* intestazione: titolo del gioco, e nelle sottopagine il nome della pagina */
     char buf[300], label[200], value[120];

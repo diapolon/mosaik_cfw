@@ -44,8 +44,7 @@ static void draw_base(int px, int py, int pw, int ph) {
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
     /* fondo pieno: sotto il gioco Linux continua a muoversi e con una superficie semitrasparente
        (tema Copertina) il menu si leggeva male, come per le finestre delle app (app_panel) */
-    ui_rrect(px, py, pw, ph, r, with_alpha(t->bg, 255));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_rrect(px, py, pw, ph, r, t->popup);
     /* finestra con un bordo sottile, piena (14 novembre: la forma di finestra, senza trasparenze) */
     ui_rborder(px, py, pw, ph, r, M(0.003f) < 1 ? 1 : M(0.003f), t->line);
 }

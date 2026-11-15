@@ -4620,7 +4620,7 @@ static void sto_preview_draw(const store_pkg_t *pp, bool del) {
     int ph = head + cols_h + M(0.015f) + fsh + ui_popup_buttons_h(), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_rrect(px, py, pw, ph, r, t->popup);
     char ttl[160], fit[200];
     snprintf(ttl, sizeof ttl, T(del ? "store.delete_title" : "store.archive_title"), p.name);
     ui_text_fit(ft, ttl, pw - M(0.08f), fit, sizeof fit);
@@ -4738,7 +4738,7 @@ static void sto_draw(void) {
         int pw = M(0.92f) < UI.w - 2 * mx ? M(0.92f) : UI.w - 2 * mx, ph = M(0.56f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
         ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
         ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-        ui_rrect(px, py, pw, ph, r, t->surface);
+        ui_rrect(px, py, pw, ph, r, t->popup);
         int pad = M(0.04f), aw = pw * 30 / 100, ah = ph - ui_popup_buttons_h() - pad;
         emulator_t em;
         color_t c;
@@ -4800,7 +4800,7 @@ static void sto_draw(void) {
         int pw = M(0.8f), ph = M(0.26f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2, r = M(t->panel_radius);
         ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
         ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-        ui_rrect(px, py, pw, ph, r, t->surface);
+        ui_rrect(px, py, pw, ph, r, t->popup);
         char line[160];
         snprintf(line, sizeof line, T(sto_removing ? "store.removing" : "store.working"), s->working);
         if (s->batch_total > 1) {   /* pacchetti di un backup: quale su quanti */
@@ -4921,7 +4921,7 @@ static void clock_draw(void) {
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     int w = M(0.9f), h = M(0.36f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     ui_text(UI.f_title, T("clock.title"), x + w / 2, y + M(0.05f), t->text, ALIGN_CENTER);
     char v[5][8];
     snprintf(v[0], 8, "%02d", clock_tm.tm_mday);
@@ -5076,7 +5076,7 @@ static void pp_draw(const partpick_t *pp, const fs_backup_t *bk, const char *tit
     int px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_rrect(px, py, pw, ph, r, t->popup);
     int y = py + M(0.045f);
     ui_text(ft, title, px + pw / 2, y, t->text, ALIGN_CENTER);
     y += fth + M(0.008f);
@@ -5153,7 +5153,7 @@ static void restore_done_draw(bool had_games) {
     int pw = M(0.8f), ph = M(0.34f) + (had_games ? 0 : fsh + M(0.01f)), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_rrect(px, py, pw, ph, r, t->popup);
     int y = py + M(0.05f);
     ui_text(ft, T("fileserver.restore_done"), px + pw / 2, y, t->text, ALIGN_CENTER);
     y += fth + M(0.01f);
@@ -5180,7 +5180,7 @@ static void fsrv_draw(void) {
     if (qs > w * 40 / 100) qs = w * 40 / 100;
     int bw = w - 3 * pad - (fsrv_ip[0] ? qs : 0);
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     int cy = y + pad;
     ui_text(ft, T("fileserver.title"), lx, cy, t->text, ALIGN_LEFT);
     cy += fth + M(0.025f);
@@ -5389,7 +5389,7 @@ static void imp_draw(void) {
     int pw = M(0.8f), ph = M(0.34f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2, r = M(t->panel_radius), fth = TTF_FontHeight(ft);
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_rrect(px, py, pw, ph, r, t->popup);
     if (st == IMP_DONE) { restore_done_draw(imp_bk.count[FS_PART_GAMES] > 0); return; }
     fs_status_t s;
     fs_get_status(&s);
@@ -5474,8 +5474,7 @@ static void support_draw(void) {
     if (qs > w * 40 / 100) qs = w * 40 / 100;
     int bw = w - 3 * pad - qs, cy = y + pad;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, with_alpha(t->bg, 255));   /* fondo pieno: in Onda la superficie è trasparente */
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);   /* pieno anche con una superficie trasparente (Onda, Copertina Notte) */
     ui_text(ft, T("support.title"), lx, cy, t->text, ALIGN_LEFT);
     cy += fth + M(0.02f);
     char lines[5][160];
@@ -5601,7 +5600,7 @@ static void batt_draw(void) {
     if (h > UI.h - M(0.04f)) { gh -= h - (UI.h - M(0.04f)); h = UI.h - M(0.04f); }
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     int lx = x + pad, rx = x + w - pad, cy = y + pad;
     ui_text(UI.f_title, T("battery.title"), lx, cy, t->text, ALIGN_LEFT);
     char v[64], line[160];
@@ -5708,7 +5707,7 @@ static void chtest_draw(void) {
     int h = pad + fh + M(0.03f) + fh * 2 + M(0.03f) + nl * sh + pad + ui_keybar_h() / 2;
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     ui_text(UI.f_title, T("chtest.title"), x + pad, y + pad, t->text, ALIGN_LEFT);
     int cy = y + pad + fh + M(0.03f);
     /* i due lati: quello che suona pieno, l'altro solo il bordo */
@@ -5746,7 +5745,7 @@ static void sdinfo_draw(void) {
     if (h > UI.h - M(0.04f)) h = UI.h - M(0.04f);
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     int cy = y + pad, lx = x + pad, rx = x + w - pad, bw = w - 2 * pad;
     ui_text(UI.f_title, T("sdinfo.title"), lx, cy, t->text, ALIGN_LEFT);
     cy += TTF_FontHeight(UI.f_title) + M(0.02f);
@@ -5910,7 +5909,7 @@ static void clean_draw(void) {
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     int w = M(0.85f), h = M(0.40f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     ui_text(UI.f_title, T("clean.title"), x + w / 2, y + M(0.05f), t->text, ALIGN_CENTER);
     char size[32], body[200], lines[2][160];
     fmt_bytes(clean_bytes, size, sizeof size);
@@ -6011,7 +6010,7 @@ static void sdbad_draw(void) {
     int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + ui_popup_buttons_h();
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 160));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     ui_text(UI.f_title, T("sdbad.title"), x + pad, y + pad, rgba(230, 130, 20, 255), ALIGN_LEFT);
     int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
     for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
@@ -6065,7 +6064,7 @@ static void rec_draw(void) {
     int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + ui_popup_buttons_h();
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 160));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     ui_text(UI.f_title, T("recover.title"), x + pad, y + pad, rgba(230, 130, 20, 255), ALIGN_LEFT);
     int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
     for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
@@ -6106,7 +6105,7 @@ static void rdy_draw(void) {
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
     int ty = y + pad;
     ui_text(UI.f_title, T("update.resume_title"), x + pad, ty, t->text, ALIGN_LEFT);
@@ -6218,7 +6217,7 @@ static void upd_draw(void) {
           + (bar ? bh + M(0.03f) : 0) + nl * sh + news_h + (nb ? ui_popup_buttons_h() : pad);
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
     int ty = y + pad;
     char upd_title[120];
@@ -6839,7 +6838,7 @@ static void dialog_draw(void) {
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     int w = M(0.75f), h = M(0.36f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     ui_text(UI.f_title, T("dialog.power_title"), x + w / 2, y + M(0.06f), t->text, ALIGN_CENTER);
     ui_text(UI.f_small, T(dlg_buttons() == 3 && !plat_standalone() ? "dialog.power_body_app" : "dialog.power_body"), x + w / 2, y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
     int n = dlg_buttons(), bw = (w - M(0.03f) * (n + 1)) / n, bh = M(0.085f), by = y + h - bh - M(0.04f);
@@ -7608,7 +7607,7 @@ static void rst_draw(void) {
     int pw = M(0.8f), ph = M(0.26f), px = (UI.w - pw) / 2, py = (UI.h - ph) / 2, r = M(t->panel_radius), fth = TTF_FontHeight(ft);
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 160));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(px, py, pw, ph, r, t->surface);
+    ui_rrect(px, py, pw, ph, r, t->popup);
     ui_text(ft, T(st == RST_RUN ? "reset_all.working" : "reset_all.done"), px + pw / 2, py + M(0.07f), t->text, ALIGN_CENTER);
     char line[96];
     snprintf(line, sizeof line, T("reset_all.count"), atomic_load(&rst_count));
@@ -7779,7 +7778,7 @@ static void qp_draw(void) {
     int h = pad + fsh * 2 + M(0.02f) + 2 * th + gap + M(0.02f) + 2 * sh + gap + pad;
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));
     /* stato della console */
     char line[300], a[48], b[48];
@@ -8540,8 +8539,7 @@ static void panel_box(int w, int h, int *x, int *y) {
     int r = M(t->panel_radius) * 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(*x, *y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(*x, *y, w, h, r, t->surface);
-    if (t->surface.a < 200) ui_rrect(*x, *y, w, h, r, with_alpha(t->bg2, 235));   /* superfici trasparenti */
+    ui_rrect(*x, *y, w, h, r, t->popup);
     int hb = M(t->hintbar_h);
     ui_rect(0, UI.h - hb, UI.w, hb, t->bg);   /* copre gli aiuti della schermata sotto */
 }
@@ -8744,7 +8742,7 @@ static void scrape_draw(void) {
                         + TTF_FontHeight(UI.f_small) + ui_popup_buttons_h();
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     if (t->surface.a < 200) ui_rrect(x, y, w, h, r, with_alpha(t->bg2, 230));   /* temi con superfici trasparenti */
     int ty = y + pad;
     ui_text(UI.f_title, T("scrape.title"), x + pad, ty, t->text, ALIGN_LEFT);

@@ -36,6 +36,7 @@ typedef struct {
     char id[64], name[64], author[64], dir[1024], layout[16], title[64];
     char font_path[1024], title_font_path[1024], bg_image[1024];
     color_t bg, bg2, surface, text, text_dim, accent, accent_text, tile, shadow, line;
+    color_t popup;   /* fondo delle finestre a comparsa: surface sopra bg, sempre pieno */
     color_t highlight;   /* titolo grande della vetrina; se il tema non lo dà, l'accento */
     /* misure in frazioni dell'altezza dello schermo */
     float topbar_h, hintbar_h, margin, tile_size, grid_tile, tile_gap, tile_radius;

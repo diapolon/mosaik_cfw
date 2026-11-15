@@ -122,8 +122,7 @@ void app_panel(int w, int h, int *x, int *y) {
     int r = M(t->panel_radius) * 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     ui_shadow(*x, *y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(*x, *y, w, h, r, with_alpha(t->bg, 255));   /* fondo pieno: in Onda la superficie è trasparente */
-    ui_rrect(*x, *y, w, h, r, t->surface);
+    ui_rrect(*x, *y, w, h, r, t->popup);   /* pieno anche con una superficie trasparente (Onda, Copertina Notte) */
 }
 
 void app_size(long long b, char *out, size_t n) {

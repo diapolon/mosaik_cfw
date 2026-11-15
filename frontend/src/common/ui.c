@@ -106,7 +106,7 @@ void ui_confirm_draw(const char *title, const char *body, const char *no, const 
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     int w = M(0.75f), h = M(0.36f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
-    ui_rrect(x, y, w, h, r, t->surface);
+    ui_rrect(x, y, w, h, r, t->popup);
     ui_text_fit(UI.f_title, title, w - M(0.06f), buf, sizeof buf);
     ui_text(UI.f_title, buf, x + w / 2, y + M(0.06f), t->text, ALIGN_CENTER);
     /* testo su due righe al massimo, sopra i pulsanti */
@@ -1008,6 +1008,14 @@ void ui_sound(int kind) {
 
 /* -------------------------------------------------------------- temi */
 
+/* finestre a comparsa sempre piene: una superficie semitrasparente (Copertina, variante Notte)
+   lasciava leggere il testo sopra lo schermo scurito. Stessa tinta, superficie sopra lo sfondo. */
+static void theme_popup_color(theme_t *t) {
+    unsigned a = t->surface.a;
+    t->popup = rgba((Uint8)((t->surface.r * a + t->bg.r * (255 - a)) / 255), (Uint8)((t->surface.g * a + t->bg.g * (255 - a)) / 255),
+                    (Uint8)((t->surface.b * a + t->bg.b * (255 - a)) / 255), 255);
+}
+
 static void load_variant_colors(theme_t *t, jval *c) {
     t->bg = parse_color(json_str(c, "background", NULL), t->bg);
     t->bg2 = parse_color(json_str(c, "background2", NULL), t->bg);
@@ -1020,6 +1028,7 @@ static void load_variant_colors(theme_t *t, jval *c) {
     t->shadow = parse_color(json_str(c, "shadow", NULL), t->shadow);
     t->line = parse_color(json_str(c, "line", NULL), t->line);
     t->highlight = parse_color(json_str(c, "highlight", NULL), t->accent);
+    theme_popup_color(t);
 }
 
 bool theme_load(theme_t *t, const char *root, const char *id, const char *variant) {
@@ -1038,6 +1047,7 @@ bool theme_load(theme_t *t, const char *root, const char *id, const char *varian
     t->highlight = t->accent;
     t->accent_text = rgba(255, 255, 255, 255);
     t->tile = rgba(255, 255, 255, 255);
+    t->popup = t->surface;
     t->shadow = rgba(0, 0, 0, 40);
     t->line = rgba(0, 0, 0, 40);
     strcpy(t->layout, "carousel");
