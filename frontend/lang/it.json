@@ -1021,7 +1021,6 @@
     "exp_note": "Sperimentale: non ancora provato sulle console.",
     "tested": "Provato su %s.",
     "needs_system": "Richiede Mosaik %s: aggiorna prima il sistema.",
-    "only_models": "Solo per %s: su questa console non funziona.",
     "err_system": "Aggiorna prima il sistema"
   },
   "support": {

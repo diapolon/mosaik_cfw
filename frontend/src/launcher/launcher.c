@@ -4212,8 +4212,9 @@ static float sto_scroll;
 static bool sto_online(void) { return wifi_supported() ? wifi_status(false)->state == WIFI_CONNECTED : true; }
 static bool sto_was_offline;   /* aperto senza rete: appena il Wi-Fi si collega si scarica il catalogo */
 
-/* un pacchetto per un altro modello non si mostra, a meno che sia già sulla scheda (da togliere) */
-static bool sto_shown(const store_pkg_t *p) { return !p->other_model || p->state != PKG_ABSENT; }
+/* un pacchetto per un altro modello non si mostra mai, neanche se è già sulla scheda (16 novembre:
+   Deadcast installato sulla Smart Pro prima della 0.9.67); il launcher non lo avvia comunque */
+static bool sto_shown(const store_pkg_t *p) { return !p->other_model; }
 
 /* modello per lo Store; sul Mac ARCADE_MODEL lo simula nelle prove */
 static const char *sto_model(void) {
@@ -4292,14 +4293,7 @@ static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_t
 
 /* pulsanti della scheda secondo lo stato del pacchetto */
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_ARCHIVE, SB_DELETE };
-static int sto_buttons_all(const store_pkg_t *p, int *b);
 static int sto_buttons(const store_pkg_t *p, int *b) {
-    int n = sto_buttons_all(p, b), k = 0;
-    for (int i = 0; i < n; i++)   /* per un altro modello: si può solo togliere */
-        if (!p->other_model || b[i] == SB_ARCHIVE || b[i] == SB_DELETE) b[k++] = b[i];
-    return k;
-}
-static int sto_buttons_all(const store_pkg_t *p, int *b) {
     int n = 0;
     if (sto_no_data(p)) {   /* niente da archiviare: app e temi non hanno giochi né salvataggi */
         if (p->state == PKG_ABSENT || p->state == PKG_ARCHIVED) b[n++] = SB_INSTALL;
@@ -4846,10 +4840,9 @@ static void sto_draw(void) {
         int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), r = M(t->panel_radius) * 2;
         int top = M(t->topbar_h) + M(0.03f), bot = UI.h - ui_keybar_h() - M(0.03f), ph = bot - top;
         /* a sinistra il disegno del pacchetto, grande */
-        /* con le immagini (schermate, orizzontali) un riquadro più largo, in 4:3 */
-        int aw = W * (p.nimg ? 50 : 40) / 100, ah = ph;
-        if (p.nimg) ah = aw * 3 / 4;
-        else if (ah > aw * 5 / 4) ah = aw * 5 / 4;
+        /* alto come il pannello delle informazioni (16 novembre); con le immagini (schermate,
+           orizzontali) più largo, e sotto lo spazio per i pallini */
+        int aw = W * (p.nimg ? 50 : 40) / 100, ah = ph, dots = p.nimg ? M(0.05f) : 0;
         emulator_t em;
         color_t c;
         sto_pkg_art(&p, &c, &em);
@@ -4863,15 +4856,15 @@ static void sto_draw(void) {
         if (im) {
             UI.gray = false;
             ui_rrect(mx, top, aw, ah, r, rgba(0, 0, 0, 255));
-            ui_image_fit(im, mx + M(0.01f), top + M(0.01f), aw - M(0.02f), ah - M(0.02f));
+            ui_image_fit(im, mx + M(0.01f), top + M(0.01f), aw - M(0.02f), ah - dots - M(0.02f));
         } else {
-            sto_art(&em, c, p.name, mx + aw / 10, top + aw / 10, aw - aw / 5, ah - aw / 5);
-            if (sto_img > 0) ui_text(fs, T("store.img_loading"), mx + aw / 2, top + ah - fsh - M(0.02f), rgba(255, 255, 255, 230), ALIGN_CENTER);
+            sto_art(&em, c, p.name, mx + aw / 10, top + aw / 10, aw - aw / 5, ah - dots - aw / 5);
+            if (sto_img > 0) ui_text(fs, T("store.img_loading"), mx + aw / 2, top + ah - dots - fsh - M(0.02f), rgba(255, 255, 255, 230), ALIGN_CENTER);
         }
         UI.gray = false;
         if (p.nimg) {   /* pallini: quale immagine si vede */
-            int dr = M(0.008f), dg = M(0.03f), dx = mx + aw / 2 - p.nimg * dg / 2, dy = top + ah + M(0.03f);
-            for (int k = 0; k <= p.nimg; k++) ui_circle(dx + k * dg, dy, dr, k == sto_img ? t->accent : with_alpha(t->text_dim, 120));
+            int dr = M(0.008f), dg = M(0.03f), dx = mx + aw / 2 - p.nimg * dg / 2, dy = top + ah - dots / 2 - M(0.004f);
+            for (int k = 0; k <= p.nimg; k++) ui_circle(dx + k * dg, dy, dr, k == sto_img ? t->accent : rgba(255, 255, 255, 110));
         }
         /* a destra le informazioni, su un pannello pieno */
         int px = mx + aw + M(0.03f), pw = mx + W - px, pad = M(0.03f), tx = px + pad, tw = pw - 2 * pad, ty = top + pad;
@@ -4894,14 +4887,7 @@ static void sto_draw(void) {
         sto_size(p.installed, b2, sizeof b2);
         char compat[200] = "";
         color_t cc = t->text;
-        if (p.other_model) {   /* rimasto sulla scheda da prima: si può solo togliere */
-            char models[80] = "";
-            if (strstr(p.models, "smartpro")) snprintf(models, sizeof models, "Smart Pro");
-            if (strstr(p.models, "brickpro")) { size_t l = strlen(models); snprintf(models + l, sizeof models - l, "%sBrick Pro", l ? ", " : ""); }
-            snprintf(compat, sizeof compat, T("store.only_models"), models);
-            cc = rgba(205, 60, 60, 255);
-        }
-        else if (p.needs_system) { snprintf(compat, sizeof compat, T("store.needs_system"), p.min_system); cc = rgba(230, 130, 20, 255); }
+        if (p.needs_system) { snprintf(compat, sizeof compat, T("store.needs_system"), p.min_system); cc = rgba(230, 130, 20, 255); }
         else if (p.experimental) { snprintf(compat, sizeof compat, "%s", T("store.exp_note")); cc = rgba(230, 130, 20, 255); }
         else if (p.tested[0]) {
             char models[80] = "";
