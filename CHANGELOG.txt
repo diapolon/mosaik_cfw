@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.69
+it Trasferimento file: una connessione lenta non blocca più le altre
+en Transfer files: a slow connection no longer blocks the others
+it PIN del trasferimento file: blocco anche per i tentativi da tanti indirizzi
+en Transfer files PIN: also locked when many addresses keep trying
+it Volume: cambiarlo non rallenta più il menu
+en Volume: changing it no longer slows down the menu
+
 0.9.68
 it Menu dei giochi Linux: le voci senza il riquadro più scuro
 en Linux game menu: the items without the darker box
