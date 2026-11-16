@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.67
+it Store: ogni pacchetto ha una pagina con versione, compatibilità e immagini
+en Store: each package has a page with version, compatibility and pictures
+it Store: cartelle in ordine e icone al posto delle scritte
+en Store: folders in order, and icons instead of labels
+it Store: ogni console vede solo i pacchetti che funzionano su di lei (Dreamcast solo sulla Brick Pro)
+en Store: each console only sees the packages that work on it (Dreamcast on the Brick Pro only)
+
 0.9.66
 it Destra e sinistra non sono più invertite
 en Left and right are no longer swapped
