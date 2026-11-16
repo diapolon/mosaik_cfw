@@ -47,6 +47,7 @@ PACKAGES = {
     "ngp": ("Beetle NeoPop", "ngp", "console"),
     "pcsx": ("PCSX ReARMed", "pcsx", "console"),
     "deadcast": ("Deadcast", None, "console"),
+    "flycast": ("Flycast", None, "console"),   # Dreamcast sulla Smart Pro; etichetta: commit di deps/flycast
     "stella2014": ("Stella 2014", "stella2014", "console"),
     "prosystem": ("ProSystem", "prosystem", "console"),
     "gearcoleco": ("Gearcoleco", "gearcoleco", "console"),
@@ -264,6 +265,9 @@ for pid in sorted(os.listdir(args.src)):
     elif pid == "mupen64plus":
         label = subprocess.run(["git", "-C", os.path.join(top, "deps", "mupen64plus", "mupen64plus-core"), "rev-parse", "--short=7", "HEAD"],
                                capture_output=True, text=True).stdout.strip() or "?"
+    elif pid == "flycast":
+        label = subprocess.run(["git", "-C", os.path.join(top, "deps", "flycast"), "rev-parse", "--short=7", "HEAD"],
+                               capture_output=True, text=True).stdout.strip() or "?"
     elif pid == "deadcast":
         dz = sorted(n for n in os.listdir(os.path.join(top, "deps", "deadcast")) if n.endswith(".pak.zip"))
         label = dz[-1][12:-8] if dz else "?"
@@ -346,16 +350,25 @@ for pid in sorted(os.listdir(args.src)):
     new = any(rel.startswith(NEW_PATHS) for rel in files)
     if new and not min_sys:
         sys.exit(f"{pid}: i file in {NEW_PATHS} richiedono un min_system")
-    catalog["packages2" if new else "packages"].append(entry)
+    # un pacchetto per un modello solo che chiede un sistema recente (Flycast): i sistemi fino alla
+    # 0.9.57 non lo vedono, quelli fino alla 0.9.66 (che non conoscono "models") chiedono di aggiornare
+    later = bool(entry.get("models")) and bool(min_sys)
+    catalog["packages2" if new or later else "packages"].append(entry)
     print(f"  {pid:16} {label:10} {os.path.getsize(zpath) / 1e6:6.1f} MB  {', '.join(systems)}")
 
 # Due pacchetti non devono scrivere lo stesso file: togliendone uno sparirebbe anche dall'altro
 # (audit 0.9.38). Confronto senza maiuscole, come sul FAT della scheda
+# Fa eccezione una coppia di pacchetti per modelli diversi ("models" senza modelli in comune: Deadcast
+# sulla Brick Pro e Flycast sulla Smart Pro con lo stesso Emulators/dc.json), che lo Store dalla
+# 0.9.67 non mostra mai sulla stessa console
 owner = {}
+models_of = {pk["id"]: set(pk.get("models", [])) for pk in catalog["packages"] + catalog["packages2"]}
+def apart(a, b):
+    return bool(models_of[a]) and bool(models_of[b]) and not (models_of[a] & models_of[b])
 for pk in catalog["packages"] + catalog["packages2"]:
     for rel in pk["files"]:
         k = rel.lower()
-        if k in owner and owner[k] != pk["id"]:
+        if k in owner and owner[k] != pk["id"] and not apart(owner[k], pk["id"]):
             sys.exit(f"errore: {rel} sta sia in {owner[k]} sia in {pk['id']}")
         owner[k] = pk["id"]
 

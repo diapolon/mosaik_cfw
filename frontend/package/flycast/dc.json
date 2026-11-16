@@ -1,0 +1,22 @@
+{
+  "name": "Dreamcast",
+  "kind": "console",
+  "core": "flycast",
+  "launch": "Cores/flycast/launch.sh",
+  "menu": false,
+  "models": [
+    "smartpro"
+  ],
+  "roms": "Roms/DC",
+  "extensions": [
+    "chd",
+    "gdi",
+    "cue",
+    "cdi",
+    "m3u"
+  ],
+  "art": "disc-white",
+  "short": "DC",
+  "thumbnails": "Sega - Dreamcast",
+  "order": 71
+}

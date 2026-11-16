@@ -31,7 +31,8 @@
     "mrboom",
     "devilutionx",
     "video",
-    "urlget"
+    "urlget",
+    "flycast"
   ],
   "tested": {
     "fbneo": [
@@ -66,11 +67,15 @@
     "cornici-arcade": "0.9.37",
     "bluemsx": "0.9.35",
     "dosbox_pure": "0.9.47",
-    "filtri-shader": "0.9.51"
+    "filtri-shader": "0.9.51",
+    "flycast": "0.9.67"
   },
   "models": {
     "deadcast": [
       "brickpro"
+    ],
+    "flycast": [
+      "smartpro"
     ]
   }
 }

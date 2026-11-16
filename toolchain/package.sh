@@ -18,7 +18,7 @@ mkdir -p "$APP/bin" "$APP/lib" "$DATA"
 
 # programmi e core compilati, dal volume Docker
 docker run --rm -v trimui-build:/build -v "$DIST":/dist alpine:3.20 \
-    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; } && rm -rf /dist/ppsspp && { [ ! -f /build/out/ppsspp/PPSSPPSDL ] || cp -a /build/out/ppsspp /dist/ppsspp; } && rm -rf /dist/mupen64plus && { [ ! -f /build/out/mupen64plus/mupen64plus ] || cp -a /build/out/mupen64plus /dist/mupen64plus; } && rm -rf /dist/linux && { [ ! -d /build/out/linux ] || cp -a /build/out/linux /dist/linux; } && rm -rf /dist/video && { [ ! -d /build/out/video ] || cp -a /build/out/video /dist/video; }'
+    sh -c 'cp /build/out/bin/* /dist/SD/Apps/Arcade/bin/ && mkdir -p /dist/cores /dist/apps /dist/scummvm && cp /build/out/cores/*.so /dist/cores/ && cp /build/out/apps/* /dist/apps/ && { [ ! -f /build/out/scummvm/scummvm.zip ] || cp /build/out/scummvm/scummvm.zip /dist/scummvm/; } && rm -rf /dist/ppsspp && { [ ! -f /build/out/ppsspp/PPSSPPSDL ] || cp -a /build/out/ppsspp /dist/ppsspp; } && rm -rf /dist/mupen64plus && { [ ! -f /build/out/mupen64plus/mupen64plus ] || cp -a /build/out/mupen64plus /dist/mupen64plus; } && rm -rf /dist/flycast && { [ ! -f /build/out/flycast/flycast ] || { mkdir -p /dist/flycast && cp /build/out/flycast/flycast /dist/flycast/; }; } && rm -rf /dist/linux && { [ ! -d /build/out/linux ] || cp -a /build/out/linux /dist/linux; } && rm -rf /dist/video && { [ ! -d /build/out/video ] || cp -a /build/out/video /dist/video; }'
 cp "$FE/package/trimui/launch.sh" "$FE/package/trimui/config.json" "$FE/package/trimui/icon.png" "$APP/"
 chmod +x "$APP/launch.sh" "$APP/bin/"*
 
@@ -138,6 +138,18 @@ if [ -n "$DZ" ]; then
     chmod +x "$PKG/deadcast/Cores/deadcast/deadcast" "$PKG/deadcast/Cores/deadcast/launch.sh"
 else
     echo "attenzione: manca Deadcast (sh toolchain/fetch-deadcast.sh): niente pacchetto Dreamcast" >&2
+fi
+# Dreamcast sulla Smart Pro: Flycast, programma a sé con SDL2 e GLES (toolchain/build-flycast.sh),
+# avviato da Cores/flycast/launch.sh. Porta il suo Emulators/dc.json (solo Smart Pro): Deadcast e
+# Flycast non stanno mai sulla stessa console, lo Store mostra ciascuno a un modello solo
+if [ -f "$DIST/flycast/flycast" ]; then
+    mkdir -p "$PKG/flycast/Cores/flycast/licenses" "$PKG/flycast/Emulators"
+    cp "$FE/package/flycast/dc.json" "$PKG/flycast/Emulators/dc.json"
+    cp "$DIST/flycast/flycast" "$FE/package/flycast/launch.sh" "$PKG/flycast/Cores/flycast/"
+    cp "$TOP/licenses/GPL-2.0.txt" "$TOP/licenses/curl.txt" "$PKG/flycast/Cores/flycast/licenses/"
+    chmod +x "$PKG/flycast/Cores/flycast/flycast" "$PKG/flycast/Cores/flycast/launch.sh"
+else
+    echo "attenzione: manca Flycast (toolchain/build-flycast.sh): niente pacchetto Flycast" >&2
 fi
 # App (cartella App dello Store): Apps/<app> con il programma, launch.sh, app.json, icona e lingue
 app() {   # app NOME: frontend/package/apps/NOME più il programma compilato dist/apps/NOME
