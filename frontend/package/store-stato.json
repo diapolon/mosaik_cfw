@@ -30,7 +30,8 @@
     "freedoom",
     "mrboom",
     "devilutionx",
-    "video"
+    "video",
+    "urlget"
   ],
   "tested": {
     "fbneo": [

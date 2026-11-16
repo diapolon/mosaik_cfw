@@ -155,6 +155,7 @@ app sdtest
 app scraper
 app sdgrow
 app diag
+app urlget
 # Video: con le librerie di FFmpeg (LGPL, toolchain/build-ffmpeg.sh) in Apps/video/lib e la licenza
 if [ -f "$DIST/apps/video" ] && [ -d "$DIST/video/lib" ]; then
     app video

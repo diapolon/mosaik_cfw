@@ -1,0 +1,36 @@
+{
+ "title": "Download files",
+ "description": "Download a file from a web address, or pick files from an archive.org item, into the folder you choose. Addresses go in Apps/urlget/links.txt. HTTPS only, with size and hash checks. Only download what you have the right to have.",
+ "author": "Mosaik",
+ "version": "1.0",
+ "min_system": "0.9.56",
+ "env": {
+  "GAMEWATCH_NOMENU": "1"
+ },
+ "texts": {
+  "en": {
+   "title": "Download files",
+   "description": "Download a file from a web address, or pick files from an archive.org item, into the folder you choose. Addresses go in Apps/urlget/links.txt. HTTPS only, with size and hash checks. Only download what you have the right to have."
+  },
+  "it": {
+   "title": "Scarica file",
+   "description": "Scarica un file da un indirizzo web, o scegli i file di un item di archive.org, nella cartella che vuoi. Gli indirizzi si scrivono in Apps/urlget/links.txt. Solo HTTPS, con controllo di dimensione e hash. Scarica solo ciò che hai il diritto di avere."
+  },
+  "de": {
+   "title": "Dateien laden",
+   "description": "Lädt eine Datei von einer Webadresse oder Dateien eines archive.org-Items in den gewählten Ordner. Die Adressen stehen in Apps/urlget/links.txt. Nur HTTPS, mit Prüfung von Größe und Hash. Lade nur, wozu du das Recht hast."
+  },
+  "es": {
+   "title": "Descargar archivos",
+   "description": "Descarga un archivo desde una dirección web, o elige archivos de un item de archive.org, en la carpeta que quieras. Las direcciones van en Apps/urlget/links.txt. Solo HTTPS, con comprobación de tamaño y hash. Descarga solo lo que tienes derecho a tener."
+  },
+  "fr": {
+   "title": "Télécharger des fichiers",
+   "description": "Télécharge un fichier depuis une adresse web, ou des fichiers d'un item archive.org, dans le dossier choisi. Les adresses se mettent dans Apps/urlget/links.txt. HTTPS uniquement, avec contrôle de taille et de hash. Ne télécharge que ce que tu as le droit d'avoir."
+  },
+  "pt": {
+   "title": "Descarregar ficheiros",
+   "description": "Descarrega um ficheiro de um endereço web, ou ficheiros de um item do archive.org, para a pasta que escolheres. Os endereços ficam em Apps/urlget/links.txt. Só HTTPS, com verificação de tamanho e hash. Descarrega só o que tens direito a ter."
+  }
+ }
+}

@@ -14,7 +14,7 @@ FFMPEG_PKGS := libavformat libavcodec libswscale libswresample libavutil
 VIDEO_MAC := $(if $(shell pkg-config --exists $(FFMPEG_PKGS) && echo si),$(BUILD)/video)
 COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
 
-all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest $(BUILD)/scraper $(BUILD)/sdgrow $(BUILD)/diag $(VIDEO_MAC)
+all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest $(BUILD)/scraper $(BUILD)/sdgrow $(BUILD)/diag $(BUILD)/urlget $(VIDEO_MAC)
 
 LAUNCHER := src/launcher/launcher.c src/launcher/games.c src/launcher/scrape_client.c src/launcher/romcheck.c src/launcher/music.c src/launcher/update.c src/launcher/stickcal.c src/launcher/savesplit.c src/launcher/fileserver.c src/launcher/zipread.c src/launcher/store.c src/launcher/qrcode.c src/runner/romzip.c src/runner/gamecfg.c
 
@@ -55,6 +55,10 @@ $(BUILD)/video: $(COMMON) $(APPKIT) src/apps/video.c src/apps/appkit.h src/commo
 # Diagnostica (scarica 4 MB per la prova del Wi-Fi: libcurl)
 $(BUILD)/diag: $(COMMON) $(APPKIT) src/apps/diag.c src/apps/appkit.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/diag.c $(LDLIBS) -lcurl -lpthread
+
+# Scarica file (indirizzi scritti dall'utente, anche item di archive.org): libcurl e OpenSSL per gli hash
+$(BUILD)/urlget: $(COMMON) $(APPKIT) src/apps/urlget.c src/apps/urlget_core.c src/apps/urlget_core.h src/apps/appkit.h src/common/*.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/urlget.c src/apps/urlget_core.c $(LDLIBS) -lcurl -lcrypto -lpthread
 
 # Spazio della SD (contiene m2/sdgrow.c, solo su Linux; sul Mac una scheda simulata)
 $(BUILD)/sdgrow: $(COMMON) $(APPKIT) src/apps/sdgrow.c ../m2/sdgrow.c src/apps/appkit.h src/common/*.h | $(BUILD)
