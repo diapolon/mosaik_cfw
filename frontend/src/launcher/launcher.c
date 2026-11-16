@@ -9580,7 +9580,7 @@ int main(int argc, char **argv) {
            prima solo se sospendere), tenuto premuto chiede se spegnere */
         if (UI.in.power && !upd_busy() && atomic_load(&imp_state) != IMP_RUN && !atomic_load(&rst_state) && !(dlg_open && dlg_suspend)) {
             dlg_open = dlg_suspend = true;
-            dlg_sel = 0;
+            dlg_sel = UI_PW_SUSPEND;
             saver_on = false;
             last_input = UI.t;
             UI.in.power = false;   /* questa pressione ha solo aperto la finestra */

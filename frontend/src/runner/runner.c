@@ -2480,7 +2480,7 @@ int main(int argc, char **argv) {
             }
         } else if (UI.in.power) {
             suspend_ask = true;
-            ask_sel = 0;
+            ask_sel = UI_PW_SUSPEND;
             if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
             ui_sound(SND_OK);
         }

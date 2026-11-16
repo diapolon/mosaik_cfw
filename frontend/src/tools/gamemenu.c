@@ -112,7 +112,7 @@ static int input(void) {
         if (sel == GM_RESUME) return RC_RESUME;
         if (sel == GM_QUIT) return RC_QUIT;
     }
-    if (UI.in.power) { asking = true; ask_sel = 0; return -1; }
+    if (UI.in.power) { asking = true; ask_sel = UI_PW_SUSPEND; return -1; }
     if (UI.in.power_long) return RC_POWER;
     return -1;
 }
