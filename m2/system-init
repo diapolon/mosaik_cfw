@@ -57,7 +57,7 @@ halt_with() {
     dmesg > "$ROOT/Logs/dmesg.txt"; sync
     fbmsg show rosso 60 "$1" "$2"
     sync
-    [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ] && axpctl poweroff 2>/dev/null
+    axpctl poweroff 2>/dev/null   # sempre dal chip, come finish (16 novembre)
     poweroff -f
     while :; do sleep 60; done
 }
@@ -326,7 +326,7 @@ irq_cpu() {   # nome in /proc/interrupts, maschera dei processori
     n=$(awk -v n="$1" '$NF == n { sub(":", "", $1); print $1; exit }' /proc/interrupts)
     [ -n "$n" ] && echo "$2" > /proc/irq/$n/smp_affinity 2> /dev/null && echo "$1 $2"
 }
-# chip di alimentazione: lo spegnimento col caricatore (axpctl poweroff) toglie il bit 4 di 0x22
+# chip di alimentazione: lo spegnimento dal chip (axpctl poweroff, dalla 0.9.69 sempre) toglie il bit 4 di 0x22
 # e il chip lo ricorda; senza quel bit un riavvio diventa uno spegnimento. Si rimette a ogni avvio.
 axp=$(axpctl restore 2>/dev/null)
 case "$axp" in *"->"*) step "chip di alimentazione: $axp (riavvio rimesso a posto)" ;; esac
@@ -400,6 +400,7 @@ finish() {
     # hanno file aperti sulla SD (trimui_inputd scrive il suo log, un gioco può essere rimasto
     # in sottofondo): con un file aperto in scrittura il kernel non la chiude.
     wifi-ctl off > /dev/null 2>&1
+    step "spegnimento: Wi-Fi spento"
     : > /tmp/fermati.txt
     for sig in TERM KILL; do
         for p in /proc/[0-9]*; do
@@ -412,6 +413,7 @@ finish() {
         done
         sleep 0.3
     done
+    step "spegnimento: programmi fermati, chiudo la SD"
     sync
     # Prima la sola lettura, poi lo smontaggio. La SD è montata due volte: anche dall'initramfs,
     # che non può smontarla perché il sistema (squashfs) è un file sulla SD. Smontare solo
@@ -437,9 +439,12 @@ finish() {
           cat /tmp/fermati.txt; } >> "$STEPS"
         sync
     fi
-    # col caricatore: interruzioni del chip spente e cancellate, poi spegnimento dal chip
-    # (come NextUI): con lo spegnimento normale il caricatore riaccende la console in U-Boot
-    [ -n "$CHARGER" ] && axpctl poweroff 2>/dev/null
+    # Spegnimento dal chip di alimentazione, sempre (16 novembre: una Smart Pro a batteria è rimasta
+    # accesa, calda e senza risposta dopo lo spegnimento del kernel; NextUI spegne sempre così):
+    # interruzioni del chip spente e cancellate, poi il chip toglie la corrente. Col caricatore
+    # evita anche la riaccensione in U-Boot. Lo spegnimento del kernel resta come riserva, e un
+    # riavvio resta del kernel.
+    [ "${1:-poweroff}" = poweroff ] && axpctl poweroff 2>/dev/null
     ${1:-poweroff} -f
     while :; do sleep 60; done
 }
