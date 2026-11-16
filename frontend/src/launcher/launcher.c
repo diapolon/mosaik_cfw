@@ -4907,12 +4907,14 @@ static void sto_draw(void) {
         if (p.installed > 0) snprintf(sizes, sizeof sizes, T("store.sizes"), a, b2);
         else snprintf(sizes, sizeof sizes, "%s", a);
         vals[2] = sizes;
-        int bh = ui_popup_buttons_h();
+        /* una riga che non sta tutta sopra i pulsanti non si scrive (16 novembre: con una
+           descrizione lunga "Richiede" andava a toccare il pulsante) */
+        int bh = ui_popup_buttons_h(), lim = top + ph - bh;
         for (int k = 0; k < 6; k++) {
             if (!vals[k][0]) continue;
-            if (ty + fsh > bot - bh) break;
-            ui_text(fs, T(rk[k]), tx, ty, t->text_dim, ALIGN_LEFT);
             int nv = ui_wrap(fs, vals[k], tw - lw, lines, 3);
+            if (ty + (nv ? nv : 1) * fsh > lim) break;
+            ui_text(fs, T(rk[k]), tx, ty, t->text_dim, ALIGN_LEFT);
             for (int q = 0; q < nv; q++) ui_text(fs, lines[q], tx + lw, ty + q * fsh, k == 4 ? cc : t->text, ALIGN_LEFT);
             ty += (nv ? nv : 1) * fsh + M(0.012f);
         }
