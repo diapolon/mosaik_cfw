@@ -61,6 +61,28 @@ static fs_status_t st;
    unico e un altro dispositivo in rete poteva tenere fuori l'utente vero) */
 #define PIN_PEERS 16
 static struct { uint32_t ip; int bad; time_t until; } pin_peers[PIN_PEERS];
+/* errori del PIN da tutti gli indirizzi insieme (revisione del 16 novembre: con più di 16
+   indirizzi la tabella si riusava e i conteggi ripartivano): 20 in un minuto bloccano tutti per un minuto */
+#define PIN_ALL_MAX 20
+static int pin_all_bad;
+static time_t pin_all_since, pin_all_until;
+static pthread_mutex_t auth_mu = PTHREAD_MUTEX_INITIALIZER;
+/* Connessioni (revisione del 16 novembre: un solo thread e 20 s per ogni recv, così una connessione
+   lenta teneva fermo il server). Ognuna ha il suo thread, al massimo FS_MAX_CONN e FS_MAX_PER_IP per
+   indirizzo, e l'intestazione deve arrivare tutta entro FS_HEAD_SECONDS. Le operazioni sui file e il
+   ripristino restano una alla volta (work_mu), come prima: le aspetta solo chi ha già il PIN. */
+#ifdef MSG_NOSIGNAL
+#define MSG_NOSIGNAL_OR_0 MSG_NOSIGNAL
+#else
+#define MSG_NOSIGNAL_OR_0 0
+#endif
+#define FS_MAX_CONN 8
+#define FS_MAX_PER_IP 4
+#define FS_HEAD_SECONDS 10
+static pthread_mutex_t work_mu = PTHREAD_MUTEX_INITIALIZER, conn_mu = PTHREAD_MUTEX_INITIALIZER;
+static int conn_fd[FS_MAX_CONN];
+static uint32_t conn_ip[FS_MAX_CONN];
+static int nconn;
 static int msock = -1;
 static char browsers[MAX_BROWSERS][40];
 static int nbrowsers;
@@ -287,8 +309,10 @@ static void reply_err(int fd, int code, const char *what) {
 static bool read_request(req_t *r) {
     int got = 0;
     char *end = NULL;
+    time_t t0 = time(NULL);
     while (!end) {
         if (got >= (int)sizeof r->head - 1) return false;
+        if (time(NULL) - t0 > FS_HEAD_SECONDS) return false;   /* un byte ogni tanto non basta a tenerla aperta */
         ssize_t n = recv(r->fd, r->head + got, sizeof r->head - 1 - (size_t)got, 0);
         if (n < 0 && errno == EINTR) continue;
         if (n <= 0) return false;
@@ -296,6 +320,8 @@ static bool read_request(req_t *r) {
         r->head[got] = 0;
         end = strstr(r->head, "\r\n\r\n");
     }
+    struct timeval tv = { 20, 0 };   /* il corpo (caricamenti grandi): 20 s senza dati al massimo */
+    setsockopt(r->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
     r->body_off = (int)(end - r->head) + 4;
     r->have = got - r->body_off;
     char target[4352];
@@ -421,21 +447,30 @@ static int pin_peer(int fd, time_t now) {
 }
 
 static void do_login(req_t *r) {
-    time_t now = time(NULL);
-    int pp = pin_peer(r->fd, now);
-    if (now < pin_peers[pp].until) { reply_err(r->fd, 429, "locked"); return; }
     char body[128], given[16];
     if (small_body(r, body, sizeof body) < 0) { reply_err(r->fd, 400, "path"); return; }
     qget(body, "pin", given, sizeof given);
+    time_t now = time(NULL);
+    pthread_mutex_lock(&auth_mu);
+    int pp = pin_peer(r->fd, now);
+    if (now < pin_peers[pp].until || now < pin_all_until) {
+        pthread_mutex_unlock(&auth_mu);
+        reply_err(r->fd, 429, "locked");
+        return;
+    }
     unsigned diff = strlen(given) != strlen(pin);
     for (size_t i = 0; i < strlen(pin) && i < strlen(given); i++) diff |= (unsigned)(given[i] ^ pin[i]);
     if (diff) {
         if (++pin_peers[pp].bad >= 5) { pin_peers[pp].bad = 0; pin_peers[pp].until = now + 30; }
+        if (now - pin_all_since > 60) { pin_all_since = now; pin_all_bad = 0; }
+        if (++pin_all_bad >= PIN_ALL_MAX) { pin_all_bad = 0; pin_all_until = now + 60; }
+        pthread_mutex_unlock(&auth_mu);
         event(FS_EV_FAIL, "PIN");
         reply_err(r->fd, 403, "badpin");
         return;
     }
     pin_peers[pp].bad = 0;
+    pthread_mutex_unlock(&auth_mu);
     char hdr[400], rem[8];
     int hn = snprintf(hdr, sizeof hdr, "Set-Cookie: mosaik=%s; Path=/; HttpOnly; SameSite=Strict\r\n", token);
     if (qget(body, "remember", rem, sizeof rem) && rem[0] == '1') {   /* le volte dopo senza PIN */
@@ -1432,10 +1467,12 @@ static void handle(int fd) {
     r->fd = fd;
     if (!read_request(r)) { free(r); return; }
     bool get = !strcmp(r->method, "GET"), post = !strcmp(r->method, "POST"), put = !strcmp(r->method, "PUT");
-    if (get && (!strcmp(r->path, "/") || !strcmp(r->path, "/index.html"))) do_page(r);
-    else if (post && !strcmp(r->path, "/api/login")) do_login(r);
-    else if (!strncmp(r->path, "/api/", 5) && !authed(r)) { if (put) drain(r, r->clen - r->have); reply_err(fd, 401, "auth"); }
-    else if (get && !strcmp(r->path, "/api/info")) do_info(r);
+    /* la pagina, l'accesso e i rifiuti senza aspettare; il resto una richiesta alla volta */
+    if (get && (!strcmp(r->path, "/") || !strcmp(r->path, "/index.html"))) { do_page(r); free(r); return; }
+    if (post && !strcmp(r->path, "/api/login")) { do_login(r); free(r); return; }
+    if (!strncmp(r->path, "/api/", 5) && !authed(r)) { if (put) drain(r, r->clen - r->have); reply_err(fd, 401, "auth"); free(r); return; }
+    pthread_mutex_lock(&work_mu);
+    if (get && !strcmp(r->path, "/api/info")) do_info(r);
     else if (get && !strcmp(r->path, "/api/list")) do_list(r);
     else if (get && !strcmp(r->path, "/api/get")) do_get(r);
     else if (get && !strcmp(r->path, "/api/zip")) do_zip(r);
@@ -1447,7 +1484,24 @@ static void handle(int fd) {
     else if (post && !strcmp(r->path, "/api/delete")) do_delete(r);
     else reply_err(fd, 404, "notfound");
     set_state(FS_IDLE, "", 0, 0);
+    pthread_mutex_unlock(&work_mu);
     free(r);
+}
+
+/* una connessione: il suo thread, poi via dall'elenco */
+static void conn_del(int fd) {
+    pthread_mutex_lock(&conn_mu);
+    for (int i = 0; i < nconn; i++)
+        if (conn_fd[i] == fd) { conn_fd[i] = conn_fd[nconn - 1]; conn_ip[i] = conn_ip[nconn - 1]; nconn--; break; }
+    pthread_mutex_unlock(&conn_mu);
+}
+
+static void *conn_thread(void *arg) {
+    int c = (int)(intptr_t)arg;
+    handle(c);
+    conn_del(c);
+    close(c);
+    return NULL;
 }
 
 /* ---- nome fisso sulla rete: risponde alle domande mDNS per "mosaik.local" ---- */
@@ -1598,22 +1652,45 @@ static void *serve(void *arg) {
     while (!atomic_load(&stop_req)) {
         struct pollfd p[2] = { { lsock, POLLIN, 0 }, { msock, POLLIN, 0 } };
         /* le risposte della console al ripristino: anche senza richieste in arrivo */
-        if (atomic_exchange(&restore_go, false)) restore_run();
-        if (atomic_exchange(&restore_drop, false)) { restore_remove_zip(); restore_set(FS_RS_NONE); }
+        /* lavori sui file: quando nessuna richiesta ne sta facendo uno (altrimenti al giro dopo) */
+        if ((atomic_load(&restore_go) || atomic_load(&restore_drop)) && pthread_mutex_trylock(&work_mu) == 0) {
+            if (atomic_exchange(&restore_go, false)) restore_run();
+            if (atomic_exchange(&restore_drop, false)) { restore_remove_zip(); restore_set(FS_RS_NONE); }
+            pthread_mutex_unlock(&work_mu);
+        }
         if (poll(p, msock >= 0 ? 2 : 1, 250) <= 0) continue;
         if (msock >= 0 && (p[1].revents & POLLIN)) mdns_handle();
         if (!(p[0].revents & POLLIN)) continue;
-        int c = accept(lsock, NULL, NULL);
+        struct sockaddr_in a;
+        socklen_t al = sizeof a;
+        int c = accept(lsock, (struct sockaddr *)&a, &al);
         if (c < 0) continue;
-        struct timeval tv = { 20, 0 };
+        uint32_t ip = al >= sizeof a && a.sin_family == AF_INET ? a.sin_addr.s_addr : 0;
+        struct timeval tv = { 5, 0 }, tvs = { 20, 0 };   /* intestazione: 5 s fra un pezzo e l'altro */
         setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
-        setsockopt(c, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+        setsockopt(c, SOL_SOCKET, SO_SNDTIMEO, &tvs, sizeof tvs);
 #ifdef SO_NOSIGPIPE
         int one = 1;
         setsockopt(c, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof one);
 #endif
-        handle(c);
-        close(c);
+        pthread_mutex_lock(&conn_mu);
+        int same = 0;
+        for (int i = 0; i < nconn; i++) same += conn_ip[i] == ip;
+        bool room = nconn < FS_MAX_CONN && same < FS_MAX_PER_IP;
+        if (room) { conn_fd[nconn] = c; conn_ip[nconn] = ip; nconn++; }
+        pthread_mutex_unlock(&conn_mu);
+        if (!room) {   /* troppe connessioni: si dice subito, senza aspettare la richiesta */
+            static const char busy[] = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            send(c, busy, sizeof busy - 1, MSG_DONTWAIT | MSG_NOSIGNAL_OR_0);
+            close(c);
+            continue;
+        }
+        pthread_t ct;
+        pthread_attr_t at;
+        pthread_attr_init(&at);
+        pthread_attr_setdetachstate(&at, PTHREAD_CREATE_DETACHED);
+        if (pthread_create(&ct, &at, conn_thread, (void *)(intptr_t)c) != 0) { conn_del(c); close(c); }
+        pthread_attr_destroy(&at);
     }
     mdns_close();
     return NULL;
@@ -1693,6 +1770,9 @@ bool fs_start(const char *dir) {
     for (int i = 0; i < 16; i++) snprintf(token + 2 * i, sizeof token - 2 * (size_t)i, "%02x", rb[4 + i]);
     if (getenv("ARCADE_FS_PIN")) snprintf(pin, sizeof pin, "%.6s", getenv("ARCADE_FS_PIN"));   /* prove automatiche */
     memset(pin_peers, 0, sizeof pin_peers);
+    pin_all_bad = 0;
+    pin_all_since = pin_all_until = 0;
+    nconn = 0;
     browsers_load();
     restore_remove_zip();   /* un ripristino lasciato a metà non si riprende: si ricarica dalla pagina */
     { char pz[1300]; full_path(pz, sizeof pz, RESTORE_ZIP ".part"); remove(pz); }
@@ -1714,6 +1794,15 @@ void fs_stop(void) {
     atomic_store(&stop_req, true);
     pthread_join(thr, NULL);
     thr_on = false;
+    /* le connessioni ancora aperte: chiuse dal nostro lato, poi si aspetta che i loro thread finiscano */
+    for (int w = 0; w < 600; w++) {
+        pthread_mutex_lock(&conn_mu);
+        int n = nconn;
+        for (int i = 0; i < nconn; i++) shutdown(conn_fd[i], SHUT_RDWR);
+        pthread_mutex_unlock(&conn_mu);
+        if (!n) break;
+        usleep(50000);
+    }
     close(lsock);
     lsock = -1;
     token[0] = 0;

@@ -15,6 +15,7 @@ bool plat_standalone(void) { const char *e = getenv("ARCADE_STANDALONE"); return
 #include <sys/time.h>
 #include <unistd.h>
 #include <time.h>
+#include <pthread.h>
 
 bool plat_is_device(void) { return true; }
 
@@ -91,6 +92,34 @@ static bool headphones(void) {
    cuffie da 8 a 61 (-9 e -71 dB: in cuffia il massimo del codec è troppo forte). Valori misurati
    a orecchio da TortOS sulla Brick, stesso codec. Livello 0: muto. */
 static bool vol_hp;
+static void vol_apply(int raw, int dac) {
+    char cmd[200];
+    snprintf(cmd, sizeof cmd, "amixer -q cset name='digital volume' %d >/dev/null 2>&1; amixer -q sset 'DAC volume' %d >/dev/null 2>&1",
+             raw, dac);
+    if (system(cmd) != 0) ui_log("volume: amixer non riuscito");
+}
+
+/* i due amixer fermavano il ciclo dei fotogrammi per qualche millisecondo a ogni cambio (revisione
+   del 16 novembre): dopo il primo, che si fa subito, li fa un thread a parte e conta solo l'ultimo
+   valore chiesto */
+static pthread_mutex_t vol_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t vol_cond = PTHREAD_COND_INITIALIZER;
+static int vol_raw = -1, vol_dac;
+static bool vol_thread_on;
+static void *vol_worker(void *arg) {
+    (void)arg;
+    pthread_mutex_lock(&vol_lock);
+    for (;;) {
+        while (vol_raw < 0) pthread_cond_wait(&vol_cond, &vol_lock);
+        int raw = vol_raw, dac = vol_dac;
+        vol_raw = -1;
+        pthread_mutex_unlock(&vol_lock);
+        vol_apply(raw, dac);
+        pthread_mutex_lock(&vol_lock);
+    }
+    return NULL;
+}
+
 static void set_volume(int level) {
     vol_hp = headphones();
     int raw = 63;
@@ -98,12 +127,20 @@ static void set_volume(int level) {
         int lo = vol_hp ? 8 : 0, hi = vol_hp ? 61 : 39;
         raw = lo + ((20 - (level > 20 ? 20 : level)) * (hi - lo) + 9) / 19;
     }
-    char cmd[200];
-    snprintf(cmd, sizeof cmd, "amixer -q cset name='digital volume' %d >/dev/null 2>&1; amixer -q sset 'DAC volume' %d >/dev/null 2>&1",
-             raw, level ? 160 : 0);
-    if (system(cmd) != 0) ui_log("volume: amixer non riuscito");
+    int dac = level ? 160 : 0;
     static int logged;
     if (logged++ < 3) ui_log("volume: livello %d, %s, digital volume %d", level, vol_hp ? "cuffie" : "altoparlante", raw);
+    if (!vol_thread_on) {   /* la prima volta (all'avvio) subito, poi il thread */
+        vol_apply(raw, dac);
+        pthread_t t;
+        if (pthread_create(&t, NULL, vol_worker, NULL) == 0) { pthread_detach(t); vol_thread_on = true; }
+        return;
+    }
+    pthread_mutex_lock(&vol_lock);
+    vol_raw = raw;
+    vol_dac = dac;
+    pthread_cond_signal(&vol_cond);
+    pthread_mutex_unlock(&vol_lock);
 }
 
 /* Frequenza della CPU (verifica audit BUG-011): solo valori che il kernel dichiara, governor

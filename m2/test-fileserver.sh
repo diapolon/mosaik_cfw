@@ -192,6 +192,39 @@ except Exception: print('nessuna risposta'); sys.exit()
 print('%d.%d.%d.%d' % tuple(d[-4:]) if struct.unpack('>H', d[:2])[0] == 0x1234 else 'id sbagliato')
 P
 check "mosaik.local risponde con l'indirizzo" "$(ip -4 addr show eth0 | awk '/inet /{print $2}' | cut -d/ -f1)" "$(python3 mdns.py)"
+# connessioni (revisione del 16 novembre): una connessione lenta non ferma le altre, l'intestazione
+# deve arrivare entro 10 s, al massimo 4 connessioni per indirizzo
+cat > lento.py <<'P'
+import select, socket, sys, time
+mode, n = sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1
+if mode == 'ferme':      # n connessioni ferme a metà intestazione
+    ss = []
+    for i in range(n):
+        s = socket.create_connection(('127.0.0.1', 8099)); s.sendall(b'GET / HTTP/1.1\r\nHost: x\r\n'); ss.append(s)
+    time.sleep(float(sys.argv[3]))
+else:                    # un byte ogni 2 s: quanto resta aperta
+    s = socket.create_connection(('127.0.0.1', 8099)); t = time.time()
+    for c in b'GET / HTTP/1.1\r\nHost: x\r\nX-Lungo: ' + b'b' * 40:
+        try: s.sendall(bytes([c]))
+        except OSError: break
+        r, _, _ = select.select([s], [], [], 2)
+        if r and s.recv(16) == b'': break
+    print(int(time.time() - t))
+P
+python3 lento.py ferme 1 12 & LP=$!
+sleep 1
+check "una connessione ferma non blocca la pagina" "200" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
+wait $LP
+check "intestazione a gocce: chiusa entro 10 s" "si" "$(t=$(python3 lento.py goccia); [ "$t" -ge 9 ] && [ "$t" -le 14 ] && echo si || echo "no ($t s)")"
+python3 lento.py ferme 4 6 & LP=$!
+sleep 1
+check "quinta connessione dallo stesso indirizzo: 503 subito" "503" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
+wait $LP
+check "liberate: di nuovo 200" "200" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
+# errori del PIN da tanti indirizzi: 20 in un minuto bloccano tutti (con 4 per indirizzo nessuno si blocca da solo)
+for a in 2 3 4 5 6; do for i in 1 2 3 4; do curl -s --interface 127.0.0.$a -X POST -d pin=999999 $U/api/login >/dev/null; done; done
+check "20 errori da 5 indirizzi: bloccato anche un indirizzo nuovo" '{"error":"locked"}' "$(curl -s --interface 127.0.0.7 -X POST -d pin=123456 $U/api/login)"
+check "la sessione aperta resta valida" "200" "$(q -o /dev/null -w '%{http_code}' "$U/api/info")"
 kill $PID; wait $PID || true
 check "chiusura e riepilogo" "caricati 4, cambiato 1" "$(tail -1 srv.log)"
 # backup copiato sulla scheda e importato alla prima schermata, senza il server
