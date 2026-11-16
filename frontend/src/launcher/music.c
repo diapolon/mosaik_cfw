@@ -52,11 +52,25 @@ static bool is_audio(const char *name) {
    I passi dell'apertura dell'audio vanno nel registro; se un passo dura più di WD_SECONDS il thread di guardia scrive in
    Logs/musica-blocco.txt il passo, lo stato dei thread del launcher e della scheda audio (da /proc),
    lascia System/musica-bloccata.txt e chiude il launcher: system-init lo riavvia e, con quel file,
-   all'accensione la musica non parte più (si può sempre farla partire da Impostazioni). */
+   all'accensione la musica non parte più (si può sempre farla partire da Impostazioni).
+   Il guardiano non scrive sulla SD (audit A62-001, seconda parte): un passo fermo può essere
+   proprio una SD che ha appena smesso di rispondere, e un fsync o un sync non tornerebbero più.
+   Diagnosi e passo vanno in memoria (/run); il launcher successivo li porta sulla scheda
+   (wd_collect), così l'uscita arriva entro WD_SECONDS più il tempo di leggere /proc. */
 #define WD_SECONDS 12
 static const char *_Atomic wd_step;
 static _Atomic Uint32 wd_since;
 static SDL_Thread *wd_thread;
+
+/* file in memoria del guardiano: /run sulla console (tmpfs), la cartella temporanea sul Mac */
+static void wd_ram(char *out, size_t n, const char *name) {
+#ifdef TRIMUI_DEVICE
+    snprintf(out, n, "/run/%s", name);
+#else
+    const char *t = getenv("TMPDIR");
+    snprintf(out, n, "%s/mosaik-%s", t && *t ? t : "/tmp", name);
+#endif
+}
 
 static void cat_file(FILE *out, const char *path) {
     FILE *f = fopen(path, "r");
@@ -69,8 +83,8 @@ static void cat_file(FILE *out, const char *path) {
 
 static void wd_dump(const char *step, Uint32 ms) {
     char p[1200];
-    snprintf(p, sizeof p, "%s/Logs/musica-blocco.txt", UI.root);
-    FILE *o = fopen(p, "a");
+    wd_ram(p, sizeof p, "musica-blocco.txt");
+    FILE *o = fopen(p, "w");
     if (!o) return;
     time_t now = time(NULL);
     fprintf(o, "=== %s", ctime(&now));
@@ -93,8 +107,6 @@ static void wd_dump(const char *step, Uint32 ms) {
     static const char *snd[] = { "/proc/asound/cards", "/proc/asound/audiocodec/pcm0p/sub0/status",
                                  "/proc/asound/audiocodec/pcm0p/sub0/hw_params", "/proc/asound/audiocodec/pcm0p/sub0/sw_params" };
     for (size_t i = 0; i < sizeof snd / sizeof snd[0]; i++) { fprintf(o, "%s:\n", snd[i]); cat_file(o, snd[i]); }
-    fflush(o);
-    fsync(fileno(o));
     fclose(o);
 }
 
@@ -106,18 +118,45 @@ static int wd_run(void *arg) {
         if (!st) return 0;   /* la musica è partita (o ha rinunciato) */
         Uint32 ms = SDL_GetTicks() - atomic_load(&wd_since);
         if (ms < WD_SECONDS * 1000u) continue;
-        /* SD che non risponde (audit A62-001): niente registro né sync, che non tornerebbero;
-           system-init vede /run/sd-guasta e riavvia */
+        /* SD già data per guasta (audit A62-001): system-init vede /run/sd-guasta e riavvia */
         if (UI.sd_failed || access("/run/sd-guasta", F_OK) == 0) _exit(3);
-        ui_log("musica: ferma da %.0f s nel passo \"%s\": dettagli in Logs/musica-blocco.txt, il launcher riparte senza musica", ms / 1000.0, st);
+        /* niente ui_log né sync: tutto in memoria, sulla scheda lo porta wd_collect */
         wd_dump(st, ms);
         char p[1200];
-        snprintf(p, sizeof p, "%s/System/musica-bloccata.txt", UI.root);
+        wd_ram(p, sizeof p, "musica-bloccata");
         FILE *f = fopen(p, "w");
-        if (f) { fprintf(f, "%s\n", st); fflush(f); fsync(fileno(f)); fclose(f); }
-        sync();
+        if (f) { fprintf(f, "%s (%.0f s)\n", st, ms / 1000.0); fclose(f); }
         _exit(3);
     }
+}
+
+/* il launcher precedente è stato chiuso dal guardiano: diagnosi e passo, lasciati in memoria,
+   vanno in Logs/musica-blocco.txt e System/musica-bloccata.txt */
+static void wd_collect(const char *root) {
+    char mark[1200], dump[1200], step[200] = "";
+    wd_ram(mark, sizeof mark, "musica-bloccata");
+    FILE *f = fopen(mark, "r");
+    if (!f) return;
+    if (fgets(step, sizeof step, f)) step[strcspn(step, "\r\n")] = 0;
+    fclose(f);
+    ui_log("musica: il launcher di prima era fermo nel passo \"%s\": dettagli in Logs/musica-blocco.txt, la musica resta spenta all'accensione", step);
+    char p[1200];
+    snprintf(p, sizeof p, "%s/Logs/musica-blocco.txt", root);
+    wd_ram(dump, sizeof dump, "musica-blocco.txt");
+    FILE *in = fopen(dump, "r"), *out = fopen(p, "a");
+    if (in && out) {
+        char buf[4096];
+        size_t k;
+        while ((k = fread(buf, 1, sizeof buf, in)) > 0) fwrite(buf, 1, k, out);
+    }
+    if (in) fclose(in);
+    if (out) { fflush(out); fsync(fileno(out)); fclose(out); }
+    snprintf(p, sizeof p, "%s/System/musica-bloccata.txt", root);
+    FILE *b = fopen(p, "w");
+    bool ok = b && fprintf(b, "%s\n", step) > 0;
+    if (b) { ok = fflush(b) == 0 && fsync(fileno(b)) == 0 && ok; ok = fclose(b) == 0 && ok; }
+    /* tolti solo se il file sulla scheda c'è: altrimenti ci riprova il prossimo launcher */
+    if (ok) { unlink(mark); unlink(dump); }
 }
 
 /* passo in corso; NULL quando l'avvio della musica è finito */
@@ -256,6 +295,7 @@ void music_init(const char *root) {
     /* con la musica spenta la cartella si legge solo quando serve (Impostazioni, pannello rapido):
        una SD lenta o una cartella grande non ritardano l'avvio (verifica Codex M61-008) */
     if (UI.set.music_vol > 0) scan_menu();
+    wd_collect(root);
     /* all'avvio prima la musica si era bloccata (cane da guardia): all'accensione non parte */
     char bp[1100], why[200] = "";
     snprintf(bp, sizeof bp, "%s/System/musica-bloccata.txt", root);

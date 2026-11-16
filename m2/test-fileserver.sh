@@ -222,6 +222,12 @@ check "backup importato" "importato" "$(./imp $W/sd r2.zip 2>&1 | cut -d' ' -f2)
 check "salvataggio importato" "vecchio" "$(cat sd/Saves/fbneo/gioco.srm)"
 check "cartella nuova creata" "nuovo" "$(cat sd/Saves/nuovo/a.srm)"
 check "impostazioni per console e video importati" "importato opt mp4" "$(./imp $W/sd bcm.zip 2>&1 | cut -d' ' -f2) $(cat sd/System/console/nes.opt) $(cat sd/Video/Film/v.mp4)"
+# una parte sola (verifica dell'audit 0.9.62): le impostazioni non toccano video e salvataggi, i
+# media non toccano impostazioni e salvataggi
+echo mio > sd/System/console/nes.opt; echo mio > sd/Video/Film/v.mp4; echo cambiato > sd/Saves/fbneo/gioco.srm
+check "solo impostazioni: opzioni rimesse, video e salvataggi fermi" "importato opt mio cambiato" "$(./imp $W/sd bcm.zip 2 2>&1 | cut -d' ' -f2) $(cat sd/System/console/nes.opt) $(cat sd/Video/Film/v.mp4) $(cat sd/Saves/fbneo/gioco.srm)"
+echo mio > sd/System/console/nes.opt; echo mio > sd/Video/Film/v.mp4
+check "solo media: video rimesso, impostazioni e salvataggi fermi" "importato mio mp4 cambiato" "$(./imp $W/sd bcm.zip 16 2>&1 | cut -d' ' -f2) $(cat sd/System/console/nes.opt) $(cat sd/Video/Film/v.mp4) $(cat sd/Saves/fbneo/gioco.srm)"
 rm -rf sd/System/console sd/Video
 check "core non toccato dall'importazione" "core" "$(cat sd/Cores/core.so)"
 check "nessun .part dall'importazione" "0" "$(find sd -name '*.part' | wc -l | tr -d ' ')"

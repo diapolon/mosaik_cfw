@@ -3301,6 +3301,18 @@ static void ccfg_show(int emu) {
     snprintf(ccfg_cfg, sizeof ccfg_cfg, "%s/System/console/%s.cfg", UI.root, id);
     snprintf(ccfg_opt, sizeof ccfg_opt, "%s/System/console/%s.opt", UI.root, id);
     ccfg_reload();   /* rotazione e slot sono solo dei giochi */
+    {   /* azzeramento interrotto (corrente mancata): se il .cfg è già vuoto l'azzeramento era fatto e
+           la copia delle opzioni si toglie, altrimenti le opzioni tornano al loro posto */
+        char bak[sizeof ccfg_opt + 8];
+        struct stat sb;
+        snprintf(bak, sizeof bak, "%s.prima", ccfg_opt);
+        if (stat(bak, &sb) == 0) {
+            bool done = gc_empty(&ccfg_lay) || stat(ccfg_opt, &sb) == 0;
+            int r = done ? remove(bak) : rename(bak, ccfg_opt);
+            ui_log("console %s: azzeramento interrotto, %s%s", id, done ? "copia delle opzioni tolta" : "opzioni rimesse",
+                   r ? " (non riuscito)" : "");
+        }
+    }
     if (!nfilters) nfilters = filters_list(UI.root, UI.set.lang, filters, 24);
     ccfg_emu = emu;
     ccfg_sel = 0;
@@ -3375,14 +3387,24 @@ static void ccfg_input(void) {
         if (r < 0) return;
         ccfg_ask = false;
         if (r != 1) return;
-        gc_clear(&ccfg_lay);
-        if (!ccfg_save()) return;   /* il messaggio d'errore l'ha già dato */
-        if (remove(ccfg_opt) != 0 && errno != ENOENT) {   /* opzioni dell'emulatore rimaste: niente "ripristinato" */
+        /* tutto o niente (audit A62-006, seconda parte): le opzioni dell'emulatore si mettono da
+           parte prima di azzerare il .cfg; se il .cfg non si scrive tornano al loro posto */
+        char bak[sizeof ccfg_opt + 8];
+        snprintf(bak, sizeof bak, "%s.prima", ccfg_opt);
+        bool had_opt = rename(ccfg_opt, bak) == 0;
+        if (!had_opt && errno != ENOENT) {   /* non si può spostare: non si cambia niente */
             ui_log("opzioni della console non tolte: %s (%s)", ccfg_opt, strerror(errno));
             ui_toast(T("update.err6"));
             ui_sound(SND_ERROR);
             return;
         }
+        gc_clear(&ccfg_lay);
+        if (!ccfg_save()) {   /* il messaggio d'errore l'ha già dato; il .cfg è stato riletto */
+            if (had_opt && rename(bak, ccfg_opt) != 0)
+                ui_log("opzioni della console non rimesse: %s resta in %s (%s)", ccfg_opt, bak, strerror(errno));
+            return;
+        }
+        if (had_opt && remove(bak) != 0) ui_log("copia delle opzioni non tolta: %s (%s)", bak, strerror(errno));
         ui_toast(T("layer.console_cleared"));
         ui_sound(SND_OK);
         return;
@@ -9406,6 +9428,8 @@ int main(int argc, char **argv) {
 #ifndef TRIMUI_DEVICE
     if (getenv("TRIMUI_START_LIBRARY")) screen = SCR_LIBRARY;   /* prove sul Mac: si parte dalla libreria */
     if (getenv("TRIMUI_START_STORE")) sto_start();   /* prove sul Mac: si parte dallo Store */
+    if (getenv("TRIMUI_START_CONSOLE"))   /* prove sul Mac: opzioni di una console (id dell'emulatore) */
+        for (int e = 0; e < NEMUS; e++) if (!strcmp(EMUS[e].id, getenv("TRIMUI_START_CONSOLE"))) { screen = SCR_PLATFORMS; ccfg_show(e); }
 #endif
     screen_t0 = -1;
     diag_check_failure();
