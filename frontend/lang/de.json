@@ -360,6 +360,8 @@
     "power_body_app": "Beenden kehrt zum TrimUI-Menü zurück.",
     "suspend_title": "Konsole in den Ruhezustand?",
     "suspend_body": "Die Ein/Aus-Taste weckt sie auf.",
+    "power_choice": "Was möchtest du tun?",
+    "power_choice_body": "Aus dem Ruhezustand weckt sie die Ein-/Aus-Taste.",
     "suspend": "Ruhezustand"
   },
   "game": {

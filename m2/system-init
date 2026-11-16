@@ -643,8 +643,9 @@ while :; do
         sd_check
         zombie_note "gioco linux"
         rm -f "$ROOT/System/next.env"
-        # 120: tasto di accensione tenuto premuto durante il gioco (gamewatch)
+        # 120: tasto di accensione tenuto premuto durante il gioco, o Spegni (gamewatch); 121: Riavvia
         [ $grc -eq 120 ] && finish
+        [ $grc -eq 121 ] && finish reboot
         continue
     fi
     set -- --root "$ROOT" --core "$core" --rom "$rom" --title "$title"
@@ -659,4 +660,5 @@ while :; do
     zombie_note runner
     step "runner: uscita $rc"
     [ $rc -eq 20 ] && finish
+    [ $rc -eq 21 ] && finish reboot   # Riavvia dalla finestra del tasto di accensione
 done

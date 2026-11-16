@@ -119,6 +119,11 @@ void ui_mark(const char *what);   /* solo con il registro "Prestazioni" o "Compl
 bool ui_debug_on(int level);
 void ui_confirm_draw(const char *title, const char *body, const char *no, const char *yes, int sel);
 int ui_confirm_input(int *sel);
+/* finestra del tasto di accensione: Sospendi, Riavvia, Spegni (sel 0-2, di partenza 0).
+   ui_power_input: -1 aperta, altrimenti UI_PW_* */
+enum { UI_PW_CANCEL = 0, UI_PW_SUSPEND, UI_PW_RESTART, UI_PW_OFF };
+void ui_power_draw(int sel);
+int ui_power_input(int *sel);
 /* pulsanti in fondo a una finestra (x, y, w, h): da 1 a 3, sel quello scelto, danger quello in
    rosso (-1 nessuno). ui_popup_buttons_h: lo spazio da lasciare in fondo alla finestra. */
 void ui_popup_buttons(int x, int y, int w, int h, const char *const *labels, int n, int sel, int danger);

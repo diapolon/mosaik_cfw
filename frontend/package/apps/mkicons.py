@@ -89,7 +89,23 @@ def video_icon(path):
     im.resize((256, 256), Image.LANCZOS).save(path)
 
 
+def scraper_icon(path):
+    S = 1024
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([96, 140, 800, 740], radius=90, fill=ACCENT)                # cornice
+    d.rounded_rectangle([156, 200, 740, 680], radius=50, fill=(245, 248, 250))      # copertina
+    d.polygon([(190, 650), (380, 420), (500, 560), (590, 470), (706, 650)], fill=LIGHT)   # monti
+    d.ellipse([560, 250, 680, 370], fill=(255, 196, 60))                            # sole
+    d.ellipse([560, 560, 928, 928], fill=(245, 248, 250))                           # bollo
+    d.ellipse([590, 590, 898, 898], fill=ACCENT)
+    d.rectangle([714, 640, 774, 770], fill=(245, 248, 250))                         # freccia in giù
+    d.polygon([(654, 750), (834, 750), (744, 850)], fill=(245, 248, 250))
+    im.resize((256, 256), Image.LANCZOS).save(path)
+
+
 files_icon(os.path.join(D, "files", "icon.png"))
+scraper_icon(os.path.join(D, "scraper", "icon.png"))
 diag_icon(os.path.join(D, "diag", "icon.png"))
 sdgrow_icon(os.path.join(D, "sdgrow", "icon.png"))
 sdtest_icon(os.path.join(D, "sdtest", "icon.png"))

@@ -711,7 +711,9 @@ static void launch_ex(game_t *g, bool resume) {
             fputs("export ARCADE_ROM='", ef);
             for (const char *c = g->path; *c; c++) { if (*c == '\'') fputs("'\\''", ef); else fputc(*c, ef); }
             fputs("'\n", ef);
-            if (xemu->nomenu) fputs("export GAMEWATCH_NOMENU=1\n", ef);
+            /* emulatori con un menu loro (Deadcast, Flycast, PPSSPP, N64): niente menu di Mosaik, e
+               il livello del menu sopra di loro non si vede: il tasto di accensione sospende subito */
+            if (xemu->nomenu) fputs("export GAMEWATCH_NOMENU=1\nexport GAMEWATCH_NOOVERLAY=1\n", ef);
             fclose(ef);
         }
     }
@@ -4651,8 +4653,18 @@ static void sto_mark(int k, int cx, int cy, int d) {
 }
 
 /* riquadro a righe come quelli delle Piattaforme, con l'immagine e il nome sotto */
+/* icona vera di un'app (16 novembre): quella installata, altrimenti quella del catalogo (scaricata) */
+static SDL_Texture *sto_app_icon(int idx) {
+    const store_pkg_t *p = store_pkg(idx);
+    if (!p || strcmp(p->category, "apps")) return NULL;
+    char path[1300];
+    snprintf(path, sizeof path, "%s/Apps/%s/icon.png", UI.root, p->id);
+    if (access(path, F_OK) != 0 && !store_icon(idx, path, sizeof path)) return NULL;
+    return ui_image(path);
+}
+
 static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em, const char *label, const char *name,
-                     const char *sub, int marks, int count, bool sel, bool gray) {
+                     const char *sub, int marks, int count, bool sel, bool gray, SDL_Texture *icon) {
     theme_t *t = &UI.th;
     UI.gray = gray;   /* non installato: tutto in grigio, tranne etichetta e cornice della scelta */
     ui_shadow(x, y + M(0.006f), w, h, M(0.006f), M(0.016f), t->shadow);
@@ -4664,7 +4676,8 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
     TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
     int fh = TTF_FontHeight(fn) + TTF_FontHeight(fs) + M(0.02f), pad = w * 9 / 100;
     int ax = x + pad, ay = y + pad, aw = w - 2 * pad, ah = h - fh - pad - pad / 2;
-    sto_art(em, c, label, ax, ay, aw, ah);
+    if (icon) ui_image_fit(icon, ax, ay, aw, ah);
+    else sto_art(em, c, label, ax, ay, aw, ah);
     ui_rect(x, y + h - fh, w, fh, hexc(0x151822));
     char fit[120];
     TTF_Font *fname = ui_text_w(fn, name) > w - M(0.02f) ? fs : fn;   /* un nome lungo col carattere piccolo */
@@ -4906,7 +4919,7 @@ static void sto_draw(void) {
                                : games_cat ? (cnt == 1 ? "store.count1_games" : "store.count_games") : (cnt == 1 ? "store.count1" : "store.count");
                 if (cnt) snprintf(sub, sizeof sub, T(ck), cnt);
                 else snprintf(sub, sizeof sub, "%s", T("store.cat_soon"));
-                sto_tile(x, yy, tw, th, c, &em, T(title), T(title), sub, upd ? 1 << SM_UPDATE : 0, upd, i == sto_cat, false);
+                sto_tile(x, yy, tw, th, c, &em, T(title), T(title), sub, upd ? 1 << SM_UPDATE : 0, upd, i == sto_cat, false, NULL);
             } else {
                 store_pkg_t p = *store_pkg(sto_items[i]);
                 sto_pkg_art(&p, &c, &em);
@@ -4915,7 +4928,7 @@ static void sto_draw(void) {
                 sto_size(p.size, size, sizeof size);
                 if (sto_no_data(&p)) snprintf(sub, sizeof sub, "%s", size);
                 else snprintf(sub, sizeof sub, "%s · %s", p.name, size);
-                sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_marks(&p), 0, i == sto_sel, sto_gray(&p));
+                sto_tile(x, yy, tw, th, c, &em, p.title, p.title, sub, sto_marks(&p), 0, i == sto_sel, sto_gray(&p), sto_app_icon(sto_items[i]));
             }
         }
         ui_clip_pop();
@@ -4949,6 +4962,8 @@ static void sto_draw(void) {
             UI.gray = false;
             ui_rrect(mx, top, aw, ah, r, rgba(0, 0, 0, 255));
             ui_image_fit(im, mx + M(0.01f), top + M(0.01f), aw - M(0.02f), ah - dots - M(0.02f));
+        } else if ((im = sto_app_icon(idx))) {
+            ui_image_fit(im, mx + aw / 4, top + ah / 2 - aw / 4, aw / 2, aw / 2);
         } else {
             sto_art(&em, c, p.name, mx + aw / 10, top + aw / 10, aw - aw / 5, ah - dots - aw / 5);
             if (sto_img > 0) ui_text(fs, T("store.img_loading"), mx + aw / 2, top + ah - dots - fsh - M(0.02f), rgba(255, 255, 255, 230), ALIGN_CENTER);
@@ -9561,11 +9576,11 @@ int main(int argc, char **argv) {
             ui_log("spegnimento automatico");
             power_off();
         }
-        /* tasto di accensione (sistema su SD): finestra per spegnere */
-        /* tasto di accensione (sistema su SD): breve sospende, tenuto premuto chiede se spegnere */
+        /* tasto di accensione (sistema su SD): breve chiede Sospendi, Riavvia o Spegni (16 novembre;
+           prima solo se sospendere), tenuto premuto chiede se spegnere */
         if (UI.in.power && !upd_busy() && atomic_load(&imp_state) != IMP_RUN && !atomic_load(&rst_state) && !(dlg_open && dlg_suspend)) {
             dlg_open = dlg_suspend = true;
-            dlg_sel = 1;
+            dlg_sel = 0;
             saver_on = false;
             last_input = UI.t;
             UI.in.power = false;   /* questa pressione ha solo aperto la finestra */
@@ -9604,9 +9619,11 @@ int main(int argc, char **argv) {
         if (sdbad_open) sdbad_input();
         else if (rec_open) rec_input();
         else if (dlg_open && dlg_suspend) {
-            int r = ui_confirm_input(&dlg_sel);
+            int r = ui_power_input(&dlg_sel);
             if (r >= 0) dlg_open = dlg_suspend = false;
-            if (r == 1) { launcher_suspend(); last_input = UI.t; }
+            if (r == UI_PW_SUSPEND) { launcher_suspend(); last_input = UI.t; }
+            else if (r == UI_PW_RESTART) restart_system();
+            else if (r == UI_PW_OFF) power_off();
         }
         else if (rdy_open) rdy_input();
         else if (atomic_load(&rst_state)) rst_input();
@@ -9730,7 +9747,7 @@ int main(int argc, char **argv) {
         if (rdy_open) rdy_draw();
         if (rec_open) rec_draw();
         if (sdbad_open) sdbad_draw();
-        if (dlg_open && dlg_suspend) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), dlg_sel);
+        if (dlg_open && dlg_suspend) ui_power_draw(dlg_sel);
         battery_check();
         if (first_frame) {
             first_frame = false;

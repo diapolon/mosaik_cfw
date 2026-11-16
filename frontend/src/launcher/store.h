@@ -42,6 +42,7 @@ typedef struct {
     char min_system[16];         /* versione minima del sistema, "" se va con tutte */
     bool needs_system;           /* il sistema in uso è più vecchio di min_system: prima va aggiornato */
     char inst_label[32];         /* versione installata, come la mostra la scheda ("" se non installato) */
+    char icon[72], icon_sha[65]; /* icona di un'app per il riquadro (dalla 0.9.70), "" se non c'è */
     int nimg;                    /* immagini della scheda (dalla 0.9.67): file accanto agli zip */
     char img[4][72], img_sha[4][65];
 } store_pkg_t;
@@ -88,6 +89,8 @@ void store_usage(int i, store_usage_t *u);
    (System/.store-img); altrimenti, con la rete, la scarica in un thread e la controlla con lo
    SHA-256 del catalogo (si richiama a ogni fotogramma finché non c'è) */
 bool store_image(int i, int k, char *out, size_t n);
+/* come store_image, per l'icona dell'app i (false anche se non ne ha una) */
+bool store_icon(int i, char *out, size_t n);
 void store_cancel(void);
 void store_join(void);
 /* dopo un'installazione o una rimozione: emulatori cambiati, la libreria va riletta */

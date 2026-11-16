@@ -241,6 +241,10 @@ int main(int argc, char **argv) {
        perdere dati (Deadcast: salvataggi della VMU ancora nel buffer). Menu tenuto e HOME non fanno
        nulla, e il tasto di accensione sospende senza la domanda (il nostro livello lì non si vede). */
     bool nomenu = getenv("GAMEWATCH_NOMENU") && getenv("GAMEWATCH_NOMENU")[0] == '1';
+    /* GAMEWATCH_NOOVERLAY=1 (emulatori che disegnano da soli sullo schermo): il livello della finestra
+       del tasto di accensione non si vedrebbe, quindi la pressione breve sospende senza chiedere.
+       Le app hanno solo GAMEWATCH_NOMENU: Menu è loro, ma la finestra Sospendi/Riavvia/Spegni sì. */
+    bool nooverlay = getenv("GAMEWATCH_NOOVERLAY") && getenv("GAMEWATCH_NOOVERLAY")[0] == '1';
     if (nomenu) fprintf(stderr, "gamewatch: senza il menu di Mosaik (si esce dal menu del programma)\n");
     double power_at = 0;
     double power_block_until = 0;   /* dopo un risveglio il tasto non vale per un momento */
@@ -317,13 +321,13 @@ int main(int argc, char **argv) {
                             if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }   /* un livello alla volta */
                             kill(-pid, SIGSTOP);
                             /* chiede conferma: senza un sì non si sospende */
-                            int ask = nomenu ? 30 : run_menu("--ask-suspend");
+                            int ask = nooverlay ? 30 : run_menu("--ask-suspend");
                             fprintf(stderr, "gamewatch: conferma della sospensione: %d\n", ask);
-                            if (ask == 20) {
+                            if (ask == 20 || ask == 21) {   /* Spegni o Riavvia dalla finestra */
                                 kill(-pid, SIGCONT);
                                 stop_group(pid);
                                 if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
-                                return 120;
+                                return ask == 21 ? 121 : 120;
                             }
                             if (ask == 30) group_sleep(pid, ui, &power_block_until);
                             kill(-pid, SIGCONT);
@@ -397,10 +401,10 @@ int main(int argc, char **argv) {
             int m = run_menu(NULL);
             fprintf(stderr, "gamewatch: menu chiuso (%d)\n", m);
             kill(-pid, SIGCONT);
-            if (m == 10 || m == 20) {
+            if (m == 10 || m == 20 || m == 21) {
                 stop_group(pid);
                 if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
-                return m == 20 ? 120 : 0;
+                return m == 20 ? 120 : m == 21 ? 121 : 0;
             }
             /* eventi arrivati durante il menu: il gioco non deve vederli come nuovi */
             struct input_event skip;

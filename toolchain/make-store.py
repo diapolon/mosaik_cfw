@@ -347,6 +347,14 @@ for pid in sorted(os.listdir(args.src)):
             imgs.append({"file": out, "sha256": h, "size": os.path.getsize(src)})
         if imgs:
             entry["images"] = imgs
+    # icona delle app per il riquadro dello Store (dalla 0.9.70): la loro Apps/<id>/icon.png, pubblicata
+    # accanto agli zip come store-icon-<id>-<impronta>.png e controllata come le immagini
+    if category == "apps" and f"Apps/{pid}/icon.png" in files:
+        src = os.path.join(root, "Apps", pid, "icon.png")
+        h = sha256(src)
+        out = f"store-icon-{pid}-{h[:10]}.png"
+        shutil.copyfile(src, os.path.join(args.out, out))
+        entry["icon"] = {"file": out, "sha256": h, "size": os.path.getsize(src)}
     new = any(rel.startswith(NEW_PATHS) for rel in files)
     if new and not min_sys:
         sys.exit(f"{pid}: i file in {NEW_PATHS} richiedono un min_system")

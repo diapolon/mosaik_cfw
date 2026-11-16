@@ -329,6 +329,14 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
             free(ml);
             x->p.other_model = nm > 0 && model_id[0] && !fits;
         }
+        {   /* icona dell'app: un nome semplice, come le immagini */
+            jval *ic = json_get(v, "icon");
+            const char *f = json_str(ic, "file", ""), *h = json_str(ic, "sha256", "");
+            if (f[0] && !strchr(f, '/') && !strstr(f, "..") && strlen(f) < sizeof x->p.icon && strlen(h) == 64) {
+                snprintf(x->p.icon, sizeof x->p.icon, "%s", f);
+                snprintf(x->p.icon_sha, sizeof x->p.icon_sha, "%s", h);
+            }
+        }
         {   /* immagini della scheda: solo nomi semplici, come gli zip */
             jval *im = json_get(v, "images");
             for (jval *iv = im && im->t == J_ARR ? im->child : NULL; iv && x->p.nimg < 4; iv = iv->next) {
@@ -1432,7 +1440,7 @@ int store_offline_install(const char *root, const char *path) {
 /* ---- immagini della scheda: scaricate una alla volta, a parte dai lavori dello Store ---- */
 static atomic_bool img_busy;
 static char img_name[72], img_hash[65];
-static char img_failed[8][72];   /* non riuscite in questa apertura: non si riprova a ogni fotogramma */
+static char img_failed[24][72];   /* non riuscite in questa apertura: non si riprova a ogni fotogramma */
 static int nimg_failed;
 
 static size_t img_write(char *p, size_t s, size_t n, void *u) { return fwrite(p, s, n, u) * s; }
@@ -1479,26 +1487,37 @@ static void *img_worker(void *arg) {
     bool ok = (img_get(base_url, part) || img_get(fallback_url, part)) && sha256_file(part, sha) && !strcmp(sha, img_hash) && rename(part, path) == 0;
     if (!ok) {
         remove(part);
-        if (nimg_failed < 8) snprintf(img_failed[nimg_failed++], sizeof img_failed[0], "%s", img_name);
+        if (nimg_failed < 24) snprintf(img_failed[nimg_failed++], sizeof img_failed[0], "%s", img_name);
         ui_log("store: immagine %s non scaricata", img_name);
     }
     atomic_store(&img_busy, false);
     return NULL;
 }
 
-bool store_image(int i, int k, char *out, size_t n) {
-    const store_pkg_t *p = store_pkg(i);
-    if (!p || k < 0 || k >= p->nimg) return false;
-    snprintf(out, n, "%s/System/.store-img/%s", root_dir, p->img[k]);
+/* file della cache (System/.store-img) o, con la rete, scaricato in un thread */
+static bool cached_file(const char *name, const char *sha, char *out, size_t n) {
+    snprintf(out, n, "%s/System/.store-img/%s", root_dir, name);
     struct stat sb;
     if (stat(out, &sb) == 0) return true;
     if (!st.online || atomic_load(&img_busy)) return false;
-    for (int f = 0; f < nimg_failed; f++) if (!strcmp(img_failed[f], p->img[k])) return false;
-    snprintf(img_name, sizeof img_name, "%s", p->img[k]);
-    snprintf(img_hash, sizeof img_hash, "%s", p->img_sha[k]);
+    for (int f = 0; f < nimg_failed; f++) if (!strcmp(img_failed[f], name)) return false;
+    snprintf(img_name, sizeof img_name, "%s", name);
+    snprintf(img_hash, sizeof img_hash, "%s", sha);
     atomic_store(&img_busy, true);
     pthread_t t;
     if (pthread_create(&t, NULL, img_worker, NULL) != 0) { atomic_store(&img_busy, false); return false; }
     pthread_detach(t);
     return false;
+}
+
+bool store_image(int i, int k, char *out, size_t n) {
+    const store_pkg_t *p = store_pkg(i);
+    if (!p || k < 0 || k >= p->nimg) return false;
+    return cached_file(p->img[k], p->img_sha[k], out, n);
+}
+
+bool store_icon(int i, char *out, size_t n) {
+    const store_pkg_t *p = store_pkg(i);
+    if (!p || !p->icon[0]) return false;
+    return cached_file(p->icon, p->icon_sha, out, n);
 }

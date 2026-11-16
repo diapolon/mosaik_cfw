@@ -360,6 +360,8 @@
     "power_body_app": "Esci per tornare al menu TrimUI.",
     "suspend_title": "Sospendere la console?",
     "suspend_body": "Si risveglia con il tasto di accensione.",
+    "power_choice": "Cosa vuoi fare?",
+    "power_choice_body": "Dalla sospensione si torna con il tasto di accensione.",
     "suspend": "Sospendi"
   },
   "game": {

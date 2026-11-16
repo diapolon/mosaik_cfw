@@ -360,6 +360,8 @@
     "power_body_app": "Exit to return to the TrimUI menu.",
     "suspend_title": "Put the console to sleep?",
     "suspend_body": "The power button wakes it.",
+    "power_choice": "What do you want to do?",
+    "power_choice_body": "From sleep, the power button wakes it up.",
     "suspend": "Sleep"
   },
   "game": {

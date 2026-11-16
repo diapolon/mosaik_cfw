@@ -16,7 +16,7 @@
 #include <string.h>
 
 enum { GM_RESUME, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_COUNT };
-enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20, RC_SLEEP = 30 };
+enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20, RC_REBOOT = 21, RC_SLEEP = 30 };
 static bool asking;       /* finestra "sospendere?" aperta */
 static int ask_sel = 1;
 
@@ -112,14 +112,12 @@ static int input(void) {
         if (sel == GM_RESUME) return RC_RESUME;
         if (sel == GM_QUIT) return RC_QUIT;
     }
-    if (UI.in.power) { asking = true; ask_sel = 1; return -1; }
+    if (UI.in.power) { asking = true; ask_sel = 0; return -1; }
     if (UI.in.power_long) return RC_POWER;
     return -1;
 }
 
-static void draw_ask(void) {
-    ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
-}
+static void draw_ask(void) { ui_power_draw(ask_sel); }   /* Sospendi, Riavvia, Spegni */
 
 #ifdef TRIMUI_DEVICE
 /* ------------------------------------------------------------ livello del display */
@@ -368,11 +366,13 @@ int main(int argc, char **argv) {
         if (asking) {
             if (UI.in.power_long) rc = RC_POWER;
             else {
-                int r = ui_confirm_input(&ask_sel);
+                int r = ui_power_input(&ask_sel);
                 if (r >= 0) {
                     asking = false;
-                    if (only_ask) rc = r ? RC_SLEEP : RC_RESUME;
-                    else if (r) ui_suspend();
+                    if (r == UI_PW_RESTART) rc = RC_REBOOT;
+                    else if (r == UI_PW_OFF) rc = RC_POWER;
+                    else if (only_ask) rc = r == UI_PW_SUSPEND ? RC_SLEEP : RC_RESUME;
+                    else if (r == UI_PW_SUSPEND) ui_suspend();
                 }
             }
         } else if (!armed) {
@@ -409,6 +409,6 @@ int main(int argc, char **argv) {
         SDL_Delay(8);
     }
     layer_close();
-    ui_log("menu del gioco Linux: %s", rc == RC_RESUME ? "riprendi" : rc == RC_QUIT ? "esci" : "spegni");
+    ui_log("menu del gioco Linux: %s", rc == RC_RESUME ? "riprendi" : rc == RC_QUIT ? "esci" : rc == RC_REBOOT ? "riavvia" : rc == RC_SLEEP ? "sospendi" : "spegni");
     return rc;
 }

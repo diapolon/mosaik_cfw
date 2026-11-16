@@ -360,6 +360,8 @@
     "power_body_app": "Sair para voltar ao menu TrimUI.",
     "suspend_title": "Suspender a consola?",
     "suspend_body": "O botão de ligar volta a ativá-la.",
+    "power_choice": "O que queres fazer?",
+    "power_choice_body": "Da suspensão volta-se com o botão de ligar.",
     "suspend": "Suspender"
   },
   "game": {

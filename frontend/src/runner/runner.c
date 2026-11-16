@@ -22,7 +22,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-enum { EXIT_MENU = 0, EXIT_POWEROFF = 20 };
+enum { EXIT_MENU = 0, EXIT_POWEROFF = 20, EXIT_REBOOT = 21 };   /* 21: system-init riavvia (16 novembre) */
 
 static struct {
     void *h;
@@ -1450,6 +1450,12 @@ static void power_off_from_game(void) {
     exit_code = EXIT_POWEROFF;
 }
 
+/* Riavvia dalla finestra del tasto di accensione: come Spegni, la partita resta da riprendere */
+static void restart_from_game(void) {
+    power_off_from_game();
+    exit_code = EXIT_REBOOT;
+}
+
 /* ------------------------------------------------------- cambio gioco
    Le ultime partite (System/cambio.tsv, scritto dal launcher a ogni avvio), in una fila con
    l'immagine del salvataggio automatico. Scegliendone un'altra la partita in corso va nel
@@ -2455,13 +2461,15 @@ int main(int argc, char **argv) {
         /* tasti extra della Brick Pro: HOME torna al launcher, F1 salva, F2 carica */
         if (UI.in.home && UI.set.key_home == XH_LAUNCHER) { exit_code = EXIT_MENU; break; }
         if (core_shutdown) { exit_code = EXIT_MENU; break; }
-        /* tasto di accensione (sistema su SD): breve chiede se sospendere (il gioco riprende da
-           dove era), tenuto premuto salva la partita e spegne */
+        /* tasto di accensione (sistema su SD): breve chiede Sospendi (il gioco riprende da dove era),
+           Riavvia o Spegni (salvano la partita); tenuto premuto salva la partita e spegne */
         if (UI.in.power_long) { power_off_from_game(); break; }
         if (suspend_ask) {
-            int r = ui_confirm_input(&ask_sel);
+            int r = ui_power_input(&ask_sel);
             if (r >= 0) suspend_ask = false;
-            if (r == 1) {
+            if (r == UI_PW_RESTART) { restart_from_game(); break; }
+            if (r == UI_PW_OFF) { power_off_from_game(); break; }
+            if (r == UI_PW_SUSPEND) {
                 sram_save();
                 ui_suspend();
                 /* SD guasta al risveglio: niente salvataggi né chiusura (scriverebbero sulla scheda e
@@ -2472,7 +2480,7 @@ int main(int argc, char **argv) {
             }
         } else if (UI.in.power) {
             suspend_ask = true;
-            ask_sel = 1;
+            ask_sel = 0;
             if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
             ui_sound(SND_OK);
         }
@@ -2527,7 +2535,7 @@ int main(int argc, char **argv) {
             snprintf(body, sizeof body, T(cfg_target ? "layer.ask_console_body" : "layer.ask_game_body"), con_name);
             ui_confirm_draw(T(cfg_target ? "layer.ask_console_title" : "layer.ask_game_title"), body, T("common.cancel"), T("layer.clear"), ask_kind_sel);
         }
-        if (suspend_ask) ui_confirm_draw(T("dialog.suspend_title"), T("dialog.suspend_body"), T("common.cancel"), T("dialog.suspend"), ask_sel);
+        if (suspend_ask) ui_power_draw(ask_sel);
         osd_draw();
         ui_end();
         if (!menu_open && !suspend_ask && !fast_forward) perf_frame(pf0, pf1, SDL_GetPerformanceCounter(), audio_on ? SDL_GetQueuedAudioSize(UI.audio) : 0, frame_bytes, fps);
@@ -2561,7 +2569,7 @@ int main(int argc, char **argv) {
     /* cambio gioco: lo stato è già salvato (swr_input), un secondo giro ruoterebbe di nuovo i salvataggi */
     if (exit_code == EXIT_MENU && !core_shutdown && (UI.set.autosave_exit || switching) && !switch_saved && state_save(true)) ui_log("salvataggio automatico all'uscita");
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
-    ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : "common.leaving"), 0.35);
+    ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : exit_code == EXIT_REBOOT ? "common.restarting" : "common.leaving"), 0.35);
     stats_update();
     sram_save();
     core.unload_game();

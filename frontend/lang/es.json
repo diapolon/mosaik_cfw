@@ -360,6 +360,8 @@
     "power_body_app": "Salir para volver al menú de TrimUI.",
     "suspend_title": "¿Suspender la consola?",
     "suspend_body": "El botón de encendido la reactiva.",
+    "power_choice": "¿Qué quieres hacer?",
+    "power_choice_body": "De la suspensión se vuelve con el botón de encendido.",
     "suspend": "Suspender"
   },
   "game": {

@@ -147,6 +147,33 @@ int ui_popup_input(int *sel, int n) {
 }
 
 /* tasti della finestra: 1 sì, 0 no, -1 ancora aperta. Il tasto di accensione conferma. */
+/* Tasto di accensione, pressione breve (16 novembre): Sospendi, Riavvia, Spegni in una finestra, da
+   ogni parte (menu, giochi, giochi Linux e app). B chiude; un'altra pressione breve sospende. */
+void ui_power_draw(int sel) {
+    const char *labels[3] = { T("dialog.suspend"), T("common.restart"), T("common.power_off") };
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    int w = M(0.80f), h = M(0.36f), x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->popup);
+    char buf[300];
+    ui_text_fit(UI.f_title, T("dialog.power_choice"), w - M(0.06f), buf, sizeof buf);
+    ui_text(UI.f_title, buf, x + w / 2, y + M(0.06f), t->text, ALIGN_CENTER);
+    ui_text_fit(UI.f_small, T("dialog.power_choice_body"), w - M(0.06f), buf, sizeof buf);
+    ui_text(UI.f_small, buf, x + w / 2, y + M(0.06f) + TTF_FontHeight(UI.f_title) + M(0.01f), t->text_dim, ALIGN_CENTER);
+    ui_popup_buttons(x, y, w, h, labels, 3, sel, 2);
+}
+
+int ui_power_input(int *sel) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_LEFT] && *sel > 0) { (*sel)--; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_RIGHT] && *sel < 2) { (*sel)++; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { ui_sound(SND_BACK); return UI_PW_CANCEL; }
+    if (in->power) { ui_sound(SND_OK); return UI_PW_SUSPEND; }
+    if (in->pressed[BTN_A]) { ui_sound(SND_OK); return *sel == 0 ? UI_PW_SUSPEND : *sel == 1 ? UI_PW_RESTART : UI_PW_OFF; }
+    return -1;
+}
+
 int ui_confirm_input(int *sel) {
     input_t *in = &UI.in;
     /* sinistra e destra spostano, non scambiano: con la ripetizione automatica (tasto o levetta

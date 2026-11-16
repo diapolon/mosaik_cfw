@@ -360,6 +360,8 @@
     "power_body_app": "Quitter pour revenir au menu TrimUI.",
     "suspend_title": "Mettre la console en veille ?",
     "suspend_body": "Le bouton d'alimentation la réveille.",
+    "power_choice": "Que veux-tu faire ?",
+    "power_choice_body": "Le bouton marche/arrêt la réveille de la veille.",
     "suspend": "Veille"
   },
   "game": {
