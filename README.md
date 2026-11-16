@@ -34,7 +34,7 @@
 - **FinalBurn Neo, MAME 2003-Plus and MAME 2010**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
 - **PlayStation** (PCSX ReARMed) with the DualShock sticks: `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
-- **Dreamcast** with [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), on the Brick Pro only for now (the Store does not offer it on the Smart Pro).
+- **Dreamcast** with [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast) on the Brick Pro, and with [Flycast](https://github.com/flyinghead/flycast) on the Smart Pro (experimental): the Store offers each console its own.
 - **More consoles in the Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 and 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; experimental PSP (PPSSPP) and Nintendo 64 (Mupen64Plus).
 - **Computers**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) and Amiga, with their emulators' on-screen keyboards.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
@@ -43,13 +43,15 @@
 - **Built-in Wi-Fi** for covers, game history, time and updates.
 - **Transfer files over Wi-Fi** from a computer or phone: scan the QR code or open `mosaik.local`, then upload ROMs and download saves without taking the card out.
 - **Backup and restore**: one zip with saves, settings, BIOS files and, if you want, the games; restore it all or only the parts you choose, also onto a new card or the other model.
-- **Apps from the Store**: Files, Images and comics (also as icons), Music player, SD card test, SD card space, Diagnostics and Download images.
+- **Apps from the Store**: Files, Images and comics (also as icons), Music player, Video, SD card test, SD card space, Diagnostics, Download images and Download files.
 - **Switch game** (Select): your last games in a row with the picture of where you left them; pick one and resume from there, without going through the menu.
 - **Quick panel** (Menu): battery, temperature, play time, Wi-Fi, speaker, LED, music, screenshot, brightness and volume.
 - **Automatic collections**: To finish, Quick sessions, Two players, Never played, next to favorites and your own collections.
+- **Random game** as the first item of every game list, and **a game that starts at power on**.
+- **Battery page** with a chart of the last hours, the time left and what the last sleep cost; the **time set from the internet** when Wi-Fi is on.
 - **Themes with color variants** (Tessera built in; Cabinet, Wave, Cover and Starry in the Store), six languages, LEDs, video filters and shaders, bezels.
 - **Signed updates** over Wi-Fi, all or nothing: if one is interrupted or the new version fails to start, the console goes back to all the previous files.
-- **CPU profile for each game**, and a notice on the home screen when an update is available.
+- **Settings for a whole console or for one game** (Platforms, Y; **Change for** in the game menu), CPU profile for each game, and a notice on the home screen when an update is available.
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
 - **Three save slots per game** with preview and date, plus an automatic save with a previous copy.
 
@@ -109,15 +111,15 @@
     <td><img src="docs/images/store.png" alt="Consoles in the Store"></td>
   </tr>
   <tr>
-    <td align="center">The Store: arcade, consoles, computers, apps, themes, bezels and filters</td>
-    <td align="center">Installed emulators in colour, the others in grey</td>
+    <td align="center">The Store: emulators, Linux games, apps, themes, bezels and filters</td>
+    <td align="center">Installed emulators in colour, the others in grey; icons for updates and experimental packages</td>
   </tr>
   <tr>
-    <td><img src="docs/images/store-themes.png" alt="Themes in the Store"></td>
+    <td><img src="docs/images/store-page.png" alt="A package page in the Store"></td>
     <td><img src="docs/images/store-delete.png" alt="Delete preview in the Store"></td>
   </tr>
   <tr>
-    <td align="center">Themes to download from the Store: Cabinet, Cover, Wave, Starry</td>
+    <td align="center">Every package has its page, with pictures (L/R)</td>
     <td align="center">Before deleting, what is removed and what is kept</td>
   </tr>
   <tr>
@@ -164,10 +166,11 @@ Turn the console off and connect the card to your computer. Everything is in the
 | `Linux` | Linux games, one per folder |
 | `Apps` | Programs that aren't games, one per folder with `launch.sh` |
 | `Media` | Game images |
-| `Music` | Background music (MP3, OGG, FLAC, WAV) |
+| `Music` | Music for the Music player (MP3, OGG, FLAC, WAV); menu music in `Music/Menu` |
+| `Video` | Videos for the Video app (MP4, MKV, WebM, AVI, MOV) |
 | `Saves` | Saves |
 
-Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → ROMs and images → Verify ROMs** checks that every zip contains the right files (**Full** also reads all the data and finds damaged files), and the game's details page (X) shows what's missing, including a BIOS. The Dreamcast menu is Deadcast's own: open it with Menu and always quit the game from there, so the memory-card saves are written.
+Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → ROMs and images → Verify ROMs** checks that every zip contains the right files (**Full** also reads all the data and finds damaged files), and the game's details page (X) shows what's missing, including a BIOS. The Dreamcast menu is the emulator's own (Deadcast or Flycast): open it with Menu and always quit the game from there, so the memory-card saves are written.
 
 For covers and information, connect to Wi-Fi and use **Settings → ROMs and images → Download images**.
 
@@ -259,6 +262,6 @@ The build uses Docker and needs components extracted from the official TrimUI fi
 
 The code written for Mosaik is under the [GNU LGPL v3](COPYING.LESSER). It does not cover third-party components, which keep their own licenses: see [`licenses/THIRD-PARTY.md`](licenses/THIRD-PARTY.md), which also links the emulator sources.
 
-FinalBurn Neo, MAME 2003-Plus, MAME 2010, Genesis Plus GX and Snes9x are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases), together with the source of the GPL and MPL emulators (FCEUmm, Gambatte, mGBA, Beetle PCE Fast, Beetle NeoPop, PCSX ReARMed, Deadcast) in the releases that include them.
+FinalBurn Neo, MAME 2003-Plus, MAME 2010, Genesis Plus GX and Snes9x are for non-commercial use only, so **Mosaik must not be sold**, alone or preinstalled. The system images also contain components taken from the official TrimUI firmware, which belong to their respective owners. The source code of the GPL programs built for the images (BusyBox, dosfstools) is attached to each [release](https://github.com/diapolon/mosaik_cfw/releases), together with the source of the GPL and MPL emulators (FCEUmm, Gambatte, mGBA, Beetle PCE Fast, Beetle NeoPop, PCSX ReARMed, Deadcast, Flycast, PPSSPP and the others) in the releases that include them.
 
 Independent project, not affiliated with TrimUI.
