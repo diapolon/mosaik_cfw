@@ -12,6 +12,8 @@ it Cancella tutto tiene i giochi Linux dello Store, come le app
 en Erase everything keeps the Linux games from the Store, like the apps
 it Store: le righe della scheda non toccano più i pulsanti
 en Store: the lines of a package page no longer touch the buttons
+it Store: un solo Elimina, scegli tu emulatore, salvataggi e dati, ROM e immagini
+en Store: one Delete button, you choose emulator, saves and data, ROMs and images
 
 0.9.67
 it Store: ogni pacchetto ha una pagina con versione, compatibilità e immagini
