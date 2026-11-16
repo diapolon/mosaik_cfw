@@ -278,7 +278,7 @@
     "language": "Sprache der Menüs. Wird auch an die Emulatoren übergeben.",
     "grid_columns": "Wie viele Cover pro Reihe der Bibliothek angezeigt werden. Automatisch nutzt die Vorgabe des Themas.",
     "home_size": "Größe der Cover auf dem Startbildschirm, bei Karussell-Themen.",
-    "theme_reset": "Variante, Vorschaubilder pro Zeile und Cover wie vom gewählten Design vorgesehen. Jedes Design merkt sich seine Auswahl.",
+    "theme_reset": "Variante und Cover wie vom gewählten Design vorgesehen. Jedes Design merkt sich seine Auswahl.",
     "autoboot": "Ein Spiel, das beim Einschalten von selbst von vorn startet; beim Verlassen geht es ins Menü. Auswahl auf der Spielseite (X), hier entfernen.",
     "auto_time": "Mit WLAN holt die Konsole die genaue Uhrzeit aus dem Internet, einmal pro Einschalten.",
     "battery": "Ladung der letzten Stunden und Restzeit.",

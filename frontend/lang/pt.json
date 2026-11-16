@@ -278,7 +278,7 @@
     "language": "Idioma dos menus. Também é passado aos emuladores.",
     "grid_columns": "Quantas capas mostrar em cada linha da biblioteca. Automático usa as do tema.",
     "home_size": "Tamanho das capas no ecrã inicial, nos temas em carrossel.",
-    "theme_reset": "Variante, miniaturas por linha e capas como o tema escolhido prevê. Cada tema lembra as suas escolhas.",
+    "theme_reset": "Variante e capas como o tema escolhido prevê. Cada tema lembra as suas escolhas.",
     "autoboot": "Um jogo que arranca sozinho ao ligar, do início; ao sair volta-se ao menu. Escolhe-se na ficha do jogo (X) e tira-se aqui.",
     "auto_time": "Com o Wi-Fi ligado a consola obtém a hora exata da internet, uma vez por arranque.",
     "battery": "Carga das últimas horas e tempo restante.",

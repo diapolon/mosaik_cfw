@@ -7593,10 +7593,11 @@ static void cp_draw(void) {
 }
 
 /* ------------------------------------------------- reimposta e cancella tutto */
-/* Strumenti → Reimposta impostazioni: impostazioni, liste, collezioni, reti Wi-Fi e browser
-   ricordati tornano come nuovi; giochi, BIOS, salvataggi e tempo di gioco restano.
-   Strumenti → Cancella tutto: anche ROM, BIOS, salvataggi, immagini, musica, giochi Linux, dati
-   dello scraper, app e tempo di gioco, come una scheda appena scritta. In tutti e due i casi restano
+/* Strumenti → Reimposta impostazioni: impostazioni (anche quelle per console), liste, collezioni,
+   reti Wi-Fi e browser ricordati tornano come nuovi; giochi, BIOS, salvataggi e tempo di gioco restano.
+   Strumenti → Cancella tutto: anche ROM, BIOS, salvataggi, immagini, musica, video, giochi Linux, dati
+   dello scraper, app e tempo di gioco, come una scheda appena scritta (le app e i giochi Linux dello
+   Store restano, come gli emulatori). In tutti e due i casi restano
    sistema, core, temi, lingue, filtri, cornici, indici arcade, registri, file degli aggiornamenti
    e calibrazione delle levette (dell'hardware); poi si riparte con la prima accensione. */
 static atomic_int rst_count;
@@ -7641,6 +7642,29 @@ static bool rst_file(const char *rel) {
     return errno == ENOENT;
 }
 
+/* una cartella di Linux che viene da un pacchetto dello Store: il suo registro
+   (System/pacchetti/<id>.txt) elenca "file Linux/<cartella>/..." */
+static bool rst_store_linux(const char *name) {
+    char dir[1300], pre[300], line[1200];
+    snprintf(dir, sizeof dir, "%s/System/pacchetti", UI.root);
+    snprintf(pre, sizeof pre, "file Linux/%s/", name);
+    size_t pl = strlen(pre);
+    DIR *d = opendir(dir);
+    struct dirent *e;
+    bool found = false;
+    while (d && !found && (e = readdir(d))) {
+        size_t l = strlen(e->d_name);
+        if (l < 5 || strcmp(e->d_name + l - 4, ".txt")) continue;
+        char q[1600];
+        snprintf(q, sizeof q, "%s/%s", dir, e->d_name);
+        FILE *f = fopen(q, "r");
+        while (f && !found && fgets(line, sizeof line, f)) found = !strncasecmp(line, pre, pl);
+        if (f) fclose(f);
+    }
+    if (d) closedir(d);
+    return found;
+}
+
 static void *rst_thread(void *arg) {
     (void)arg;
     bool ok = true;
@@ -7648,14 +7672,18 @@ static void *rst_thread(void *arg) {
     for (int i = 0; RST_SYSTEM[i]; i++) { snprintf(p, sizeof p, "System/%s", RST_SYSTEM[i]); ok = rst_file(p) && ok; }
     snprintf(p, sizeof p, "%s/System/collections", UI.root);
     ok = rst_tree(p, true) && ok;
+    snprintf(p, sizeof p, "%s/System/console", UI.root);   /* impostazioni per console (Piattaforme, Y) */
+    ok = rst_tree(p, true) && ok;
     if (rst_all) {
         snprintf(p, sizeof p, "%s/System/chiavi", UI.root);   /* i salvataggi se ne vanno: anche il registro di chi li usa */
         ok = rst_tree(p, true) && ok;
         for (int i = 0; RST_SYSTEM_ALL[i]; i++) { snprintf(p, sizeof p, "System/%s", RST_SYSTEM_ALL[i]); ok = rst_file(p) && ok; }
         for (int i = 0; RST_DIRS[i]; i++) {
             snprintf(p, sizeof p, "%s/%s", UI.root, RST_DIRS[i]);
-            if (strcmp(RST_DIRS[i], "Apps")) { ok = rst_tree(p, false) && ok; continue; }
-            /* Apps: restano le app installate dallo Store (System/pacchetti/<nome>.txt), come gli emulatori */
+            bool apps = !strcmp(RST_DIRS[i], "Apps"), linux_dir = !strcmp(RST_DIRS[i], "Linux");
+            if (!apps && !linux_dir) { ok = rst_tree(p, false) && ok; continue; }
+            /* Apps e Linux: restano le app e i giochi installati dallo Store, come gli emulatori (un
+               gioco Linux tolto lasciava il registro e lo Store lo credeva installato) */
             DIR *ad = opendir(p);
             struct dirent *ae;
             while (ad && (ae = readdir(ad))) {
@@ -7663,7 +7691,7 @@ static void *rst_thread(void *arg) {
                 char q[1600], rec[1600];
                 snprintf(q, sizeof q, "%s/%s", p, ae->d_name);
                 snprintf(rec, sizeof rec, "%s/System/pacchetti/%s.txt", UI.root, ae->d_name);
-                if (access(rec, F_OK) == 0) continue;
+                if (apps ? access(rec, F_OK) == 0 : rst_store_linux(ae->d_name)) continue;
                 struct stat sb;
                 if (lstat(q, &sb) != 0) continue;
                 if (S_ISDIR(sb.st_mode)) ok = rst_tree(q, true) && ok;

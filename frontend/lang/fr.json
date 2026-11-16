@@ -278,7 +278,7 @@
     "language": "Langue des menus. Également transmise aux émulateurs.",
     "grid_columns": "Nombre de jaquettes par ligne de la bibliothèque. Automatique utilise celles du thème.",
     "home_size": "Taille des jaquettes sur l'écran d'accueil, pour les thèmes en carrousel.",
-    "theme_reset": "Variante, vignettes par ligne et jaquettes comme le prévoit le thème choisi. Chaque thème garde ses propres choix.",
+    "theme_reset": "Variante et jaquettes comme le prévoit le thème choisi. Chaque thème garde ses propres choix.",
     "autoboot": "Un jeu qui démarre tout seul à l'allumage, depuis le début ; en le quittant on revient au menu. Il se choisit dans la fiche du jeu (X) et s'enlève ici.",
     "auto_time": "Avec le Wi-Fi connecté, la console prend l'heure exacte sur internet, une fois par allumage.",
     "battery": "Charge des dernières heures et temps restant.",

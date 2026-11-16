@@ -278,7 +278,7 @@
     "language": "Menu language. Also passed to the emulators.",
     "grid_columns": "How many covers to show on each library row. Auto uses the theme's default.",
     "home_size": "Size of the covers on the home screen, in carousel themes.",
-    "theme_reset": "Variant, thumbnails per row and covers as the chosen theme intends. Each theme remembers its own choices.",
+    "theme_reset": "Variant and covers as the chosen theme intends. Each theme remembers its own choices.",
     "autoboot": "A game that starts by itself at power on, from the beginning; leaving it goes to the menu. Choose it from the game page (X), remove it here.",
     "auto_time": "With Wi-Fi connected the console gets the exact time from the internet, once per power on.",
     "battery": "Charge over the last hours and time left.",
