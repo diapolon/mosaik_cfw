@@ -203,7 +203,7 @@ Arcade/Linux/MioGioco/
 
 | Tasto | Cosa fa |
 |---|---|
-| Accensione, breve | Chiede se sospendere, anche durante un gioco: conferma con A o premendo di nuovo. Un'altra pressione risveglia |
+| Accensione, breve | Chiede se sospendere, anche durante un gioco: conferma con A o premendo di nuovo (dalla 0.9.70: Annulla, Sospendi, Riavvia o Spegni). Un'altra pressione risveglia |
 | Accensione, tenuto | Chiede se spegnere. Durante un gioco salva la partita e spegne |
 | Volume + / − | Volume, con una barra a schermo anche in gioco |
 | A / B | Conferma / indietro |

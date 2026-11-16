@@ -203,7 +203,7 @@ Arcade/Linux/MyGame/
 
 | Button | What it does |
 |---|---|
-| Power, short press | Asks whether to sleep, even during a game: confirm with A or by pressing power again. Press it once more to wake |
+| Power, short press | Asks whether to sleep, even during a game: confirm with A or by pressing power again (from 0.9.70: Cancel, Sleep, Restart or Power off). Press it once more to wake |
 | Power, held | Asks whether to power off. During a game it saves and powers off |
 | Volume + / − | Volume, with an on-screen bar even in games |
 | A / B | Confirm / back |
