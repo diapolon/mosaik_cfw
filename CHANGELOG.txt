@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.68
+it Menu dei giochi Linux: le voci senza il riquadro più scuro
+en Linux game menu: the items without the darker box
+it Reimposta impostazioni toglie anche quelle per console
+en Reset settings also clears the console settings
+it Cancella tutto tiene i giochi Linux dello Store, come le app
+en Erase everything keeps the Linux games from the Store, like the apps
+it Store: le righe della scheda non toccano più i pulsanti
+en Store: the lines of a package page no longer touch the buttons
+
 0.9.67
 it Store: ogni pacchetto ha una pagina con versione, compatibilità e immagini
 en Store: each package has a page with version, compatibility and pictures
