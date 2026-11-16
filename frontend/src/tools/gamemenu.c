@@ -32,9 +32,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
     if (i == GM_BRIGHT) snprintf(value, vn, "%d", UI.set.brightness);
 }
 
-/* fondo del menu: velo scuro, ombra e pannello. Si usa anche per ripulire la zona delle voci:
-   con una superficie semitrasparente (tema Copertina) coprire le righe con il suo colore lasciava
-   vedere l'evidenziazione di prima, e cambiando voce si accendevano tutte */
+/* fondo del menu: schermo coperto, ombra e pannello */
 static void draw_base(int px, int py, int pw, int ph) {
     theme_t *t = &UI.th;
     int r = M(t->panel_radius) * 2;
@@ -78,15 +76,11 @@ static void draw_static(const char *title) {
 static void draw_rows(void) {
     theme_t *t = &UI.th;
     char buf[300], label[200], value[120];
-    /* la zona delle righe torna com'era senza righe: svuotata e ridisegnata con il fondo */
-    SDL_Rect z = { g_px, g_rows_y, g_pw, GM_COUNT * g_rh };
-    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_NONE);
-    SDL_SetRenderDrawColor(UI.ren, 0, 0, 0, 0);
-    SDL_RenderFillRect(UI.ren, &z);
-    SDL_SetRenderDrawBlendMode(UI.ren, SDL_BLENDMODE_BLEND);
-    ui_clip_push(z.x, z.y, z.w, z.h);
-    draw_base(g_px, g_py, g_pw, g_ph);
-    ui_clip_pop();
+    /* la zona delle righe torna com'era senza righe: il colore della finestra, che dalla 0.9.66 è
+       sempre pieno (16 novembre: ridisegnare tutto il fondo con il ritaglio lasciava l'ombra sopra il
+       pannello e la zona delle voci veniva più scura); il bordo sottile resta */
+    int bt = M(0.003f) < 1 ? 1 : M(0.003f);
+    ui_rect(g_px + bt, g_rows_y, g_pw - 2 * bt, GM_COUNT * g_rh, t->popup);
     TTF_Font *f = UI.f_normal;
     int fh = TTF_FontHeight(f);
     ui_rrect(g_px + M(0.02f), g_rows_y + sel * g_rh, g_pw - M(0.04f), g_rh, M(t->panel_radius), t->accent);
