@@ -10,6 +10,10 @@ it Store: cartelle in ordine e icone al posto delle scritte
 en Store: folders in order, and icons instead of labels
 it Store: ogni console vede solo i pacchetti che funzionano su di lei (Dreamcast solo sulla Brick Pro)
 en Store: each console only sees the packages that work on it (Dreamcast on the Brick Pro only)
+it Store: nuova app Scarica file (sperimentale)
+en Store: new Download files app (experimental)
+it Musica del menu: se si blocca il launcher riparte subito, anche con la scheda in difficoltà
+en Menu music: if it gets stuck the launcher restarts at once, even with a struggling SD card
 
 0.9.66
 it Destra e sinistra non sono più invertite
