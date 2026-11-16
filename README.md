@@ -34,7 +34,7 @@
 - **FinalBurn Neo, MAME 2003-Plus and MAME 2010**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
 - **PlayStation** (PCSX ReARMed) with the DualShock sticks: `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
-- **Dreamcast** with [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), first on the Brick Pro.
+- **Dreamcast** with [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast), on the Brick Pro only for now (the Store does not offer it on the Smart Pro).
 - **More consoles in the Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 and 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; experimental PSP (PPSSPP) and Nintendo 64 (Mupen64Plus).
 - **Computers**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) and Amiga, with their emulators' on-screen keyboards.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
