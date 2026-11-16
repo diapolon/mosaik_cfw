@@ -22,6 +22,9 @@ echo "non sono un core" > bad_libretro.so
 
 cat > src/t.c <<'C'
 #include "store.h"
+#ifndef STORE_RM_PARTS   /* Store di prima della 0.9.68: store_remove(i, con_i_dati) */
+enum { STORE_RM_EMU = 0, STORE_RM_SAVES = 0, STORE_RM_GAMES = 0, STORE_RM_ALL = 1 };
+#endif
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,7 +79,9 @@ int main(int c, char **v) {
         printf("%d %lld %d %d\n", u.games, u.games_bytes, u.saves, u.media);
         return 0;
     }
-    if (!strcmp(cmd, "install")) store_install(i); else store_remove(i, !strcmp(cmd, "delete"));
+    if (!strcmp(cmd, "install")) store_install(i);
+    else store_remove(i, !strcmp(cmd, "delete") ? STORE_RM_ALL : !strcmp(cmd, "saves") ? STORE_RM_SAVES
+                         : !strcmp(cmd, "games") ? STORE_RM_GAMES : STORE_RM_EMU);
     store_join();
     printf("%d %d %d\n", s->phase, s->error, store_pkg(i)->state);
     return 0;
@@ -227,6 +232,22 @@ check "archiviato: i giochi restano" "rom" "$(cat sd/Roms/FBNEO/gioco.zip)"
 check "archiviato: i salvataggi restano" "sav" "$(cat sd/Saves/fbneo/gioco.state)"
 check "core tolto" "no" "$([ -e sd/Cores/fbneo_libretro.so ] && echo si || echo no)"
 check "riscaricare un archiviato" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
+# Elimina con la scelta (0.9.68): solo i salvataggi, poi solo i giochi; l'emulatore resta installato
+check "solo salvataggi: emulatore installato" "4 0 1" "$(./t $R saves fbneo 2>/dev/null)"
+check "solo salvataggi: tolti, i giochi restano" "no rom" "$([ -e sd/Saves/fbneo ] && echo si || echo no) $(cat sd/Roms/FBNEO/gioco.zip)"
+check "solo giochi: emulatore installato, cartella vuota" "4 0 1 0" "$(./t $R games fbneo 2>/dev/null) $(ls sd/Roms/FBNEO | wc -l | tr -d ' ')"
+check "core ancora lì" "si" "$([ -e sd/Cores/fbneo_libretro.so ] && echo si || echo no)"
+# archiviato con i soli salvataggi: togliendoli non resta niente e il registro se ne va
+mkdir -p sd/Saves/fbneo; echo sav > sd/Saves/fbneo/gioco.state
+check "solo emulatore: archiviato (restano i salvataggi)" "4 0 4" "$(./t $R archive fbneo 2>/dev/null)"
+check "archiviato, poi via i salvataggi: dimenticato" "4 0 0 no" "$(./t $R saves fbneo 2>/dev/null) $([ -e sd/System/pacchetti/fbneo.txt ] && echo si || echo no)"
+# emulatore senza giochi né salvataggi: togliendolo non diventa archiviato
+check "riscaricare" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
+check "solo emulatore, niente dati: non archiviato" "4 0 0" "$(./t $R archive fbneo 2>/dev/null)"
+check "e reinstallato" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
+mkdir -p sd/Roms/FBNEO sd/Saves/fbneo; echo rom > sd/Roms/FBNEO/gioco.zip; echo sav > sd/Saves/fbneo/gioco.state
+mkdir -p sd/Roms/FBNEO/sotto; echo rom2 > sd/Roms/FBNEO/sotto/altro.zip
+check "archiviare di nuovo" "4 0 4" "$(./t $R archive fbneo 2>/dev/null)"
 # eliminare: via anche giochi e salvataggi, la cartella dei giochi resta vuota; i BIOS no
 mkdir -p sd/Bios; echo bios > sd/Bios/neogeo.zip
 check "anteprima di un archiviato" "2 9 1 0" "$(./t $R usage fbneo 2>/dev/null)"
@@ -323,8 +344,10 @@ mkdir -p sd/Saves/doom/crispy-doom; echo partita > sd/Saves/doom/crispy-doom/sav
 echo mia > sd/Linux/Freedoom/note.txt
 check "gioco Linux tolto: partite e file dell'utente restano" "4 0 0 no partita mia" "$(./t $R delete freedoom 2>/dev/null) $([ -e sd/Linux/Freedoom2 ] && echo si || echo no) $(cat sd/Saves/doom/crispy-doom/savegame.dsg) $(cat sd/Linux/Freedoom/note.txt)"
 # lo stesso catalogo letto dallo Store della 0.9.57: deve vedere tutto il resto come prima
-if apk add -q git >/dev/null 2>&1 && git -c safe.directory='*' -C /trimui show v0.9.57:frontend/src/launcher/store.c > src/store-0957.c 2>/dev/null; then
-    gcc -O1 -D_GNU_SOURCE -DSTORE_TEST -DUPDATE_DEFAULT_URL='""' -Isrc -o t-0957 src/t.c src/store-0957.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl 2>/dev/null
+if apk add -q git >/dev/null 2>&1 && git -c safe.directory='*' -C /trimui show v0.9.57:frontend/src/launcher/store.c > src/store-0957.c 2>/dev/null \
+   && mkdir -p old0957 && git -c safe.directory='*' -C /trimui show v0.9.57:frontend/src/launcher/store.h > old0957/store.h 2>/dev/null; then
+    cp src/store-0957.c old0957/; cp src/t.c old0957/; cp src/zipread.h src/update_pubkey.h old0957/
+    gcc -O1 -D_GNU_SOURCE -DSTORE_TEST -DUPDATE_DEFAULT_URL='""' -Iold0957 -Isrc -o t-0957 old0957/t.c old0957/store-0957.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl 2>/dev/null
     NEW=$(./t $R list 2>/dev/null)
     check "Store della 0.9.57: catalogo valido, gli stessi pacchetti senza il gioco Linux" "$(echo "$NEW" | sed 's/ freedoom:[0-9]//; s/^2 0 [0-9]*/2 0 X/')" "$(./t-0957 $R list 2>/dev/null | sed 's/^2 0 [0-9]*/2 0 X/')"
     check "Store della 0.9.57: il gioco Linux non c'è" "manca" "$(./t-0957 $R title freedoom 2>/dev/null)"

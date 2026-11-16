@@ -73,11 +73,14 @@ void store_install(int i);              /* in un thread: installa o aggiorna */
    0 toglie il file. store_install_restore li installa in un thread, dopo store_open */
 int store_restore_pending(const char *root);
 void store_install_restore(void);
-/* in un thread: toglie i file del pacchetto. Senza with_data è "Archivia": giochi, salvataggi e
-   immagini restano e il registro ricorda il pacchetto come archiviato. Con with_data è "Elimina":
-   via anche giochi, salvataggi e immagini delle sue console (cartelle dentro Roms,
-   Saves/<console>, Media/<tipo>/<console>) e il registro; i BIOS no */
-void store_remove(int i, bool with_data);
+/* in un thread: toglie le parti scelte (Elimina, dalla 0.9.68). STORE_RM_EMU i file del pacchetto;
+   STORE_RM_SAVES salvataggi, stati e impostazioni dei giochi (Saves/<console>); STORE_RM_GAMES giochi
+   e immagini delle sue console (cartelle dentro Roms, Media/<tipo>/<console>). I BIOS mai. Senza
+   l'emulatore ma con giochi o salvataggi rimasti il registro lo ricorda come archiviato ("Scarica di
+   nuovo"); senza più niente il registro si toglie. App, temi e giochi Linux: solo STORE_RM_EMU */
+#define STORE_RM_PARTS 1   /* per le prove con lo Store di prima */
+enum { STORE_RM_EMU = 1, STORE_RM_SAVES = 2, STORE_RM_GAMES = 4, STORE_RM_ALL = 7 };
+void store_remove(int i, int parts);
 /* anteprima di Archivia ed Elimina: giochi, salvataggi e immagini delle console del pacchetto */
 typedef struct { int games, saves, media; long long games_bytes, saves_bytes; } store_usage_t;
 void store_usage(int i, store_usage_t *u);

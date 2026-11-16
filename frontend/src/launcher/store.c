@@ -1183,11 +1183,9 @@ static bool emu_roms(const char *id, char *roms, size_t n, bool *console) {
     return !strncmp(roms, "Roms/", 5) && roms[5] && !strstr(roms, "..") && !strchr(roms + 5, '/');
 }
 
-void store_usage(int i, store_usage_t *u) {
+static void usage_of(const entry_t *ep, store_usage_t *u) {
+    const entry_t e = *ep;
     memset(u, 0, sizeof *u);
-    pthread_mutex_lock(&lock);
-    entry_t e = i >= 0 && i < ncat ? cat[i] : (entry_t){ 0 };
-    pthread_mutex_unlock(&lock);
     static const char *types[] = { "snap", "title", "marquee", "box" };
     for (int k = 0; k < e.nemus; k++) {
         char roms[300], p[1300];
@@ -1202,28 +1200,42 @@ void store_usage(int i, store_usage_t *u) {
     }
 }
 
-static bool remove_data;
+void store_usage(int i, store_usage_t *u) {
+    pthread_mutex_lock(&lock);
+    entry_t e = i >= 0 && i < ncat ? cat[i] : (entry_t){ 0 };
+    pthread_mutex_unlock(&lock);
+    usage_of(&e, u);
+}
 
-/* giochi, salvataggi e immagini di una console del pacchetto: prima di togliere il suo
+static int remove_parts;
+
+/* giochi (con le immagini) e/o salvataggi di una console del pacchetto: prima di togliere il suo
    Emulators/<id>.json, che dice dov'è la cartella dei giochi */
-static void remove_emu_data(const char *id) {
+static void remove_emu_data(const char *id, int parts) {
     char roms[300], p[1300];
     bool console;
+    bool games = emu_roms(id, roms, sizeof roms, &console);
     /* solo una cartella dentro Roms: un percorso assoluto scelto dall'utente non si tocca */
-    if (emu_roms(id, roms, sizeof roms, &console)) {
+    if ((parts & STORE_RM_GAMES) && games) {
         snprintf(p, sizeof p, "%s/%s", root_dir, roms);
         rm_tree(p);
         mkdir(p, 0755);   /* la cartella vuota resta, pronta per altri giochi */
     }
-    snprintf(p, sizeof p, "%s/Saves/%s", root_dir, id);
-    rm_tree(p);
-    snprintf(p, sizeof p, "%s/System/chiavi/%s.tsv", root_dir, id);   /* e il registro di chi usava quei salvataggi */
-    unlink(p);
-    if (console) {   /* le immagini degli arcade sono per nome del gioco, comuni a più emulatori */
+    if ((parts & STORE_RM_GAMES) && console) {   /* le immagini degli arcade sono per nome del gioco, comuni a più emulatori */
         static const char *types[] = { "snap", "title", "marquee", "box" };
         for (int t = 0; t < 4; t++) { snprintf(p, sizeof p, "%s/Media/%s/%s", root_dir, types[t], id); rm_tree(p); }
     }
-    ui_log("store: tolti giochi, salvataggi e immagini di %s (%s)", id, roms);
+    if (parts & STORE_RM_SAVES) {
+        snprintf(p, sizeof p, "%s/Saves/%s", root_dir, id);
+        rm_tree(p);
+    }
+    /* il registro di quale ROM usa quali salvataggi: serve finché resta una delle due cose */
+    if ((parts & STORE_RM_GAMES) && (parts & STORE_RM_SAVES)) {
+        snprintf(p, sizeof p, "%s/System/chiavi/%s.tsv", root_dir, id);
+        unlink(p);
+    }
+    ui_log("store: tolti di %s:%s%s (%s)", id, parts & STORE_RM_GAMES ? " giochi e immagini" : "",
+           parts & STORE_RM_SAVES ? " salvataggi" : "", roms);
 }
 
 static void *remove_worker(void *arg) {
@@ -1236,6 +1248,8 @@ static void *remove_worker(void *arg) {
     if (!have) { st.error = SE_CATALOG; st.phase = ST_FAILED; return NULL; }
     if (!store_recover(root_dir)) { st.error = SE_WRITE; st.phase = ST_FAILED; return NULL; }
     snprintf(st.working, sizeof st.working, "%s", e.p.name);
+    int parts = remove_parts;
+    if (e.nemus == 0) parts = STORE_RM_EMU;   /* app, temi, giochi Linux: solo i loro file */
     int n = 0;
     bool oom = false;
     char **files = record_files(e.p.id, &n, &oom);
@@ -1244,29 +1258,37 @@ static void *remove_worker(void *arg) {
         st.phase = ST_FAILED;
         return NULL;
     }
-    if (remove_data)
-        for (int k = 0; k < e.nemus; k++) remove_emu_data(e.emus[k]);
-    /* senza registro (arrivato con il sistema): i file del catalogo */
-    char **list = n ? files : e.files;
-    int ln = n ? n : e.nfiles;
-    for (int i = 0; i < ln; i++) {
-        char full[1300];
-        snprintf(full, sizeof full, "%s/%s", root_dir, list[i]);
-        if (unlink(full) == 0 || errno == ENOENT) prune_dirs(list[i]);
-    }
+    if (parts & (STORE_RM_GAMES | STORE_RM_SAVES))
+        for (int k = 0; k < e.nemus; k++) remove_emu_data(e.emus[k], parts);
     char rp[1200];
     record_path(e.p.id, rp, sizeof rp);
-    if (remove_data) unlink(rp);
-    else {   /* archiviato: lo Store lo ricorda, giochi e salvataggi restano */
-        char dir[1200], rec[200];
-        snprintf(dir, sizeof dir, "%s/System/pacchetti", root_dir);
-        mkdir(dir, 0755);
-        int len = snprintf(rec, sizeof rec, "archived\nlabel %s\n", e.p.label);
-        write_durable(rp, rec, (size_t)len);
+    bool was_archived = archived(e.p.id);
+    if (parts & STORE_RM_EMU) {
+        /* senza registro (arrivato con il sistema): i file del catalogo */
+        char **list = n ? files : e.files;
+        int ln = n ? n : e.nfiles;
+        for (int i = 0; i < ln; i++) {
+            char full[1300];
+            snprintf(full, sizeof full, "%s/%s", root_dir, list[i]);
+            if (unlink(full) == 0 || errno == ENOENT) prune_dirs(list[i]);
+        }
+    }
+    if ((parts & STORE_RM_EMU) || was_archived) {
+        /* senza emulatore: archiviato se restano giochi o salvataggi, altrimenti dimenticato */
+        store_usage_t u;
+        usage_of(&e, &u);
+        if (u.games + u.saves == 0 || e.nemus == 0) unlink(rp);
+        else if (!was_archived) {
+            char dir[1200], rec[200];
+            snprintf(dir, sizeof dir, "%s/System/pacchetti", root_dir);
+            mkdir(dir, 0755);
+            int len = snprintf(rec, sizeof rec, "archived\nlabel %s\n", e.p.label);
+            write_durable(rp, rec, (size_t)len);
+        }
     }
     sync();
     free_list(files, n);
-    ui_log("store: %s %s", remove_data ? "eliminato" : "archiviato", e.p.id);
+    ui_log("store: %s tolto (parti %d)", e.p.id, parts);
     atomic_store(&changed, true);
     store_refresh();
     st.phase = ST_DONE;
@@ -1288,7 +1310,7 @@ static void start(int i, void *(*fn)(void *)) {
 
 void store_install(int i) { start(i, install_worker); }
 void store_install_restore(void) { start(-1, restore_worker); }
-void store_remove(int i, bool with_data) { remove_data = with_data; start(i, remove_worker); }
+void store_remove(int i, int parts) { remove_parts = parts; start(i, remove_worker); }
 
 /* ------------------------------------------------------- pacchetti copiati sulla scheda */
 static void seen_key(const char *path, char *out, size_t n) {
