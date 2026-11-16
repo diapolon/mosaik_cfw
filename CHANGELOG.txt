@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.70
+it Tasto di accensione: Annulla, Sospendi, Riavvia o Spegni, anche nei giochi e nelle app
+en Power button: Cancel, Sleep, Restart or Power off, also in games and apps
+it Store: ogni app con la sua icona
+en Store: every app with its own icon
+
 0.9.69
 it Trasferimento file: una connessione lenta non blocca più le altre
 en Transfer files: a slow connection no longer blocks the others
