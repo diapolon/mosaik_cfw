@@ -1,8 +1,9 @@
 #!/bin/sh
 # Dreamcast in Mosaik: Deadcast (https://github.com/tyrannotorus/emulator-dreamcast-deadcast), una
 # versione di Flycast per l'A133P che disegna con Vulkan direttamente sullo schermo. Non è un core
-# libretro: il launcher lo avvia come un gioco Linux (sotto gamewatch: Menu breve apre il menu di
-# Deadcast, Menu tenuto quello di Mosaik) e passa il gioco in ARCADE_ROM.
+# libretro: il launcher lo avvia come un gioco Linux sotto gamewatch e passa il gioco in ARCADE_ROM.
+# Menu apre il menu di Deadcast; il menu di Mosaik non c'è ("menu": false in dc.json,
+# GAMEWATCH_NOMENU), perché chiudere Deadcast da fuori perderebbe i salvataggi della VMU.
 # Dischi: .chd, .gdi, .cdi, oppure un .m3u che ne nomina uno. BIOS (dc_boot.bin, naomi.zip) in
 # Arcade/Bios/dc o Arcade/Bios. Impostazioni, VMU e stati in Arcade/Saves/dc.
 DIR="$(cd "$(dirname "$0")" && pwd)"
