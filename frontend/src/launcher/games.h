@@ -53,6 +53,8 @@ typedef struct {
     char launch[128];   /* emulatore che non è un core libretro: script sotto Arcade/ che riceve il gioco
                            in ARCADE_ROM (Dreamcast: Cores/deadcast/launch.sh) */
     bool nomenu;        /* "menu": false, l'emulatore ha un suo menu: niente menu di Mosaik (gamewatch) */
+    int cpu;            /* "cpu": 1-4 (816, 1200, 1608, 2000 MHz), 0 il profilo generale; il runner lo legge da
+                           sé, per un emulatore con "launch" lo applica il launcher prima di uscire */
     bool folders;       /* "folders": true, ogni cartella dentro quella dei giochi è un gioco (ScummVM) */
     char exts[8][12];
     char maker[24], year[8];   /* "maker", "year": produttore e anno della console (layout galleria) */

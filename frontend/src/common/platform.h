@@ -17,6 +17,8 @@ void plat_cpu_fixed(int khz);
 void plat_screen_off(bool off);
 /* frequenza scelta per il gioco o l'emulatore (kHz), 0 = profilo generale */
 void plat_cpu_game(int khz);
+/* frequenza subito, senza aspettare plat_apply: il launcher la lascia a un emulatore con "launch" */
+void plat_cpu_now(int khz);
 /* si esce dal launcher: torna subito il profilo, che i giochi Linux non impostano da soli */
 void plat_cpu_release(const settings_t *s);
 /* frequenza attuale e temperatura, per il registro */

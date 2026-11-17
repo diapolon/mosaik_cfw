@@ -258,6 +258,11 @@ static void apply_leds(const settings_t *s, int status) {
 
 static int profile_khz(const settings_t *s) {
     static const int khz[3] = { 1200000, 1608000, 2000000 };
+    /* dentro un emulatore con "cpu" (ARCADE_CPU_KHZ, dal launcher): anche il menu e la barra del
+       volume sopra il gioco (gamemenu) tengono quella frequenza, e chiudendosi la lasciano */
+    static int env = -1;
+    if (env < 0) { const char *e = getenv("ARCADE_CPU_KHZ"); env = e ? atoi(e) : 0; }
+    if (env > 0 && fn_state != 1) return env;
     int p = fn_state == 1 ? CPU_PERF : s->cpu_profile;
     return khz[p < 0 || p > 2 ? 1 : p];
 }
@@ -313,6 +318,7 @@ void plat_apply(const settings_t *s) {
 void plat_cpu_fixed(int khz) { cpu_fixed = khz; }
 void plat_screen_off(bool off) { screen_off = off; }
 void plat_cpu_game(int khz) { cpu_game = khz; }
+void plat_cpu_now(int khz) { if (khz > 0) (void)set_cpu(khz); }
 
 void plat_cpu_release(const settings_t *s) {
     if (!cpu_fixed) return;
@@ -539,6 +545,7 @@ void plat_apply(const settings_t *s) { (void)s; }
 void plat_cpu_fixed(int khz) { (void)khz; }
 void plat_screen_off(bool off) { (void)off; }
 void plat_cpu_game(int khz) { (void)khz; }
+void plat_cpu_now(int khz) { (void)khz; }
 void plat_cpu_release(const settings_t *s) { (void)s; }
 void plat_cpu_status(int *mhz, int *temp) { *mhz = *temp = 0; }
 int plat_battery(bool *charging) { *charging = false; return -1; }

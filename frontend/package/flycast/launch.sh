@@ -55,6 +55,7 @@ Dreamcast.Region = 1
 Dynarec.Enabled = yes
 FetchBoxart = no
 UploadCrashLogs = no
+pvr.AutoSkipFrame = 1
 pvr.rend = 0
 rend.DelayFrameSwapping = yes
 rend.PerStripSorting = no

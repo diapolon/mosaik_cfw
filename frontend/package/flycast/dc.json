@@ -17,5 +17,6 @@
   "art": "disc-white",
   "short": "DC",
   "thumbnails": "Sega - Dreamcast",
-  "order": 71
+  "order": 71,
+  "cpu": 4
 }

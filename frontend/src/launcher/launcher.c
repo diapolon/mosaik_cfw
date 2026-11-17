@@ -714,6 +714,10 @@ static void launch_ex(game_t *g, bool resume) {
             /* emulatori con un menu loro (Deadcast, Flycast, PPSSPP, N64): niente menu di Mosaik, e
                il livello del menu sopra di loro non si vede: il tasto di accensione sospende subito */
             if (xemu->nomenu) fputs("export GAMEWATCH_NOMENU=1\nexport GAMEWATCH_NOOVERLAY=1\n", ef);
+            if (xemu->cpu) {   /* la frequenza dell'emulatore anche per il menu sopra il gioco */
+                static const int khz[5] = { 0, 816000, 1200000, 1608000, 2000000 };
+                fprintf(ef, "export ARCADE_CPU_KHZ=%d\n", khz[xemu->cpu]);
+            }
             fclose(ef);
         }
     }
@@ -751,6 +755,13 @@ static void launch_ex(game_t *g, bool resume) {
     ui_exit_code(EXIT_LAUNCH);
     music_quit();
     ui_shutdown_code(EXIT_LAUNCH);
+    /* emulatore con "launch" e "cpu" (Flycast): la chiusura ha rimesso il profilo generale, qui la
+       frequenza che chiede, che resta finché non torna il launcher (17 novembre: Flycast a 1608 MHz
+       era lento) */
+    if (xscript[0] && xemu && xemu->cpu) {
+        static const int khz[5] = { 0, 816000, 1200000, 1608000, 2000000 };
+        plat_cpu_now(khz[xemu->cpu]);
+    }
     exit(EXIT_LAUNCH);
 }
 
