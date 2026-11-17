@@ -73,10 +73,15 @@ CFG
 # Comandi: i tasti della console sono un pad "Xbox 360 Controller" (trimui_inputd), con i
 # numeri dei tasti di Linux: 0 A (in basso), 1 B, 2 X, 3 Y, 4 L1, 5 R1, 6 Select, 7 Start,
 # 8 Menu; croce sul cappello (256-259), levette sugli assi 0-1 e 3-4, L2/R2 sugli assi 2 e 5
-# (gli stessi numeri del file di Deadcast). Come il pad del Dreamcast per posizione; Menu e
-# Select aprono il menu di Flycast. Se il nome del pad è un altro, il file non si usa e valgono
+# (gli stessi numeri del file di Deadcast). A, B, X, Y per etichetta: A è il tasto 1 (a destra),
+# B lo 0 (in basso), X il 3 (in alto), Y il 2 (a sinistra); Menu apre il menu di Flycast. Se il nome del pad è un altro, il file non si usa e valgono
 # i comandi predefiniti di Flycast (Select apre il menu).
 MAPPING="$CONF/mappings/SDL_Xbox 360 Controller.cfg"
+# per etichetta (17 novembre): A, B, X e Y del Dreamcast sono i tasti con quelle lettere sulla TrimUI
+# (prima per posizione: la A del Dreamcast era il tasto in basso, con scritto B). Il file della prima
+# versione ("mapping_name = Mosaik") si sostituisce; uno cambiato dal menu di Flycast con il nome
+# nuovo resta com'è
+grep -qx "mapping_name = Mosaik" "$MAPPING" 2>/dev/null && rm -f "$MAPPING"
 [ -f "$MAPPING" ] || cat >"$MAPPING" <<'MAP'
 [analog]
 bind0 = 0-:axis_left
@@ -91,10 +96,10 @@ bind8 = 4+:axis2_down
 bind9 = 5+:axis_trigger_right
 
 [digital]
-bind0 = 0:btn_a
-bind1 = 1:btn_b
-bind2 = 2:btn_x
-bind3 = 3:btn_y
+bind0 = 1:btn_a
+bind1 = 0:btn_b
+bind2 = 3:btn_x
+bind3 = 2:btn_y
 bind4 = 4:btn_trigger_left
 bind5 = 5:btn_trigger_right
 bind6 = 6:btn_menu
@@ -107,7 +112,7 @@ bind12 = 259:btn_dpad1_right
 
 [emulator]
 dead_zone = 10
-mapping_name = Mosaik
+mapping_name = Mosaik etichette
 rumble_power = 100
 saturation = 100
 version = 3
