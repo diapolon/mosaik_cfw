@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.71
+it Dreamcast sulla Smart Pro: Flycast gira al massimo del processore
+en Dreamcast on the Smart Pro: Flycast runs at full processor speed
+
 0.9.70
 it Tasto di accensione: Annulla, Sospendi, Riavvia o Spegni, anche nei giochi e nelle app
 en Power button: Cancel, Sleep, Restart or Power off, also in games and apps
