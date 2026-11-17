@@ -3,9 +3,10 @@
 # SDL2 e GLES, compilato da toolchain/build-flycast.sh. Bozza per la prima prova su console.
 # A differenza di Deadcast disegna attraverso la SDL2 della console, che gestisce lo schermo
 # ruotato della Smart Pro. Come Deadcast e PPSSPP il launcher lo avvia come un gioco Linux sotto
-# gamewatch e passa il gioco in ARCADE_ROM. Menu apre il menu di Flycast (con "Esci", che torna a
-# Mosaik); il menu di Mosaik non c'è ("menu": false in dc.json, GAMEWATCH_NOMENU), perché chiudere
-# l'emulatore da fuori perderebbe le memory card.
+# gamewatch e passa il gioco in ARCADE_ROM. Menu breve apre il menu di Flycast (con "Esci", che torna
+# a Mosaik); Menu tenuto 1 s apre il menu di Mosaik sopra il gioco (17 novembre: a differenza di
+# Deadcast, Flycast disegna con SDL e il livello del menu si vede). "Esci al menu" da lì manda
+# SIGTERM, che SDL trasforma in una chiusura ordinata di Flycast.
 # Dischi: .chd, .gdi, .cdi, .cue, oppure un .m3u che ne nomina uno. BIOS (dc_boot.bin,
 # dc_flash.bin, naomi.zip) in Arcade/Bios/dc o Arcade/Bios; senza dc_boot.bin Flycast usa il suo
 # BIOS ricostruito (HLE). Impostazioni, comandi, VMU e stati in Arcade/Saves/dc/flycast (niente

@@ -3,7 +3,6 @@
   "kind": "console",
   "core": "flycast",
   "launch": "Cores/flycast/launch.sh",
-  "menu": false,
   "models": [
     "smartpro"
   ],
