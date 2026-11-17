@@ -41,7 +41,10 @@ FW=/build/fw/tg5040/root
 CURLSRC=/build/src/curl-8.10.1-flycast
 CURLDIR=/build/src/flycast-curl
 JOBS=$(nproc)
-F="-O2 -mcpu=cortex-a53"   # senza il -O3 che CMake mette in Release
+F="-O2 -mcpu=cortex-a53"   # libcurl
+# Flycast: -O3 e LTO (17 novembre: a 2000 MHz Daytona era ancora un po' a scatti sulla Smart Pro);
+# MOSAIK_FLYCAST_O2=1 torna alla compilazione di prima per confrontare
+if [ -n "${MOSAIK_FLYCAST_O2:-}" ]; then FF="$F"; LTO=OFF; else FF="-O3 -mcpu=cortex-a53 -mtune=cortex-a53"; LTO=ON; fi
 mkdir -p "$OUT"
 : > "$OUT/build.log"
 
@@ -79,7 +82,7 @@ fi
 
 mkdir -p "$B"
 cmake -S "$SRC" -B "$B" -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS="$F" -DCMAKE_CXX_FLAGS="$F" -DCMAKE_SKIP_RPATH=ON \
+    -DCMAKE_C_FLAGS="$FF" -DCMAKE_CXX_FLAGS="$FF" -DCMAKE_SKIP_RPATH=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=$LTO \
     -DCMAKE_C_FLAGS_RELEASE=-DNDEBUG -DCMAKE_CXX_FLAGS_RELEASE=-DNDEBUG \
     -DUSE_GLES=ON -DUSE_GLES2=OFF -DUSE_OPENGL=ON -DUSE_VULKAN=ON \
     -DLIBRETRO=OFF -DUSE_HOST_SDL=OFF -DUSE_HOST_LIBZIP=OFF -DUSE_HOST_LIBCHDR=OFF -DUSE_HOST_GLSLANG=OFF \
