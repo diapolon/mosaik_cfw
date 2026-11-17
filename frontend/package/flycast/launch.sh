@@ -55,6 +55,8 @@ Dreamcast.Region = 1
 Dynarec.Enabled = yes
 FetchBoxart = no
 UploadCrashLogs = no
+aica.AutoLatency = yes
+aica.BufferSize = 5644
 pvr.AutoSkipFrame = 1
 pvr.rend = 0
 rend.DelayFrameSwapping = yes
@@ -70,6 +72,15 @@ Enable = no
 [window]
 fullscreen = yes
 CFG
+
+# Audio (17 novembre: a singhiozzo sulla Smart Pro): buffer di 128 ms invece di 64 e latenza adattiva
+# (se il buffer si svuota Flycast lo allarga). Nelle impostazioni nate prima si cambia una volta sola,
+# e solo se hanno ancora i valori di partenza di Flycast; poi valgono le scelte del suo menu.
+AUDIO_FATTO="$CONF/mosaik-audio-1.txt"
+if [ ! -f "$AUDIO_FATTO" ] && [ -f "$CONF/emu.cfg" ]; then
+	sed -i 's/^aica\.BufferSize = 2822$/aica.BufferSize = 5644/; s/^aica\.AutoLatency = no$/aica.AutoLatency = yes/' "$CONF/emu.cfg"
+	echo "buffer audio 5644, latenza adattiva" >"$AUDIO_FATTO"
+fi
 
 # Comandi: i tasti della console sono un pad "Xbox 360 Controller" (trimui_inputd), con i
 # numeri dei tasti di Linux: 0 A (in basso), 1 B, 2 X, 3 Y, 4 L1, 5 R1, 6 Select, 7 Start,

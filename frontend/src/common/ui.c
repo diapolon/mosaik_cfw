@@ -727,7 +727,11 @@ int ui_text(TTF_Font *f, const char *s, int x, int y, color_t c, int align) {
 }
 
 void ui_text_fit(TTF_Font *f, const char *s, int maxw, char *out, size_t n) {
-    snprintf(out, n, "%s", s);
+    /* testo e risultato nello stesso buffer (lo fanno diverse finestre): snprintf da sé stesso non è
+       definito, e con la glibc della console può lasciare la stringa vuota (17 novembre: finestra
+       dello Store senza titolo) */
+    if (s != out) snprintf(out, n, "%s", s);
+    else if (n && strlen(out) >= n) out[n - 1] = 0;
     if (ui_text_w(f, out) <= maxw) return;
     size_t len = strlen(out);
     while (len > 0) {
