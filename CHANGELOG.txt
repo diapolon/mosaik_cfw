@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.75
+it Nintendo 64: Salva e Carica stato nel menu (Menu tenuto), con mupen64plus aggiornato dallo Store
+en Nintendo 64: Save and Load state in the menu (hold Menu), with mupen64plus updated from the Store
+
 0.9.74
 it Trasferimento file: troppi PIN sbagliati cambiano il PIN sullo schermo invece di bloccarti
 en File transfer: too many wrong PINs change the PIN on screen instead of locking you out
