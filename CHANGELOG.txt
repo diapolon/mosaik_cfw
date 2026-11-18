@@ -3,6 +3,18 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.73
+it Salvataggi: caricare uno stato non riporta più indietro il salvataggio fatto nel gioco
+en Saves: loading a state no longer rolls back the save made in the game
+it Caricare uno stato o sospendere mette prima la partita nel salvataggio automatico
+en Loading a state or sleeping first puts the game in the automatic save
+it L'avviso degli aggiornamenti nella home torna a funzionare
+en The update notice on the home screen works again
+it ZX Spectrum, DOS e Amiga vedono tutti i loro formati
+en ZX Spectrum, DOS and Amiga see all their formats
+it Preferiti senza limite di 511, trasferimento file più sicuro
+en Favourites beyond 511, safer file transfer
+
 0.9.72
 it Store: la finestra dell'installazione ha di nuovo il titolo
 en Store: the install window shows its title again
