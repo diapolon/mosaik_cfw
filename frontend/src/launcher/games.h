@@ -48,6 +48,7 @@ typedef struct {
    da casa riconoscibili), altrimenti la console da casa generica; "planned": true
    per una console non ancora supportata: solo nella schermata Piattaforme, in grigio, senza
    core né cartella delle ROM (elenco PLANNED, separato da EMUS). */
+#define MAX_EXTS 24
 typedef struct {
     char id[16], name[48], core[64], roms[256], index[256], thumbs[64], shortname[16], art[16];
     char launch[128];   /* emulatore che non è un core libretro: script sotto Arcade/ che riceve il gioco
@@ -56,7 +57,7 @@ typedef struct {
     int cpu;            /* "cpu": 1-4 (816, 1200, 1608, 2000 MHz), 0 il profilo generale; il runner lo legge da
                            sé, per un emulatore con "launch" lo applica il launcher prima di uscire */
     bool folders;       /* "folders": true, ogni cartella dentro quella dei giochi è un gioco (ScummVM) */
-    char exts[8][12];
+    char exts[MAX_EXTS][12];   /* "extensions": al massimo MAX_EXTS (prima 8: ZX, DOS e Amiga ne perdevano) */
     char maker[24], year[8];   /* "maker", "year": produttore e anno della console (layout galleria) */
     char bios[4][32];   /* "bios": basta uno di questi file in Bios/ (Sega CD: uno per regione) */
     char models[40];    /* "models": modelli su cui funziona ("brickpro"...), separati da spazi; vuoto = tutti */

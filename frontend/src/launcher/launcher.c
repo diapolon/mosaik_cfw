@@ -727,6 +727,10 @@ static void launch_ex(game_t *g, bool resume) {
         const emulator_t *emu = emulator_find(g->core);
         snprintf(core, sizeof core, "%s/Cores/%s.%s", UI.root, emu ? emu->core : g->core, CORE_EXT);
     }
+    /* la ripresa all'accensione di una partita precedente non vale più: se la console si spegne in
+       questo gioco, il runner ne scrive una sua (audit 0.9.72, GIO-02) */
+    snprintf(path, sizeof path, "%s/System/resume.txt", UI.root);
+    unlink(path);
     snprintf(path, sizeof path, "%s/System/next.txt", UI.root);
     FILE *f = fopen(path, "w");
     bool written = f != NULL;
@@ -9617,8 +9621,7 @@ int main(int argc, char **argv) {
         /* controllo degli aggiornamenti: una volta per avvio, appena il Wi-Fi è collegato */
         static bool notify_started;
         if (!notify_started && UI.set.update_notify && update_supported() && !upd_open && wifi_status(false)->state == WIFI_CONNECTED) {
-            notify_started = true;
-            update_notify_start(UI.root, UI.set.update_channel);
+            notify_started = update_notify_start(UI.root, UI.set.update_channel);   /* falso: si riprova */
         }
         /* SD bloccata dopo un risveglio: prima di tutto il resto */
         static double sdbad_t;

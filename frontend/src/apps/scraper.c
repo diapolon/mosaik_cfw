@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
             snprintf(e->name, sizeof e->name, "%s", field(&p));
             snprintf(e->index, sizeof e->index, "%s", field(&p));
             char *ex = field(&p), *save = NULL;
-            for (char *x = strtok_r(ex, "|", &save); x && e->nexts < 8; x = strtok_r(NULL, "|", &save))
+            for (char *x = strtok_r(ex, "|", &save); x && e->nexts < MAX_EXTS; x = strtok_r(NULL, "|", &save))
                 snprintf(e->exts[e->nexts++], sizeof e->exts[0], ".%s", x);
         } else if (!strcmp(kind, "game")) {
             if (n == cap) {

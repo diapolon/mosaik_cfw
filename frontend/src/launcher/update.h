@@ -27,8 +27,9 @@ bool update_supported(void);
 const char *update_current(void);
 void update_set_channel(int development); /* da chiamare prima di update_check */
 /* Controllo silenzioso, in un thread: legge solo l'elenco firmato, al massimo una volta al giorno,
-   e non tocca la finestra dell'aggiornamento. */
-void update_notify_start(const char *root, int development);
+   e non tocca la finestra dell'aggiornamento. Falso se un altro lavoro è ancora in corso: va
+   richiamata più tardi (prima l'avviso non partiva più dopo la ripresa di uno scaricamento). */
+bool update_notify_start(const char *root, int development);
 /* versione più recente trovata, "" se non c'è nulla di nuovo */
 const char *update_notify_version(void);
 /* novità delle versioni più nuove di quella in uso (dall'elenco firmato), nella lingua data o in

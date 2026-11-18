@@ -45,7 +45,7 @@ static const char *LIBRETRO_KINDS[] = { "Named_Snaps", "Named_Titles", NULL, "Na
 /* key: il nome per immagini, genere e giocatori; per le console "<console>/<nome>", perché due
    console possono avere un gioco con lo stesso nome (issue #5) */
 typedef struct {
-    char name[ROM_NAME], key[ROM_NAME + 20], title[160], core[16], thumbs[64], exts[64], sysname[48], index[256], canon[160];
+    char name[ROM_NAME], key[ROM_NAME + 20], title[160], core[16], thumbs[64], exts[MAX_EXTS * 12], sysname[48], index[256], canon[160];
     char *path;
     bool console;
 } item_t;

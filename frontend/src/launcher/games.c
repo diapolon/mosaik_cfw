@@ -95,8 +95,14 @@ int emulators_load(const char *root) {
                 strcat(m->models, v->s);
             }
         jval *ex = json_get(j, "extensions");
-        for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v && m->nexts < 8; v = v->next)
-            if (v->t == J_STR) snprintf(m->exts[m->nexts++], sizeof m->exts[0], ".%s", v->s);
+        for (jval *v = ex && ex->t == J_ARR ? ex->child : NULL; v; v = v->next) {
+            if (v->t != J_STR) continue;
+            if (m->nexts >= MAX_EXTS || strlen(v->s) >= sizeof m->exts[0] - 1) {   /* lo si dice, invece di perderla in silenzio */
+                ui_log("emulatore %s: estensione .%s non usata (al massimo %d, lunghe fino a %zu)", m->id, v->s, MAX_EXTS, sizeof m->exts[0] - 2);
+                continue;
+            }
+            snprintf(m->exts[m->nexts++], sizeof m->exts[0], ".%s", v->s);
+        }
         if (!m->nexts) {
             strcpy(m->exts[m->nexts++], ".zip");
             strcpy(m->exts[m->nexts++], ".7z");

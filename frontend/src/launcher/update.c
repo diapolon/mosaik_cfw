@@ -217,6 +217,22 @@ static char base_url[256];
 static int channel;
 static pthread_t thread;
 static bool thread_on;
+/* il thread di un lavoro (controllo, ripresa, installazione) è ancora al lavoro: thread_on resta vero
+   fino a update_join, questo si spegne quando il lavoro finisce (audit 0.9.72, AGG-01) */
+static _Atomic bool worker_busy;
+static void *(*worker_fn)(void *);
+static void *worker_run(void *arg) {
+    void *r = worker_fn(arg);
+    worker_busy = false;
+    return r;
+}
+static bool start_worker(void *(*fn)(void *)) {
+    worker_fn = fn;
+    worker_busy = true;
+    if (pthread_create(&thread, NULL, worker_run, NULL) == 0) return thread_on = true;
+    worker_busy = false;
+    return false;
+}
 
 bool update_supported(void) { const char *e = getenv("ARCADE_STANDALONE"); return e && *e == '1'; }
 
@@ -854,8 +870,7 @@ void update_check(const char *root) {
     if (!items) { fail(UPE_MANIFEST); return; }
     curl_global_init(CURL_GLOBAL_DEFAULT);
     st.phase = UPD_SEARCH;
-    if (pthread_create(&thread, NULL, check_worker, NULL) == 0) thread_on = true;
-    else fail(UPE_NETWORK);
+    if (!start_worker(check_worker)) fail(UPE_NETWORK);
 }
 
 void update_set_channel(int development) { channel = development; }
@@ -894,8 +909,14 @@ static void *notify_worker(void *arg) {
     return NULL;
 }
 
-void update_notify_start(const char *root, int development) {
-    if (notify_on || thread_on) return;
+bool update_notify_start(const char *root, int development) {
+    if (notify_on) return true;
+    /* un lavoro ancora in corso (per esempio la ripresa di uno scaricamento): si riprova dopo. Uno
+       finito si chiude qui: prima thread_on restava vero dopo la ripresa e l'avviso non partiva mai */
+    if (thread_on) {
+        if (worker_busy) return false;
+        update_join();
+    }
     channel = development;
     snprintf(root_dir, sizeof root_dir, "%s", root);
     char p[1100];
@@ -907,9 +928,10 @@ void update_notify_start(const char *root, int development) {
     /* avviso di un controllo precedente, se quella versione è ancora più recente di questa */
     if (ver[0] && strcmp(stamp_of(ver), stamp_of(update_current())) > 0) snprintf(notify_ver, sizeof notify_ver, "%s", ver);
     time_t now = time(NULL);
-    if (now > 1600000000 && last > 0 && now - last < 24 * 3600 && now >= last) return;   /* orologio valido: una volta al giorno */
+    if (now > 1600000000 && last > 0 && now - last < 24 * 3600 && now >= last) return true;   /* orologio valido: una volta al giorno */
     curl_global_init(CURL_GLOBAL_DEFAULT);
     if (pthread_create(&notify_thread, NULL, notify_worker, NULL) == 0) notify_on = true;
+    return true;
 }
 
 const char *update_notify_version(void) {
@@ -929,16 +951,14 @@ void update_install(void) {
     if (install_blocked()) { fail(UPE_UNDO); return; }   /* prima il riavvio che rimette i file */
     st.cancel = false;
     st.phase = UPD_CHECK;
-    if (pthread_create(&thread, NULL, install_worker, NULL) == 0) thread_on = true;
-    else fail(UPE_WRITE);
+    if (!start_worker(install_worker)) fail(UPE_WRITE);
 }
 
 void update_apply(void) {
     update_join();
     if (install_blocked()) { remove_tmps(); fail(UPE_UNDO); return; }
     st.phase = UPD_INSTALL;
-    if (pthread_create(&thread, NULL, apply_worker, NULL) == 0) thread_on = true;
-    else { remove_tmps(); fail(UPE_WRITE); }
+    if (!start_worker(apply_worker)) { remove_tmps(); fail(UPE_WRITE); }
 }
 
 void update_discard(void) {
@@ -1042,7 +1062,7 @@ void update_resume_start(const char *root) {
     if (!items) items = malloc(sizeof(item_t) * MAX_FILES);
     if (!items) return;
     nitems = 0;
-    if (pthread_create(&thread, NULL, resume_worker, NULL) == 0) thread_on = true;
+    start_worker(resume_worker);
 }
 
 bool update_resume_ready(void) { return resumed && st.phase == UPD_READY; }
@@ -1055,7 +1075,7 @@ static double now_s(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t
 bool update_supported(void) { return true; }
 void update_join(void) {}
 void update_set_channel(int development) { (void)development; }
-void update_notify_start(const char *root, int development) { (void)root; (void)development; }
+bool update_notify_start(const char *root, int development) { (void)root; (void)development; return true; }
 const char *update_notify_version(void) { const char *e = getenv("ARCADE_TEST_NOTICE"); return e ? e : ""; }
 void update_check(const char *root) {
     (void)root;

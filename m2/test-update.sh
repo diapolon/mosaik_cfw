@@ -30,6 +30,14 @@ int main(int c, char **v) {
         puts(update_notify_version()[0] ? update_notify_version() : "niente");
         return 0;
     }
+    if (c > 2 && !strcmp(v[2], "resume-notify")) {   /* prima la ripresa (alla prima schermata), poi l'avviso (AGG-01) */
+        update_resume_start(v[1]);
+        int tries = 0;
+        while (!update_notify_start(v[1], 0) && tries++ < 100) usleep(50000);
+        for (int i = 0; i < 60 && !update_notify_version()[0]; i++) usleep(100000);
+        puts(update_notify_version()[0] ? update_notify_version() : "niente");
+        return 0;
+    }
     if (c > 2 && !strcmp(v[2], "resume")) {
         update_resume_start(v[1]); update_join();
         const update_status_t *r = update_status();
@@ -89,6 +97,8 @@ sums() { (cd "$1" && find . -type f | sort | xargs sha256sum); }
 ok "annullando la scheda resta com'era"
 rm -rf $W/sd-prima
 echo "--- controllo silenzioso degli aggiornamenti"
+card
+expect "$(./t $W/sd resume-notify 2>/dev/null)" "0.9.0 20270101.0000" "avviso anche dopo la ripresa di uno scaricamento (audit 0.9.72, AGG-01)"
 card
 expect "$(./t $W/sd notify 2>/dev/null)" "0.9.0 20270101.0000" "versione nuova segnalata"
 [ -f $S/System/update-notice.txt ] && [ ! -e $S/System/update-pending ] && cmp $W/vecchio $S/System/arcade-system.squashfs && ok "controllo senza toccare nulla"

@@ -222,6 +222,11 @@ for pid in sorted(os.listdir(args.src)):
             emulators.append(rel[10:-5])
             ems.append(json.load(open(os.path.join(root, rel))))
             systems.append(ems[-1].get("name", rel[10:-5]))
+            # il launcher legge al massimo 24 estensioni da 10 caratteri (MAX_EXTS in games.h; fino
+            # alla 0.9.72 erano 8 e le altre si perdevano senza avviso)
+            exts = ems[-1].get("extensions", [])
+            if len(exts) > 24 or any(len(x) > 10 for x in exts):
+                sys.exit(f"{pid}: {rel} ha troppe estensioni o troppo lunghe (al massimo 24, da 10 caratteri)")
     # console nell'ordine delle piattaforme; titolo breve per il riquadro dello Store: il nome
     # della console se è una sola, altrimenti le sigle
     order_ix = sorted(range(len(ems)), key=lambda k: ems[k].get("order", 100))

@@ -194,8 +194,22 @@ static struct {
     unsigned char *copy;   /* contenuto già sulla scheda */
     size_t len;
     bool keep;             /* file di misura diversa o illeggibile: copia in .orig prima di riscriverlo */
-} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0, false }, { RETRO_MEMORY_RTC, "rtc", NULL, 0, false } };
+    bool after_load;       /* dopo uno stato caricato: alla prima riscrittura il file di prima va in .bak */
+} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0, false, false }, { RETRO_MEMORY_RTC, "rtc", NULL, 0, false, false } };
 enum { NBATT = sizeof batt / sizeof batt[0] };
+
+/* Uno stato caricato rimette in memoria la SRAM che aveva quando è stato fatto (audit 0.9.72, GIO-01):
+   la copia di confronto diventa quella, così sulla scheda si scrive solo ciò che il gioco cambia da
+   qui in poi, e non subito la SRAM vecchia dello stato sopra il salvataggio fatto nel gioco */
+static void sram_resync(void) {
+    for (int b = 0; b < NBATT; b++) {
+        if (!batt[b].len) continue;
+        unsigned char *m = mem_data(batt[b].id);
+        if (!m) continue;
+        memcpy(batt[b].copy, m, batt[b].len);
+        batt[b].after_load = true;
+    }
+}
 
 static void sram_load(void) {
     if (!mem_size || !mem_data) return;
@@ -246,6 +260,12 @@ static void sram_save(void) {
             snprintf(o, sizeof o, "%s.orig", p);
             if (access(p, F_OK) == 0 && access(o, F_OK) != 0 && !copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
             batt[b].keep = false;
+        }
+        if (batt[b].after_load) {   /* il salvataggio di prima del caricamento resta in .bak */
+            char o[1300];
+            snprintf(o, sizeof o, "%s.bak", p);
+            if (access(p, F_OK) == 0 && !copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
+            batt[b].after_load = false;
         }
         snprintf(t, sizeof t, "%s.tmp", p);
         FILE *f = fopen(t, "wb");
@@ -1045,6 +1065,7 @@ static bool state_load_file(const char *p) {
         ok = false;
         ui_log("stato non caricato, il core lo rifiuta (rovinato o troncato): %s", p);
     }
+    if (ok) sram_resync();
     fclose(f);
     free(buf);
     return ok;
@@ -1979,10 +2000,7 @@ static void menu_input(void) {
     case MI_RESUME: menu_open = false; break;
     case MI_SWITCH: swr_load(); swr_sel = nswr > 1 ? 1 : 0; swr_open = true; break;   /* sull'ultima partita prima di questa */
     case MI_SAVE: ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed")); break;
-    case MI_LOAD:
-        if (state_load(false)) { ui_toast(T("game.state_loaded")); menu_open = false; }
-        else ui_toast(T("game.no_state"));
-        break;
+    case MI_LOAD: saves_load(gcfg.slot); break;   /* prima la partita in corso nel salvataggio automatico (GIO-03) */
     case MI_TARGET: case MI_ASPECT: case MI_FILTER: case MI_BEZEL: case MI_ROTATE: case MI_CPU: case MI_DISC: main_change(*s, 1); return;
     case MI_LAYER: ask_start(ASK_LAYER); return;
     case MI_OPTIONS: open_page(PAGE_OPTIONS); return;
@@ -2219,7 +2237,7 @@ static bool hotkeys(void) {
     if (down) {
         bool used = true;
         if (in->pressed[BTN_R]) ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed"));
-        else if (in->pressed[BTN_L]) ui_toast(T(state_load(false) ? "game.state_loaded" : "game.no_state"));
+        else if (in->pressed[BTN_L]) saves_load(gcfg.slot);   /* come dal menu: la partita in corso resta (GIO-03) */
         else if (in->pressed[BTN_R2]) {
             fast_forward = !fast_forward;
             if (fast_forward && UI.audio) SDL_ClearQueuedAudio(UI.audio);
@@ -2332,7 +2350,7 @@ static void ask_do(int kind) {
 static void extra_key(int action) {
     switch (action) {
     case XK_SAVE: ui_toast(T(state_save(false) ? "game.state_saved" : "game.save_failed")); break;
-    case XK_LOAD: ui_toast(T(state_load(false) ? "game.state_loaded" : "game.no_state")); break;
+    case XK_LOAD: saves_load(gcfg.slot); break;
     case XK_SHOT: screenshot(); ui_toast(T("hotkey.screenshot")); break;
     default: break;
     }
@@ -2470,11 +2488,17 @@ int main(int argc, char **argv) {
             if (r == UI_PW_RESTART) { restart_from_game(); break; }
             if (r == UI_PW_OFF) { power_off_from_game(); break; }
             if (r == UI_PW_SUSPEND) {
+                /* anche uno stato e la ripresa: se la batteria si esaurisce durante il sonno, all'accensione
+                   si riparte da qui (audit 0.9.72, GIO-04); al risveglio la ripresa si toglie */
                 sram_save();
+                if (state_save(true)) write_resume();
                 ui_suspend();
                 /* SD guasta al risveglio: niente salvataggi né chiusura (scriverebbero sulla scheda e
                    non tornerebbero); system-init vede il segno e riavvia (audit BUG-006) */
                 if (UI.sd_failed) _exit(0);
+                char rp[1200];
+                snprintf(rp, sizeof rp, "%s/System/resume.txt", root);
+                unlink(rp);
                 next = SDL_GetPerformanceCounter();
                 continue;
             }
@@ -2568,6 +2592,11 @@ int main(int argc, char **argv) {
        l'impostazione è accesa: in home la si riprende con "Riprendi" */
     /* cambio gioco: lo stato è già salvato (swr_input), un secondo giro ruoterebbe di nuovo i salvataggi */
     if (exit_code == EXIT_MENU && !core_shutdown && (UI.set.autosave_exit || switching) && !switch_saved && state_save(true)) ui_log("salvataggio automatico all'uscita");
+    if (exit_code == EXIT_MENU) {   /* uscita normale: niente ripresa all'accensione di una partita vecchia (GIO-02) */
+        char rp[1200];
+        snprintf(rp, sizeof rp, "%s/System/resume.txt", root);
+        unlink(rp);
+    }
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
     ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : exit_code == EXIT_REBOOT ? "common.restarting" : "common.leaving"), 0.35);
     stats_update();
