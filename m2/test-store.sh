@@ -258,6 +258,11 @@ check "eliminato: BIOS restano" "bios" "$(cat sd/Bios/neogeo.zip)"
 check "eliminato: niente registro" "no" "$([ -e sd/System/pacchetti/fbneo.txt ] && echo si || echo no)"
 check "cartella vuota tolta" "no" "$([ -d sd/Cores/extra ] && echo si || echo no)"
 check "Cores resta" "si" "$([ -d sd/Cores ] && echo si || echo no)"
+# cache: con il catalogo nuovo vanno via gli scaricamenti a metà e le immagini che non servono (AGG-06)
+mkdir -p sd/System/.store sd/System/.store-img
+echo x > sd/System/.store/store-vecchio-0000.zip.part; echo x > sd/System/.store-img/store-img-vecchio-1-00.png
+./t $R list >/dev/null 2>&1
+check "cache: tolti .part e immagini che il catalogo non ha" "no no" "$([ -e sd/System/.store/store-vecchio-0000.zip.part ] && echo si || echo no) $([ -e sd/System/.store-img/store-img-vecchio-1-00.png ] && echo si || echo no)"
 # catalogo firmato con un'altra chiave: si resta con quello sulla scheda
 mk 2 altra.pem
 check "firma sbagliata: errore, catalogo di prima" "2 2 3 files:0 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"

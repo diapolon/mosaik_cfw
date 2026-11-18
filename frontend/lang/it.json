@@ -164,6 +164,7 @@
     "settings_short": "Menu",
     "no_image": "Senza immagine",
     "count": "Libreria · %d titoli",
+    "count_one": "Libreria · %d titolo",
     "start_note": "START apre Impostazioni, Temi e Spegni",
     "selected": "Selezionato",
     "category": "Categoria",
@@ -366,6 +367,7 @@
   },
   "game": {
     "resume": "Riprendi",
+    "resume_failed": "Ripresa non riuscita: il gioco riparte dall'inizio",
     "save_state": "Salva stato",
     "load_state": "Carica stato",
     "aspect": "Proporzioni",
@@ -492,6 +494,7 @@
     "done": "Fatto",
     "space": "Spazio",
     "results": "%d giochi trovati",
+    "results_one": "%d gioco trovato",
     "lower": "abc",
     "symbols": "#+=",
     "upper": "ABC"

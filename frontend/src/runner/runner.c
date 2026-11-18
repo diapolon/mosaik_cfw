@@ -332,16 +332,44 @@ static void opts_save_layer(int layer) {
     char p[1200], tmp[1300];
     if (layer == OL_CON) { console_dir(); console_file(p, sizeof p, "opt"); }
     else game_file(p, sizeof p, "opt");
+    /* le righe con opzioni che il gioco aperto non dichiara restano (audit 0.9.72, GIO-05: FBNeo
+       dichiara il BIOS Neo Geo solo nei giochi Neo Geo, e cambiando un'opzione "per tutti" da un gioco
+       CPS2 la scelta del BIOS spariva) */
+    char *keep = NULL;
+    size_t keep_len = 0;
+    FILE *old = fopen(p, "r");
+    char line[320];
+    while (old && fgets(line, sizeof line, old)) {
+        char k[320];
+        const char *eq = strchr(line, '=');
+        if (!eq || line[0] == '#') continue;
+        snprintf(k, sizeof k, "%.*s", (int)(eq - line), line);
+        char *kb = k;
+        while (*kb == ' ') kb++;
+        for (char *e = kb + strlen(kb); e > kb && e[-1] == ' '; ) *--e = 0;
+        if (!*kb || copt_find(kb)) continue;
+        size_t ll = strlen(line);
+        char *nk = realloc(keep, keep_len + ll + 2);
+        if (!nk) break;
+        keep = nk;
+        memcpy(keep + keep_len, line, ll);
+        keep_len += ll;
+        if (ll && line[ll - 1] != '\n') keep[keep_len++] = '\n';
+        keep[keep_len] = 0;
+    }
+    if (old) fclose(old);
     int n = 0;
     for (int i = 0; i < ncopts; i++) n += copt_layer(&copts[i], layer)[0] != 0;
-    if (!n) { remove(p); return; }
+    if (!n && !keep_len) { free(keep); remove(p); return; }
     snprintf(tmp, sizeof tmp, "%s.tmp", p);
     FILE *f = fopen(tmp, "w");
-    if (!f) { ui_log("opzioni non salvate: %s", p); return; }
+    if (!f) { free(keep); ui_log("opzioni non salvate: %s", p); return; }
     for (int i = 0; i < ncopts; i++) {
         const char *v = copt_layer(&copts[i], layer);
         if (v[0]) fprintf(f, "%s = \"%s\"\n", copts[i].key, v);
     }
+    if (keep_len) fwrite(keep, 1, keep_len, f);
+    free(keep);
     bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
     if (!ok || durable_replace(tmp, p) != 0) { remove(tmp); ui_log("opzioni non salvate: %s", p); }
@@ -2458,6 +2486,17 @@ int main(int argc, char **argv) {
     audio_on = UI.audio && !UI.automation;
     /* un profilo scelto per questo gioco resta attivo a lungo: lo si dice all'avvio */
     bool resumed = resume && state_load(true);
+    if (resume && !resumed) {
+        /* lo stato automatico non si carica (per esempio un core aggiornato dallo Store): lo si dice, e
+           lo stato resta da parte invece di finire in .prev e poi perdersi (audit 0.9.72, GIO-07) */
+        char a[1400], b2[1500];
+        state_path(a, sizeof a, true);
+        snprintf(b2, sizeof b2, "%s.nonletto", a);
+        if (access(a, F_OK) == 0) {   /* senza stato non c'era niente da riprendere: nessun avviso */
+            if (rename(a, b2) == 0) ui_log("ripresa non riuscita: lo stato resta in %s", b2);
+            ui_toast(T("game.resume_failed"));
+        }
+    }
     char start_msg[200] = "";
     if (gcfg.cpu) snprintf(start_msg, sizeof start_msg, "%s: %s", T("game.cpu"), T(cpu_names[gcfg.cpu % 5]));
     if (resumed && gcfg.cpu) {

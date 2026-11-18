@@ -164,6 +164,7 @@
     "settings_short": "Menü",
     "no_image": "Kein Bild",
     "count": "Bibliothek · %d Titel",
+    "count_one": "Bibliothek · %d Titel",
     "start_note": "START öffnet Einstellungen, Designs und Ausschalten",
     "selected": "Ausgewählt",
     "category": "Kategorie",
@@ -366,6 +367,7 @@
   },
   "game": {
     "resume": "Fortsetzen",
+    "resume_failed": "Fortsetzen nicht möglich: das Spiel beginnt von vorn",
     "save_state": "Zustand speichern",
     "load_state": "Zustand laden",
     "aspect": "Seitenverhältnis",
@@ -492,6 +494,7 @@
     "done": "Fertig",
     "space": "Leerzeichen",
     "results": "%d Spiele gefunden",
+    "results_one": "%d Spiel gefunden",
     "lower": "abc",
     "symbols": "#+=",
     "upper": "ABC"

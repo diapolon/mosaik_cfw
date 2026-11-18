@@ -102,10 +102,13 @@ static double now(void) {
 
 /* chiude il gioco e tutti i suoi processi, anche quando il programma principale è già finito:
    al ritorno al menu non deve restare niente in esecuzione */
+/* attesa dopo SIGTERM, in passi da 100 ms: 5 s (prima 2), 10 s per gli emulatori con un menu loro (Flycast,
+   PPSSPP, mupen64plus chiudono in ordine e scrivono VMU e salvataggi: audit 0.9.72, GIO-06) */
+static int stop_steps = 50;   /* 5 s: Flycast e i giochi Linux escono appena possono, l'attesa è solo un limite */
 static void stop_group(pid_t pgid) {
     kill(-pgid, SIGTERM);
     kill(-pgid, SIGCONT);   /* un processo fermo dal menu non riceverebbe la richiesta */
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < stop_steps; i++) {
         waitpid(pgid, NULL, WNOHANG);
         if (kill(-pgid, 0) != 0) return;   /* nessuno è rimasto */
         usleep(100 * 1000);
@@ -246,6 +249,7 @@ int main(int argc, char **argv) {
        Le app hanno solo GAMEWATCH_NOMENU: Menu è loro, ma la finestra Sospendi/Riavvia/Spegni sì. */
     bool nooverlay = getenv("GAMEWATCH_NOOVERLAY") && getenv("GAMEWATCH_NOOVERLAY")[0] == '1';
     if (nomenu) fprintf(stderr, "gamewatch: senza il menu di Mosaik (si esce dal menu del programma)\n");
+    if (nomenu || nooverlay) stop_steps = 100;
     double power_at = 0;
     double power_block_until = 0;   /* dopo un risveglio il tasto non vale per un momento */
     double pressed_at = 0;

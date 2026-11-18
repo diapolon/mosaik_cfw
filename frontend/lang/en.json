@@ -164,6 +164,7 @@
     "settings_short": "Menu",
     "no_image": "No image",
     "count": "Library · %d titles",
+    "count_one": "Library · %d title",
     "start_note": "START opens Settings, Themes and Power off",
     "selected": "Selected",
     "category": "Category",
@@ -366,6 +367,7 @@
   },
   "game": {
     "resume": "Resume",
+    "resume_failed": "Could not resume: the game starts from the beginning",
     "save_state": "Save state",
     "load_state": "Load state",
     "aspect": "Aspect ratio",
@@ -492,6 +494,7 @@
     "done": "Done",
     "space": "Space",
     "results": "%d games found",
+    "results_one": "%d game found",
     "lower": "abc",
     "symbols": "#+=",
     "upper": "ABC"

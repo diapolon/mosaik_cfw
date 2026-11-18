@@ -49,7 +49,7 @@ void update_cancel(void) { st.cancel = true; }
    l'avvio torna al sistema precedente (versione diversa da quella in uso), system-init rimette
    tutti i file di prima: niente versioni miste. */
 #define JOURNAL "System/update-journal.txt"
-#define JMAX 512
+#define JMAX 2048   /* come MAX_FILES: oltre, i .annulla restavano e i core non si controllavano (AGG-08) */
 static bool boot_failed;
 bool update_boot_failed(void) { return boot_failed; }
 
@@ -100,8 +100,17 @@ static bool cores_load(const char *root, const journal_t *j) {
 static bool cores_load(const char *root, const journal_t *j) { (void)root; (void)j; return true; }
 #endif
 
+/* un sistema che non partiva, messo da parte dal ritorno indietro (~60 MB): con questo che funziona non
+   serve più (audit 0.9.72, AGG-06) */
+static void drop_broken_system(const char *root) {
+    char g[1100];
+    snprintf(g, sizeof g, "%s/System/arcade-system.squashfs.guasto", root);
+    if (unlink(g) == 0) ui_log("aggiornamento: tolto il sistema che non partiva (.guasto)");
+}
+
 void update_confirm_boot(const char *root) {
     char p[1100], j_path[1100];
+    drop_broken_system(root);
     snprintf(p, sizeof p, "%s/System/update-pending", root);
     snprintf(j_path, sizeof j_path, "%s/" JOURNAL, root);
     static journal_t j;

@@ -164,6 +164,7 @@
     "settings_short": "Menu",
     "no_image": "Sem imagem",
     "count": "Biblioteca · %d títulos",
+    "count_one": "Biblioteca · %d título",
     "start_note": "START abre Definições, Temas e Desligar",
     "selected": "Selecionado",
     "category": "Categoria",
@@ -366,6 +367,7 @@
   },
   "game": {
     "resume": "Continuar",
+    "resume_failed": "Não foi possível retomar: o jogo começa do início",
     "save_state": "Guardar estado",
     "load_state": "Carregar estado",
     "aspect": "Proporção",
@@ -492,6 +494,7 @@
     "done": "Feito",
     "space": "Espaço",
     "results": "%d jogos encontrados",
+    "results_one": "%d jogo encontrado",
     "lower": "abc",
     "symbols": "#+=",
     "upper": "ABC"

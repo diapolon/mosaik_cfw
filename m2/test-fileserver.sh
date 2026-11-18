@@ -47,7 +47,7 @@ C
 S=/trimui/frontend/src
 gcc -std=c11 -O1 -g -Wall -Wextra -Werror -D_DEFAULT_SOURCE -D_GNU_SOURCE -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -I$S/launcher -I$S/common \
     -o srv main.c $S/launcher/fileserver.c $S/launcher/zipread.c -lz -lpthread
-ARCADE_FS_PORT=8099 ARCADE_FS_PIN=123456 ./srv $W/sd > srv.log 2>&1 &
+ARCADE_FS_PORT=8099 ARCADE_FS_PIN=123456 ARCADE_FS_PIN2=654321 ./srv $W/sd > srv.log 2>&1 &
 PID=$!
 sleep 1
 U=http://127.0.0.1:8099; J=$W/cj
@@ -230,9 +230,16 @@ wait $LP
 check "liberate: di nuovo 200" "200" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
 # senza accesso un PUT riceve 401 subito, senza che si legga il corpo (RETE-01)
 check "PUT senza accesso: 401 senza aspettare il corpo" "401" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Length: 100000000' -H 'Expect:' --data-binary @/dev/null "$U/api/put?path=Roms&name=x.zip")"
-# errori del PIN da tanti indirizzi: 20 in un minuto bloccano tutti (con 4 per indirizzo nessuno si blocca da solo)
+# errori del PIN da tanti indirizzi: 20 in un minuto cambiano il PIN sullo schermo (con 4 per indirizzo
+# nessuno si blocca da solo); chi legge lo schermo entra subito col PIN nuovo (RETE-03)
 for a in 2 3 4 5 6; do for i in 1 2 3 4; do curl -s --interface 127.0.0.$a -X POST -d pin=999999 $U/api/login >/dev/null; done; done
-check "20 errori da 5 indirizzi: bloccato anche un indirizzo nuovo" '{"error":"locked"}' "$(curl -s --interface 127.0.0.7 -X POST -d pin=123456 $U/api/login)"
+check "20 errori da 5 indirizzi: il PIN vecchio non vale più" '{"error":"badpin"}' "$(curl -s --interface 127.0.0.7 -X POST -d pin=123456 $U/api/login)"
+check "col PIN nuovo dello schermo si entra subito" "200" "$(curl -s --interface 127.0.0.7 -o /dev/null -w '%{http_code}' -X POST -d pin=654321 $U/api/login)"
+# Host e Origin (RETE-03): un nome qualsiasi è una pagina web che punta alla console (DNS rebinding)
+check "Host estraneo: 421" "421" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: attacco.example' $U/)"
+check "Host mosaik.local: 200" "200" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: mosaik.local' $U/)"
+check "Origin di un'altra pagina: 403" '{"error":"origin"}' "$(curl -s -H 'Origin: http://attacco.example' -X POST -d pin=654321 $U/api/login)"
+check "Origin della pagina stessa: accesso" "200" "$(curl -s -o /dev/null -w '%{http_code}' -H "Origin: $U" -X POST -d pin=654321 $U/api/login)"
 check "la sessione aperta resta valida" "200" "$(q -o /dev/null -w '%{http_code}' "$U/api/info")"
 kill $PID; wait $PID || true
 check "chiusura e riepilogo" "caricati 4, cambiato 1" "$(tail -1 srv.log)"

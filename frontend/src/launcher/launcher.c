@@ -174,7 +174,17 @@ static void mark_duplicates(void) {
         games[i].hidden = false;
     }
     qsort(ix, (size_t)ngames, sizeof(int), name_cmp);
-    /* dup_mode: 0 mostra tutti, n = preferisci l'emulatore n (in ordine di configurazione) */
+    /* l'emulatore preferito si tiene per nome (dup_emu): la posizione dup_mode cambia quando lo Store
+       aggiunge o toglie un emulatore (audit 0.9.72, LAU-03). Una scheda di prima ha solo la posizione:
+       vale una volta, poi diventa il nome. Un preferito tolto dallo Store: si mostrano tutti. */
+    if (!UI.set.dup_emu[0] && UI.set.dup_mode > 0 && UI.set.dup_mode <= NEMUS) {
+        snprintf(UI.set.dup_emu, sizeof UI.set.dup_emu, "%s", EMUS[UI.set.dup_mode - 1].id);
+        settings_save(&UI.set, UI.root);
+    }
+    if (UI.set.dup_emu[0]) {
+        UI.set.dup_mode = 0;
+        for (int e = 0; e < NEMUS; e++) if (!strcmp(EMUS[e].id, UI.set.dup_emu)) UI.set.dup_mode = e + 1;
+    }
     const char *keep = UI.set.dup_mode > 0 && UI.set.dup_mode <= NEMUS ? EMUS[UI.set.dup_mode - 1].id : NULL;
     for (int a = 0; keep && a < ngames; ) {
         int b = a;
@@ -349,7 +359,11 @@ static bool auto_match(const game_t *g, int k) {
 }
 
 static bool in_tab(const game_t *g, int t) {
-    if (!visible(g)) return false;
+    /* un doppio nascosto ("Giochi doppi") sparisce solo da Tutti e dalle schede automatiche: nella
+       scheda del suo emulatore, nei Preferiti e nelle collezioni resta (audit 0.9.72, LAU-04: con
+       FBNeo preferito MAME 2010 spariva e i preferiti nell'altro emulatore non si trovavano) */
+    bool own = (t >= TAB_EMU && t < TAB_AUTO) || t == TAB_FAV;
+    if (own && coll_sel != COLL_HIDDEN ? g->user_hidden : !visible(g)) return false;
     if (t >= TAB_AUTO) return auto_match(g, t - TAB_AUTO);
     if (t >= TAB_COLL) return g->colls >> (t - TAB_COLL) & 1u;
     if (t >= TAB_EMU) return !strcmp(g->core, EMUS[t - TAB_EMU].id);
@@ -3523,7 +3537,7 @@ static void library_draw(void) {
     int y = M(t->topbar_h) + M(0.016f);
     y += pills(y) + M(0.022f);
     char label[200];
-    snprintf(label, sizeof label, T("lib.count"), view_games());
+    snprintf(label, sizeof label, view_games() == 1 ? T("lib.count_one") : T("lib.count"), view_games());
     if (search[0]) { size_t l = strlen(label); snprintf(label + l, sizeof label - l, " · «%s»", search); }
     if (lib_style() == LS_CARDS) {   /* Tessera: il nome del gioco scelto, e a destra quanti sono */
         int cwid = ui_text_w(fs, label), lh = fnh;
@@ -3972,6 +3986,7 @@ static void set_change(int item, int dir) {
         /* si sceglie fra gli emulatori arcade: le console non hanno doppioni */
         do s->dup_mode = (s->dup_mode + dir + NEMUS + 1) % (NEMUS + 1);
         while (s->dup_mode > 0 && EMUS[s->dup_mode - 1].console);
+        snprintf(s->dup_emu, sizeof s->dup_emu, "%s", s->dup_mode > 0 ? EMUS[s->dup_mode - 1].id : "");
         mark_duplicates();
         build_genres();
         build_carousel();
@@ -6259,6 +6274,20 @@ static bool upd_battery_ok(void) {
    lo ricontrolla (update_resume_start) e chiede se installarlo. Più tardi lo tiene per l'avvio
    dopo, Elimina cancella i file scaricati. */
 static bool rdy_open, rdy_asked;
+/* Lo scaricamento finito si ricontrolla una volta per accensione, non a ogni ritorno da un gioco (audit
+   0.9.72, AGG-04: ogni volta lo SHA-256 di ~60 MB, la domanda dopo "Più tardi" a ogni rientro, e i
+   file a metà di uno scaricamento interrotto tolti). Il segno sta in /run, che si svuota spegnendo. */
+#ifdef TRIMUI_DEVICE
+#define RESUME_MARK "/run/aggiornamento-ricontrollato"
+#else
+#define RESUME_MARK "/tmp/mosaik-aggiornamento-ricontrollato"
+#endif
+static bool resume_checked(void) {
+    if (access(RESUME_MARK, F_OK) == 0) return true;
+    FILE *f = fopen(RESUME_MARK, "w");
+    if (f) fclose(f);
+    return false;
+}
 /* SD che non risponde più dopo un risveglio (arcade-suspend scrive /run/sd-guasta): l'unica
    cosa da fare è riavviare. Nessuna scrittura sulla scheda: non tornerebbe più. */
 static bool sdbad_open;
@@ -8611,7 +8640,11 @@ static void detail_draw(void) {
         detail_scroll = ui_approach(detail_scroll, detail_scroll_target);
         ui_clip_push(tx, ty, tw, tbot - ty);
         /* la descrizione viene da ArcadeDB: per le console non c'è da suggerire nulla */
-        if (!ndlines && !core_console(g->core)) ui_text(fs, T("detail.no_history"), tx, ty, t->text_dim, ALIGN_LEFT);
+        if (!ndlines && !core_console(g->core)) {
+            char nl[3][160];
+            int n = ui_wrap(fs, T("detail.no_history"), tw - M(0.01f), nl, 3);
+            for (int k = 0; k < n; k++) ui_text(fs, nl[k], tx, ty + k * fsh, t->text_dim, ALIGN_LEFT);
+        }
         for (int k = 0; k < ndlines; k++) {
             int ly = ty + (int)((k - detail_scroll) * fsh);
             if (ly + fsh < ty || ly > tbot) continue;
@@ -8875,7 +8908,7 @@ static void fpanel_draw(void) {
         }
     }
     char res[64];
-    snprintf(res, sizeof res, T("kb.results"), view_games());
+    snprintf(res, sizeof res, view_games() == 1 ? T("kb.results_one") : T("kb.results"), view_games());
     ui_text(UI.f_small, res, x + pad, ry + M(0.01f), t->text_dim, ALIGN_LEFT);
     const char *hint[] = { "B", T("common.back"), "A", T("common.ok") };
     ui_hints(hint, 4);
@@ -9004,7 +9037,7 @@ static void keyboard_draw(void) {
         }
     }
     char res[64];
-    snprintf(res, sizeof res, T("kb.results"), view_games());
+    snprintf(res, sizeof res, view_games() == 1 ? T("kb.results_one") : T("kb.results"), view_games());
     if (kb_mode == KBM_SEARCH) ui_text(UI.f_small, res, x + pad, ky - gap + M(0.008f), t->text_dim, ALIGN_LEFT);
     static const char *layout_keys[3] = { "kb.lower", "kb.symbols", "kb.upper" };
     const char *hint[] = { "X", T(layout_keys[kb_layout % 3]), "Y", T("kb.space"), "B", T("kb.delete"), "START", T("kb.done"), "A", T("kb.type") };
@@ -9773,7 +9806,7 @@ int main(int argc, char **argv) {
             ui_mark("prima schermata");
             update_confirm_boot(UI.root);
             if (update_boot_failed()) ui_toast(T("update.boot_failed"));
-            else if (update_supported()) update_resume_start(UI.root);   /* scaricato e non installato? */
+            else if (update_supported() && !resume_checked()) update_resume_start(UI.root);   /* scaricato e non installato? */
         }
         /* la domanda arriva quando il controllo in sottofondo è finito, solo se nulla è aperto */
         /* un backup copiato sulla scheda: dopo la lingua, prima del Wi-Fi della prima accensione */

@@ -62,10 +62,11 @@ static fs_status_t st;
 #define PIN_PEERS 16
 static struct { uint32_t ip; int bad; time_t until; } pin_peers[PIN_PEERS];
 /* errori del PIN da tutti gli indirizzi insieme (revisione del 16 novembre: con più di 16
-   indirizzi la tabella si riusava e i conteggi ripartivano): 20 in un minuto bloccano tutti per un minuto */
+   indirizzi la tabella si riusava e i conteggi ripartivano): 20 in un minuto cambiano il PIN sullo
+   schermo (audit 0.9.72, RETE-03: prima bloccavano tutti per un minuto, anche l'utente vero) */
 #define PIN_ALL_MAX 20
 static int pin_all_bad;
-static time_t pin_all_since, pin_all_until;
+static time_t pin_all_since;
 static pthread_mutex_t auth_mu = PTHREAD_MUTEX_INITIALIZER;
 /* Connessioni (revisione del 16 novembre: un solo thread e 20 s per ogni recv, così una connessione
    lenta teneva fermo il server). Ognuna ha il suo thread, al massimo FS_MAX_CONN e FS_MAX_PER_IP per
@@ -283,7 +284,7 @@ static const char *base_name(const char *rel) {
 
 typedef struct {
     int fd;
-    char method[8], path[256], query[4096], cookie[512];
+    char method[8], path[256], query[4096], cookie[512], host[128], origin[160];
     long long clen;
     char head[16384];
     int body_off, have;   /* byte del corpo già letti insieme all'intestazione */
@@ -314,6 +315,7 @@ static const char *reason(int code) {
     case 404: return "Not Found";
     case 409: return "Conflict";
     case 413: return "Payload Too Large";
+    case 421: return "Misdirected Request";
     case 429: return "Too Many Requests";
     case 507: return "Insufficient Storage";
     default: return "Internal Server Error";
@@ -335,6 +337,45 @@ static void reply_err(int fd, int code, const char *what) {
     char j[96];
     snprintf(j, sizeof j, "{\"error\":\"%s\"}", what);
     reply_json(fd, code, j);
+}
+
+/* valore di un'intestazione senza spazi intorno; troppo lungo = "?" (non passa i controlli) */
+static void header_val(const char *v, char *out, size_t n) {
+    while (*v == ' ' || *v == '\t') v++;
+    const char *e = strstr(v, "\r\n");
+    size_t k = e ? (size_t)(e - v) : strlen(v);
+    while (k && (v[k - 1] == ' ' || v[k - 1] == '\t')) k--;
+    if (k >= n) { snprintf(out, n, "?"); return; }
+    memcpy(out, v, k);
+    out[k] = 0;
+}
+
+/* Host accettati (audit 0.9.72, RETE-03): un indirizzo IPv4, mosaik.local o localhost, con la porta.
+   Un nome qualsiasi vuol dire una pagina web che ha fatto puntare il suo nome alla console
+   (DNS rebinding): 421. Senza Host (HTTP/1.0, programmi) si accetta. */
+static bool host_ok(const char *h) {
+    if (!h[0]) return true;
+    size_t n = strcspn(h, ":");
+    if (h[n] == ':') for (const char *p = h + n + 1; *p; p++) if (*p < '0' || *p > '9') return false;
+    if ((n == 12 && !strncasecmp(h, "mosaik.local", 12)) || (n == 13 && !strncasecmp(h, "mosaik.local.", 13)) ||
+        (n == 9 && !strncasecmp(h, "localhost", 9)))
+        return true;
+    int dots = 0;
+    if (!n) return false;
+    for (size_t i = 0; i < n; i++) {
+        if (h[i] == '.') dots++;
+        else if (h[i] < '0' || h[i] > '9') return false;
+    }
+    return dots == 3;
+}
+
+/* Origin delle richieste /api/: assente (non è un browser o è una richiesta della pagina stessa
+   senza Origin) oppure lo stesso indirizzo della pagina; un'altra pagina web viene rifiutata */
+static bool origin_ok(const req_t *r) {
+    if (!r->origin[0]) return true;
+    const char *o = r->origin;
+    if (strncasecmp(o, "http://", 7)) return false;
+    return r->host[0] && !strcasecmp(o + 7, r->host);
 }
 
 static bool read_request(req_t *r) {
@@ -361,10 +402,12 @@ static bool read_request(req_t *r) {
     if (q) { *q = 0; snprintf(r->query, sizeof r->query, "%s", q + 1); } else r->query[0] = 0;
     snprintf(r->path, sizeof r->path, "%s", target);
     r->clen = -1;
-    r->cookie[0] = 0;
+    r->cookie[0] = r->host[0] = r->origin[0] = 0;
     for (char *l = strstr(r->head, "\r\n"); l && l < end; l = strstr(l + 2, "\r\n")) {
         char *h = l + 2;
         if (!strncasecmp(h, "Content-Length:", 15)) r->clen = strtoll(h + 15, NULL, 10);
+        else if (!strncasecmp(h, "Host:", 5)) header_val(h + 5, r->host, sizeof r->host);
+        else if (!strncasecmp(h, "Origin:", 7)) header_val(h + 7, r->origin, sizeof r->origin);
         else if (!strncasecmp(h, "Cookie:", 7)) {
             char *e = strstr(h, "\r\n");
             size_t k = e ? (size_t)(e - h - 7) : strlen(h + 7);
@@ -486,7 +529,7 @@ static void do_login(req_t *r) {
     time_t now = time(NULL);
     pthread_mutex_lock(&auth_mu);
     int pp = pin_peer(r->fd, now);
-    if (now < pin_peers[pp].until || now < pin_all_until) {
+    if (now < pin_peers[pp].until) {
         pthread_mutex_unlock(&auth_mu);
         reply_err(r->fd, 429, "locked");
         return;
@@ -496,7 +539,16 @@ static void do_login(req_t *r) {
     if (diff) {
         if (++pin_peers[pp].bad >= 5) { pin_peers[pp].bad = 0; pin_peers[pp].until = now + 30; }
         if (now - pin_all_since > 60) { pin_all_since = now; pin_all_bad = 0; }
-        if (++pin_all_bad >= PIN_ALL_MAX) { pin_all_bad = 0; pin_all_until = now + 60; }
+        if (++pin_all_bad >= PIN_ALL_MAX) {   /* troppi tentativi da tutta la rete: PIN nuovo, chi è davanti lo legge */
+            unsigned char rb[3];
+            random_bytes(rb, sizeof rb);
+            char np[8];
+            snprintf(np, sizeof np, "%06u", (unsigned)((rb[0] << 16 | rb[1] << 8 | rb[2]) % 1000000));
+            if (getenv("ARCADE_FS_PIN2")) snprintf(np, sizeof np, "%.6s", getenv("ARCADE_FS_PIN2"));   /* prove */
+            memcpy(pin, np, sizeof pin);
+            pin_all_bad = 0;
+            memset(pin_peers, 0, sizeof pin_peers);
+        }
         pthread_mutex_unlock(&auth_mu);
         event(FS_EV_FAIL, "PIN");
         reply_err(r->fd, 403, "badpin");
@@ -1506,6 +1558,8 @@ static void handle(int fd) {
     if (!read_request(r)) { free(r); return; }
     bool get = !strcmp(r->method, "GET"), post = !strcmp(r->method, "POST"), put = !strcmp(r->method, "PUT");
     /* la pagina, l'accesso e i rifiuti senza aspettare; il resto una richiesta alla volta */
+    if (!host_ok(r->host)) { reply_err(fd, 421, "host"); free(r); return; }
+    if (!strncmp(r->path, "/api/", 5) && !origin_ok(r)) { reply_err(fd, 403, "origin"); free(r); return; }
     if (get && (!strcmp(r->path, "/") || !strcmp(r->path, "/index.html"))) { do_page(r); free(r); return; }
     if (post && !strcmp(r->path, "/api/login")) { do_login(r); free(r); return; }
     /* senza accesso: 401 subito, senza leggere il corpo (RETE-01) */
@@ -1810,7 +1864,7 @@ bool fs_start(const char *dir) {
     if (getenv("ARCADE_FS_PIN")) snprintf(pin, sizeof pin, "%.6s", getenv("ARCADE_FS_PIN"));   /* prove automatiche */
     memset(pin_peers, 0, sizeof pin_peers);
     pin_all_bad = 0;
-    pin_all_since = pin_all_until = 0;
+    pin_all_since = 0;
     nconn = 0;
     browsers_load();
     restore_remove_zip();   /* un ripristino lasciato a metà non si riprende: si ricarica dalla pagina */

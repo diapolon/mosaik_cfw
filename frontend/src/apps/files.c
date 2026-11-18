@@ -157,6 +157,17 @@ static void space_update(void) {
     free_bytes = statvfs(root, &v) == 0 ? (long long)v.f_bavail * (long long)v.f_frsize : -1;
 }
 
+/* ".<nome>.<pid>.part" di copy_file lasciato da una copia interrotta (corrente, app chiusa):
+ * un pid diverso dal nostro è di un'altra accensione o di un'altra apertura dell'app */
+static bool stale_part(const char *n) {
+    size_t l = strlen(n);
+    if (n[0] != '.' || l < 8 || strcmp(n + l - 5, ".part")) return false;
+    const char *e = n + l - 5, *d = e;
+    while (d > n + 1 && d[-1] >= '0' && d[-1] <= '9') d--;
+    if (d == e || d[-1] != '.' || d - 1 == n + 1) return false;
+    return atoi(d) != (int)getpid();
+}
+
 /* rilegge la cartella; keep: il nome da tenere scelto (dopo un'operazione) */
 static void reload(const char *keep) {
     char p[1300];
@@ -167,6 +178,11 @@ static void reload(const char *keep) {
     DIR *d = opendir(p);
     struct dirent *e;
     while (d && (e = readdir(d))) {
+        if (stale_part(e->d_name)) {   /* avanzo di una copia interrotta: si toglie (audit GIO-09) */
+            char q[1600];
+            if (snprintf(q, sizeof q, "%s/%s", p, e->d_name) < (int)sizeof q) unlink(q);
+            continue;
+        }
         if (hidden(cwd, e->d_name) || !strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
         char q[1600];
         struct stat sb;

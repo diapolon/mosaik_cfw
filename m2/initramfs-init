@@ -23,10 +23,11 @@ step() {
     echo "$(cut -d' ' -f1 /proc/uptime)s initramfs: $1" >> /tmp/passi.txt
     if [ -n "$STEPS" ]; then cat /tmp/passi.txt >> "$STEPS"; : > /tmp/passi.txt; fi
 }
-# spegnimento: col caricatore collegato il chip di alimentazione riaccenderebbe la console, che
-# si ferma in U-Boot con lo schermo nero; axpctl spegne prima le sue interruzioni (come system-init)
+# spegnimento sempre dal chip di alimentazione, come system-init dalla 0.9.69: col caricatore il
+# chip riaccenderebbe la console (U-Boot fermo a schermo nero) e senza il kernel può lasciare la
+# Smart Pro accesa e calda; axpctl spegne prima le sue interruzioni. poweroff -f resta di riserva
 power_off() {
-    [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ] && axpctl poweroff 2>/dev/null
+    axpctl poweroff 2>/dev/null
     poweroff -f
 }
 fail() {

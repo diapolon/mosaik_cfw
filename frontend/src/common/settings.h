@@ -29,7 +29,8 @@ typedef struct {
     bool bezel;          /* cornici attorno ai giochi */
     int sort_mode;       /* libreria: 0 nome, 1 anno, 2 più giocati, 3 ultimi giocati */
     bool show_missing;   /* libreria: anche i giochi del catalogo senza ROM */
-    int dup_mode;        /* giochi doppi: 0 tutti, 1 preferisci FBNeo, 2 preferisci MAME */
+    int dup_mode;        /* giochi doppi: 0 tutti, n = preferisci l'emulatore n (posizione, ricalcolata da dup_emu) */
+    char dup_emu[16];    /* l'emulatore preferito per nome ("" tutti): la posizione cambia con lo Store (LAU-03) */
     bool resume_last;
     bool autosave_exit;  /* salvataggio automatico anche uscendo al menu (spento di base) */
     bool box_covers;     /* console: la scatola come copertina, se è stata scaricata */

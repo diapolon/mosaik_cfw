@@ -535,6 +535,41 @@ static bool fetch_pair(mem_t *t, mem_t *s) {
     return get_mem("store.json", t) && get_mem("store.sig", s);
 }
 
+/* cache dello Store con il catalogo appena scaricato: via gli scaricamenti a metà (.part) e gli zip
+   di versioni che il catalogo non ha più, e le immagini e le icone che non usa (audit 0.9.72, AGG-06:
+   restavano per sempre, decine di MB per PPSSPP o ScummVM) */
+static void prune_cache(void) {
+    static const char *const dirs[2] = { "System/.store", "System/.store-img" };
+    for (int d = 0; d < 2; d++) {
+        char dp[1200];
+        snprintf(dp, sizeof dp, "%s/%s", root_dir, dirs[d]);
+        DIR *dh = opendir(dp);
+        struct dirent *de;
+        while (dh && (de = readdir(dh))) {
+            if (de->d_name[0] == '.') continue;
+            char name[300];
+            snprintf(name, sizeof name, "%s", de->d_name);
+            size_t l = strlen(name);
+            if (l > 5 && !strcmp(name + l - 5, ".part")) name[l - 5] = 0;
+            bool used = false;
+            pthread_mutex_lock(&lock);
+            for (int i = 0; i < ncat && !used; i++) {
+                if (d == 0) used = !strcmp(cat[i].p.file, name);
+                else {
+                    used = !strcmp(cat[i].p.icon, name);
+                    for (int k = 0; k < cat[i].p.nimg && !used; k++) used = !strcmp(cat[i].p.img[k], name);
+                }
+            }
+            pthread_mutex_unlock(&lock);
+            if (used) continue;
+            char fp[1600];
+            snprintf(fp, sizeof fp, "%s/%s", dp, de->d_name);
+            if (unlink(fp) == 0) ui_log("store: tolto dalla cache %s", de->d_name);
+        }
+        if (dh) closedir(dh);
+    }
+}
+
 static void *fetch_worker(void *arg) {
     (void)arg;
     mem_t t = { malloc(1 << 20), 0, 1 << 20 }, s = { malloc(512), 0, 512 };
@@ -553,6 +588,7 @@ static void *fetch_worker(void *arg) {
     else if (!parse_catalog(t.buf, &e, &n)) { st.error = SE_CATALOG; got = false; ui_log("store: catalogo non valido"); }
     if (got) {
         set_catalog(e, n);
+        prune_cache();
         char p[1200];
         snprintf(p, sizeof p, "%s/System/store.json", root_dir);
         write_durable(p, t.buf, t.len);
