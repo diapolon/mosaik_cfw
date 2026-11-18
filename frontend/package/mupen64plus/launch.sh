@@ -22,6 +22,8 @@ case "$(readlink /run/fw 2>/dev/null)" in *tg4040*) RES=1024x768 ;; esac
 # motore grafico: Rice è il più leggero; "glide64mk2" in Saves/n64/video.txt sceglie l'altro
 GFX=mupen64plus-video-rice
 [ "$(cat "$ROOT/Saves/n64/video.txt" 2>/dev/null)" = glide64mk2 ] && GFX=mupen64plus-video-glide64mk2
+# plugin con il percorso intero: si chiamano .so.2 (vedi toolchain/package.sh)
+P="$DIR/lib"
 
 # i messaggi del kernel sulla console rallentano il cambio dei fotogrammi: spenti mentre si gioca
 PRINTK="$(cut -f1 /proc/sys/kernel/printk 2>/dev/null)"
@@ -35,7 +37,8 @@ export LD_LIBRARY_PATH="$DIR/lib:$LD_LIBRARY_PATH"
 # scrive i salvataggi prima di uscire
 "$DIR/mupen64plus" --corelib "$DIR/lib/libmupen64plus.so.2" --plugindir "$DIR/lib" --datadir "$DIR/share" \
     --configdir "$CONF" --sshotdir "$ROOT/Screenshots" --fullscreen --resolution "$RES" --noosd \
-    --gfx "$GFX" --audio mupen64plus-audio-sdl --input mupen64plus-input-sdl --rsp mupen64plus-rsp-hle \
+    --gfx "$P/$GFX.so.2" --audio "$P/mupen64plus-audio-sdl.so.2" --input "$P/mupen64plus-input-sdl.so.2" \
+    --rsp "$P/mupen64plus-rsp-hle.so.2" \
     --set "Core[SaveSRAMPath]=$ROOT/Saves/n64/save/" --set "Core[SaveStatePath]=$ROOT/Saves/n64/state/" \
     --set "Core[R4300Emulator]=2" "$ROM" &
 PID=$!

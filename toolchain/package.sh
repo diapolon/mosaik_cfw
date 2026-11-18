@@ -93,6 +93,9 @@ if [ -f "$DIST/mupen64plus/mupen64plus" ]; then
     mkdir -p "$PKG/mupen64plus/Cores/mupen64plus"
     cp "$DIST/mupen64plus/mupen64plus" "$PKG/mupen64plus/Cores/mupen64plus/mupen64plus"
     cp -R "$DIST/mupen64plus/lib" "$DIST/mupen64plus/share" "$PKG/mupen64plus/Cores/mupen64plus/"
+    # i plugin come .so.2: lo Store fino alla 0.9.74 provava ogni .so sotto Cores/ come core libretro e
+    # rifiutava il pacchetto; launch.sh li passa con il percorso intero
+    for f in "$PKG/mupen64plus/Cores/mupen64plus/lib/"mupen64plus-*.so; do mv "$f" "$f.2"; done
     cp "$FE/package/mupen64plus/launch.sh" "$FE/package/mupen64plus/mupen64plus.cfg" "$PKG/mupen64plus/Cores/mupen64plus/"
     chmod +x "$PKG/mupen64plus/Cores/mupen64plus/mupen64plus" "$PKG/mupen64plus/Cores/mupen64plus/launch.sh"
 else

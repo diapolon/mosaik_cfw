@@ -96,7 +96,9 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     echo '{"name":"FinalBurn Neo"}' > pkgsrc/fbneo/Emulators/fbneo.json
     echo "indice $1" > pkgsrc/fbneo/Dats/fbneo.tsv
     [ "$1" = 1 ] && echo vecchio > pkgsrc/fbneo/Dats/solo-v1.roms
-    [ "$1" = 2 ] && { mkdir -p pkgsrc/fbneo/Cores/extra; echo nuovo > pkgsrc/fbneo/Cores/extra/dati.bin; }
+    # v2: anche una libreria non libretro in una sottocartella di Cores, come i plugin di mupen64plus:
+    # non va provata come core (fino alla 0.9.74 il pacchetto N64 veniva rifiutato)
+    [ "$1" = 2 ] && { mkdir -p pkgsrc/fbneo/Cores/extra; echo nuovo > pkgsrc/fbneo/Cores/extra/dati.bin; cp bad_libretro.so pkgsrc/fbneo/Cores/extra/plugin.so; }
     cp bad_libretro.so pkgsrc/mgba/Cores/mgba_libretro.so
     echo '{"name":"Game Boy Advance"}' > pkgsrc/mgba/Emulators/gba.json
     mkdir -p pkgsrc/files/Apps/files
@@ -154,6 +156,7 @@ mk 2
 check "aggiornamento disponibile" "2 0 3 files:0 fbneo:2 mgba:0" "$(./t $R list 2>/dev/null)"
 check "aggiornamento" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
 check "file nuovo" "nuovo" "$(cat sd/Cores/extra/dati.bin)"
+check "libreria in una sottocartella di Cores: installata senza provarla come core" "si" "$([ -e sd/Cores/extra/plugin.so ] && echo si || echo no)"
 check "file che non c'è più tolto" "no" "$([ -e sd/Dats/solo-v1.roms ] && echo si || echo no)"
 check "indice aggiornato" "indice 2" "$(cat sd/Dats/fbneo.tsv)"
 # transazione (audit BUG-004): v2 installata; la v3 toglie Cores/extra/dati.bin

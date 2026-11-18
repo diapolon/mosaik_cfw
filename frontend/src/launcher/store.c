@@ -991,7 +991,9 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
 #ifdef __linux__
     for (int k = 0; !err && k < nf; k++) {
         size_t l = strlen(files[k]);
-        if (strncmp(files[k], "Cores/", 6) || l < 4 || strcmp(files[k] + l - 3, ".so")) continue;
+        /* solo i core libretro, diretti in Cores/: le librerie dei programmi a sé (i plugin di
+           mupen64plus in Cores/mupen64plus/lib) non hanno retro_api_version */
+        if (strncmp(files[k], "Cores/", 6) || strchr(files[k] + 6, '/') || l < 4 || strcmp(files[k] + l - 3, ".so")) continue;
         char full[1300];
         snprintf(full, sizeof full, "%s/%s", root_dir, files[k]);
         if (!core_loads(full)) err = SE_CORE;
