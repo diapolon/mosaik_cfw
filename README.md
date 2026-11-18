@@ -30,7 +30,7 @@
 
 ## What's inside
 
-- **Emulators from the Store**: the system stays small and you install only what you play, from the **Store** on the home screen. Every package is signed; **Archive** removes an emulator and keeps its games and saves, **Delete** removes everything after showing what goes.
+- **Emulators from the Store**: the system stays small and you install only what you play, from the **Store** on the home screen. Every package is signed; **Delete** lets you choose what goes: the emulator, its saves and data, its ROMs and images (from 0.9.68; before, **Archive** and **Delete**).
 - **FinalBurn Neo, MAME 2003-Plus and MAME 2010**: Neo Geo, CPS1, CPS2 and most of the arcade classics.
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
 - **PlayStation** (PCSX ReARMed) with the DualShock sticks: `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
@@ -170,7 +170,7 @@ Turn the console off and connect the card to your computer. Everything is in the
 | `Video` | Videos for the Video app (MP4, MKV, WebM, AVI, MOV) |
 | `Saves` | Saves |
 
-Keep arcade ROMs as `.zip` and don't rename them. Console games can be zipped or not, one game per zip; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → ROMs and images → Verify ROMs** checks that every zip contains the right files (**Full** also reads all the data and finds damaged files), and the game's details page (X) shows what's missing, including a BIOS. The Dreamcast menu is the emulator's own (Deadcast or Flycast): open it with Menu and always quit the game from there, so the memory-card saves are written.
+Keep arcade ROMs as `.zip` and don't rename them. Cartridge games for NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket can be zipped or not, one game per zip; for the other consoles copy the files as they are; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → ROMs and images → Verify ROMs** checks that every zip contains the right files (**Full** also reads all the data and finds damaged files), and the game's details page (X) shows what's missing, including a BIOS. The Dreamcast menu is the emulator's own (Deadcast or Flycast): open it with Menu and always quit the game from there, so the memory-card saves are written.
 
 For covers and information, connect to Wi-Fi and use **Settings → ROMs and images → Download images**.
 

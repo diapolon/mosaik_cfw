@@ -40,7 +40,7 @@ Included without changes to their code.
 
 ## Data downloaded by the console
 
-Not included in the images: the console downloads them only when you choose **Settings → Tools → Download images**, and keeps them on the card.
+Not included in the images: the console downloads them only when you choose **Settings → ROMs and images → Download images**, and keeps them on the card.
 
 | Data | License | Source |
 |---|---|---|

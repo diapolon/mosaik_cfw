@@ -120,7 +120,7 @@
     "err_io": "Write error",
     "err_auth": "PIN required",
     "err_notfound": "Not found",
-    "closed": "Transfer closed on the console. Open it again from Settings → Tools → Transfer files.",
+    "closed": "Transfer closed on the console. Open it again from Settings → Card and data → Transfer files.",
     "home": "Arcade",
     "open_on": "Open in a browser",
     "no_network": "Wi-Fi not connected",
@@ -1032,7 +1032,8 @@
     "exp_note": "Experimental: not tried on the consoles yet.",
     "tested": "Tested on %s.",
     "needs_system": "Needs Mosaik %s: update the system first.",
-    "err_system": "Update the system first"
+    "err_system": "Update the system first",
+    "err_model": "This package is not for this console"
   },
   "support": {
     "title": "Support Mosaik",

@@ -531,6 +531,7 @@ static bool fetch_one(const item_t *it, const char *tmp, int *err) {
     if (rc == CURLE_FILESIZE_EXCEEDED) { unlink(tmp); *err = UPE_VERIFY; return false; }   /* più grande del file firmato */
     /* il server non riprende a metà: si ricomincia il file da capo (il giro dopo) */
     if (rc == CURLE_RANGE_ERROR) { unlink(tmp); *err = UPE_VERIFY; return false; }
+    if (rc == CURLE_WRITE_ERROR) { *err = UPE_WRITE; return false; }   /* scheda piena o guasta, non la rete (AGG-07) */
     if (rc != CURLE_OK) { *err = UPE_NETWORK; return false; }
     if (!flushed) { *err = UPE_WRITE; return false; }
     if (!sha256_file(tmp, sha, false) || strcmp(sha, it->sha)) { unlink(tmp); *err = UPE_VERIFY; return false; }

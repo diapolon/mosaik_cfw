@@ -869,18 +869,26 @@ void games_free(game_t *g, int n) {
 
 /* ------------------------------------------------ preferiti e recenti */
 
-static int read_list(const char *path, char keys[][LIST_KEY], int max) {
+/* *whole: la lista è stata letta tutta (o non c'è ancora). Falso se il file non si legge o ha più
+   di max righe: chi poi la riscrive non deve farlo, perderebbe le voci non lette (audit 0.9.72,
+   LAU-02: con 600 preferiti un Y ne lasciava 512, e un errore di lettura una voce sola) */
+static int read_list_ok(const char *path, char keys[][LIST_KEY], int max, bool *whole) {
     FILE *f = fopen(path, "r");
     int n = 0;
+    if (whole) *whole = !f ? errno == ENOENT : true;
     if (!f) return 0;
     char line[256];
-    while (n < max && fgets(line, sizeof line, f)) {
+    while (fgets(line, sizeof line, f)) {
         line[strcspn(line, "\r\n")] = 0;
-        if (*line) snprintf(keys[n++], LIST_KEY, "%s", line);
+        if (!*line) continue;
+        if (n >= max) { if (whole) *whole = false; break; }
+        snprintf(keys[n++], LIST_KEY, "%s", line);
     }
+    if (ferror(f) && whole) *whole = false;
     fclose(f);
     return n;
 }
+static int read_list(const char *path, char keys[][LIST_KEY], int max) { return read_list_ok(path, keys, max, NULL); }
 
 static void write_list(const char *path, char keys[][LIST_KEY], int n) {
     char tmp[1200];
@@ -968,30 +976,32 @@ static void mark_from(const char *path, game_t *g, int n, void (*set)(game_t *, 
 static void set_hidden(game_t *g, void *arg) { (void)arg; g->user_hidden = true; }
 static void set_coll(game_t *g, void *arg) { g->colls |= 1u << *(int *)arg; }
 
-static void list_set(const char *path, const game_t *g, bool add) {
+static bool list_set(const char *path, const game_t *g, bool add) {
     char (*keys)[LIST_KEY] = malloc(sizeof *keys * LIST_MAX), k[LIST_KEY];
-    if (!keys) return;
-    int n = read_list(path, keys, LIST_MAX - 1), w = 0;
+    if (!keys) return false;
+    bool whole;
+    int n = read_list_ok(path, keys, LIST_MAX - 1, &whole), w = 0;
+    if (!whole) { ui_log("lista %s non letta tutta: non la riscrivo", path); free(keys); return false; }
     key_of(g, k);
     for (int i = 0; i < n; i++)
         if (strcmp(keys[i], k)) memcpy(keys[w++], keys[i], LIST_KEY);
     if (add) memcpy(keys[w++], k, LIST_KEY);
     write_list(path, keys, w);
     free(keys);
+    return true;
 }
 
 void games_set_hidden(const char *root, game_t *g, bool hidden) {
     char p[1100];
     snprintf(p, sizeof p, "%s/System/hidden.txt", root);
-    list_set(p, g, hidden);
-    g->user_hidden = hidden;
+    if (list_set(p, g, hidden)) g->user_hidden = hidden;
 }
 
 void games_set_coll(const char *root, game_t *g, int ci, bool in) {
     if (ci < 0 || ci >= NCOLLS) return;
     char p[1100];
     snprintf(p, sizeof p, "%s/System/collections/%s.txt", root, COLLS[ci]);
-    list_set(p, g, in);
+    if (!list_set(p, g, in)) return;
     if (in) g->colls |= 1u << ci;
     else g->colls &= ~(1u << ci);
 }
@@ -1060,37 +1070,33 @@ void games_mark_lists(const char *root, game_t *g, int n) {
         snprintf(lp, sizeof lp, "%s/System/collections/%s.txt", root, COLLS[c]);
         mark_from(lp, g, n, set_coll, &c);
     }
-    char favp[1100], recp[1100], favs[512][LIST_KEY], recs[32][LIST_KEY], k[LIST_KEY];
+    char favp[1100], recp[1100], recs[32][LIST_KEY], k[LIST_KEY];
     snprintf(favp, sizeof favp, "%s/System/favorites.txt", root);
     snprintf(recp, sizeof recp, "%s/System/recent.txt", root);
-    int nf = read_list(favp, favs, 512), nr = read_list(recp, recs, 32);
+    int nf, nr = read_list(recp, recs, 32);
+    char (*favs)[LIST_KEY] = sorted_list(favp, &nf);   /* come le collezioni: fino a LIST_MAX */
     for (int i = 0; i < n; i++) {
         key_of(&g[i], k);
-        g[i].fav = false;
+        g[i].fav = nf && bsearch(k, favs, (size_t)nf, LIST_KEY, key_cmp);
         g[i].recent = 0;
-        for (int j = 0; j < nf; j++)
-            if (!strcmp(favs[j], k)) g[i].fav = true;
         for (int j = 0; j < nr; j++)
             if (!strcmp(recs[j], k)) { g[i].recent = j + 1; break; }
     }
+    free(favs);
 }
 
 void games_toggle_fav(const char *root, game_t *g) {
-    char path[1100], favs[512][LIST_KEY], k[LIST_KEY];
+    char path[1100];
     snprintf(path, sizeof path, "%s/System/favorites.txt", root);
-    int n = read_list(path, favs, 511), w = 0;
-    key_of(g, k);
-    for (int i = 0; i < n; i++)
-        if (strcmp(favs[i], k)) memcpy(favs[w++], favs[i], LIST_KEY);
-    g->fav = !g->fav;
-    if (g->fav) memcpy(favs[w++], k, LIST_KEY);
-    write_list(path, favs, w);
+    if (list_set(path, g, !g->fav)) g->fav = !g->fav;   /* lista intera, fino a LIST_MAX */
 }
 
 void games_add_recent(const char *root, game_t *g) {
     char path[1100], recs[33][LIST_KEY], k[LIST_KEY];
     snprintf(path, sizeof path, "%s/System/recent.txt", root);
-    int n = read_list(path, recs + 1, 32), w = 1;
+    bool whole;
+    int n = read_list_ok(path, recs + 1, 32, &whole), w = 1;
+    if (!whole && n == 0) { ui_log("recenti non letti: non li riscrivo"); return; }   /* più di 32 righe va bene: se ne tengono 20 */
     key_of(g, k);
     memcpy(recs[0], k, LIST_KEY);
     for (int i = 1; i <= n && w < 20; i++)

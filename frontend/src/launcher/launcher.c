@@ -1176,9 +1176,11 @@ static void empty_panel(int x, int y, int w, int h, const char *title, const cha
 }
 
 /* che cosa fa A quando la categoria è vuota */
-enum { LE_NONE, LE_REFRESH, LE_OPEN_ALL };
+enum { LE_NONE, LE_REFRESH, LE_OPEN_ALL, LE_STORE };
 static int lib_empty_kind(void) {
     if (nview) return LE_NONE;
+    /* scheda senza emulatori: copiare i giochi non basta, prima lo Store (audit 0.9.72, LAU-05) */
+    if (!NEMUS) return LE_STORE;
     if (!have_games()) return LE_REFRESH;
     if (ntabs && tabs[tab_sel] == TAB_FAV) return LE_OPEN_ALL;
     return LE_NONE;
@@ -3540,7 +3542,8 @@ static void library_draw(void) {
     int style = lib_style(), empty = lib_empty_kind();
 
     if (!nview) {
-        if (empty == LE_REFRESH) empty_panel(mx, y, W, area_h, T("lib.empty_title"), T("lib.empty_text"), T("lib.empty_text2"), T("lib.refresh"));
+        if (empty == LE_STORE) empty_panel(mx, y, W, area_h, T("store.ask_title"), T("store.ask_body"), NULL, T("store.open"));
+        else if (empty == LE_REFRESH) empty_panel(mx, y, W, area_h, T("lib.empty_title"), T("lib.empty_text"), T("lib.empty_text2"), T("lib.refresh"));
         else if (empty == LE_OPEN_ALL) empty_panel(mx, y, W, area_h, T("lib.nofav_title"), T("lib.nofav_text"), T("lib.nofav_text2"), T("lib.open_all"));
         else empty_panel(mx, y, W, area_h, T("lib.none_title"), T("library.empty"), NULL, NULL);
     } else if (style == LS_CARDS) {
@@ -3590,6 +3593,7 @@ static void library_input(void) {
         return;
     }
     if (in->pressed[BTN_A] && empty == LE_OPEN_ALL) { tab_sel = 0; lib_sel = 0; build_view(); ui_sound(SND_OK); return; }
+    if (in->pressed[BTN_A] && empty == LE_STORE) { sto_start(); ui_sound(SND_OK); return; }
     lib_common_input(lib_style() == LS_CARDS ? GRID_COLS : 1);
 }
 
@@ -7953,7 +7957,8 @@ static void cfm_input(void) {
         snprintf(msg, sizeof msg, T("store.working"), pkg_name);
         ui_busy(msg, 0);
         int r = store_offline_install(UI.root, pkg_path);
-        ui_toast(T(r == SE_NONE ? "store.done" : r == SE_UNSIGNED ? "store.err_unsigned" : "store.err_verify"));
+        ui_toast(T(r == SE_NONE ? "store.done" : r == SE_UNSIGNED ? "store.err_unsigned" : r == SE_SYSTEM ? "store.err_system"
+                   : r == SE_MODEL ? "store.err_model" : "store.err_verify"));
         reload_games();
         pkg_checked = false;   /* ce ne può essere un altro */
     } else if (k == CFM_RESETSET2) {

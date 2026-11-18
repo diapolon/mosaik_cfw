@@ -120,7 +120,7 @@
     "err_io": "Erreur d'écriture",
     "err_auth": "PIN requis",
     "err_notfound": "Introuvable",
-    "closed": "Transfert fermé sur la console. Rouvre-le depuis Réglages → Outils → Transférer des fichiers.",
+    "closed": "Transfert fermé sur la console. Rouvre-le depuis Réglages → Carte et données → Transférer des fichiers.",
     "home": "Arcade",
     "open_on": "Ouvre dans le navigateur",
     "no_network": "Wi-Fi non connecté",
@@ -1032,7 +1032,8 @@
     "exp_note": "Expérimental : pas encore essayé sur les consoles.",
     "tested": "Testé sur %s.",
     "needs_system": "Nécessite Mosaik %s : mets d'abord le système à jour.",
-    "err_system": "Mets d'abord le système à jour"
+    "err_system": "Mets d'abord le système à jour",
+    "err_model": "Ce paquet n'est pas pour cette console"
   },
   "support": {
     "title": "Soutenir Mosaik",

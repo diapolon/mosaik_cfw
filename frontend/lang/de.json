@@ -120,7 +120,7 @@
     "err_io": "Schreibfehler",
     "err_auth": "PIN nötig",
     "err_notfound": "Nicht gefunden",
-    "closed": "Übertragung auf der Konsole beendet. Wieder öffnen unter Einstellungen → Werkzeuge → Dateien übertragen.",
+    "closed": "Übertragung auf der Konsole beendet. Wieder öffnen unter Einstellungen → Karte und Daten → Dateien übertragen.",
     "home": "Arcade",
     "open_on": "Im Browser öffnen",
     "no_network": "WLAN nicht verbunden",
@@ -1032,7 +1032,8 @@
     "exp_note": "Experimentell: noch nicht auf den Konsolen getestet.",
     "tested": "Getestet auf %s.",
     "needs_system": "Benötigt Mosaik %s: zuerst das System aktualisieren.",
-    "err_system": "Zuerst das System aktualisieren"
+    "err_system": "Zuerst das System aktualisieren",
+    "err_model": "Dieses Paket ist nicht für diese Konsole"
   },
   "support": {
     "title": "Mosaik unterstützen",

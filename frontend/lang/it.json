@@ -120,7 +120,7 @@
     "err_io": "Errore di scrittura",
     "err_auth": "Serve il PIN",
     "err_notfound": "Non trovato",
-    "closed": "Trasferimento chiuso sulla console. Riaprilo da Impostazioni → Strumenti → Trasferisci file.",
+    "closed": "Trasferimento chiuso sulla console. Riaprilo da Impostazioni → Scheda e dati → Trasferisci file.",
     "home": "Arcade",
     "open_on": "Apri nel browser",
     "no_network": "Wi-Fi non collegato",
@@ -1032,7 +1032,8 @@
     "exp_note": "Sperimentale: non ancora provato sulle console.",
     "tested": "Provato su %s.",
     "needs_system": "Richiede Mosaik %s: aggiorna prima il sistema.",
-    "err_system": "Aggiorna prima il sistema"
+    "err_system": "Aggiorna prima il sistema",
+    "err_model": "Questo pacchetto non è per questa console"
   },
   "support": {
     "title": "Sostieni Mosaik",

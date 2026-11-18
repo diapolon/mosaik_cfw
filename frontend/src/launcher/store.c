@@ -1048,6 +1048,7 @@ static int install_job(void) {
         if (rc == CURLE_RANGE_ERROR || rc == CURLE_FILESIZE_EXCEEDED) unlink(part);
         /* più grande del pacchetto del catalogo: non è quello */
         if (rc == CURLE_FILESIZE_EXCEEDED) { ui_log("store: %s più grande del catalogo", e.p.file); return SE_VERIFY; }
+        if (rc == CURLE_WRITE_ERROR) { ui_log("store: %s: scrittura sulla scheda non riuscita", e.p.file); return SE_SPACE; }   /* AGG-07 */
         if (rc != CURLE_OK) { ui_log("store: %s: %s", e.p.file, curl_easy_strerror(rc)); return SE_NETWORK; }
         if (!flushed) { return SE_WRITE; }
         if (stat(part, &sb) != 0 || sb.st_size != e.p.size || !sha256_file(part, sha) || strcmp(sha, e.p.sha)) {
@@ -1391,7 +1392,7 @@ bool store_offline_find(const char *root, char *path, int pn, char *name, int nn
 /* impronta di un pacchetto in un catalogo firmato: quello tenuto sulla scheda, oppure
    store.json e store.sig copiati nella stessa cartella dello zip (scheda nuova senza rete).
    Falso se nessun catalogo firmato elenca quel file. */
-static bool signed_sha(const char *zip_path, char *sha_out) {
+static bool signed_sha(const char *zip_path, char *sha_out, int *refuse) {
     const char *b = strrchr(zip_path, '/');
     char dir[1100];
     snprintf(dir, sizeof dir, "%.*s", b ? (int)(b - zip_path) : 1, b ? zip_path : ".");
@@ -1409,7 +1410,12 @@ static bool signed_sha(const char *zip_path, char *sha_out) {
         bool ok = text && sig && signature_ok(text, tl, (unsigned char *)sig, sl) && parse_catalog(text, &e, &n);
         bool found = false;
         for (int i = 0; ok && i < n && !found; i++)
-            if (!strcmp(e[i].p.file, b)) { snprintf(sha_out, 65, "%s", e[i].p.sha); found = true; }
+            if (!strcmp(e[i].p.file, b)) {
+                snprintf(sha_out, 65, "%s", e[i].p.sha);
+                found = true;
+                /* gli stessi controlli dello Store in rete (AGG-03): sistema troppo vecchio, altro modello */
+                if (refuse) *refuse = e[i].p.needs_system ? SE_SYSTEM : e[i].p.other_model ? SE_MODEL : SE_NONE;
+            }
         if (ok) free_entries(e, n);
         free(text);
         free(sig);
@@ -1428,8 +1434,10 @@ int store_offline_install(const char *root, const char *path) {
     b = b ? b + 1 : path;
     /* rifiutato per mancanza del catalogo: non segnato come visto, così copiando accanto
        store.json e store.sig all'avvio dopo si propone di nuovo */
-    if (!signed_sha(path, want)) { ui_log("store: %s non è in un catalogo firmato: rifiutato", b); return SE_UNSIGNED; }
+    int refuse = SE_NONE;
+    if (!signed_sha(path, want, &refuse)) { ui_log("store: %s non è in un catalogo firmato: rifiutato", b); return SE_UNSIGNED; }
     mark_seen(path);
+    if (refuse) { ui_log("store: %s %s: non installato", b, refuse == SE_SYSTEM ? "chiede un sistema più nuovo" : "non è per questo modello"); return refuse; }
     if (!sha256_file(path, sha) || strcmp(sha, want)) { ui_log("store: %s non corrisponde al catalogo: non installato", b); return SE_VERIFY; }
     st.cancel = false;
     int err = install_zip(path, NULL, NULL, 0);

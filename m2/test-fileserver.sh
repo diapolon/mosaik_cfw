@@ -67,6 +67,13 @@ check "wifi.conf non scaricabile" '{"error":"path"}' "$(q "$U/api/get?path=Syste
 check "wifi.conf non nello zip" "no" "$(q -o s.zip "$U/api/zip?path=System"; unzip -l s.zip | grep -q wifi && echo si || echo no)"
 check "fuori dalla cartella" '{"error":"path"}' "$(q "$U/api/list?path=..")"
 check "fuori, nel mezzo" '{"error":"path"}' "$(q "$U/api/get?path=Saves/../System/wifi.conf")"
+# nome corto del FAT (8.3) dello stesso file: qui un collegamento fisico con un nome diverso (RETE-02)
+ln sd/System/wifi.conf "sd/System/WIFI~1.CON"
+check "wifi.conf col nome corto: rifiutato" '{"error":"path"}' "$(q "$U/api/get?path=System/WIFI~1.CON")"
+rm "sd/System/WIFI~1.CON"
+echo tilde > "sd/Saves/vero~1.txt"
+check "un file che si chiama davvero con la tilde si scarica" "tilde" "$(q "$U/api/get?path=Saves/vero~1.txt")"
+rm "sd/Saves/vero~1.txt"
 check "cartella principale non scrivibile" "false" "$(q "$U/api/list?path=" | sed 's/.*"writable":\([a-z]*\).*/\1/')"
 head -c 3000000 /dev/urandom > big.zip
 check "caricamento" '{"ok":true}' "$(q -T big.zip "$U/api/put?path=Roms/FBNEO&name=gioco%20uno.zip")"
@@ -221,6 +228,8 @@ sleep 1
 check "quinta connessione dallo stesso indirizzo: 503 subito" "503" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
 wait $LP
 check "liberate: di nuovo 200" "200" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
+# senza accesso un PUT riceve 401 subito, senza che si legga il corpo (RETE-01)
+check "PUT senza accesso: 401 senza aspettare il corpo" "401" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Length: 100000000' -H 'Expect:' --data-binary @/dev/null "$U/api/put?path=Roms&name=x.zip")"
 # errori del PIN da tanti indirizzi: 20 in un minuto bloccano tutti (con 4 per indirizzo nessuno si blocca da solo)
 for a in 2 3 4 5 6; do for i in 1 2 3 4; do curl -s --interface 127.0.0.$a -X POST -d pin=999999 $U/api/login >/dev/null; done; done
 check "20 errori da 5 indirizzi: bloccato anche un indirizzo nuovo" '{"error":"locked"}' "$(curl -s --interface 127.0.0.7 -X POST -d pin=123456 $U/api/login)"

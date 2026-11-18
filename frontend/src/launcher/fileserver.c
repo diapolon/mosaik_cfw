@@ -208,6 +208,37 @@ static bool valid_name(const char *s) {
     return true;
 }
 
+/* Nome corto del FAT (8.3, con la tilde: WIFI~1.CON) che porta a un file con un nome lungo diverso
+   (audit 0.9.72, RETE-02: System/WIFI~1.CON dava wifi.conf con la password). La pagina usa i nomi
+   lunghi che legge dalle cartelle: un nome corto che non è anche il nome lungo si rifiuta, così i
+   controlli sui nomi (segreti, nomi con il punto) valgono sempre. */
+static bool short_alias(const char *rel) {
+    char tmp[1024], dir[1300], full[1600];
+    snprintf(tmp, sizeof tmp, "%s", rel);
+    snprintf(dir, sizeof dir, "%s", root);
+    char *save = NULL;
+    for (char *c = strtok_r(tmp, "/", &save); c; c = strtok_r(NULL, "/", &save)) {
+        snprintf(full, sizeof full, "%s/%s", dir, c);
+        struct stat cs;
+        if (strchr(c, '~') && stat(full, &cs) == 0) {
+            DIR *d = opendir(dir);
+            struct dirent *e;
+            bool alias = false;
+            while (d && !alias && (e = readdir(d))) {
+                char ep[1600];
+                struct stat es;
+                if (!strcasecmp(e->d_name, c)) continue;   /* è il suo nome lungo */
+                snprintf(ep, sizeof ep, "%s/%s", dir, e->d_name);
+                alias = stat(ep, &es) == 0 && es.st_ino == cs.st_ino && es.st_dev == cs.st_dev;
+            }
+            if (d) closedir(d);
+            if (alias) return true;
+        }
+        snprintf(dir, sizeof dir, "%s", full);
+    }
+    return false;
+}
+
 /* percorso relativo ad Arcade/: componenti valide separate da '/'; "" è la cartella principale */
 static bool rel_ok(const char *rel) {
     if (strlen(rel) > 900) return false;
@@ -218,7 +249,7 @@ static bool rel_ok(const char *rel) {
     int n = 0;
     for (char *c = strtok_r(tmp, "/", &save); c; c = strtok_r(NULL, "/", &save), n++)
         if (!valid_name(c)) return false;
-    return n > 0 && rel[0] != '/' && rel[strlen(rel) - 1] != '/' && !strstr(rel, "//");
+    return n > 0 && rel[0] != '/' && rel[strlen(rel) - 1] != '/' && !strstr(rel, "//") && !(strchr(rel, '~') && short_alias(rel));
 }
 
 static int depth(const char *rel) {
@@ -413,7 +444,9 @@ static int small_body(req_t *r, char *out, int n) {
     if (r->clen < 0 || r->clen >= n) return -1;
     int got = r->have < r->clen ? r->have : (int)r->clen;
     memcpy(out, r->head + r->body_off, (size_t)got);
+    time_t t0 = time(NULL);
     while (got < r->clen) {
+        if (time(NULL) - t0 > FS_HEAD_SECONDS) return -1;   /* anche il corpo breve ha un tempo massimo (RETE-01) */
         ssize_t k = recv(r->fd, out + got, (size_t)(r->clen - got), 0);
         if (k < 0 && errno == EINTR) continue;
         if (k <= 0) return -1;
@@ -929,9 +962,13 @@ static bool make_parents(const char *rel) {
 }
 
 /* scarta il resto del corpo, così il browser riceve la risposta invece di un errore di rete */
+/* il corpo di una richiesta rifiutata: si legge per poter rispondere, ma al massimo 1 MB e 10 s,
+   poi si chiude (RETE-01: un corpo lento teneva occupata la connessione) */
 static void drain(req_t *r, long long left) {
     char buf[16384];
-    while (left > 0 && !atomic_load(&stop_req)) {
+    if (left > (1LL << 20)) left = 1LL << 20;
+    time_t t0 = time(NULL);
+    while (left > 0 && !atomic_load(&stop_req) && time(NULL) - t0 <= FS_HEAD_SECONDS) {
         ssize_t k = recv(r->fd, buf, left < (long long)sizeof buf ? (size_t)left : sizeof buf, 0);
         if (k < 0 && errno == EINTR) continue;
         if (k <= 0) break;
@@ -951,7 +988,7 @@ static void do_put(req_t *r) {
     if (!writable(rel)) { drain(r, body); reply_err(r->fd, 403, "readonly"); return; }
     if (r->clen > 0xFFFFFFFFLL - 1) { drain(r, body); reply_err(r->fd, 413, "toolarge"); return; }   /* limite del FAT */
     struct statvfs vs;
-    if (statvfs(root, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < r->clen + (1 << 20)) { drain(r, body); reply_err(r->fd, 507, "space"); return; }
+    if (statvfs(root, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < r->clen + (64LL << 20)) { drain(r, body); reply_err(r->fd, 507, "space"); return; }   /* 64 MB liberi per salvataggi e impostazioni (RETE-04) */
     char full[2400], part[2500];
     full_path(full, sizeof full, rel);
     struct stat sb;
@@ -1130,9 +1167,10 @@ static bool restore_check(void) {
 static void do_restore_upload(req_t *r) {
     long long body = r->clen - (r->have > 0 ? r->have : 0);
     if (r->clen <= 0 || r->clen > 0xFFFFFFFFLL - 1) { drain(r, body); reply_err(r->fd, 413, "toolarge"); return; }   /* limite del FAT */
-    if (atomic_load(&restore_state) == FS_RS_RUNNING) { drain(r, body); reply_err(r->fd, 409, "exists"); return; }
+    /* anche con la domanda aperta sulla console: si confermerebbe un backup diverso da quello mostrato (RETE-05) */
+    if (atomic_load(&restore_state) == FS_RS_RUNNING || atomic_load(&restore_state) == FS_RS_PENDING) { drain(r, body); reply_err(r->fd, 409, "exists"); return; }
     struct statvfs vs;
-    if (statvfs(root, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < 2 * r->clen + (1 << 20)) { drain(r, body); reply_err(r->fd, 507, "space"); return; }
+    if (statvfs(root, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < 2 * r->clen + (64LL << 20)) { drain(r, body); reply_err(r->fd, 507, "space"); return; }
     char full[1200], part[1300];
     full_path(full, sizeof full, RESTORE_ZIP);
     snprintf(part, sizeof part, "%s.part", full);
@@ -1470,7 +1508,8 @@ static void handle(int fd) {
     /* la pagina, l'accesso e i rifiuti senza aspettare; il resto una richiesta alla volta */
     if (get && (!strcmp(r->path, "/") || !strcmp(r->path, "/index.html"))) { do_page(r); free(r); return; }
     if (post && !strcmp(r->path, "/api/login")) { do_login(r); free(r); return; }
-    if (!strncmp(r->path, "/api/", 5) && !authed(r)) { if (put) drain(r, r->clen - r->have); reply_err(fd, 401, "auth"); free(r); return; }
+    /* senza accesso: 401 subito, senza leggere il corpo (RETE-01) */
+    if (!strncmp(r->path, "/api/", 5) && !authed(r)) { (void)put; reply_err(fd, 401, "auth"); free(r); return; }
     pthread_mutex_lock(&work_mu);
     if (get && !strcmp(r->path, "/api/info")) do_info(r);
     else if (get && !strcmp(r->path, "/api/list")) do_list(r);

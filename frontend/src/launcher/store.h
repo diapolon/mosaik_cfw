@@ -19,7 +19,7 @@
 #include <stddef.h>
 
 enum { ST_IDLE, ST_LOADING, ST_READY, ST_WORKING, ST_DONE, ST_FAILED };
-enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL, SE_UNSIGNED, SE_SYSTEM };
+enum { SE_NONE, SE_NETWORK, SE_SIGNATURE, SE_CATALOG, SE_SPACE, SE_VERIFY, SE_WRITE, SE_CORE, SE_CANCEL, SE_UNSIGNED, SE_SYSTEM, SE_MODEL };
 /* PKG_OLD: arrivato col sistema, senza versione; PKG_ARCHIVED: archiviato (solo l'emulatore tolto,
    giochi e salvataggi restano), come sulla Switch: si riscarica con un pulsante */
 enum { PKG_ABSENT, PKG_INSTALLED, PKG_UPDATE, PKG_OLD, PKG_ARCHIVED };

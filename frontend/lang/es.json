@@ -120,7 +120,7 @@
     "err_io": "Error de escritura",
     "err_auth": "Hace falta el PIN",
     "err_notfound": "No encontrado",
-    "closed": "Transferencia cerrada en la consola. Ábrela de nuevo en Ajustes → Herramientas → Transferir archivos.",
+    "closed": "Transferencia cerrada en la consola. Ábrela de nuevo en Ajustes → Tarjeta y datos → Transferir archivos.",
     "home": "Arcade",
     "open_on": "Abre en el navegador",
     "no_network": "Wi-Fi no conectado",
@@ -1032,7 +1032,8 @@
     "exp_note": "Experimental: aún no probado en las consolas.",
     "tested": "Probado en %s.",
     "needs_system": "Requiere Mosaik %s: actualiza antes el sistema.",
-    "err_system": "Actualiza antes el sistema"
+    "err_system": "Actualiza antes el sistema",
+    "err_model": "Este paquete no es para esta consola"
   },
   "support": {
     "title": "Apoya Mosaik",
