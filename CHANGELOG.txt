@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.76
+it Nintendo 64 e Flycast: pagina Comandi nel menu (Menu tenuto), con i tasti della TrimUI
+en Nintendo 64 and Flycast: Controls page in the menu (hold Menu), with the TrimUI buttons
+it Nintendo 64 e Dreamcast: A, B, X e Y sono i tasti con quelle lettere
+en Nintendo 64 and Dreamcast: A, B, X and Y are the buttons with those letters
+
 0.9.75
 it Nintendo 64: Salva e Carica stato nel menu (Menu tenuto), con mupen64plus aggiornato dallo Store
 en Nintendo 64: Save and Load state in the menu (hold Menu), with mupen64plus updated from the Store
