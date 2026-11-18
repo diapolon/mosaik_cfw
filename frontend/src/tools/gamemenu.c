@@ -15,8 +15,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { GM_RESUME, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_COUNT };
-enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20, RC_REBOOT = 21, RC_SLEEP = 30 };
+enum { GM_RESUME, GM_SAVE, GM_LOAD, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_ALL };
+enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20, RC_REBOOT = 21, RC_SLEEP = 30,
+       RC_SAVE = 40, RC_LOAD = 41 };
+/* voci mostrate: Salva e Carica stato solo con --states (emulatori con "states": true, come il
+   Nintendo 64: gamewatch manda poi SIGUSR1 o SIGUSR2 al programma) */
+static int rows[GM_ALL], GM_COUNT;
 static bool asking;       /* finestra "sospendere?" aperta */
 static int ask_sel = 1;
 
@@ -25,7 +29,9 @@ static int sel;
 static int g_px, g_py, g_pw, g_ph, g_rows_y, g_rh;
 
 static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
-    static const char *keys[GM_COUNT] = { "game.back_to_game", "settings.volume", "settings.brightness", "game.exit" };
+    static const char *keys[GM_ALL] = { "game.back_to_game", "game.save_state", "game.load_state", "settings.volume",
+                                        "settings.brightness", "game.exit" };
+    i = rows[i];
     snprintf(label, ln, "%s", T(keys[i]));
     value[0] = 0;
     if (i == GM_VOLUME) snprintf(value, vn, "%d", UI.set.volume);
@@ -105,12 +111,15 @@ static int input(void) {
     if (in->pressed[BTN_UP]) { sel = (sel + GM_COUNT - 1) % GM_COUNT; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { sel = (sel + 1) % GM_COUNT; ui_sound(SND_MOVE); }
     int d = in->pressed[BTN_RIGHT] ? 1 : in->pressed[BTN_LEFT] ? -1 : 0;
-    if (d && sel == GM_VOLUME) { UI.set.volume = UI.set.volume + d < 0 ? 0 : UI.set.volume + d > 20 ? 20 : UI.set.volume + d; settings_save(&UI.set, UI.root); }
-    if (d && sel == GM_BRIGHT) { UI.set.brightness = UI.set.brightness + d < 1 ? 1 : UI.set.brightness + d > 10 ? 10 : UI.set.brightness + d; settings_save(&UI.set, UI.root); }
+    int it = rows[sel];
+    if (d && it == GM_VOLUME) { UI.set.volume = UI.set.volume + d < 0 ? 0 : UI.set.volume + d > 20 ? 20 : UI.set.volume + d; settings_save(&UI.set, UI.root); }
+    if (d && it == GM_BRIGHT) { UI.set.brightness = UI.set.brightness + d < 1 ? 1 : UI.set.brightness + d > 10 ? 10 : UI.set.brightness + d; settings_save(&UI.set, UI.root); }
     if (in->pressed[BTN_B] || in->pressed[BTN_MENU] || UI.in.home) return RC_RESUME;
     if (in->pressed[BTN_A]) {
-        if (sel == GM_RESUME) return RC_RESUME;
-        if (sel == GM_QUIT) return RC_QUIT;
+        if (it == GM_RESUME) return RC_RESUME;
+        if (it == GM_SAVE) return RC_SAVE;
+        if (it == GM_LOAD) return RC_LOAD;
+        if (it == GM_QUIT) return RC_QUIT;
     }
     if (UI.in.power) { asking = true; ask_sel = UI_PW_SUSPEND; return -1; }
     if (UI.in.power_long) return RC_POWER;
@@ -326,6 +335,7 @@ static int volume_osd(int delta) {
 }
 
 int main(int argc, char **argv) {
+    bool states = false;
     const char *root = getenv("ROOT") ? getenv("ROOT") : "/mnt/SDCARD/Arcade", *shot = NULL;
     const char *title = getenv("ARCADE_TITLE");
     int volume = 0;
@@ -333,10 +343,13 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--volume") && i + 1 < argc) { volume = atoi(argv[++i]); continue; }
         if (!strcmp(argv[i], "--ask-suspend")) { asking = only_ask = true; continue; }   /* solo la finestra, sopra il gioco */
+        if (!strcmp(argv[i], "--states")) { states = true; continue; }
         if (!strcmp(argv[i], "--root") && i + 1 < argc) root = argv[++i];
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--title") && i + 1 < argc) title = argv[++i];
     }
+    for (int i = 0; i < GM_ALL; i++)
+        if (states || (i != GM_SAVE && i != GM_LOAD)) rows[GM_COUNT++] = i;
     if (!ui_init_offscreen("Arcade", root)) return RC_UNAVAILABLE;
     if (volume) return volume_osd(volume);
     if (!title || !*title) title = T("game.linux_game");

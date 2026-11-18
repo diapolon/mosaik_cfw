@@ -3,6 +3,7 @@
   "kind": "console",
   "core": "mupen64plus",
   "launch": "Cores/mupen64plus/launch.sh",
+  "states": true,
   "roms": "Roms/N64",
   "extensions": [
     "z64",

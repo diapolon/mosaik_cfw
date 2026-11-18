@@ -22,8 +22,9 @@ OUT=/build/out/mupen64plus
 rm -rf "$SRC"
 mkdir -p "$SRC" "$OUT"
 cp -a /trimui/deps/mupen64plus/. "$SRC/"
-# modifica di Mosaik: con SIGTERM (uscita dal menu di Mosaik, spegnimento) l'emulazione si ferma
-# e il core scrive i salvataggi della cartuccia, invece di morire sul colpo
+# modifiche di Mosaik: con SIGTERM (uscita dal menu di Mosaik, spegnimento) l'emulazione si ferma
+# e il core scrive i salvataggi della cartuccia, invece di morire sul colpo; SIGUSR1 e SIGUSR2 salvano e
+# caricano lo stato (menu di Mosaik); fotogrammi al secondo nel log ogni 10 s
 patch -s -p1 -d "$SRC/mupen64plus-ui-console" < /trimui/toolchain/patches/mupen64plus-ui-console-mosaik.patch
 LOG="$OUT/build.log"
 : > "$LOG"

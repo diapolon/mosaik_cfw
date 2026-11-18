@@ -248,6 +248,10 @@ int main(int argc, char **argv) {
        del tasto di accensione non si vedrebbe, quindi la pressione breve sospende senza chiedere.
        Le app hanno solo GAMEWATCH_NOMENU: Menu è loro, ma la finestra Sospendi/Riavvia/Spegni sì. */
     bool nooverlay = getenv("GAMEWATCH_NOOVERLAY") && getenv("GAMEWATCH_NOOVERLAY")[0] == '1';
+    /* GAMEWATCH_STATES=1 (emulatori con "states": true, il Nintendo 64): Salva e Carica stato nel
+       menu; a menu chiuso il gruppo del gioco riceve SIGUSR1 (salva) o SIGUSR2 (carica), che il
+       launch.sh ignora e l'emulatore esegue */
+    bool states = getenv("GAMEWATCH_STATES") && getenv("GAMEWATCH_STATES")[0] == '1';
     if (nomenu) fprintf(stderr, "gamewatch: senza il menu di Mosaik (si esce dal menu del programma)\n");
     if (nomenu || nooverlay) stop_steps = 100;
     double power_at = 0;
@@ -402,9 +406,13 @@ int main(int argc, char **argv) {
             open_menu = false;
             if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }   /* un livello alla volta */
             kill(-pid, SIGSTOP);
-            int m = run_menu(NULL);
+            int m = run_menu(states ? "--states" : NULL);
             fprintf(stderr, "gamewatch: menu chiuso (%d)\n", m);
             kill(-pid, SIGCONT);
+            if (states && (m == 40 || m == 41)) {
+                fprintf(stderr, "gamewatch: %s lo stato\n", m == 40 ? "salvo" : "carico");
+                kill(-pid, m == 40 ? SIGUSR1 : SIGUSR2);
+            }
             if (m == 10 || m == 20 || m == 21) {
                 stop_group(pid);
                 if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }

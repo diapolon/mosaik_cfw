@@ -728,6 +728,7 @@ static void launch_ex(game_t *g, bool resume) {
             /* emulatori con un menu loro (Deadcast, Flycast, PPSSPP, N64): niente menu di Mosaik, e
                il livello del menu sopra di loro non si vede: il tasto di accensione sospende subito */
             if (xemu->nomenu) fputs("export GAMEWATCH_NOMENU=1\nexport GAMEWATCH_NOOVERLAY=1\n", ef);
+            else if (xemu->states) fputs("export GAMEWATCH_STATES=1\n", ef);
             if (xemu->cpu) {   /* la frequenza dell'emulatore anche per il menu sopra il gioco */
                 static const int khz[5] = { 0, 816000, 1200000, 1608000, 2000000 };
                 fprintf(ef, "export ARCADE_CPU_KHZ=%d\n", khz[xemu->cpu]);

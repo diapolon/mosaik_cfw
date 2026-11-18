@@ -1,14 +1,15 @@
---- a/src/main.c	2026-11-13 09:30:06
-+++ b/src/main.c	2026-11-13 09:30:06
-@@ -25,6 +25,7 @@
+--- a/src/main.c
++++ b/src/main.c
+@@ -25,6 +25,8 @@
   * for Mupen64Plus v2.0.
   */
  
 +#include <signal.h>
++#include <time.h>
  #include <stdarg.h>
  #include <stdio.h>
  #include <stdlib.h>
-@@ -913,6 +914,15 @@
+@@ -913,6 +915,44 @@
   */
  __attribute__ ((visibility("default")))
  #endif
@@ -21,15 +22,48 @@
 +        (*CoreDoCommand)(M64CMD_STOP, 0, NULL);
 +}
 +
++/* Mosaik: "Save state" and "Load state" in the Mosaik menu over the game. gamewatch sends
++ * SIGUSR1 (save) or SIGUSR2 (load) after the menu closes; the core runs the job at the next
++ * frame, in the current slot (Saves/n64/state). */
++static void mosaik_state(int sig)
++{
++    if (CoreDoCommand != NULL)
++        (*CoreDoCommand)(sig == SIGUSR1 ? M64CMD_STATE_SAVE : M64CMD_STATE_LOAD, 0, NULL);
++}
++
++/* Mosaik: frames per second in the log every 10 s (Logs/linux-games.log), to see how fast each
++ * game runs on the console (60 is full speed for NTSC games, 50 for PAL). */
++static void mosaik_frame(unsigned int index)
++{
++    static unsigned int count;
++    static struct timespec start;
++    struct timespec t;
++    (void)index;
++    clock_gettime(CLOCK_MONOTONIC, &t);
++    if (start.tv_sec == 0) { start = t; count = 0; return; }
++    count++;
++    double dt = (double)(t.tv_sec - start.tv_sec) + (double)(t.tv_nsec - start.tv_nsec) / 1e9;
++    if (dt >= 10.0) {
++        /* a pause (Mosaik menu, sleep) stops the frames: that window is not a measure */
++        if (dt < 12.0) { printf("mupen64plus: %.1f fps\n", count / dt); fflush(stdout); }
++        start = t;
++        count = 0;
++    }
++}
++
  int main(int argc, char *argv[])
  {
      int i;
-@@ -1135,6 +1145,9 @@
+@@ -1135,6 +1175,13 @@
      if (l_SaveOptions && (*ConfigHasUnsavedChanges)(NULL))
          (*ConfigSaveFile)();
  
 +    signal(SIGTERM, mosaik_stop);
 +    signal(SIGINT, mosaik_stop);
++    signal(SIGUSR1, mosaik_state);
++    signal(SIGUSR2, mosaik_state);
++    if (l_TestShotList == NULL)
++        (*CoreDoCommand)(M64CMD_SET_FRAME_CALLBACK, 0, mosaik_frame);
 +
      /* run the game */
      (*CoreDoCommand)(M64CMD_EXECUTE, 0, NULL);

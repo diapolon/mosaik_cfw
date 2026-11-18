@@ -34,6 +34,9 @@ echo 1 >/proc/sys/kernel/printk 2>/dev/null
 
 cd "$DIR" || exit 1
 export LD_LIBRARY_PATH="$DIR/lib:$LD_LIBRARY_PATH"
+# Salva e Carica stato nel menu di Mosaik (dalla 0.9.75): gamewatch manda SIGUSR1 o SIGUSR2 a tutto
+# il gruppo; lo script li ignora (altrimenti terminerebbe), mupen64plus li gestisce da sé
+trap '' USR1 USR2
 # in secondo piano con wait: SIGTERM di gamewatch si passa all'emulatore, che ferma il gioco e
 # scrive i salvataggi prima di uscire
 "$DIR/mupen64plus" --corelib "$DIR/lib/libmupen64plus.so.2" --datadir "$DIR/share" \

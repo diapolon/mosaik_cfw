@@ -61,6 +61,7 @@ int emulators_load(const char *root) {
         snprintf(m->art, sizeof m->art, "%s", json_str(j, "art", ""));
         snprintf(m->launch, sizeof m->launch, "%s", json_str(j, "launch", ""));
         m->nomenu = !json_bool(j, "menu", true);
+        m->states = json_bool(j, "states", false);
         m->cpu = json_int(j, "cpu", 0);
         if (m->cpu < 0 || m->cpu > 4) m->cpu = 0;
         m->folders = json_bool(j, "folders", false);
