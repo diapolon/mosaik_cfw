@@ -35,7 +35,7 @@
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket**, with battery saves written every 10 seconds (also the clock of the Pokémon games), separate saves for each console and zipped ROMs.
 - **PlayStation** (PCSX ReARMed) with the DualShock sticks: `.chd`, `.cue` and `.pbp` discs, games on several discs with a `.m3u` file and the disc change in the game menu.
 - **Dreamcast** with [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast) on the Brick Pro, and with [Flycast](https://github.com/flyinghead/flycast) on the Smart Pro (experimental): the Store offers each console its own.
-- **More consoles in the Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 and 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; experimental PSP (PPSSPP) and Nintendo 64 (Mupen64Plus).
+- **More consoles in the Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 and 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy, Nintendo 64 (Mupen64Plus, with save states); experimental PSP (PPSSPP).
 - **Computers**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) and Amiga, with their emulators' on-screen keyboards.
 - **Covers and game information for consoles too**: box art, title, year, publisher, genre and players, found by the ROM itself.
 - **Linux games**, with an in-game menu and sleep; from the Store (0.9.58, experimental): Freedoom, Mr.Boom and Diablo (with your own game files).
@@ -170,7 +170,7 @@ Turn the console off and connect the card to your computer. Everything is in the
 | `Video` | Videos for the Video app (MP4, MKV, WebM, AVI, MOV) |
 | `Saves` | Saves |
 
-Keep arcade ROMs as `.zip` and don't rename them. Cartridge games for NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket can be zipped or not, one game per zip; for the other consoles copy the files as they are; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → ROMs and images → Verify ROMs** checks that every zip contains the right files (**Full** also reads all the data and finds damaged files), and the game's details page (X) shows what's missing, including a BIOS. The Dreamcast menu is the emulator's own (Deadcast or Flycast): open it with Menu and always quit the game from there, so the memory-card saves are written.
+Keep arcade ROMs as `.zip` and don't rename them. Cartridge games for NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance and Neo Geo Pocket can be zipped or not, one game per zip; for the other consoles copy the files as they are; the GBA doesn't need a BIOS. For a PlayStation game on several discs, list the discs in a `.m3u` file in the same folder: only the `.m3u` shows in the list, and **Disc** in the game menu changes disc. A PlayStation BIOS (`scph5501.bin`…) in `Bios` is optional. **Settings → ROMs and images → Verify ROMs** checks that every zip contains the right files (**Full** also reads all the data and finds damaged files), and the game's details page (X) shows what's missing, including a BIOS. The Dreamcast menu is the emulator's own (Deadcast or Flycast): open it with Menu and always quit the game from there, so the memory-card saves are written; with Flycast, holding Menu opens Mosaik's menu. On the Dreamcast and the Nintendo 64, A, B, X and Y are the buttons with those letters.
 
 For covers and information, connect to Wi-Fi and use **Settings → ROMs and images → Download images**.
 
@@ -203,7 +203,7 @@ Arcade/Linux/MyGame/
 
 | Button | What it does |
 |---|---|
-| Power, short press | Asks whether to sleep, even during a game: confirm with A or by pressing power again (from 0.9.70: Cancel, Sleep, Restart or Power off). Press it once more to wake |
+| Power, short press | A window with Cancel, Sleep, Restart and Power off, even during a game; pressing power again sleeps. Press it once more to wake |
 | Power, held | Asks whether to power off. During a game it saves and powers off |
 | Volume + / − | Volume, with an on-screen bar even in games |
 | A / B | Confirm / back |
@@ -214,7 +214,7 @@ Arcade/Linux/MyGame/
 | Menu (in the Mosaik menu) | Quick panel: battery, Wi-Fi, brightness, volume, LED, music, screenshot, power off |
 | L / R | Switch tabs in the library |
 | Menu (arcade and console games) | Game menu: switch game, save and load state, aspect ratio, filter, controls, exit |
-| Menu held 1 s (Linux games) | Menu over the paused game |
+| Menu held 1 s (Linux games, Nintendo 64, Flycast) | Menu over the paused game; for the Nintendo 64 also save and load state, and for both emulators a **Controls** page with the original buttons and the TrimUI ones |
 
 **Shortcuts in arcade and console games (hold Menu):**
 

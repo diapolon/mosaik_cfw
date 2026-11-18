@@ -35,7 +35,7 @@
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket**, con i salvataggi a batteria scritti ogni 10 secondi (anche l'orologio dei Pokémon), salvataggi separati per ogni console e le ROM zippate.
 - **PlayStation** (PCSX ReARMed) con le levette del DualShock: dischi `.chd`, `.cue` e `.pbp`, giochi su più dischi con un file `.m3u` e il cambio disco nel menu di gioco.
 - **Dreamcast** con [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast) sulla Brick Pro e con [Flycast](https://github.com/flyinghead/flycast) sulla Smart Pro (sperimentale): lo Store propone a ogni console il suo.
-- **Altre console nello Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 e 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy; sperimentali PSP (PPSSPP) e Nintendo 64 (Mupen64Plus).
+- **Altre console nello Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 e 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy, Nintendo 64 (Mupen64Plus, con gli stati salvati); sperimentale PSP (PPSSPP).
 - **Computer**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) e Amiga, con la tastiera a schermo dei loro emulatori.
 - **Copertine e informazioni anche per le console**: scatola, titolo, anno, editore, genere e giocatori, trovati dalla ROM stessa.
 - **Giochi Linux**, con menu sopra al gioco e sospensione; dallo Store (0.9.58, sperimentali): Freedoom, Mr.Boom e Diablo (con i file del gioco originale).
@@ -170,7 +170,7 @@ Spegni la console e collega la scheda al computer. Tutto si trova nella cartella
 | `Video` | Video per l'app Video (MP4, MKV, WebM, AVI, MOV) |
 | `Saves` | Salvataggi |
 
-Tieni le ROM arcade in `.zip` e non cambiare il nome. I giochi a cartuccia di NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket possono essere zippati o no, un gioco per zip; per le altre console copia i file così come sono; il GBA non ha bisogno del BIOS. Per un gioco PlayStation su più dischi, elenca i dischi in un file `.m3u` nella stessa cartella: in elenco compare solo il `.m3u`, e **Disco** nel menu di gioco cambia disco. Un BIOS PlayStation (`scph5501.bin`…) in `Bios` è facoltativo. **Impostazioni → ROM e immagini → Verifica ROM** controlla che ogni zip contenga i file giusti (**Completa** legge anche tutti i dati e trova i file rovinati), e la scheda del gioco (X) mostra cosa manca, compreso un BIOS. Il menu del Dreamcast è quello dell'emulatore (Deadcast o Flycast): si apre con Menu, ed è da lì che si esce sempre dal gioco, così i salvataggi della memory card vengono scritti.
+Tieni le ROM arcade in `.zip` e non cambiare il nome. I giochi a cartuccia di NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket possono essere zippati o no, un gioco per zip; per le altre console copia i file così come sono; il GBA non ha bisogno del BIOS. Per un gioco PlayStation su più dischi, elenca i dischi in un file `.m3u` nella stessa cartella: in elenco compare solo il `.m3u`, e **Disco** nel menu di gioco cambia disco. Un BIOS PlayStation (`scph5501.bin`…) in `Bios` è facoltativo. **Impostazioni → ROM e immagini → Verifica ROM** controlla che ogni zip contenga i file giusti (**Completa** legge anche tutti i dati e trova i file rovinati), e la scheda del gioco (X) mostra cosa manca, compreso un BIOS. Il menu del Dreamcast è quello dell'emulatore (Deadcast o Flycast): si apre con Menu, ed è da lì che si esce sempre dal gioco, così i salvataggi della memory card vengono scritti; con Flycast, tenendo premuto Menu si apre il menu di Mosaik. Su Dreamcast e Nintendo 64 A, B, X e Y sono i tasti con quelle lettere.
 
 Per copertine e informazioni, collega il Wi-Fi e usa **Impostazioni → ROM e immagini → Scarica immagini**.
 
@@ -203,7 +203,7 @@ Arcade/Linux/MioGioco/
 
 | Tasto | Cosa fa |
 |---|---|
-| Accensione, breve | Chiede se sospendere, anche durante un gioco: conferma con A o premendo di nuovo (dalla 0.9.70: Annulla, Sospendi, Riavvia o Spegni). Un'altra pressione risveglia |
+| Accensione, breve | Una finestra con Annulla, Sospendi, Riavvia e Spegni, anche durante un gioco; premendo di nuovo si sospende. Un'altra pressione risveglia |
 | Accensione, tenuto | Chiede se spegnere. Durante un gioco salva la partita e spegne |
 | Volume + / − | Volume, con una barra a schermo anche in gioco |
 | A / B | Conferma / indietro |
@@ -214,7 +214,7 @@ Arcade/Linux/MioGioco/
 | Menu (nel menu di Mosaik) | Pannello rapido: batteria, Wi-Fi, luminosità, volume, LED, musica, cattura, spegni |
 | L / R | Cambiano scheda in libreria |
 | Menu (giochi arcade e console) | Menu del gioco: Cambia gioco, salva e carica stato, proporzioni, filtro, comandi, esci |
-| Menu tenuto 1 s (giochi Linux) | Menu sopra al gioco fermo |
+| Menu tenuto 1 s (giochi Linux, Nintendo 64, Flycast) | Menu sopra al gioco fermo; per il Nintendo 64 anche salva e carica stato, e per i due emulatori una pagina **Comandi** con i tasti originali e quelli della TrimUI |
 
 **Tasti rapidi nei giochi arcade e console (tieni premuto Menu):**
 
