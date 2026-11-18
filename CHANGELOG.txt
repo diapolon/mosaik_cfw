@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.77
+it Store: la scheda di un pacchetto non dice più "Provato su": se lo vedi, funziona sulla tua console
+en Store: a package page no longer says "Tested on": if you see it, it works on your console
+
 0.9.76
 it Nintendo 64 e Flycast: pagina Comandi nel menu (Menu tenuto), con i tasti della TrimUI
 en Nintendo 64 and Flycast: Controls page in the menu (hold Menu), with the TrimUI buttons
