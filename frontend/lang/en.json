@@ -1143,5 +1143,16 @@
     "right": "Right",
     "note": "If the sound comes from the side opposite the highlighted one, the channels are swapped.",
     "again": "Again"
+  },
+  "controls": {
+    "stick": "Stick",
+    "lstick": "Left stick",
+    "rstick": "Right stick",
+    "dpad": "D-pad",
+    "c_buttons": "C buttons",
+    "c_left_up": "C left · C up",
+    "emu_menu": "Flycast menu",
+    "pad": "TrimUI",
+    "note": "Default controls. B to go back to the menu."
   }
 }

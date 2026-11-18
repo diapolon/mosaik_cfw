@@ -1143,5 +1143,16 @@
     "right": "Destra",
     "note": "Se il suono arriva dal lato opposto a quello acceso, i canali sono invertiti.",
     "again": "Ripeti"
+  },
+  "controls": {
+    "stick": "Levetta",
+    "lstick": "Levetta sinistra",
+    "rstick": "Levetta destra",
+    "dpad": "Croce",
+    "c_buttons": "Tasti C",
+    "c_left_up": "C sinistra · C su",
+    "emu_menu": "Menu di Flycast",
+    "pad": "TrimUI",
+    "note": "Comandi di partenza. B per tornare al menu."
   }
 }

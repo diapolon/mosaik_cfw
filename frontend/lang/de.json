@@ -1143,5 +1143,16 @@
     "right": "Rechts",
     "note": "Kommt der Ton von der Gegenseite der hervorgehobenen, sind die Kanäle vertauscht.",
     "again": "Nochmal"
+  },
+  "controls": {
+    "stick": "Stick",
+    "lstick": "Linker Stick",
+    "rstick": "Rechter Stick",
+    "dpad": "Steuerkreuz",
+    "c_buttons": "C-Tasten",
+    "c_left_up": "C links · C oben",
+    "emu_menu": "Flycast-Menü",
+    "pad": "TrimUI",
+    "note": "Standardsteuerung. B, um zum Menü zurückzukehren."
   }
 }

@@ -13,5 +13,17 @@
   "art": "n64",
   "short": "N64",
   "thumbnails": "Nintendo - Nintendo 64",
-  "order": 36
+  "order": 36,
+  "controls": [
+    ["A", "A"],
+    ["B", "B"],
+    ["Z", "L2 · R2"],
+    ["L", "L1"],
+    ["R", "R1"],
+    ["Start", "Start"],
+    ["@stick", "@lstick"],
+    ["@dpad", "@dpad"],
+    ["@c_buttons", "@rstick"],
+    ["@c_left_up", "Y · X"]
+  ]
 }

@@ -11,26 +11,96 @@
    Sul Mac: gamemenu --root sdcard --shot file.png disegna una schermata di prova. */
 #include "../common/ui.h"
 #include "../common/platform.h"
+#include "../common/json.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-enum { GM_RESUME, GM_SAVE, GM_LOAD, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_ALL };
+enum { GM_RESUME, GM_SAVE, GM_LOAD, GM_CONTROLS, GM_VOLUME, GM_BRIGHT, GM_QUIT, GM_ALL };
 enum { RC_RESUME = 0, RC_UNAVAILABLE = 3, RC_QUIT = 10, RC_POWER = 20, RC_REBOOT = 21, RC_SLEEP = 30,
        RC_SAVE = 40, RC_LOAD = 41 };
 /* voci mostrate: Salva e Carica stato solo con --states (emulatori con "states": true, come il
    Nintendo 64: gamewatch manda poi SIGUSR1 o SIGUSR2 al programma) */
 static int rows[GM_ALL], GM_COUNT;
+
+/* geometria del pannello e delle righe (in pixel dell'immagine del menu) */
+static int g_px, g_py, g_pw, g_ph, g_rows_y, g_rh;
+/* pagina Comandi: le coppie "comando del controller originale" -> "tasto della TrimUI" della voce
+   "controls" del JSON dell'emulatore (ARCADE_EMU, scritto dal launcher), per esempio
+   ["Z", "L2 · R2"]; un testo che comincia con @ è una voce della sezione "controls" delle lingue */
+#define MAX_CTL 24
+static char ctl[MAX_CTL][2][80], ctl_head[64];
+static int nctl, ctl_scroll;
+static bool ctl_page;
+static int g_area_h;   /* altezza della zona delle righe, fino alla nota in fondo */
+
+static void ctl_text(const char *s, char *out, size_t n) {
+    if (s[0] == '@') {
+        char k[64];
+        snprintf(k, sizeof k, "controls.%s", s + 1);
+        snprintf(out, n, "%s", T(k));
+    } else snprintf(out, n, "%s", s);
+}
+
+static void load_controls(const char *root) {
+    const char *id = getenv("ARCADE_EMU");
+    if (!id || !*id || strchr(id, '/')) return;
+    char p[1100];
+    snprintf(p, sizeof p, "%s/Emulators/%s.json", root, id);
+    jval *j = json_load(p);
+    if (!j) return;
+    snprintf(ctl_head, sizeof ctl_head, "%s", json_str(j, "name", id));
+    jval *a = json_get(j, "controls");
+    for (jval *e = a && a->t == J_ARR ? a->child : NULL; e && nctl < MAX_CTL; e = e->next) {
+        if (e->t != J_ARR || !e->child || e->child->t != J_STR || !e->child->next || e->child->next->t != J_STR) continue;
+        ctl_text(e->child->s, ctl[nctl][0], sizeof ctl[nctl][0]);
+        ctl_text(e->child->next->s, ctl[nctl][1], sizeof ctl[nctl][1]);
+        nctl++;
+    }
+    json_free(j);
+}
+
+/* righe della tabella che stanno nella zona: intestazione più comandi */
+static int ctl_visible(void) {
+    int rh = TTF_FontHeight(UI.f_normal) + M(0.012f);
+    int n = g_area_h / rh - 1;
+    return n < 1 ? 1 : n;
+}
+
+static void draw_controls(void) {
+    theme_t *t = &UI.th;
+    int bt = M(0.003f) < 1 ? 1 : M(0.003f);
+    ui_rect(g_px + bt, g_rows_y, g_pw - 2 * bt, g_area_h, t->popup);
+    TTF_Font *f = UI.f_normal;
+    int fh = TTF_FontHeight(f), rh = fh + M(0.012f);
+    int lx = g_px + M(0.05f), mid = g_px + g_pw / 2, right = g_px + g_pw - M(0.05f);
+    char buf[160];
+    ui_text_fit(UI.f_small, ctl_head, mid - lx - M(0.02f), buf, sizeof buf);
+    ui_text(UI.f_small, buf, lx, g_rows_y + (rh - TTF_FontHeight(UI.f_small)) / 2, t->accent, ALIGN_LEFT);
+    ui_text(UI.f_small, T("controls.pad"), mid, g_rows_y + (rh - TTF_FontHeight(UI.f_small)) / 2, t->accent, ALIGN_LEFT);
+    int vis = ctl_visible();
+    for (int k = 0; k < vis && ctl_scroll + k < nctl; k++) {
+        int i = ctl_scroll + k, y = g_rows_y + (k + 1) * rh;
+        ui_rect(lx, y, right - lx, 1, t->line);
+        ui_text_fit(f, ctl[i][0], mid - lx - M(0.02f), buf, sizeof buf);
+        ui_text(f, buf, lx, y + (rh - fh) / 2, t->text, ALIGN_LEFT);
+        ui_text_fit(f, ctl[i][1], right - mid, buf, sizeof buf);
+        ui_text(f, buf, mid, y + (rh - fh) / 2, t->text, ALIGN_LEFT);
+    }
+    if (nctl > vis) {   /* non stanno tutte: quali si vedono, su e giù per scorrere */
+        int last = ctl_scroll + vis < nctl ? ctl_scroll + vis : nctl;
+        snprintf(buf, sizeof buf, "%d-%d / %d", ctl_scroll + 1, last, nctl);
+        ui_text(UI.f_small, buf, right, g_rows_y + (rh - TTF_FontHeight(UI.f_small)) / 2, t->text_dim, ALIGN_RIGHT);
+    }
+}
 static bool asking;       /* finestra "sospendere?" aperta */
 static int ask_sel = 1;
 
 static int sel;
-/* geometria del pannello e delle righe (in pixel dell'immagine del menu) */
-static int g_px, g_py, g_pw, g_ph, g_rows_y, g_rh;
 
 static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
-    static const char *keys[GM_ALL] = { "game.back_to_game", "game.save_state", "game.load_state", "settings.volume",
-                                        "settings.brightness", "game.exit" };
+    static const char *keys[GM_ALL] = { "game.back_to_game", "game.save_state", "game.load_state", "game.controls",
+                                        "settings.volume", "settings.brightness", "game.exit" };
     i = rows[i];
     snprintf(label, ln, "%s", T(keys[i]));
     value[0] = 0;
@@ -67,15 +137,22 @@ static void draw_static(const char *title) {
     ui_text_fit(UI.f_title, title, pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_title, buf, px + pad, y, t->text, ALIGN_LEFT);
     y += TTF_FontHeight(UI.f_title);
-    ui_text(UI.f_small, T("game.linux_game"), px + pad, y, t->accent, ALIGN_LEFT);
+    /* sotto il titolo il nome dell'emulatore (Nintendo 64), per i giochi Linux "Gioco Linux" */
+    ui_text(UI.f_small, ctl_head[0] ? ctl_head : T("game.linux_game"), px + pad, y, t->accent, ALIGN_LEFT);
     y += TTF_FontHeight(UI.f_small) + M(0.02f);
     int note_h = TTF_FontHeight(UI.f_small) + M(0.02f);
-    ui_text_fit(UI.f_small, T("game.linux_note"), pw - 2 * pad, buf, sizeof buf);
+    ui_text_fit(UI.f_small, T(ctl_page ? "controls.note" : "game.linux_note"), pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_small, buf, px + pad, py + ph - pad / 2 - note_h + M(0.01f), t->text_dim, ALIGN_LEFT);
     ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, 255));
-    const char *h[] = { "B", T("game.back_to_game"), "<>", T("common.change"), "A", T("common.ok") };
-    ui_hints(h, 6);
+    if (ctl_page) {
+        const char *h[] = { "B", T("common.back") };
+        ui_hints(h, 2);
+    } else {
+        const char *h[] = { "B", T("game.back_to_game"), "<>", T("common.change"), "A", T("common.ok") };
+        ui_hints(h, 6);
+    }
     g_px = px; g_py = py; g_pw = pw; g_ph = ph; g_rows_y = y; g_rh = M(t->list_row_h);
+    g_area_h = py + ph - pad / 2 - note_h - y - M(0.01f);
 }
 
 /* righe delle voci: a ogni tasto si ridisegna solo questa zona */
@@ -108,6 +185,15 @@ static void draw_rows(void) {
 /* restituisce RC_* oppure -1 se il menu resta aperto */
 static int input(void) {
     input_t *in = &UI.in;
+    if (ctl_page) {   /* pagina Comandi: su e giù scorrono, B, A o Menu tornano alle voci */
+        int vis = ctl_visible();
+        if (in->pressed[BTN_DOWN] && ctl_scroll + vis < nctl) { ctl_scroll++; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_UP] && ctl_scroll > 0) { ctl_scroll--; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_B] || in->pressed[BTN_A] || in->pressed[BTN_MENU] || UI.in.home) { ctl_page = false; ui_sound(SND_BACK); }
+        if (UI.in.power) { asking = true; ask_sel = UI_PW_SUSPEND; }
+        if (UI.in.power_long) return RC_POWER;
+        return -1;
+    }
     if (in->pressed[BTN_UP]) { sel = (sel + GM_COUNT - 1) % GM_COUNT; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN]) { sel = (sel + 1) % GM_COUNT; ui_sound(SND_MOVE); }
     int d = in->pressed[BTN_RIGHT] ? 1 : in->pressed[BTN_LEFT] ? -1 : 0;
@@ -119,6 +205,7 @@ static int input(void) {
         if (it == GM_RESUME) return RC_RESUME;
         if (it == GM_SAVE) return RC_SAVE;
         if (it == GM_LOAD) return RC_LOAD;
+        if (it == GM_CONTROLS) { ctl_page = true; ctl_scroll = 0; ui_sound(SND_OK); return -1; }
         if (it == GM_QUIT) return RC_QUIT;
     }
     if (UI.in.power) { asking = true; ask_sel = UI_PW_SUSPEND; return -1; }
@@ -344,20 +431,22 @@ int main(int argc, char **argv) {
         if (!strcmp(argv[i], "--volume") && i + 1 < argc) { volume = atoi(argv[++i]); continue; }
         if (!strcmp(argv[i], "--ask-suspend")) { asking = only_ask = true; continue; }   /* solo la finestra, sopra il gioco */
         if (!strcmp(argv[i], "--states")) { states = true; continue; }
+        if (!strcmp(argv[i], "--controls")) { ctl_page = true; continue; }   /* prova sul Mac: la pagina Comandi */
         if (!strcmp(argv[i], "--root") && i + 1 < argc) root = argv[++i];
         else if (!strcmp(argv[i], "--shot") && i + 1 < argc) shot = argv[++i];
         else if (!strcmp(argv[i], "--title") && i + 1 < argc) title = argv[++i];
     }
-    for (int i = 0; i < GM_ALL; i++)
-        if (states || (i != GM_SAVE && i != GM_LOAD)) rows[GM_COUNT++] = i;
     if (!ui_init_offscreen("Arcade", root)) return RC_UNAVAILABLE;
+    load_controls(root);
+    for (int i = 0; i < GM_ALL; i++)
+        if ((states || (i != GM_SAVE && i != GM_LOAD)) && (nctl || i != GM_CONTROLS)) rows[GM_COUNT++] = i;
     if (volume) return volume_osd(volume);
     if (!title || !*title) title = T("game.linux_game");
     if (shot) {   /* prova sul Mac: menu già aperto, seconda voce scelta */
         sel = 1;
         ui_screenshot(shot);
         ui_overlay_begin(true);
-        if (!only_ask) { draw_static(title); draw_rows(); }
+        if (!only_ask) { draw_static(title); if (ctl_page) draw_controls(); else draw_rows(); }
         if (asking) draw_ask();
         ui_overlay_end();
         return 0;
@@ -369,7 +458,7 @@ int main(int argc, char **argv) {
     /* Le parti fisse si disegnano e si copiano una volta; poi a ogni tasto si ridisegnano e si
        copiano solo le righe delle voci (senza GPU ogni pixel costa). Con un avviso a schermo
        si ridisegna tutto. I tempi dei primi disegni vanno nel log. */
-    int last_sel = -1, last_vol = -1, last_bri = -1, logged = 0, last_ask = -1;
+    int last_sel = -1, last_vol = -1, last_bri = -1, logged = 0, last_ask = -1, last_page = 0;
     bool full = true, toast_was = false;
     while (rc < 0) {
         /* qui si ridisegna solo se cambia qualcosa: senza orologio aggiornato ogni pressione
@@ -398,6 +487,8 @@ int main(int argc, char **argv) {
         if (toast || toast_was) full = true;
         int ask_state = asking ? ask_sel : -1;
         if (ask_state != last_ask) { last_ask = ask_state; full = true; }
+        int page_state = ctl_page ? 1 + ctl_scroll : 0;   /* pagina Comandi aperta, chiusa o scorsa */
+        if (page_state != last_page) { last_page = page_state; full = true; }
         toast_was = toast;
         if (full || sel != last_sel || UI.set.volume != last_vol || UI.set.brightness != last_bri) {
             last_sel = sel;
@@ -406,7 +497,7 @@ int main(int argc, char **argv) {
             Uint64 f = SDL_GetPerformanceFrequency(), t0 = SDL_GetPerformanceCounter();
             ui_overlay_begin(full);
             if (full && !only_ask) draw_static(title);
-            if (!only_ask) draw_rows();
+            if (!only_ask) { if (ctl_page) draw_controls(); else draw_rows(); }
             if (asking) draw_ask();
             SDL_Surface *img = ui_overlay_end();
             Uint64 t1 = SDL_GetPerformanceCounter();

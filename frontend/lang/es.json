@@ -1143,5 +1143,16 @@
     "right": "Derecha",
     "note": "Si el sonido llega del lado opuesto al resaltado, los canales están invertidos.",
     "again": "Repetir"
+  },
+  "controls": {
+    "stick": "Palanca",
+    "lstick": "Palanca izquierda",
+    "rstick": "Palanca derecha",
+    "dpad": "Cruceta",
+    "c_buttons": "Botones C",
+    "c_left_up": "C izquierda · C arriba",
+    "emu_menu": "Menú de Flycast",
+    "pad": "TrimUI",
+    "note": "Controles predeterminados. B para volver al menú."
   }
 }

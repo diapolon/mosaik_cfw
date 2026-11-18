@@ -1143,5 +1143,16 @@
     "right": "Direita",
     "note": "Se o som vier do lado oposto ao destacado, os canais estão trocados.",
     "again": "Repetir"
+  },
+  "controls": {
+    "stick": "Alavanca",
+    "lstick": "Alavanca esquerda",
+    "rstick": "Alavanca direita",
+    "dpad": "Direcional",
+    "c_buttons": "Botões C",
+    "c_left_up": "C esquerda · C cima",
+    "emu_menu": "Menu do Flycast",
+    "pad": "TrimUI",
+    "note": "Comandos predefinidos. B para voltar ao menu."
   }
 }

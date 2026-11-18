@@ -18,5 +18,17 @@
   "short": "DC",
   "thumbnails": "Sega - Dreamcast",
   "order": 71,
-  "cpu": 4
+  "cpu": 4,
+  "controls": [
+    ["A", "A"],
+    ["B", "B"],
+    ["X", "X"],
+    ["Y", "Y"],
+    ["L", "L1 · L2"],
+    ["R", "R1 · R2"],
+    ["Start", "Start"],
+    ["@stick", "@lstick"],
+    ["@dpad", "@dpad"],
+    ["@emu_menu", "Select"]
+  ]
 }

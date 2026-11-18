@@ -1143,5 +1143,16 @@
     "right": "Droite",
     "note": "Si le son vient du côté opposé à celui allumé, les canaux sont inversés.",
     "again": "Rejouer"
+  },
+  "controls": {
+    "stick": "Stick",
+    "lstick": "Stick gauche",
+    "rstick": "Stick droit",
+    "dpad": "Croix",
+    "c_buttons": "Boutons C",
+    "c_left_up": "C gauche · C haut",
+    "emu_menu": "Menu de Flycast",
+    "pad": "TrimUI",
+    "note": "Commandes par défaut. B pour revenir au menu."
   }
 }
