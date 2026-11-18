@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.74
+it Trasferimento file: troppi PIN sbagliati cambiano il PIN sullo schermo invece di bloccarti
+en File transfer: too many wrong PINs change the PIN on screen instead of locking you out
+it Una ripresa che non si carica lo dice e tiene da parte lo stato
+en A resume that fails to load says so and keeps the state aside
+it I giochi nascosti restano nascosti anche nelle schede degli emulatori
+en Hidden games stay hidden in the emulator tabs too
+it Esplora file toglie le copie rimaste a metà
+en Files removes copies left half done
+
 0.9.73
 it Salvataggi: caricare uno stato non riporta più indietro il salvataggio fatto nel gioco
 en Saves: loading a state no longer rolls back the save made in the game
