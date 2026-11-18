@@ -939,8 +939,6 @@
     "row_requires": "Requires",
     "requires": "Mosaik %s or later",
     "sizes": "%s to download, %s on the card",
-    "compat_unknown": "Not tested on the consoles yet",
-    "not_this_model": "Tested on %s: it does not work on this console yet.",
     "title": "Store",
     "loading": "Loading the catalogue…",
     "online": "Catalogue up to date",
@@ -1033,7 +1031,6 @@
     "err_unsigned": "Unverified package: also copy store.json and store.sig next to it",
     "experimental": "Experimental",
     "exp_note": "Experimental: not tried on the consoles yet.",
-    "tested": "Tested on %s.",
     "needs_system": "Needs Mosaik %s: update the system first.",
     "err_system": "Update the system first",
     "err_model": "This package is not for this console"

@@ -5032,17 +5032,8 @@ static void sto_draw(void) {
         color_t cc = t->text;
         if (p.needs_system) { snprintf(compat, sizeof compat, T("store.needs_system"), p.min_system); cc = rgba(230, 130, 20, 255); }
         else if (p.experimental) { snprintf(compat, sizeof compat, "%s", T("store.exp_note")); cc = rgba(230, 130, 20, 255); }
-        else if (p.tested[0]) {
-            char models[80] = "";
-            if (strstr(p.tested, "smartpro")) snprintf(models, sizeof models, "Smart Pro");
-            if (strstr(p.tested, "brickpro")) { size_t l = strlen(models); snprintf(models + l, sizeof models - l, "%sBrick Pro", l ? ", " : ""); }
-            if (models[0]) snprintf(compat, sizeof compat, T("store.tested"), models);
-            const char *model = sto_model();
-            if (model && !strstr(p.tested, model)) { snprintf(compat, sizeof compat, T("store.not_this_model"), models); cc = rgba(230, 130, 20, 255); }
-        }
-        /* emulatori senza prove: lo si dice; temi, cornici, filtri e app non ne hanno bisogno */
-        bool emu_pkg = !strcmp(p.category, "arcade") || !strcmp(p.category, "console") || !strcmp(p.category, "computer");
-        if (!compat[0] && emu_pkg) snprintf(compat, sizeof compat, "%s", T("store.compat_unknown"));
+        /* niente "Provato su": lo Store mostra solo i pacchetti dei modelli su cui funzionano
+           ("models" del catalogo), e un pacchetto non sperimentale è provato (19 novembre) */
         if (p.min_system[0]) snprintf(line, sizeof line, T("store.requires"), p.min_system);
         else line[0] = 0;
         const char *vals[6] = { p.label[0] ? p.label : p.version, p.inst_label[0] ? p.inst_label : "—", NULL, T(stk[p.state >= 0 && p.state <= PKG_ARCHIVED ? p.state : 0]), compat, line };

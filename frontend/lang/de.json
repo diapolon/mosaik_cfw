@@ -939,8 +939,6 @@
     "row_requires": "Benötigt",
     "requires": "Mosaik %s oder neuer",
     "sizes": "%s zum Herunterladen, %s auf der Karte",
-    "compat_unknown": "Noch nicht auf den Konsolen getestet",
-    "not_this_model": "Getestet auf %s: funktioniert auf dieser Konsole noch nicht.",
     "title": "Store",
     "loading": "Katalog wird geladen…",
     "online": "Katalog aktuell",
@@ -1033,7 +1031,6 @@
     "err_unsigned": "Paket nicht geprüft: store.json und store.sig daneben kopieren",
     "experimental": "Experimentell",
     "exp_note": "Experimentell: noch nicht auf den Konsolen getestet.",
-    "tested": "Getestet auf %s.",
     "needs_system": "Benötigt Mosaik %s: zuerst das System aktualisieren.",
     "err_system": "Zuerst das System aktualisieren",
     "err_model": "Dieses Paket ist nicht für diese Konsole"

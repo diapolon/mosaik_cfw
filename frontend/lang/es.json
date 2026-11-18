@@ -939,8 +939,6 @@
     "row_requires": "Requiere",
     "requires": "Mosaik %s o posterior",
     "sizes": "%s para descargar, %s en la tarjeta",
-    "compat_unknown": "Aún no probado en las consolas",
-    "not_this_model": "Probado en %s: en esta consola todavía no funciona.",
     "title": "Tienda",
     "loading": "Cargando el catálogo…",
     "online": "Catálogo actualizado",
@@ -1033,7 +1031,6 @@
     "err_unsigned": "Paquete no verificado: copia también store.json y store.sig a su lado",
     "experimental": "Experimental",
     "exp_note": "Experimental: aún no probado en las consolas.",
-    "tested": "Probado en %s.",
     "needs_system": "Requiere Mosaik %s: actualiza antes el sistema.",
     "err_system": "Actualiza antes el sistema",
     "err_model": "Este paquete no es para esta consola"
