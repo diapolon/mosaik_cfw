@@ -29,6 +29,16 @@ export DEADCAST_BIOS_PATH="$ROOT/Bios/dc:$ROOT/Bios"
 [ -f "$DEADCAST_HOME/emu.cfg" ] || cp "$DIR/config/emu.cfg" "$DEADCAST_HOME/emu.cfg"
 MAPPING="SDL_Xbox 360 Controller.cfg"
 [ -f "$DEADCAST_HOME/mappings/$MAPPING" ] || cp "$DIR/config/$MAPPING" "$DEADCAST_HOME/mappings/$MAPPING"
+# A, B, X e Y del Dreamcast per etichetta (18 novembre, come Flycast): i tasti della console sono
+# 0 in basso (B), 1 a destra (A), 2 a sinistra (Y), 3 in alto (X); il file di Deadcast è per
+# posizione. Si cambia solo se ha ancora tutti e quattro i tasti di partenza (Deadcast riscrive il
+# file in un altro ordine, quindi si guardano le righe; uno cambiato dal menu resta com'è)
+M="$DEADCAST_HOME/mappings/$MAPPING"
+if grep -qx 'bind0 = 0:btn_a' "$M" && grep -qx 'bind1 = 1:btn_b' "$M" && grep -qx 'bind2 = 2:btn_x' "$M" && grep -qx 'bind3 = 3:btn_y' "$M"; then
+    sed -i 's/^bind0 = 0:btn_a$/bind0 = 1:btn_a/; s/^bind1 = 1:btn_b$/bind1 = 0:btn_b/;
+            s/^bind2 = 2:btn_x$/bind2 = 3:btn_x/; s/^bind3 = 3:btn_y$/bind3 = 2:btn_y/' "$DEADCAST_HOME/mappings/$MAPPING"
+    echo "deadcast: comandi per etichetta"
+fi
 export DEADCAST_ROM="$ROM"
 
 # modo dello schermo com'era, se Deadcast lo cambia e non lo rimette (per esempio fermato a forza)

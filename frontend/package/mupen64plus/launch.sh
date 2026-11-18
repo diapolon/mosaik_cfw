@@ -15,6 +15,15 @@ CONF="$ROOT/Saves/n64/mupen64plus"
 mkdir -p "$CONF" "$ROOT/Saves/n64/save" "$ROOT/Saves/n64/state" "$ROOT/Screenshots"
 # comandi e impostazioni di partenza alla prima partita (poi restano quelli di mupen64plus.cfg)
 [ -f "$CONF/mupen64plus.cfg" ] || cp "$DIR/mupen64plus.cfg" "$CONF/mupen64plus.cfg"
+# comandi per etichetta (18 novembre): la prima versione era per posizione (la A del N64 era il
+# tasto in basso, con scritto B). Si cambiano solo se sono ancora tutti quelli di partenza
+if grep -qx 'A Button = "button(0)"' "$CONF/mupen64plus.cfg" && grep -qx 'B Button = "button(2)"' "$CONF/mupen64plus.cfg" \
+    && grep -qx 'C Button L = "axis(3-) button(3)"' "$CONF/mupen64plus.cfg" && grep -qx 'C Button D = "axis(4+) button(1)"' "$CONF/mupen64plus.cfg"; then
+    sed -i 's/^A Button = "button(0)"$/A Button = "button(1)"/; s/^B Button = "button(2)"$/B Button = "button(0)"/;
+            s/^C Button L = "axis(3-) button(3)"$/C Button L = "axis(3-) button(2)"/; s/^C Button D = "axis(4+) button(1)"$/C Button D = "axis(4+)"/;
+            s/^C Button U = "axis(4-)"$/C Button U = "axis(4-) button(3)"/' "$CONF/mupen64plus.cfg"
+    echo "mupen64plus: comandi per etichetta"
+fi
 
 # misura dello schermo del modello: Brick Pro 1024x768, Smart Pro 1280x720
 RES=1280x720
