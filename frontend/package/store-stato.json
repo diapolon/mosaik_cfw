@@ -34,7 +34,7 @@
     "flycast"
   ],
   "tested": {
-    "mupen64plus": ["brickpro"],
+    "mupen64plus": ["smartpro", "brickpro"],
     "fbneo": [
       "smartpro",
       "brickpro"
