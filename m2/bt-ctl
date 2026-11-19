@@ -1,0 +1,285 @@
+#!/bin/sh
+# Bluetooth del sistema Arcade (chip XR829, lo stesso del Wi-Fi: HCI su UART ttyS1).
+#   bt-ctl on                  accende il chip, D-Bus, bluetoothd, bluealsa; ricollega l'ultimo dispositivo
+#   bt-ctl off                 salva gli abbinamenti e spegne tutto
+#   bt-ctl scan SECONDI        cerca, poi stampa i dispositivi (come "devices")
+#   bt-ctl devices             dispositivi conosciuti, uno per riga:
+#                              INDIRIZZO<tab>tipo<tab>abbinato<tab>collegato<tab>nome
+#                              tipo: audio, input, altro; abbinato e collegato: 0 o 1
+#   bt-ctl pair INDIRIZZO      abbina, si fida e collega
+#   bt-ctl connect|disconnect|forget INDIRIZZO
+#   bt-ctl reconnect           ricollega l'ultimo dispositivo (6 tentativi, uno ogni 5 s)
+#   bt-ctl status              "spento", oppure "acceso" e, se c'è, "collegato INDIRIZZO nome"
+#
+# Strada provata sulla Brick Pro con m2/prova-bt (docs locali STUDIO-BLUETOOTH):
+# - hciattach -n ttyS1 xradio, fino a 3 tentativi con il chip spento e riacceso fra uno e l'altro;
+#   sulla Brick Pro trimui_inputd fermo intanto (bus I2C 3, issue #1), e il blocco del Wi-Fi tenuto
+#   (stesso chip: le due accensioni non si sovrappongono).
+# - indirizzo fisso: hciattach ne inventa uno a ogni accensione (sulla Brick Pro non c'è
+#   /sys/class/addr_mgt e xr_bt.conf lo fa fermare). Lo si dà col comando del fornitore 0xfc0a
+#   (02 00 06 e i 6 byte al contrario), poi down/up perché il kernel lo rilegga. L'indirizzo è in
+#   System/bluetooth/indirizzo.txt: ricavato dal numero di serie del SoC se c'è (resta uguale
+#   cambiando scheda), se no a caso. Serve fisso: gli abbinamenti valgono per quell'indirizzo.
+# - /var è un tmpfs dell'initramfs: /var/run → /run si crea qui (socket di D-Bus e di SDP).
+# - abbinamenti: bluetoothd li tiene in /etc/lib/bluetooth/<adattatore>/<dispositivo> (→ /run/etc-lib);
+#   la FAT non ammette ":" nei nomi, quindi sulla SD vanno in System/bluetooth/abbinamenti.tar,
+#   scritto dopo ogni abbinamento, "dimentica" e spegnimento, e ripreso a ogni accensione.
+#   Contiene le chiavi: come wifi.conf, non si vede dal trasferimento file.
+ROOT=${ROOT:-/mnt/SDCARD/Arcade}
+DIR=$ROOT/System/bluetooth
+TAR=$DIR/abbinamenti.tar
+LAST=$DIR/ultimo.txt
+LOG=${ARCADE_LOG_DIR:-$ROOT/Logs}/bluetooth.log
+SYS=${BT_SYS:-/sys/class}
+STORE=${BT_STORE:-/run/etc-lib/bluetooth}
+RUN=${BT_RUN:-/run/bt}
+BTWRITE=${BT_BTWRITE:-/proc/bluetooth/sleep/btwrite}
+TZ=$(cat /run/arcade-tz "$ROOT/System/fuso-orario.txt" 2>/dev/null | head -n 1); [ -n "$TZ" ] && export TZ || unset TZ
+log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
+logs() { log "$@"; sync; }
+mkdir -p "$RUN"
+
+# un comando alla volta (come wifi-ctl); i demoni avviati qui non ereditano il descrittore 9
+lock() {
+    exec 9> "${BT_LOCK:-/run/bt-ctl.lock}"
+    i=0
+    until flock -n 9; do
+        i=$((i + 1))
+        [ $i -ge ${BT_LOCK_TRIES:-400} ] && { log "$1: altro comando Bluetooth ancora in corso, rinuncio"; exit 1; }
+        sleep 0.1
+    done
+}
+
+bt_on() { [ -d "$SYS/bluetooth/hci0" ] && pid_alive bluetoothd; }
+pid_alive() { [ -f "$RUN/$1.pid" ] && kill -0 "$(cat "$RUN/$1.pid")" 2> /dev/null; }
+pid_stop() {
+    [ -f "$RUN/$1.pid" ] || return 0
+    p=$(cat "$RUN/$1.pid"); kill "$p" 2> /dev/null
+    for i in $(seq 20); do kill -0 "$p" 2> /dev/null || break; sleep 0.1; done
+    kill -9 "$p" 2> /dev/null
+    rm -f "$RUN/$1.pid"
+}
+start() {   # nome, comando...: in sottofondo, uscita nel registro
+    n=$1; shift
+    "$@" >> "$LOG" 2>&1 9>&- &
+    echo $! > "$RUN/$n.pid"
+}
+
+rfkill_bt() {
+    for k in "$SYS"/rfkill/rfkill*; do
+        [ "$(cat "$k/type" 2> /dev/null)" = bluetooth ] && echo "$1" > "$k/state" 2> /dev/null
+    done
+    [ -e "$BTWRITE" ] && echo "$1" > "$BTWRITE" 2> /dev/null
+}
+
+address() {
+    a=$(tr -d ' \r\n' 2> /dev/null < "$DIR/indirizzo.txt" | tr a-f A-F)
+    echo "$a" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' && { echo "$a"; return; }
+    serial=$(sed -n 's/.*serial[^:]*: *//p' "$SYS/sunxi_info/sys_info" 2> /dev/null | head -n 1)
+    if [ -n "$serial" ] && [ "${serial#*[!0]}" != "$serial" ]; then
+        h=$(printf 'mosaik-bt %s' "$serial" | md5sum | cut -c1-10); how="dal numero di serie"
+    else
+        h=$(hexdump -n 5 -e '5/1 "%02x"' /dev/urandom); how="a caso"
+    fi
+    a=$(echo "2C$h" | tr a-f A-F | sed 's/\(..\)/\1:/g; s/:$//')
+    mkdir -p "$DIR" && echo "$a" > "$DIR/indirizzo.txt"
+    logs "indirizzo nuovo ($how): $a"
+    echo "$a"
+}
+
+chip_on() {
+    # stesso chip del Wi-Fi: si aspetta che un'accensione del Wi-Fi in corso sia finita
+    exec 8> "${BT_WIFI_LOCK:-/run/wifi-ctl.lock}"
+    i=0; until flock -n 8 || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
+    p=""
+    [ "${BT_INPUTD:-1}" = 1 ] && [ -e "${BT_I2C:-/dev/i2c-3}" ] && p=$(pidof trimui_inputd) && kill -STOP $p 2> /dev/null
+    ok=1
+    for t in 1 2 3; do
+        pid_stop hciattach
+        rfkill_bt 0; sleep 1; rfkill_bt 1; sleep 1
+        start hciattach hciattach -n ttyS1 xradio
+        for i in $(seq 20); do
+            [ -d "$SYS/bluetooth/hci0" ] && break
+            pid_alive hciattach || break
+            sleep 0.5
+        done
+        [ -d "$SYS/bluetooth/hci0" ] && { ok=0; break; }
+        logs "hciattach, tentativo $t: hci0 non comparso"
+    done
+    [ -n "$p" ] && kill -CONT $p 2> /dev/null
+    exec 8>&-
+    [ $ok = 0 ] || return 1
+    a=$(address)
+    hciconfig hci0 up >> "$LOG" 2>&1
+    hcitool -i hci0 cmd 0x3f 0x000a 02 00 06 $(echo "$a" | awk -F: '{ print $6, $5, $4, $3, $2, $1 }') > /dev/null 2>> "$LOG"
+    hciconfig hci0 down >> "$LOG" 2>&1
+    hciconfig hci0 up >> "$LOG" 2>&1
+    got=$(hciconfig hci0 | sed -n 's/.*BD Address: \([0-9A-F:]*\).*/\1/p')
+    [ "$got" = "$a" ] || logs "indirizzo non preso: il chip ha $got invece di $a"
+    return 0
+}
+
+save() {
+    [ -d "$STORE" ] || return 0
+    mkdir -p "$DIR"
+    # la cache dei dispositivi solo visti non serve: solo le cartelle dei dispositivi abbinati
+    if tar -cf "$TAR.part" -C "$STORE" --exclude cache . 2>> "$LOG"; then
+        mv -f "$TAR.part" "$TAR"; sync
+    else
+        rm -f "$TAR.part"; logs "abbinamenti non salvati"
+    fi
+}
+
+daemons_on() {
+    [ -e /var/run ] || ln -s /run /var/run 2> /dev/null
+    mkdir -p "$STORE" /run/dbus /run/bluetooth
+    [ -f "$TAR" ] && [ -z "$(ls -A "$STORE" 2> /dev/null)" ] && { tar -xf "$TAR" -C "$STORE" 2>> "$LOG" || logs "abbinamenti illeggibili"; }
+    printf '[General]\nName = Mosaik\nClass = 0x000100\nFastConnectable = true\n[Policy]\nAutoEnable = true\n' > /run/bluetooth/main.conf
+    if ! pid_alive dbus; then
+        cat > /run/dbus/mosaik.conf <<'CONF'
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <type>system</type>
+  <listen>unix:path=/run/dbus/system_bus_socket</listen>
+  <auth>EXTERNAL</auth>
+  <policy context="default">
+    <allow user="*"/>
+    <allow own="*"/>
+    <allow send_destination="*" eavesdrop="true"/>
+    <allow receive_sender="*"/>
+  </policy>
+</busconfig>
+CONF
+        rm -f /run/dbus/system_bus_socket
+        start dbus dbus-daemon --config-file=/run/dbus/mosaik.conf --nofork
+        for i in $(seq 20); do [ -S /run/dbus/system_bus_socket ] && break; sleep 0.1; done
+    fi
+    pid_alive bluetoothd || start bluetoothd bluetoothd -n -f /run/bluetooth/main.conf
+    for i in $(seq 30); do timeout 2 bluetoothctl show 2> /dev/null | grep -q Controller && break; sleep 0.2; done
+    pid_alive bluealsa || start bluealsa bluealsa -p a2dp-source
+    timeout 5 bluetoothctl power on > /dev/null 2>&1
+    pid_alive bluetoothd
+}
+
+# righe "Device INDIRIZZO nome" → righe per il launcher
+describe() {
+    while read -r w a name; do
+        [ "$w" = Device ] || continue
+        echo "$a" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' || continue
+        info=$(timeout 3 bluetoothctl info "$a" 2> /dev/null)
+        # senza un nome vero (bluetoothd mostra l'indirizzo con i trattini) non interessa a nessuno
+        n=$(echo "$info" | sed -n 's/^[[:space:]]*Name: //p' | head -n 1)
+        [ -z "$n" ] && continue
+        case "$(echo "$info" | sed -n 's/^[[:space:]]*Icon: //p')" in
+            audio*) k=audio ;; input*) k=input ;; *) k=altro ;;
+        esac
+        p=0; echo "$info" | grep -q 'Paired: yes' && p=1
+        c=0; echo "$info" | grep -q 'Connected: yes' && c=1
+        printf '%s\t%s\t%s\t%s\t%s\n' "$a" "$k" "$p" "$c" "$n"
+    done
+}
+devices() { timeout 5 bluetoothctl devices 2> /dev/null | describe; }
+valid() { echo "$1" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' || { echo "indirizzo non valido: $1" >&2; exit 2; }; }
+connected_line() { timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' '$4 == 1 { print; exit }'; }
+
+case "$1" in
+on)
+    lock on
+    [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
+    if bt_on; then log "già acceso"; exit 0; fi
+    if [ ! -d "$SYS/bluetooth/hci0" ] && ! chip_on; then
+        rfkill_bt 0; pid_stop hciattach
+        logs "Bluetooth NON acceso: il chip non risponde"
+        exit 1
+    fi
+    if ! daemons_on; then
+        logs "Bluetooth NON acceso: bluetoothd non parte"
+        exit 1
+    fi
+    logs "Bluetooth acceso"
+    flock -u 9
+    [ -s "$LAST" ] && { sh "$0" reconnect > /dev/null 2>&1 9>&- & }
+    exit 0
+    ;;
+off)
+    lock off
+    save
+    timeout 5 bluetoothctl power off > /dev/null 2>&1
+    pid_stop bluealsa; pid_stop bluetoothd; pid_stop dbus
+    hciconfig hci0 down > /dev/null 2>&1
+    pid_stop hciattach
+    rfkill_bt 0
+    rm -f /run/dbus/system_bus_socket "$RUN/collegato"
+    logs "Bluetooth spento"
+    ;;
+scan)
+    bt_on || { echo "spento" >&2; exit 1; }
+    s=${2:-10}; case "$s" in *[!0-9]*|'') s=10 ;; esac
+    timeout $((s + 5)) bluetoothctl --timeout "$s" scan on > /dev/null 2>&1
+    devices
+    ;;
+devices)
+    bt_on || exit 0
+    devices
+    ;;
+pair)
+    valid "$2"; bt_on || { echo "spento" >&2; exit 1; }
+    out=$(timeout 40 bluetoothctl --agent NoInputNoOutput pair "$2" 2>&1)
+    if ! echo "$out" | grep -q -E 'Pairing successful|AlreadyExists'; then
+        logs "abbinamento con $2 non riuscito: $(echo "$out" | tail -n 1)"; echo "non riuscito" >&2; exit 1
+    fi
+    timeout 5 bluetoothctl trust "$2" > /dev/null 2>&1
+    lock pair; save; flock -u 9
+    logs "abbinato $2"
+    exec sh "$0" connect "$2"
+    ;;
+connect)
+    valid "$2"; bt_on || { echo "spento" >&2; exit 1; }
+    out=$(timeout 30 bluetoothctl connect "$2" 2>&1)
+    if echo "$out" | grep -q 'Connection successful'; then
+        mkdir -p "$DIR"; echo "$2" > "$LAST"; echo "$2" > "$RUN/collegato"
+        logs "collegato $2"
+    else
+        logs "collegamento con $2 non riuscito: $(echo "$out" | tail -n 1)"; echo "non riuscito" >&2; exit 1
+    fi
+    ;;
+disconnect)
+    valid "$2"; bt_on || exit 0
+    timeout 10 bluetoothctl disconnect "$2" > /dev/null 2>&1
+    rm -f "$RUN/collegato"
+    log "scollegato $2"
+    ;;
+forget)
+    valid "$2"; bt_on || { echo "spento" >&2; exit 1; }
+    timeout 10 bluetoothctl remove "$2" > /dev/null 2>&1
+    [ "$(cat "$LAST" 2> /dev/null)" = "$2" ] && rm -f "$LAST"
+    [ "$(cat "$RUN/collegato" 2> /dev/null)" = "$2" ] && rm -f "$RUN/collegato"
+    lock forget; save
+    logs "dimenticato $2"
+    ;;
+reconnect)
+    a=$(cat "$LAST" 2> /dev/null); [ -n "$a" ] || exit 0
+    for t in 1 2 3 4 5 6; do
+        bt_on || exit 1
+        timeout 5 bluetoothctl info "$a" 2> /dev/null | grep -q 'Connected: yes' && { echo "$a" > "$RUN/collegato"; exit 0; }
+        timeout 15 bluetoothctl connect "$a" 2>&1 | grep -q 'Connection successful' && { echo "$a" > "$RUN/collegato"; logs "ricollegato $a"; exit 0; }
+        sleep ${BT_RECONNECT_WAIT:-5}
+    done
+    log "ricollegamento a $a non riuscito"
+    exit 1
+    ;;
+status)
+    bt_on || { echo spento; exit 0; }
+    echo acceso
+    c=$(connected_line)
+    if [ -n "$c" ]; then
+        echo "$c" | awk -F'\t' '{ print "collegato " $1 " " $5 }'
+        echo "$c" | cut -f1 > "$RUN/collegato"
+    else
+        rm -f "$RUN/collegato"
+    fi
+    ;;
+*)
+    echo "uso: bt-ctl on|off|scan [SECONDI]|devices|pair|connect|disconnect|forget INDIRIZZO|reconnect|status"; exit 2 ;;
+esac

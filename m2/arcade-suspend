@@ -35,9 +35,14 @@ if [ "$1" = mute ]; then mute; exit 0; fi
 
 wifi=0
 pidof wpa_supplicant > /dev/null && wifi=1
+bt=0
+[ -f /run/bt/bluetoothd.pid ] && kill -0 "$(cat /run/bt/bluetoothd.pid)" 2> /dev/null && bt=1
 # batteria nei passi: con quella del risveglio si misura quanto consuma lo standby
 battery() { cat /sys/class/power_supply/axp2202-battery/capacity 2> /dev/null || echo "?"; }
-step "inizio (wi-fi $([ $wifi = 1 ] && echo acceso || echo spento), batteria $(battery)%)"
+step "inizio (wi-fi $([ $wifi = 1 ] && echo acceso || echo spento), bluetooth $([ $bt = 1 ] && echo acceso || echo spento), batteria $(battery)%)"
+# Bluetooth spento prima del Wi-Fi (stesso chip) e riacceso dopo, con il ricollegamento delle
+# cuffie: lasciato acceso, dopo il sonno non torna (NextUI #465)
+[ $bt = 1 ] && bt-ctl off > /dev/null 2>&1
 # Wi-Fi: una ricerca di reti in corso fa rifiutare la sospensione al driver ("phy0 failed to
 # suspend: error -16"): si interrompe, si spegne e si blocca la radio (rfkill) come keymon
 if [ $wifi = 1 ]; then
@@ -187,6 +192,7 @@ if [ ! -f /run/sd-ok ]; then
     echo "arcade: la SD non risponde dopo il risveglio (sospensione $r, tentativi $tries)" > /dev/kmsg
     { echo "risveglio senza SD: $(date)"; dmesg | tail -60; } > /run/sd-guasta 2>&1
     [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
+    [ $bt = 1 ] && ( sleep 2; bt-ctl on > /dev/null 2>&1 & )
     exit 0
 fi
 step "risveglio (sospensione $r, tentativi $tries, sveglia: ${woke:--}, batteria $(battery)%)"
@@ -194,4 +200,5 @@ step "sorgenti di risveglio prima:${WS_BEFORE:- nessuna} dopo:$(ws_line); esclus
 consumi_mark   # e una al risveglio: batteria prima e dopo dicono quanto consuma lo standby
 sync   # la riga del risveglio sulla SD anche se poi la console viene spenta a forza
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
+[ $bt = 1 ] && ( sleep 2; bt-ctl on > /dev/null 2>&1 & )
 [ "$r" != "non riuscita" ]

@@ -411,6 +411,8 @@ finish() {
     # avvio il controllo non serve (vedi initramfs-init). Prima si fermano i programmi che
     # hanno file aperti sulla SD (trimui_inputd scrive il suo log, un gioco può essere rimasto
     # in sottofondo): con un file aperto in scrittura il kernel non la chiude.
+    # Bluetooth: gli abbinamenti fatti vanno sulla SD (bt-ctl off li salva) prima di chiuderla
+    [ -f /run/bt/bluetoothd.pid ] && { bt-ctl off > /dev/null 2>&1; step "spegnimento: Bluetooth spento"; }
     wifi-ctl off > /dev/null 2>&1
     step "spegnimento: Wi-Fi spento"
     : > /tmp/fermati.txt

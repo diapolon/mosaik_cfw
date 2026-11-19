@@ -6,6 +6,7 @@ set -e
 apk add -q build-base zlib-dev curl unzip zip python3 zbar imagemagick >/dev/null
 W=/tmp/fs; rm -rf $W; mkdir -p $W/sd/System $W/sd/Roms/FBNEO $W/sd/Saves/fbneo $W/sd/Cores $W/sd/Linux $W/sd/Media; cd $W
 printf 'network={ssid="x" psk="segreto"}\n' > sd/System/wifi.conf
+mkdir -p sd/System/bluetooth; echo chiavi > sd/System/bluetooth/abbinamenti.tar; echo 2C:00:00:00:00:01 > sd/System/bluetooth/indirizzo.txt
 echo '{}' > sd/System/settings.json
 echo salvataggio > sd/Saves/fbneo/gioco.srm
 echo core > sd/Cores/core.so
@@ -66,6 +67,10 @@ check "wifi.conf non elencato" "no" "$(q "$U/api/list?path=System" | grep -q wif
 check "wifi.conf non scaricabile" '{"error":"path"}' "$(q "$U/api/get?path=System/wifi.conf")"
 check "wifi.conf non nello zip" "no" "$(q -o s.zip "$U/api/zip?path=System"; unzip -l s.zip | grep -q wifi && echo si || echo no)"
 check "fuori dalla cartella" '{"error":"path"}' "$(q "$U/api/list?path=..")"
+check "Bluetooth non elencato" "no" "$(q "$U/api/list?path=System" | grep -q bluetooth && echo si || echo no)"
+check "abbinamenti Bluetooth non scaricabili" '{"error":"path"}' "$(q "$U/api/get?path=System/bluetooth/abbinamenti.tar")"
+check "cartella Bluetooth non elencabile" '{"error":"path"}' "$(q "$U/api/list?path=System/bluetooth")"
+check "Bluetooth non nello zip" "no" "$(q -o s2.zip "$U/api/zip?path=System"; unzip -l s2.zip | grep -q bluetooth && echo si || echo no)"
 check "fuori, nel mezzo" '{"error":"path"}' "$(q "$U/api/get?path=Saves/../System/wifi.conf")"
 # nome corto del FAT (8.3) dello stesso file: qui un collegamento fisico con un nome diverso (RETE-02)
 ln sd/System/wifi.conf "sd/System/WIFI~1.CON"

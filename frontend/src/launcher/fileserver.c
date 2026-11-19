@@ -260,7 +260,11 @@ static int depth(const char *rel) {
     return n;
 }
 
-static bool secret(const char *rel) { return !strcasecmp(rel, "System/wifi.conf") || !strcasecmp(rel, BROWSERS_FILE); }
+/* System/bluetooth: chiavi degli abbinamenti (abbinamenti.tar), indirizzo e ultimo dispositivo */
+static bool secret(const char *rel) {
+    return !strcasecmp(rel, "System/wifi.conf") || !strcasecmp(rel, BROWSERS_FILE)
+        || !strcasecmp(rel, "System/bluetooth") || !strncasecmp(rel, "System/bluetooth/", 17);
+}
 
 static bool writable(const char *rel) {
     char top[64];

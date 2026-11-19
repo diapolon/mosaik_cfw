@@ -10,6 +10,9 @@
 # bluetoothctl, abbina e collega il primo dispositivo audio trovato (cuffie in modalità
 # abbinamento), ci suona /usr/arcade/share/prova-bt.wav due volte con aplay e lo toglie. Gli
 # abbinamenti restano in /run (/etc/lib/bluetooth), cioè si perdono allo spegnimento.
+# servizio: prova il servizio vero (m2/bt-ctl) come lo userà il launcher: on, scan, pair del primo
+# dispositivo audio, suono, off e on (abbinamento ripreso dalla SD e ricollegamento da solo),
+# suono, forget, off. Registro del servizio in Logs/bluetooth.log.
 # wifi: prima si accende il Wi-Fi (wifi-ctl), per vedere se i due insieme vanno d'accordo.
 # senza-pausa: sulla Brick Pro trimui_inputd non viene fermato mentre il chip si accende (di
 # solito sì, come per il Wi-Fi, issue #1: il bus I2C 3 sotto carico).
@@ -36,11 +39,13 @@ SECS=20
 WIFI=no
 PAUSE=yes
 CUFFIE=no
+SERVIZIO=no
 for a in $ARGS; do
     case "$a" in
         wifi) WIFI=yes ;;
         senza-pausa) PAUSE=no ;;
         cuffie) CUFFIE=yes ;;
+        servizio) SERVIZIO=yes ;;
         *[!0-9]*|'') ;;
         *) SECS=$a ;;
     esac
@@ -55,6 +60,29 @@ block() { echo "--- $1" >> "$LOG"; shift; "$@" >> "$LOG" 2>&1; sync; }
 MODEL=$(readlink /run/fw 2>/dev/null)
 : > "$LOG"
 log "prova Bluetooth: ricerche da $SECS s, cuffie $CUFFIE, Wi-Fi $WIFI, pausa di trimui_inputd $PAUSE, strato $MODEL, kernel $(uname -r)"
+
+suona() { log "suono: aplay -D bluealsa:DEV=$1,PROFILE=a2dp"; timeout 15 aplay -D "bluealsa:DEV=$1,PROFILE=a2dp" /usr/arcade/share/prova-bt.wav >> "$LOG" 2>&1; log "suono finito (uscita $?)"; }
+servizio() {
+    log "servizio: bt-ctl on"; bt-ctl on; log "uscita $?, stato: $(bt-ctl status | tr '\n' ' ')"
+    log "servizio: bt-ctl scan $SECS"
+    bt-ctl scan "$SECS" > /tmp/prova-bt-l 2>> "$LOG"; cat /tmp/prova-bt-l >> "$LOG"
+    A=$(awk -F'\t' '$2 == "audio" { print $1; exit }' /tmp/prova-bt-l); rm -f /tmp/prova-bt-l
+    if [ -z "$A" ]; then
+        log "servizio: nessun dispositivo audio"
+    else
+        log "servizio: bt-ctl pair $A"; bt-ctl pair "$A" 2>> "$LOG"; log "uscita $?, stato: $(bt-ctl status | tr '\n' ' ')"
+        sleep 2; suona "$A"
+        log "servizio: bt-ctl off"; bt-ctl off; log "uscita $?, stato: $(bt-ctl status | tr '\n' ' ')"
+        log "servizio: bt-ctl on (abbinamento dalla SD, ricollegamento da solo)"; bt-ctl on; log "uscita $?"
+        i=0; while [ $i -lt 45 ] && [ ! -f /run/bt/collegato ]; do sleep 1; i=$((i + 1)); done
+        log "servizio: dopo $i s, stato: $(bt-ctl status | tr '\n' ' ')"
+        sleep 2; suona "$A"
+        log "servizio: bt-ctl forget $A"; bt-ctl forget "$A"; log "uscita $?, stato: $(bt-ctl status | tr '\n' ' ')"
+    fi
+    log "servizio: bt-ctl off"; bt-ctl off; log "uscita $?"
+    block "Logs/bluetooth.log" tail -60 "$ROOT/Logs/bluetooth.log"
+}
+[ "$SERVIZIO" = yes ] && { servizio; log "fine: $(awk -v a="$T0" -v b="$(cut -d' ' -f1 /proc/uptime)" 'BEGIN { printf "%.0f", b - a }') s"; exit 0; }
 
 # interruttori radio: quello del Bluetooth si chiama di solito "bt" o "bluetooth"
 BTRF=""
