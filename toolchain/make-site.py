@@ -23,7 +23,7 @@ version, stamp = open(os.path.join(dist, "arcade-version.txt")).read().split()
 # site/ (le pagine HTML del sito) non è nel repository: senza, si preparano solo immagini,
 # aggiornamento, Store e build-info.txt, cioè tutto quello che serve a una Release su GitHub
 have_site = os.path.isdir(src)
-# --solo-sito: rifà solo le pagine di www.mosaikcfw.org (dist/site/web) dalle immagini già pronte in
+# --solo-sito: rifà solo le pagine di www.mosaikcfw.org (dist/mosaikcfw.org) dalle immagini già pronte in
 # dist/site/download, senza toccare aggiornamento, Store e firme già pubblicati
 solo = "--solo-sito" in sys.argv[1:]
 if solo and not have_site:
@@ -68,10 +68,10 @@ def fill(text, extra):
 
 
 def build_pages():
-    """Sito di www.mosaikcfw.org in dist/site/web: Home e Scarica in inglese (radice) e italiano
+    """Sito di www.mosaikcfw.org in dist/mosaikcfw.org (solo i file da caricare in httpdocs): Home e Scarica in inglese (radice) e italiano
     (it/), le schermate di docs/images, i link di scaricamento alla Release vX.Y.Z su GitHub. Le
     guide restano nella wiki. Da caricare sull'hosting solo per le versioni stabili."""
-    web = os.path.join(out, "web")
+    web = os.path.join(dist, "mosaikcfw.org")
     shutil.rmtree(web, ignore_errors=True)
     shutil.copytree(os.path.join(src, "assets"), os.path.join(web, "assets"))
     shots = os.path.join(top, "docs", "images")
