@@ -32,8 +32,11 @@
 #   Contiene le chiavi: come wifi.conf, non si vede dal trasferimento file.
 # - audio: tutti i programmi usano il dispositivo ALSA "default" di /etc/asound.conf → /run/asound.conf
 #   (copia di quello dello strato, /run/fw/asound.conf). Con cuffie o casse collegate si aggiunge un
-#   pcm.!default verso bluealsa, con un volume software ("Bluetooth Volume", lo regola platform.c), e
-#   /run/bt-audio dice a launcher e runner di riaprire l'audio; scollegate, si rimette la copia.
+#   pcm.!default verso bluealsa e /run/bt-audio dice a launcher e runner di riaprire l'audio;
+#   scollegate, si rimette la copia. Il volume è quello di bluealsa ("<nome> - A2DP", come fa il
+#   firmware TrimUI con amixer -D bluealsa): platform.c chiama "bt-ctl volume". Un softvol di ALSA
+#   non va: il suo controllo resta bloccato dal programma che suona e gli altri non lo cambiano.
+#   bt-ctl volume PERCENTO     volume delle cuffie collegate, 0..100
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
 DIR=$ROOT/System/bluetooth
 TAR=$DIR/abbinamenti.tar
@@ -153,17 +156,7 @@ route() {
 # Bluetooth (bt-ctl): cuffie $1
 pcm.!default {
     type plug
-    slave.pcm {
-        type softvol
-        slave.pcm "bluealsa:DEV=$1,PROFILE=a2dp"
-        control {
-            name "Bluetooth Volume"
-            card audiocodec
-        }
-        min_dB -51.0
-        max_dB 0.0
-        resolution 256
-    }
+    slave.pcm "bluealsa:DEV=$1,PROFILE=a2dp"
 }
 CONF
         } > "$ASOUND.part" && mv -f "$ASOUND.part" "$ASOUND" && echo "$1" > "$AUDIO_FLAG"
@@ -328,6 +321,13 @@ reconnect)
     log "ricollegamento a $a non riuscito"
     exit 1
     ;;
+volume)
+    p=$2; case "$p" in ''|*[!0-9]*) echo "uso: bt-ctl volume 0..100" >&2; exit 2 ;; esac
+    [ "$p" -gt 100 ] && p=100
+    c=$(amixer -D bluealsa scontrols 2> /dev/null | sed -n "s/^Simple mixer control '\(.*\)',[0-9]*$/\1/p" | grep -- '- A2DP' | head -n 1)
+    [ -n "$c" ] || exit 1
+    amixer -q -M -D bluealsa sset "$c" "$p%" 2> /dev/null
+    ;;
 diag)
     D=${ARCADE_LOG_DIR:-$ROOT/Logs}/bluetooth-audio.txt
     a=$(cat "$AUDIO_FLAG" 2> /dev/null)
@@ -339,7 +339,7 @@ diag)
         echo "--- flusso del codec"; cat /proc/asound/audiocodec/pcm0p/sub0/status 2>&1 | head -4
         echo "--- chi usa l'audio"; for p in /proc/[0-9]*; do ls -l "$p/fd" 2> /dev/null | grep -q /dev/snd && echo "$(basename "$p") $(tr '\0' ' ' < "$p/cmdline" | cut -c1-80)"; done
         echo "--- suono di prova da default (aplay -v)"; timeout 8 aplay -v -D default /usr/arcade/share/prova-bt.wav 2>&1 | head -60; echo "uscita $?"
-        echo "--- Bluetooth Volume"; amixer cget name='Bluetooth Volume' 2>&1 | tail -3
+        echo "--- volume di bluealsa"; amixer -D bluealsa scontents 2>&1 | head -12
         [ -n "$a" ] && { echo "--- suono di prova diretto a bluealsa"; timeout 8 aplay -D "bluealsa:DEV=$a,PROFILE=a2dp" /usr/arcade/share/prova-bt.wav 2>&1 | tail -5; echo "uscita $?"; }
         echo "--- bluealsa"; pid_alive bluealsa && echo "in funzione" || echo "NON in funzione"
     } >> "$D" 2>&1

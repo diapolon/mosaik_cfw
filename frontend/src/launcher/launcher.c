@@ -3932,7 +3932,10 @@ static void set_value(int item, char *buf, size_t n) {
     settings_t *s = &UI.set;
     switch (item) {
     case S_BRIGHT: snprintf(buf, n, "%d", s->brightness); break;
-    case S_VOLUME: snprintf(buf, n, "%d", s->volume); break;
+    case S_VOLUME:
+        if (s->bt_route) snprintf(buf, n, "%d · %s", s->volume, T("common.bt_headphones"));
+        else snprintf(buf, n, "%d", s->volume);
+        break;
     case S_MUSIC:
         if (!music_count()) snprintf(buf, n, "%s", T("music.none"));
         else if (!s->music_vol) snprintf(buf, n, "%s", T("common.off"));
@@ -8481,7 +8484,7 @@ static void qp_draw(void) {
         bool on = qp_row == QP_ROWS + k;
         int v = k ? UI.set.volume : UI.set.brightness, max = k ? 20 : 10;
         ui_rrect(x + pad, yy, w - 2 * pad, sh, sh / 2, on ? with_alpha(t->accent, 60) : with_alpha(t->text_dim, 30));
-        ui_text(fn, T(k ? "quick.volume" : "quick.brightness"), x + pad + M(0.02f), yy + (sh - fnh) / 2, t->text, ALIGN_LEFT);
+        ui_text(fn, k ? ui_volume_label("quick.volume") : T("quick.brightness"), x + pad + M(0.02f), yy + (sh - fnh) / 2, t->text, ALIGN_LEFT);
         int bx = x + pad + w * 30 / 100, bw = w - 2 * pad - w * 30 / 100 - M(0.03f), bh = M(0.012f), by = yy + (sh - bh) / 2;
         ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 70));
         ui_rrect(bx, by, bw * v / max, bh, bh / 2, t->accent);

@@ -29,7 +29,8 @@
     "loading": "Caricamento…",
     "leaving": "Uscita dal gioco…",
     "starting": "Avvio di %s…",
-    "open": "Apri"
+    "open": "Apri",
+    "bt_headphones": "cuffie"
   },
   "home": {
     "resume_game": "Riprendi partita",

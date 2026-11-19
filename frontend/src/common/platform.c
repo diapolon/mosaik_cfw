@@ -92,16 +92,15 @@ static bool headphones(void) {
    cuffie da 8 a 61 (-9 e -71 dB: in cuffia il massimo del codec è troppo forte). Valori misurati
    a orecchio da TortOS sulla Brick, stesso codec. Livello 0: muto. */
 static bool vol_hp;
-/* Cuffie Bluetooth (m2/bt-ctl): l'audio va a bluealsa attraverso il volume software "Bluetooth
-   Volume" (0..255, da -51 a 0 dB) che bt-ctl mette in /run/asound.conf; il controllo nasce solo
-   quando un programma apre l'audio, quindi dopo un cambio si riprova per qualche secondo. */
+/* Cuffie Bluetooth (m2/bt-ctl): il volume è quello di bluealsa ("bt-ctl volume", 0..100), che
+   c'è solo a collegamento avvenuto: dopo un cambio si riprova per qualche secondo. */
 static bool bt_audio(void) { return access("/run/bt-audio", F_OK) == 0; }
 static int vol_bt = -1, bt_tries;
 static bool bt_vol_ok;
 static void vol_apply(int raw, int dac, int btv) {
     char cmd[200];
     if (btv >= 0) {
-        snprintf(cmd, sizeof cmd, "amixer -q cset name='Bluetooth Volume' %d >/dev/null 2>&1", btv);
+        snprintf(cmd, sizeof cmd, "bt-ctl volume %d >/dev/null 2>&1", btv);
         bt_vol_ok = system(cmd) == 0;
         return;
     }
@@ -140,7 +139,7 @@ static void set_volume(int level) {
     }
     int dac = level ? 160 : 0;
     vol_bt = bt_audio();
-    int btv = vol_bt ? (level > 20 ? 20 : level < 0 ? 0 : level) * 255 / 20 : -1;
+    int btv = vol_bt ? (level > 20 ? 20 : level < 0 ? 0 : level) * 5 : -1;
     static int logged;
     if (logged++ < 3 || vol_bt) ui_log("volume: livello %d, %s, digital volume %d", level, vol_bt ? "cuffie Bluetooth" : vol_hp ? "cuffie" : "altoparlante", raw);
     if (!vol_thread_on) {   /* la prima volta (all'avvio) subito, poi il thread */

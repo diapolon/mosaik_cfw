@@ -1061,6 +1061,13 @@ void ui_audio_reopen(void) {
     audio_open();
 }
 
+const char *ui_volume_label(const char *key) {
+    static char buf[96];
+    if (!UI.set.bt_route) return T(key);
+    snprintf(buf, sizeof buf, "%s · %s", T(key), T("common.bt_headphones"));
+    return buf;
+}
+
 /* volume a parte per le cuffie Bluetooth: UI.set.volume è sempre quello dell'uscita in uso */
 __attribute__((unused)) static void volume_route(bool bt) {
     if (bt == UI.set.bt_route) return;
@@ -1718,7 +1725,7 @@ void ui_poll(void) {
         int v = UI.set.volume + pk.vol;
         UI.set.volume = v < 0 ? 0 : v > 20 ? 20 : v;
         char m[64];
-        snprintf(m, sizeof m, "%s %d", T("settings.volume"), UI.set.volume);
+        snprintf(m, sizeof m, "%s %d", ui_volume_label("settings.volume"), UI.set.volume);
         if (!UI.vol_bar) ui_toast(m);
         UI.in.vol_changed = true;
         vol_save_at = UI.t + 1.0;

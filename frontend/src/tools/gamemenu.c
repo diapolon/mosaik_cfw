@@ -102,7 +102,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
     static const char *keys[GM_ALL] = { "game.back_to_game", "game.save_state", "game.load_state", "game.controls",
                                         "settings.volume", "settings.brightness", "game.exit" };
     i = rows[i];
-    snprintf(label, ln, "%s", T(keys[i]));
+    snprintf(label, ln, "%s", i == GM_VOLUME ? ui_volume_label(keys[i]) : T(keys[i]));
     value[0] = 0;
     if (i == GM_VOLUME) snprintf(value, vn, "%d", UI.set.volume);
     if (i == GM_BRIGHT) snprintf(value, vn, "%d", UI.set.brightness);
@@ -408,7 +408,7 @@ static int volume_osd(int delta) {
             int w = M(0.62f), h = M(0.1f), x = (UI.w - w) / 2, y = M(0.05f), pad = M(0.03f);
             ui_overlay_begin(true);
             ui_rrect(x, y, w, h, h / 2, rgba(0, 0, 0, 180));
-            int lw = ui_text(UI.f_small, T("settings.volume"), x + pad, y + (h - TTF_FontHeight(UI.f_small)) / 2, rgba(255, 255, 255, 255), ALIGN_LEFT);
+            int lw = ui_text(UI.f_small, ui_volume_label("settings.volume"), x + pad, y + (h - TTF_FontHeight(UI.f_small)) / 2, rgba(255, 255, 255, 255), ALIGN_LEFT);
             int bx = x + pad + lw + M(0.03f), bw = x + w - pad - bx, bh = M(0.014f);
             ui_rrect(bx, y + (h - bh) / 2, bw, bh, bh / 2, rgba(255, 255, 255, 70));
             ui_rrect(bx, y + (h - bh) / 2, bw * UI.set.volume / 20, bh, bh / 2, t->accent);

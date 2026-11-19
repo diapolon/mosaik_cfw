@@ -131,7 +131,7 @@ check "abbinamenti sulla SD, senza la cache" 'tar -tf $ROOT/System/bluetooth/abb
 check "ultimo dispositivo ricordato" '[ "$(cat $ROOT/System/bluetooth/ultimo.txt)" = E0:9D:FA:7C:46:36 ]'
 check "stato collegato" '$CTL status | grep -q "^collegato E0:9D:FA:7C:46:36 audio Wireless Earbuds$"'
 check "audio verso le cuffie" 'grep -q "bluealsa:DEV=E0:9D:FA:7C:46:36,PROFILE=a2dp" $BT_ASOUND && grep -q "type hw card audiocodec" $BT_ASOUND && [ "$(cat /tmp/bt-audio)" = E0:9D:FA:7C:46:36 ]'
-check "volume delle cuffie nel dispositivo" 'grep -q "Bluetooth Volume" $BT_ASOUND'
+check "uscita delle cuffie senza softvol" '! grep -q softvol $BT_ASOUND'
 check "devices: abbinato e collegato" '$CTL devices | grep -q "^E0:9D:FA:7C:46:36	audio	1	1	"'
 $CTL disconnect E0:9D:FA:7C:46:36
 check "scollegate: audio all'altoparlante" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE && [ ! -f /tmp/bt-audio ]'

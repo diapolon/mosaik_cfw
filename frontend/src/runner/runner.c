@@ -2236,7 +2236,7 @@ static void osd_draw(void) {
     float a = (float)fmin(1.0, (osd_until - UI.t) / 0.3);
     int w = M(0.62f), h = M(0.1f), x = (UI.w - w) / 2, y = M(0.05f), pad = M(0.03f);
     ui_rrect(x, y, w, h, h / 2, with_alpha(rgba(0, 0, 0, 255), (int)(180 * a)));
-    const char *label = T(osd_kind == OSD_VOLUME ? "settings.volume" : "settings.brightness");
+    const char *label = osd_kind == OSD_VOLUME ? ui_volume_label("settings.volume") : T("settings.brightness");
     int v = osd_kind == OSD_VOLUME ? UI.set.volume : UI.set.brightness, max = osd_kind == OSD_VOLUME ? 20 : 10;
     int lw = ui_text(UI.f_small, label, x + pad, y + (h - TTF_FontHeight(UI.f_small)) / 2, with_alpha(rgba(255, 255, 255, 255), (int)(255 * a)), ALIGN_LEFT);
     int bx = x + pad + lw + M(0.03f), bw = x + w - pad - bx, bh = M(0.014f);
