@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.81
+it Prova del Bluetooth: ricerca dei controller e delle cuffie corretta
+en Bluetooth test: search for controllers and headphones fixed
+
 0.9.80
 it Prova del Bluetooth per chi vuole aiutare: System/prova-bt.txt sulla scheda
 en Bluetooth test for those who want to help: System/prova-bt.txt on the card
