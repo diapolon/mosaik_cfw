@@ -4359,6 +4359,7 @@ static void wpanel_draw(void) {
    Elenco e azioni chiamano bt-ctl, che può metterci secondi: sempre in un thread. */
 static bt_dev_t btdevs[32], btdevs_new[32];
 static int nbtdevs, btsel, btdevs_new_n = -1;
+static int btgen, btdevs_new_gen;   /* un elenco chiesto prima della fine di un'azione è vecchio: si butta */
 static float btscroll;
 static double btlist_t, btscan_t;
 static bool btfetching, btworking;
@@ -4368,10 +4369,11 @@ static char bt_job_cmd[12], bt_job_addr[18], bt_job_name[64];
 static bool btp_usable(const bt_dev_t *d) { return d->paired || d->kind != BT_OTHER; }
 
 static int btfetch_worker(void *arg) {
-    (void)arg;
+    int gen = (int)(intptr_t)arg;
     bt_dev_t all[48];
     int n = bt_devices(all, 48), k = 0;
     for (int i = 0; i < n && k < 32; i++) if (btp_usable(&all[i])) btdevs_new[k++] = all[i];
+    btdevs_new_gen = gen;
     __atomic_store_n(&btdevs_new_n, k, __ATOMIC_SEQ_CST);
     __atomic_store_n(&btfetching, false, __ATOMIC_SEQ_CST);
     return 0;
@@ -4381,7 +4383,7 @@ static void btp_refresh(void) {
     if (__atomic_load_n(&btfetching, __ATOMIC_SEQ_CST)) return;
     btlist_t = UI.t;
     __atomic_store_n(&btfetching, true, __ATOMIC_SEQ_CST);
-    SDL_Thread *th = SDL_CreateThread(btfetch_worker, "bt", NULL);
+    SDL_Thread *th = SDL_CreateThread(btfetch_worker, "bt", (void *)(intptr_t)btgen);
     if (th) SDL_DetachThread(th);
     else __atomic_store_n(&btfetching, false, __ATOMIC_SEQ_CST);
 }
@@ -4391,6 +4393,7 @@ static void btp_collect(void) {
     int n = __atomic_load_n(&btdevs_new_n, __ATOMIC_SEQ_CST);
     if (n < 0) return;
     __atomic_store_n(&btdevs_new_n, -1, __ATOMIC_SEQ_CST);
+    if (btdevs_new_gen != btgen) { btlist_t = -10; return; }   /* chiesto prima dell'ultima azione: se ne chiede un altro */
     char cur[18];
     snprintf(cur, sizeof cur, "%s", btsel < nbtdevs ? btdevs[btsel].addr : "");
     memcpy(btdevs, btdevs_new, sizeof(bt_dev_t) * (size_t)n);
@@ -4445,8 +4448,15 @@ static void btp_input(void) {
         else snprintf(m, sizeof m, T(pair || conn ? "bluetooth.connected" : forget ? "bluetooth.forgot" : "bluetooth.disconnected"), bt_job_name);
         ui_toast(m);
         ui_sound(done ? SND_OK : SND_ERROR);
+        /* lo stato nuovo si vede subito; l'elenco vero arriva dopo, e quello già chiesto si butta */
+        if (done) for (int i = 0; i < nbtdevs; i++) {
+            bool me = !strcmp(btdevs[i].addr, bt_job_addr);
+            if (pair || conn) { if (me) btdevs[i].paired = btdevs[i].connected = true; }
+            else if (me) { btdevs[i].connected = false; if (forget) btdevs[i].paired = false; }
+        }
+        btgen++;
         bt_refresh();
-        btp_refresh();
+        btlist_t = -10;
     }
     if (UI.t - btlist_t > 3) btp_refresh();   /* durante la ricerca i dispositivi arrivano a poco a poco */
     /* finché la finestra è aperta la ricerca ricomincia da sola (non mentre si abbina o collega) */
@@ -4517,16 +4527,18 @@ static void btp_draw(void) {
             }
             color_t tc = sel ? t->accent_text : t->text, dc = sel ? with_alpha(t->accent_text, 200) : t->text_dim;
             int ty = ry + (rh - M(0.008f) - fh) / 2, ih = M(0.03f), iy = ry + (rh - M(0.008f) - ih) / 2;
-            if (d->kind != BT_OTHER) ui_bt_icon(lx + M(0.01f), iy, ih, d->kind, tc);
+            /* collegato in giallo; scollegato, abbinato o no, in grigio */
+            color_t yellow = rgba(245, 190, 40, 255), sc = sel ? t->accent_text : d->connected ? yellow : t->text_dim;
+            if (d->kind != BT_OTHER) ui_bt_icon(lx + M(0.01f), iy, ih, d->kind, sc);
             int nx = lx + M(0.01f) + ih * 3 / 2 + M(0.025f);
             bool busy = working && !strcmp(bt_job_addr, d->addr);
-            const char *tag = busy ? "…" : d->connected ? T("bluetooth.tag_connected") : d->paired ? T("bluetooth.tag_paired")
+            const char *tag = busy ? "…" : d->connected ? T("bluetooth.tag_connected") : d->paired ? T("bluetooth.tag_disconnected")
                             : d->kind == BT_INPUT ? T("bluetooth.tag_controller") : d->kind == BT_AUDIO || d->kind == BT_SPEAKER ? T("bluetooth.tag_audio") : "";
             int tagw = tag[0] ? ui_text_w(fs, tag) + M(0.02f) : 0;
             char fit[80];
             ui_text_fit(f, d->name, rx - nx - tagw - M(0.03f), fit, sizeof fit);
             ui_text(f, fit, nx, ty, tc, ALIGN_LEFT);
-            if (tag[0]) ui_text(fs, tag, rx - M(0.01f), ry + (rh - M(0.008f) - sh) / 2, d->connected && !sel ? t->accent : dc, ALIGN_RIGHT);
+            if (tag[0]) ui_text(fs, tag, rx - M(0.01f), ry + (rh - M(0.008f) - sh) / 2, sel ? dc : sc, ALIGN_RIGHT);
         }
         ui_clip_pop();
     }

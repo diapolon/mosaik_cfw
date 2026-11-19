@@ -675,6 +675,7 @@
     "none_connected": "No device connected",
     "tag_connected": "connected",
     "tag_paired": "paired",
+    "tag_disconnected": "disconnected",
     "tag_controller": "controller · experimental",
     "tag_audio": "audio",
     "connect": "Connect",

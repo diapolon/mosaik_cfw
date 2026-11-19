@@ -675,6 +675,7 @@
     "none_connected": "Aucun appareil connecté",
     "tag_connected": "connecté",
     "tag_paired": "associé",
+    "tag_disconnected": "déconnecté",
     "tag_controller": "manette · expérimental",
     "tag_audio": "audio",
     "connect": "Connecter",

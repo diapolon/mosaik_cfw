@@ -228,7 +228,25 @@ describe() {
         printf '%s\t%s\t%s\t%s\t%s\n' "$a" "$k" "$p" "$c" "$n"
     done
 }
-devices() { timeout 5 bluetoothctl devices 2> /dev/null | describe; }
+# Tutti i dispositivi visti: "info" su ognuno (anche 30 dopo una ricerca, mezzo secondo l'uno)
+# rendeva l'elenco vecchio di 10 s e oltre (cuffie scollegate che restavano "collegato"). Lo stato
+# cambia solo per gli abbinati, che si leggono sempre; per gli altri tipo e nome si tengono in
+# $RUN/visti/<indirizzo> (riga vuota = da non mostrare) finché il Bluetooth resta acceso.
+devices() {
+    paired=$(timeout 5 bluetoothctl paired-devices 2> /dev/null | awk '$1 == "Device" { print $2 }')
+    mkdir -p "$RUN/visti"
+    timeout 5 bluetoothctl devices 2> /dev/null | while read -r w a name; do
+        [ "$w" = Device ] || continue
+        echo "$a" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' || continue
+        if echo "$paired" | grep -qx "$a"; then
+            echo "Device $a" | describe
+        elif [ -f "$RUN/visti/$a" ]; then
+            grep . "$RUN/visti/$a"
+        else
+            echo "Device $a" | describe | tee "$RUN/visti/$a"
+        fi
+    done
+}
 # una ricerca in corso rallenta abbinamento e collegamento: la si ferma prima
 stop_scan() { pkill -f "bluetoothctl --timeout" 2> /dev/null; timeout 3 bluetoothctl scan off > /dev/null 2>&1; }
 valid() { echo "$1" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' || { echo "indirizzo non valido: $1" >&2; exit 2; }; }
@@ -263,6 +281,7 @@ off)
     save
     timeout 5 bluetoothctl power off > /dev/null 2>&1
     pid_stop bluealsa; pid_stop bluetoothd; pid_stop dbus
+    rm -rf "$RUN/visti"
     hciconfig hci0 down > /dev/null 2>&1
     pid_stop hciattach
     rfkill_bt 0
@@ -275,6 +294,8 @@ scan)
     i=0; while ! bt_on && [ $i -lt ${BT_SCAN_WAIT:-60} ]; do sleep 0.5; i=$((i + 1)); done
     bt_on || { echo "spento" >&2; exit 1; }
     s=${2:-10}; case "$s" in *[!0-9]*|'') s=10 ;; esac
+    # i dispositivi visti senza nome si riguardano a ogni ricerca: il nome può arrivare dopo
+    for f in "$RUN"/visti/*; do [ -s "$f" ] || rm -f "$f"; done
     timeout $((s + 5)) bluetoothctl --timeout "$s" scan on > /dev/null 2>&1
     devices
     ;;
