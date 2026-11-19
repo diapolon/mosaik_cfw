@@ -20,6 +20,9 @@
   "unsupported": "Video format not supported (%s).",
   "too_big": "Video too large (%s): 1920x1080 at most.",
   "no_audio_codec": "%s audio not supported: playing without sound",
-  "too_heavy": "Video too heavy: some frames are skipped"
+  "too_heavy": "Video too heavy: some frames are skipped",
+  "subs": "Subtitles",
+  "subs_on": "Subtitles on",
+  "subs_off": "Subtitles off"
  }
 }

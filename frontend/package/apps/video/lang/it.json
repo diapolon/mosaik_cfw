@@ -20,6 +20,9 @@
   "unsupported": "Formato video non supportato (%s).",
   "too_big": "Video troppo grande (%s): al massimo 1920x1080.",
   "no_audio_codec": "Audio %s non supportato: video senza suono",
-  "too_heavy": "Video troppo pesante: alcune immagini saltano"
+  "too_heavy": "Video troppo pesante: alcune immagini saltano",
+  "subs": "Sottotitoli",
+  "subs_on": "Sottotitoli accesi",
+  "subs_off": "Sottotitoli spenti"
  }
 }

@@ -6,6 +6,8 @@
    Nel video: A pausa, sinistra/destra -10/+10 s (tenuti, ancora ogni 0,4 s), L/R -1/+1 minuto,
    SELECT mostra o toglie la barra con titolo e tempi (compare anche a ogni comando e sparisce dopo
    3 s), B o MENU tornano all'elenco. Il volume è quello della console (tasti laterali).
+   Sottotitoli (dalla 1.4): un file .srt accanto al video, con lo stesso nome (prima
+   "nome.<lingua della console>.srt", poi "nome.srt"), in UTF-8 o Latin-1; Y li accende e spegne.
 
    Decodifica con FFmpeg (librerie LGPL condivise in lib/ accanto al programma, da
    toolchain/build-ffmpeg.sh) in un thread: lettura del file, video e audio. Il video passa in una
@@ -645,6 +647,152 @@ static int io_interrupt(void *u) {
     return d_stop || (dl > 0 && now_s() > dl);
 }
 
+static double clock_now(void);
+/* ------------------------------------------------------------ sottotitoli (.srt) */
+typedef struct { double a, b; char *text; } sub_t;
+static sub_t *subs;
+static int nsubs, sub_last;
+static bool subs_on = true;
+
+static void subs_free(void) {
+    for (int i = 0; i < nsubs; i++) free(subs[i].text);
+    free(subs);
+    subs = NULL;
+    nsubs = sub_last = 0;
+}
+
+static bool srt_time(const char *s, double *t) {   /* 00:01:02,345 (anche con il punto) */
+    int h, m, sec, ms;
+    if (sscanf(s, "%d:%d:%d%*[,.]%d", &h, &m, &sec, &ms) != 4) return false;
+    *t = h * 3600.0 + m * 60.0 + sec + ms / 1000.0;
+    return true;
+}
+
+static bool utf8_ok(const unsigned char *p) {
+    while (*p) {
+        int n = *p < 0x80 ? 0 : (*p & 0xE0) == 0xC0 ? 1 : (*p & 0xF0) == 0xE0 ? 2 : (*p & 0xF8) == 0xF0 ? 3 : -1;
+        if (n < 0) return false;
+        p++;
+        while (n--) { if ((*p & 0xC0) != 0x80) return false; p++; }
+    }
+    return true;
+}
+
+/* testo di una battuta: senza i tag (<i>, {\an8}), Latin-1 portato in UTF-8, righe unite con \n */
+static char *sub_clean(const char *in, bool latin1) {
+    size_t n = strlen(in);
+    char *out = malloc(n * 2 + 1), *o = out;
+    if (!out) return NULL;
+    for (const unsigned char *p = (const unsigned char *)in; *p; p++) {
+        if (*p == '<') { const char *e = strchr((const char *)p, '>'); if (e) { p = (const unsigned char *)e; continue; } }
+        if (*p == '{' && p[1] == '\\') { const char *e = strchr((const char *)p, '}'); if (e) { p = (const unsigned char *)e; continue; } }
+        if (*p == '\r') continue;
+        if (latin1 && *p >= 0x80) { *o++ = (char)(0xC0 | (*p >> 6)); *o++ = (char)(0x80 | (*p & 0x3F)); }
+        else *o++ = (char)*p;
+    }
+    while (o > out && (o[-1] == '\n' || o[-1] == ' ')) o--;
+    *o = 0;
+    return out;
+}
+
+static int sub_cmp(const void *x, const void *y) {
+    double a = ((const sub_t *)x)->a, b = ((const sub_t *)y)->a;
+    return a < b ? -1 : a > b;
+}
+
+static void subs_load(int i) {
+    subs_free();
+    char base[1700], p[1800];
+    vid_path(i, base, sizeof base);
+    char *dot = strrchr(base, '.');
+    if (dot && !strchr(dot, '/')) *dot = 0;
+    FILE *f = NULL;
+    snprintf(p, sizeof p, "%s.%s.srt", base, UI.set.lang);
+    f = fopen(p, "rb");
+    if (!f) { snprintf(p, sizeof p, "%s.srt", base); f = fopen(p, "rb"); }
+    if (!f) { snprintf(p, sizeof p, "%s.SRT", base); f = fopen(p, "rb"); }
+    if (!f) return;
+    char *buf = malloc(4 << 20);   /* al massimo 4 MB: un film intero sta in poche centinaia di KB */
+    size_t len = buf ? fread(buf, 1, (4 << 20) - 1, f) : 0;
+    fclose(f);
+    if (!buf) return;
+    buf[len] = 0;
+    char *s = buf;
+    if ((unsigned char)s[0] == 0xEF && (unsigned char)s[1] == 0xBB && (unsigned char)s[2] == 0xBF) s += 3;   /* BOM */
+    bool latin1 = !utf8_ok((const unsigned char *)s);
+    int cap = 0;
+    char *line = s;
+    while (line && *line) {
+        /* un blocco: numero (facoltativo), "inizio --> fine", righe di testo, riga vuota */
+        char *next = strchr(line, '\n');
+        if (next) *next++ = 0;
+        char *arrow = strstr(line, "-->");
+        double a, b;
+        if (!arrow || !srt_time(line, &a) || !srt_time(arrow + 3 + strspn(arrow + 3, " "), &b)) { line = next; continue; }
+        char text[600] = "";
+        size_t tl = 0;
+        line = next;
+        while (line && *line && *line != '\r') {
+            next = strchr(line, '\n');
+            if (next) *next++ = 0;
+            if (tl < sizeof text - 2) tl += (size_t)snprintf(text + tl, sizeof text - tl, "%s%s", tl ? "\n" : "", line);
+            line = next;
+        }
+        if (tl >= sizeof text) tl = sizeof text - 1;
+        if (nsubs == cap) {
+            int nc = cap ? cap * 2 : 512;
+            if (nc > 20000) break;
+            sub_t *ns = realloc(subs, (size_t)nc * sizeof *ns);
+            if (!ns) break;
+            subs = ns;
+            cap = nc;
+        }
+        char *clean = sub_clean(text, latin1);
+        if (!clean || !clean[0]) { free(clean); continue; }
+        subs[nsubs++] = (sub_t){ a, b, clean };
+    }
+    free(buf);
+    if (nsubs > 1) qsort(subs, (size_t)nsubs, sizeof *subs, sub_cmp);
+    ui_log("video: %d sottotitoli da %s%s", nsubs, strrchr(p, '/') ? strrchr(p, '/') + 1 : p, latin1 ? " (Latin-1)" : "");
+}
+
+/* la battuta da mostrare al tempo t, o -1 */
+static int sub_at(double t) {
+    if (!nsubs) return -1;
+    int i = sub_last < nsubs ? sub_last : 0;
+    if (subs[i].a > t) i = 0;   /* salto indietro: si riparte dall'inizio */
+    while (i < nsubs - 1 && subs[i].b < t && subs[i + 1].a <= t) i++;
+    sub_last = i;
+    return subs[i].a <= t && t <= subs[i].b ? i : -1;
+}
+
+/* testo bianco con il bordo nero, centrato in basso; sopra la barra quando è aperta */
+static void subs_draw(bool bar) {
+    if (!subs_on || waiting) return;
+    int k = sub_at(clock_now());
+    if (k < 0) return;
+    TTF_Font *f = UI.f_normal;
+    int fh = TTF_FontHeight(f), maxw = UI.w * 9 / 10, n = 0;
+    char lines[6][160];
+    const char *src = subs[k].text;
+    while (*src && n < 6) {   /* ogni riga del file va a capo da sola se è troppo lunga */
+        char one[600];
+        size_t l = strcspn(src, "\n");
+        snprintf(one, sizeof one, "%.*s", (int)(l < sizeof one ? l : sizeof one - 1), src);
+        n += ui_wrap(f, one, maxw, lines + n, 6 - n);
+        src += l + (src[l] == '\n');
+    }
+    int bottom = bar ? UI.h - (TTF_FontHeight(UI.f_normal) + 2 * TTF_FontHeight(UI.f_small) + M(0.1f)) - M(0.07f) : UI.h - M(0.05f);
+    int y = bottom - n * fh, o = M(0.003f) < 2 ? 2 : M(0.003f);
+    color_t black = rgba(0, 0, 0, 255), white = rgba(255, 255, 255, 255);
+    for (int i = 0; i < n; i++, y += fh) {
+        for (int dx = -o; dx <= o; dx += o)
+            for (int dy = -o; dy <= o; dy += o)
+                if (dx || dy) ui_text(f, lines[i], UI.w / 2 + dx, y + dy, black, ALIGN_CENTER);
+        ui_text(f, lines[i], UI.w / 2, y, white, ALIGN_CENTER);
+    }
+}
+
 static void player_close(void) {
     guard_begin();   /* i thread finiscono, o l'app si chiude: i contesti si liberano solo dopo */
     d_stop = true;
@@ -670,6 +818,7 @@ static void player_close(void) {
     avformat_close_input(&fmt);
     if (vtex) SDL_DestroyTexture(vtex);
     vtex = NULL;
+    subs_free();
     playing = false;
     io_deadline = 0;
     guard_end();
@@ -683,6 +832,7 @@ static bool player_open(int i, double start) {
     guard_begin();
     bool ok = player_open_guarded(i, start);
     guard_end();
+    if (ok) subs_load(i);
     return ok;
 }
 
@@ -1118,8 +1268,9 @@ static void info_draw(void) {
     theme_t keep = *t;
     t->text = rgba(235, 235, 235, 255);
     t->bg = rgba(0, 0, 0, 255);
-    const char *k[] = { "A", FT(paused ? "video.continue" : "video.pause"), "<>", "10 s", "L", "-1 min", "R", "+1 min", "SELECT", FT("video.bar"), "B", FT("video.list") };
-    int g = fsh, gap = M(0.035f), total = 0, n = (int)(sizeof k / sizeof k[0]) / 2;
+    const char *k[] = { "A", FT(paused ? "video.continue" : "video.pause"), "<>", "10 s", "L", "-1 min", "R", "+1 min", "SELECT", FT("video.bar"),
+                        "B", FT("video.list"), "Y", FT("video.subs") };
+    int g = fsh, gap = M(0.035f), total = 0, n = (int)(sizeof k / sizeof k[0]) / 2 - (nsubs ? 0 : 1);   /* Y solo con i sottotitoli */
     #define GW(b) (!strcmp(b, "<>") ? g * 3 / 2 : strlen(b) == 1 ? g : ui_text_w(fs, b) + g / 2)
     for (int i = 0; i < n; i++) total += (i ? gap : 0) + GW(k[2 * i]) + M(0.01f) + ui_text_w(fs, k[2 * i + 1]);
     int x = (UI.w - total) / 2, ky = py + ph + M(0.012f) + fsh / 2;
@@ -1137,6 +1288,7 @@ static void info_draw(void) {
 static void player_draw(void) {
     video_draw();
     bool bar = bar_pinned || paused || UI.t < bar_until;
+    subs_draw(bar);
     if (bar) info_draw();
     if (waiting && now_s() - wait_since > 0.4) {   /* caricamento: tre punti che si accendono a turno */
         int r = M(0.012f), g = M(0.04f), cy = UI.h / 2;
@@ -1302,6 +1454,7 @@ static void player_input(void) {
     if (in->pressed[BTN_B] || in->pressed[BTN_MENU]) { stop_playing(false); ui_sound(SND_BACK); return; }
     if (in->pressed[BTN_A]) { set_pause(!paused); bar_show(); }
     if (in->pressed[BTN_SELECT]) { bar_pinned = !bar_pinned; if (!bar_pinned) bar_until = 0; }
+    if (in->pressed[BTN_Y] && nsubs) { subs_on = !subs_on; ui_toast(FT(subs_on ? "video.subs_on" : "video.subs_off")); }
     if (in->pressed[BTN_R]) seek_rel(60);
     if (in->pressed[BTN_L]) seek_rel(-60);
     /* sinistra/destra: un salto di 10 s, poi ancora ogni 0,4 s se tenuti */

@@ -20,6 +20,9 @@
   "unsupported": "Videoformat nicht unterstützt (%s).",
   "too_big": "Video zu groß (%s): höchstens 1920x1080.",
   "no_audio_codec": "Audio %s nicht unterstützt: Video ohne Ton",
-  "too_heavy": "Video zu aufwendig: einige Bilder werden übersprungen"
+  "too_heavy": "Video zu aufwendig: einige Bilder werden übersprungen",
+  "subs": "Untertitel",
+  "subs_on": "Untertitel an",
+  "subs_off": "Untertitel aus"
  }
 }

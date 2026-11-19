@@ -1737,6 +1737,86 @@ static void draw_icon_glyph(int kind, int cx, int cy, int s, color_t c, color_t 
     }
 }
 
+/* icone delle categorie delle Impostazioni (SC_* e, dopo l'ultima, Spegnimento), con le stesse
+   forme semplici dei pulsanti della home: s è il lato del riquadro, c il colore, bg lo sfondo */
+static void draw_cat_icon(int cat, int cx, int cy, int s, color_t c, color_t bg) {
+    int th = s / 12 < 2 ? 2 : s / 12, q = s / 6;
+    switch (cat) {
+    case SC_DISPLAY: {   /* schermo con il piede */
+        int w = s * 3 / 4, h = s / 2, x = cx - w / 2, y = cy - h / 2 - q / 2;
+        ui_rborder(x, y, w, h, q / 2, th, c);
+        ui_rect(cx - th / 2, y + h, th, q / 2 + 1, c);
+        ui_rrect(cx - q, y + h + q / 2, 2 * q, th, th / 2, c);
+        break;
+    }
+    case SC_LOOK: {   /* tavolozza: disco con tre colori e il buco per il pollice */
+        int r = s * 2 / 5, d = r * 3 / 5, dr = r / 9 + 1;
+        ui_circle(cx, cy, r, c);
+        ui_circle(cx + r * 2 / 5, cy + r * 2 / 5, r / 4 + 1, bg);
+        static const int ax[4] = { -100, -70, 0, 70 }, ay[4] = { 0, -70, -100, -70 };   /* sinistra, in alto a sinistra, in alto, in alto a destra */
+        for (int i = 0; i < 4; i++) ui_circle(cx + d * ax[i] / 100, cy + d * ay[i] / 100, dr, bg);
+        break;
+    }
+    case SC_GAMES: {   /* pad: corpo, croce e due tasti */
+        int w = s * 4 / 5, h = s * 9 / 20, x = cx - w / 2, y = cy - h / 2;
+        ui_rrect(x, y, w, h, h / 2, c);
+        int dx = x + w * 7 / 25, u = h / 8 + 1, bx = x + w * 7 / 10;
+        ui_rect(dx - 2 * u, cy - u / 2, 4 * u, u, bg);
+        ui_rect(dx - u / 2, cy - 2 * u, u, 4 * u, bg);
+        ui_circle(bx - u * 3 / 2, cy + u, u * 3 / 4 + 1, bg);
+        ui_circle(bx + u * 3 / 2, cy - u, u * 3 / 4 + 1, bg);
+        break;
+    }
+    case SC_CONTROLS: {   /* croce direzionale con il centro vuoto */
+        int a = s * 3 / 4, b = s / 4;
+        ui_rrect(cx - a / 2, cy - b / 2, a, b, b / 4, c);
+        ui_rrect(cx - b / 2, cy - a / 2, b, a, b / 4, c);
+        ui_circle(cx, cy, b / 4 + 1, bg);
+        break;
+    }
+    case SC_SYSTEM: {   /* processore: quadrato con i piedini */
+        int a = s * 3 / 5, x = cx - a / 2, y = cy - a / 2;
+        ui_rrect(x, y, a, a, q / 3, c);
+        ui_rborder(x + a / 4, y + a / 4, a / 2, a / 2, q / 4, th / 2 + 1, bg);
+        for (int i = 0; i < 3; i++) {
+            int o = a / 6 + i * a / 3 - th / 2;
+            ui_rect(x + o, y - q / 2, th, q / 2, c);
+            ui_rect(x + o, y + a, th, q / 2, c);
+            ui_rect(x - q / 2, y + o, q / 2, th, c);
+            ui_rect(x + a, y + o, q / 2, th, c);
+        }
+        break;
+    }
+    case SC_TOOLS: {   /* immagine: cornice, sole e montagna */
+        int w = s * 3 / 4, h = s * 3 / 5, x = cx - w / 2, y = cy - h / 2;
+        ui_rborder(x, y, w, h, q / 2, th, c);
+        ui_circle(x + w * 2 / 3, y + h / 3, q / 2 + 1, c);
+        int base = y + h - th, peak = h / 2;
+        for (int k = 0; k < peak; k++) ui_rect(x + w / 3 - k, base - peak + k, 2 * k + 1, 1, c);
+        break;
+    }
+    case SC_CARD: {   /* scheda SD: angolo tagliato e contatti */
+        int w = s * 11 / 20, h = s * 7 / 10, x = cx - w / 2, y = cy - h / 2, cut = w / 3;
+        ui_rrect(x, y, w, h, q / 3, c);
+        for (int k = 0; k < cut; k++) ui_rect(x + w - cut + k, y, cut - k, 1, bg);
+        for (int i = 0; i < 3; i++) ui_rect(x + w / 6 + i * w / 4, y + th, th, h / 4, bg);
+        break;
+    }
+    case SC_UPDATES: {   /* freccia che scende nel vassoio */
+        int w = s * 3 / 5, x = cx - w / 2, ay = cy - s / 3, ab = cy + q / 2;
+        ui_rect(cx - th / 2, ay, th + 1, ab - ay - q / 2, c);
+        for (int k = 0; k < q + q / 2; k++) ui_rect(cx - (q + q / 2) + k, ab - (q + q / 2) + k, 2 * (q + q / 2 - k) + 1, 1, c);
+        ui_rect(x, cy + s / 4, w, th, c);
+        ui_rect(x, cy + s / 4 - q / 2, th, q / 2, c);
+        ui_rect(x + w - th, cy + s / 4 - q / 2, th, q / 2, c);
+        break;
+    }
+    default:   /* Spegnimento: come il pulsante della home */
+        draw_icon_glyph(IC_POWER, cx, cy, s, c, bg);
+        break;
+    }
+}
+
 static const char *hm_label(int m) {
     switch (m) {
     case HM_GAME: return T(resume_idx >= 0 ? "home.resume_game" : "home.last");
@@ -6947,11 +7027,17 @@ static void settings_draw_grid(int y, int bottom) {
         bool sel = k == set_row;
         set_box(x, yy, cw, ch, r, sel);
         char fit[160], lines[2][160];
-        ui_text_fit(fn, set_cat_title(rows[k]), cw - 2 * pad, fit, sizeof fit);
-        int nl = ui_wrap(fs, set_cat_sub(rows[k]), cw - 2 * pad, lines, 2);
+        /* icona della categoria a sinistra, in un cerchio come i pulsanti della home */
+        int is = ch - 2 * pad;
+        if (is > M(0.075f)) is = M(0.075f);
+        int icx = x + pad + is / 2, icy = yy + ch / 2, tx = x + pad + is + M(0.02f), tw = x + cw - pad - tx;
+        if (sel) ui_circle(icx, icy, is / 2, t->accent);   /* scelta: icona chiara nel cerchio pieno */
+        draw_cat_icon(rows[k] - ROW_CAT, icx, icy, sel ? is * 3 / 5 : is * 4 / 5, sel ? t->accent_text : t->accent, sel ? t->accent : t->surface);
+        ui_text_fit(fn, set_cat_title(rows[k]), tw, fit, sizeof fit);
+        int nl = ui_wrap(fs, set_cat_sub(rows[k]), tw, lines, 2);
         int ty = yy + (ch - fnh - nl * fsh - M(0.008f)) / 2;
-        ui_text(fn, fit, x + pad, ty, t->text, ALIGN_LEFT);
-        for (int l = 0; l < nl; l++) ui_text(fs, lines[l], x + pad, ty + fnh + M(0.008f) + l * fsh, t->text_dim, ALIGN_LEFT);
+        ui_text(fn, fit, tx, ty, t->text, ALIGN_LEFT);
+        for (int l = 0; l < nl; l++) ui_text(fs, lines[l], tx, ty + fnh + M(0.008f) + l * fsh, t->text_dim, ALIGN_LEFT);
     }
 }
 
@@ -6968,10 +7054,11 @@ static void settings_draw_menu(int y, int bottom) {
         int yy = y + k * (rh + gap);
         bool sel = k == set_row;
         set_box(mx, yy, lw, rh, r, sel);
-        char num[8], fit[120];
-        snprintf(num, sizeof num, "%02d", k + 1);
-        ui_text(fn, num, mx + M(0.016f), yy + (rh - fnh) / 2, sel ? t->accent : t->text, ALIGN_LEFT);
-        int lx = mx + M(0.016f) + ui_text_w(fn, "00") + M(0.022f);
+        char fit[120];
+        /* l'icona della categoria al posto del numero */
+        int is = rh * 3 / 4, icx = mx + M(0.016f) + is / 2;
+        draw_cat_icon(rows[k] - ROW_CAT, icx, yy + rh / 2, is * 4 / 5, sel ? t->accent : t->text, t->surface);
+        int lx = mx + M(0.016f) + is + M(0.018f);
         ui_text_fit(fn, set_cat_title(rows[k]), mx + lw - lx - M(0.012f), fit, sizeof fit);
         ui_text(fn, fit, lx, yy + (rh - fnh) / 2, t->text, ALIGN_LEFT);
     }

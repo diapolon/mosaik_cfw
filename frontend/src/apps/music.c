@@ -6,7 +6,9 @@
    tag, spettro, controlli); lì A mette in pausa, B
    torna all'elenco. Ovunque L/R brano precedente e successivo, sinistra/destra tenuti indietro e
    avanti di 10 secondi, X ripeti (no, tutti, uno), Y casuale, START cambia aspetto (cartella
-   skins), SELECT spegne lo schermo mentre la musica continua (un tasto qualsiasi lo riaccende),
+   skins), SELECT spegne lo schermo mentre la musica continua (un tasto qualsiasi lo riaccende);
+   dalla 1.10 lo schermo si spegne anche da solo dopo 30 s di musica senza tasti (SCREEN_AUTO_S),
+   e si riaccende quando la musica si ferma,
    MENU esce. Il volume è quello della console (tasti laterali).
    Uscendo, la musica si ferma e il menu di Mosaik resta in silenzio fino alla prossima accensione
    (System/musica-app.txt, issue #8).
@@ -37,6 +39,7 @@ static float scroll;
 static Mix_Music *mus;
 static _Atomic bool finished;
 static bool mixer_on, paused, shuffle, screen_off, quit;
+#define SCREEN_AUTO_S 30   /* secondi di musica senza tasti prima di spegnere lo schermo */
 static int repeat;   /* 0 no, 1 tutti, 2 uno */
 static double duration;
 
@@ -1177,13 +1180,26 @@ int main(int argc, char **argv) {
     ui_log("musica: %d brani%s", ntracks, scan_cut ? " (elenco incompleto)" : "");
     if (scan_cut) ui_toast(FT("music.list_incomplete"));
     skins_load();
+    double last_key = 0;
     while (!quit) {
         UI.amp_keep = cur >= 0 && !paused;   /* in riproduzione l'altoparlante resta acceso */
         ui_poll();
         if (UI.in.quit) break;
         UI.in.power = false;   /* il tasto di accensione lo gestisce gamewatch */
         resume_check();
+        bool moved = false;
+        for (int i = 0; i < 4; i++) moved = moved || abs(UI.in.axis[i]) > 8000;
+        if (UI.in.any || moved) last_key = UI.t;
         input();
+        /* schermo spento da solo mentre si ascolta, come un telefono: 30 s senza tasti con la musica
+           che suona (lo schermo acceso è il consumo più grande); se la musica si ferma (fine
+           dell'elenco) si riaccende, così non resta una console accesa che sembra spenta */
+        if (!screen_off && cur >= 0 && !paused && UI.t - last_key > SCREEN_AUTO_S) {
+            screen_off = true; plat_screen_off(true); plat_apply(&UI.set);
+            ui_log("musica: schermo spento dopo %d s senza tasti", SCREEN_AUTO_S);
+        } else if (screen_off && (cur < 0 || paused)) {
+            screen_off = false; plat_screen_off(false); plat_apply(&UI.set); last_key = UI.t;
+        }
         if (mixer_on) volume_apply();
         if (finished) { finished = false; skip(+1, false); }
         if (player_view) spectrum_update();
