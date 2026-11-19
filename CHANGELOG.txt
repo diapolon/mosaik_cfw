@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.79
+it Impostazioni con un'icona per ogni sezione
+en Settings with an icon for each section
+it Lettore musicale: lo schermo si spegne da solo mentre ascolti (aggiorna l'app dallo Store)
+en Music player: the screen turns off by itself while you listen (update the app in the Store)
+it Video: sottotitoli .srt accanto al video, Y li accende e spegne (aggiorna l'app dallo Store)
+en Video: .srt subtitles next to the video, Y turns them on and off (update the app in the Store)
+
 0.9.78
 it Libreria vuota per una ricerca o un filtro: lo dice, e A toglie i filtri
 en Library empty because of a search or filter: it says so, and A clears the filters
