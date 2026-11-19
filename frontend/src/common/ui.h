@@ -153,6 +153,7 @@ void ui_vgradient(int x, int y, int w, int h, color_t top, color_t bottom);
 void ui_wifi_icon(int x, int y, int h, int level, color_t on, color_t off);
 /* cuffie (kind BT_AUDIO) o controller (BT_INPUT), largo h * 3 / 2 */
 void ui_bt_icon(int x, int y, int h, int kind, color_t c);
+void ui_bluetooth_icon(int x, int y, int h, color_t c);   /* simbolo del Bluetooth, largo h * 3 / 5 */
 /* uscita audio cambiata (cuffie Bluetooth collegate o scollegate, /run/bt-audio): ui_end lo vede
    una volta al secondo e chiama fn, oppure, senza fn, riapre l'audio dei menu (ui_audio_reopen) */
 void ui_on_audio_route(void (*fn)(void));

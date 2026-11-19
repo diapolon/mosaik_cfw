@@ -572,6 +572,25 @@ static void glyph_draw(int kind, int cx, int cy, int rad, color_t c) {
 void ui_star(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_STAR, cx, cy, rad, c); }
 void ui_gear(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_GEAR, cx, cy, rad, c); }
 
+/* segmento spesso t: due triangoli */
+static void thick_line(int x1, int y1, int x2, int y2, int t, color_t c) {
+    double dx = x2 - x1, dy = y2 - y1, len = sqrt(dx * dx + dy * dy);
+    if (len < 1) return;
+    int ox = (int)lround(-dy / len * t / 2.0), oy = (int)lround(dx / len * t / 2.0);
+    ui_triangle(x1 + ox, y1 + oy, x2 + ox, y2 + oy, x2 - ox, y2 - oy, c);
+    ui_triangle(x1 + ox, y1 + oy, x2 - ox, y2 - oy, x1 - ox, y1 - oy, c);
+}
+
+/* simbolo del Bluetooth (la runa), largo h * 3 / 5 */
+void ui_bluetooth_icon(int x, int y, int h, color_t c) {
+    int t = h / 7 < 2 ? 2 : h / 7, a = h * 2 / 7, cx = x + h * 3 / 10, top = y + t / 2, bot = y + h - t / 2;
+    thick_line(cx, top, cx, bot, t, c);
+    thick_line(cx, top, cx + a, y + h / 4, t, c);
+    thick_line(cx + a, y + h / 4, cx - a, y + h * 3 / 4, t, c);
+    thick_line(cx, bot, cx + a, y + h * 3 / 4, t, c);
+    thick_line(cx + a, y + h * 3 / 4, cx - a, y + h / 4, t, c);
+}
+
 /* altoparlante: corpo, cono e due onde */
 void ui_speaker_icon(int x, int y, int h, color_t c) {
     int tk = h > 20 ? 3 : 2, x1 = x + h / 4, x2 = x + h * 11 / 20;
@@ -1927,11 +1946,16 @@ void ui_topbar(const char *title) {
         color_t pulse = with_alpha(t->text, 60 + (int)(195 * (0.5 + 0.5 * sin(UI.t * 4))));
         ui_wifi_icon(x, cy - wh / 2, wh, 3, pulse, pulse);
     } else wifi_icon(x, cy - wh / 2, wh, level, t->text);
-    /* cuffie o controller Bluetooth collegati: la loro icona prima del Wi-Fi */
+    /* Bluetooth acceso: il suo simbolo prima del Wi-Fi (pulsa mentre parte), e con cuffie, casse
+       o controller collegati anche la loro icona */
     if (UI.set.bluetooth && bt_supported()) {
         const bt_status_t *bs = bt_status();
+        x -= M(0.018f) + wh * 3 / 5;
+        color_t bc = bs->state == BT_ON || bs->state == BT_CONNECTED ? t->text
+                   : with_alpha(t->text, 60 + (int)(195 * (0.5 + 0.5 * sin(UI.t * 4))));
+        ui_bluetooth_icon(x, cy - wh / 2, wh, bc);
         if (bs->state == BT_CONNECTED) {
-            x -= M(0.02f) + wh * 3 / 2;
+            x -= M(0.012f) + wh * 3 / 2;
             ui_bt_icon(x, cy - wh / 2, wh, bs->kind, t->text);
         }
     }
