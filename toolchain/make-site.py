@@ -23,16 +23,19 @@ version, stamp = open(os.path.join(dist, "arcade-version.txt")).read().split()
 # site/ (le pagine HTML del sito) non è nel repository: senza, si preparano solo immagini,
 # aggiornamento, Store e build-info.txt, cioè tutto quello che serve a una Release su GitHub
 have_site = os.path.isdir(src)
+# --solo-sito: rifà solo le pagine di www.mosaikcfw.org (dist/site/web) dalle immagini già pronte in
+# dist/site/download, senza toccare aggiornamento, Store e firme già pubblicati
+solo = "--solo-sito" in sys.argv[1:]
+if solo and not have_site:
+    sys.exit("--solo-sito: manca la cartella site/")
 if not have_site:
     print("niente cartella site/: salto le pagine del sito (immagini, aggiornamento e Store si fanno lo stesso)")
-shutil.rmtree(out, ignore_errors=True)
-os.makedirs(os.path.join(out, "download"))
-if have_site:
-    shutil.copytree(os.path.join(src, "assets"), os.path.join(out, "assets"))
-    shutil.copytree(os.path.join(top, "licenses"), os.path.join(out, "assets", "licenses"))
-subprocess.run([sys.executable, os.path.join(top, "toolchain", "update-server.py"), "--out", os.path.join(out, "update")], check=True)
-# emulatori: pacchetti dello Store e catalogo firmato, accanto ai file dell'aggiornamento
-subprocess.run([sys.executable, os.path.join(top, "toolchain", "make-store.py"), "--out", os.path.join(out, "store")], check=True)
+if not solo:
+    shutil.rmtree(out, ignore_errors=True)
+    os.makedirs(os.path.join(out, "download"))
+    subprocess.run([sys.executable, os.path.join(top, "toolchain", "update-server.py"), "--out", os.path.join(out, "update")], check=True)
+    # emulatori: pacchetti dello Store e catalogo firmato, accanto ai file dell'aggiornamento
+    subprocess.run([sys.executable, os.path.join(top, "toolchain", "make-store.py"), "--out", os.path.join(out, "store")], check=True)
 
 
 def human(n):
@@ -44,9 +47,12 @@ for key, model in (("SMART", "smartpro"), ("BRICK", "brickpro")):
     name = f"mosaik-{version}-{model}.img.gz"
     path = os.path.join(out, "download", name)
     # mtime=0: stesso contenuto, stesso file compresso
-    with open(os.path.join(dist, f"m2-{model}.img"), "rb") as f, open(path, "wb") as raw, \
-            gzip.GzipFile(filename="", fileobj=raw, mode="wb", compresslevel=6, mtime=0) as z:
-        shutil.copyfileobj(f, z, 1 << 20)
+    if solo:
+        if not os.path.exists(path): sys.exit(f"--solo-sito: manca {path}")
+    else:
+        with open(os.path.join(dist, f"m2-{model}.img"), "rb") as f, open(path, "wb") as raw, \
+                gzip.GzipFile(filename="", fileobj=raw, mode="wb", compresslevel=6, mtime=0) as z:
+            shutil.copyfileobj(f, z, 1 << 20)
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for b in iter(lambda: f.read(1 << 20), b""):
@@ -62,50 +68,52 @@ def fill(text, extra):
 
 
 def build_pages():
+    """Sito di www.mosaikcfw.org in dist/site/web: Home e Scarica in inglese (radice) e italiano
+    (it/), le schermate di docs/images, i link di scaricamento alla Release vX.Y.Z su GitHub. Le
+    guide restano nella wiki. Da caricare sull'hosting solo per le versioni stabili."""
+    web = os.path.join(out, "web")
+    shutil.rmtree(web, ignore_errors=True)
+    shutil.copytree(os.path.join(src, "assets"), os.path.join(web, "assets"))
+    shots = os.path.join(top, "docs", "images")
+    os.makedirs(os.path.join(web, "assets", "shots", "en"))
+    for n in os.listdir(shots):
+        if n.endswith(".png"):
+            shutil.copy(os.path.join(shots, n), os.path.join(web, "assets", "shots", "en", n))
+    shutil.copytree(os.path.join(shots, "it"), os.path.join(web, "assets", "shots", "it"))
     conf = json.load(open(os.path.join(src, "site.json"), encoding="utf-8"))
     layout = open(os.path.join(src, "layout.html"), encoding="utf-8").read()
+    rel = f"https://github.com/diapolon/mosaik_cfw/releases/download/v{version}/"
     for lang, c in conf.items():
         up = "../" if c["prefix"] else ""
-        guides = list(c["guides"])
-        paths = {"LANG": lang, "ASSETS": up + "assets/", "SHOTS": up + c["shots"], "DL": up + "download/", "DESCRIPTION": c["description"]}
-
-
-        def read(slug):
-            return open(os.path.join(src, lang, slug + ".html"), encoding="utf-8").read()
-
-
-        def write(slug, title, body, section):
-            other = conf[c["other"]]["prefix"]
-            other_href = ("../" if c["prefix"] else other) + slug + ".html"
-            links = "".join(f'<a href="{k}.html"' + (' aria-current="page"' if k == section else "") + f">{v}</a>" for k, v in c["nav"].items())
+        oc = conf[c["other"]]
+        shot_lang = lang if os.path.isdir(os.path.join(shots, lang)) else "en"
+        for slug in c["pages"]:
+            body = open(os.path.join(src, lang, slug + ".html"), encoding="utf-8").read()
+            links = ""
+            for k, v in c["nav"].items():
+                href = k[1:] if k.startswith("@") else k + ".html"
+                links += f'<a href="{href}"' + (' aria-current="page"' if k == slug else "") + f">{v}</a>"
+            other_href = ("../" if c["prefix"] else oc["prefix"]) + slug + ".html"
             links += f'<a class="lang" href="{other_href}" lang="{c["other"]}" hreflang="{c["other"]}">{c["other_label"]}</a>'
-            full_title = c["site"] if slug == "index" else f"{title} · Mosaik"
+            page_path = c["prefix"] + ("" if slug == "index" else slug + ".html")
+            other_path = oc["prefix"] + ("" if slug == "index" else slug + ".html")
+            extra = {"LANG": lang, "OTHER_LANG": c["other"], "ASSETS": up + "assets/", "SHOTS": up + f"assets/shots/{shot_lang}/",
+                     "HOME": "index.html", "SELF": page_path, "OTHER": other_path, "DESCRIPTION": c["description"],
+                     "SMART_URL": rel + values["SMART_FILE"], "BRICK_URL": rel + values["BRICK_FILE"],
+                     "PAGE_TITLE": c["site"] if slug == "index" else f'{c["titles"][slug]} · Mosaik'}
             page = layout.replace("{{BODY}}", body).replace("{{FOOTER}}", c["footer"]).replace("{{TOPLINKS}}", links)
-            page = fill(page.replace("{{PAGE_TITLE}}", full_title), paths)
+            page = fill(page, extra)
             assert "{{" not in page, f"segnaposto non sostituito in {lang}/{slug}"
-            path = os.path.join(out, c["prefix"], slug + ".html")
+            path = os.path.join(web, c["prefix"], slug + ".html")
             os.makedirs(os.path.dirname(path), exist_ok=True)
             open(path, "w", encoding="utf-8").write(page)
-
-
-        write("index", c["nav"]["index"], read("index"), "index")
-        write("download", c["nav"]["download"], f'<main><h1>{c["nav"]["download"]}</h1>' + read("download") + "</main>", "download")
-        write("licenses", c["licenses_title"], f'<main><h1>{c["licenses_title"]}</h1>' + read("licenses") + "</main>", "")
-        cards = "".join(f'<a class="card link" href="{g}.html"><h3>{c["guides"][g][0]}</h3><p>{c["guides"][g][1]}</p></a>' for g in guides)
-        write("guide", c["nav"]["guide"], f'<main><h1>{c["nav"]["guide"]}</h1><p class="lead">{c["guide_lead"]}</p><div class="cards">{cards}</div></main>', "guide")
-        for n, g in enumerate(guides):
-            side = "".join(f'<li><a href="{x}.html"' + (' aria-current="page"' if x == g else "") + f'>{c["guides"][x][0]}</a></li>' for x in guides)
-            pager = ""
-            if n > 0:
-                pager += f'<a class="prev" href="{guides[n - 1]}.html"><small>{c["prev"]}</small>{c["guides"][guides[n - 1]][0]}</a>'
-            if n + 1 < len(guides):
-                pager += f'<a class="next" href="{guides[n + 1]}.html"><small>{c["next"]}</small>{c["guides"][guides[n + 1]][0]}</a>'
-            body = f'<div class="doc"><aside class="side"><ul>{side}</ul></aside><main class="article"><h1>{c["guides"][g][0]}</h1>' + read(g) + f'<nav class="pager">{pager}</nav></main></div>'
-            write(g, c["guides"][g][0], body, "guide")
+    print("sito web in", web)
 
 
 if have_site:
     build_pages()
+if solo:
+    sys.exit(0)
 # --- provenienza della build (audit prelancio R09): commit di Mosaik e dei core, immagine del
 # kit, SHA-256 di quello che si distribuisce. Va allegato alla release insieme alle immagini.
 def sha256(path):
