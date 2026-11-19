@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.91
+it Un salvataggio fatto nel gioco non si perde più caricando subito dopo uno stato
+en A save made in the game is no longer lost when a state is loaded right after
+it Aggiornamento dei soli dati interrotto dalla corrente: il sistema in uso resta
+en Data-only update interrupted by a power cut: the system in use stays
+it Licenze dei programmi Bluetooth anche nel sistema, sorgenti allegati alle release
+en Licenses of the Bluetooth programs also in the system, sources attached to the releases
+
 0.9.90
 it Bluetooth: spegnendolo mentre ricollega le cuffie, l'audio torna sempre all'altoparlante
 en Bluetooth: turning it off while it reconnects the headphones always brings the sound back to the speaker
