@@ -18,7 +18,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [ ] Memory and battery use over a long session, on both models
 
 **Wireless**
-- [ ] Bluetooth (0.9.83 on the Development channel, tried on the Brick Pro): service `m2/bt-ctl` (fixed address from the SoC serial, pairings in `System/bluetooth/abbinamenti.tar`, reconnect, audio to bluealsa through `/run/asound.conf`), Settings and quick panel. Still to do: try it on the Smart Pro (stock firmware 1.1.x broke Bluetooth there, trimui/firmware_smartpro#50, #70); audio in games and over long sessions; switch output also in the Music player, Video, Linux games and standalone emulators; shrink the system (+12 MB: glib/gio, D-Bus); controllers with someone who has one
+- [ ] Bluetooth (stable from 0.9.88, tried on the Smart Pro and the Brick Pro: pairing, reconnection, sound and volume in the headphones). Still to do: the rest of the 0.9.88 code review (sound after sleep with headphones, BT-03 and BT-04, to try on the console first; quick on/off, bluealsa watchdog, Brick Pro buttons while the chip starts); switch output also in the Music player, Video, Linux games and standalone emulators; controllers with someone who has one; the XR829 patch of `hciattach`, asked to TrimUI in trimui/firmware_smartpro#29
 - [ ] Check `mosaik.local` on the Smart Pro, a fixed Wi-Fi address across power-ons, and WPA3-only networks
 
 **Transfer files** (code review of 0.9.72, RETE-06; proposal)
@@ -30,7 +30,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 **Games**
 - [ ] Faster fast-forward (cores skip the frames that are not shown)
 - [ ] Dreamcast (Deadcast): test on the Smart Pro, then a clean exit when the game is closed from outside
-- [ ] PSP and Nintendo 64: test with real games; then PICO-8 and TIC-80
+- [ ] PSP: test with real games (Nintendo 64 tried on both consoles from 0.9.77); then PICO-8 and TIC-80
 - [ ] Run-ahead and rewind as per-console or per-game settings, cheats, manuals from the game menu
 - [ ] RetroAchievements, first without hardcore mode
 
