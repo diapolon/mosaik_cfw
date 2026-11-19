@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.88
+it Cuffie e casse Bluetooth su Smart Pro e Brick Pro: Impostazioni → Sistema → Bluetooth
+en Bluetooth headphones and speakers on Smart Pro and Brick Pro: Settings → System → Bluetooth
+it Simbolo del Bluetooth in alto, ricerca con Y, abbinamento più sicuro
+en Bluetooth symbol at the top, search with Y, more reliable pairing
+
 0.9.87
 it Sistema più leggero: da 73 a 55 MB, aggiornamenti più veloci da scaricare
 en Lighter system: from 73 to 55 MB, faster updates to download

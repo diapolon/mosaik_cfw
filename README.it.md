@@ -42,11 +42,12 @@
 - **Giochi Linux**, con menu sopra al gioco e sospensione; dallo Store (0.9.58, sperimentali): Freedoom, Mr.Boom e Diablo (con i file del gioco originale).
 - **Avvio in circa 5 secondi**, sospensione con il tasto di accensione.
 - **Wi-Fi integrato** per copertine, storia dei giochi, ora e aggiornamenti.
+- **Cuffie e casse Bluetooth** (dalla 0.9.88): tutto il suono va a loro, con il loro volume, e si ricollegano da sole all'accensione.
 - **Trasferimento file via Wi-Fi** da computer o telefono: inquadri il QR o apri `mosaik.local`, poi carichi ROM e scarichi salvataggi senza togliere la scheda.
 - **Backup e ripristino**: un solo zip con salvataggi, impostazioni, BIOS e, se vuoi, i giochi; lo ripristini tutto o solo le parti che scegli, anche su una scheda nuova o sull'altro modello.
 - **App dallo Store**: Esplora file, Immagini e fumetti (anche a icone), Lettore musicale, Video, Test della SD, Spazio della SD, Diagnostica, Scarica immagini e Scarica file.
 - **Cambia gioco** (Select): le ultime partite in fila con l'immagine del punto in cui le hai lasciate; scegli e riprendi da lì, senza passare dal menu.
-- **Pannello rapido** (Menu): batteria, temperatura, tempo di gioco, Wi-Fi, altoparlante, LED, musica, cattura, luminosità e volume.
+- **Pannello rapido** (Menu): batteria, temperatura, tempo di gioco, Wi-Fi, Bluetooth, altoparlante, LED, musica, cattura, luminosità e volume.
 - **Collezioni automatiche**: Da finire, Partite brevi, Due giocatori, Mai giocati, accanto a preferiti e collezioni tue.
 - **Gioco a caso** come prima voce di ogni lista di giochi, e **un gioco che parte all'accensione**.
 - **Pagina Batteria** con il grafico delle ultime ore, il tempo rimasto e quanto è costata l'ultima sospensione; l'**ora presa da internet** quando il Wi-Fi è acceso.
@@ -58,13 +59,13 @@
 
 ## Cosa funziona
 
-Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stato attuale (stabile 0.9.79, canale Sviluppo 0.9.87). Nello Store i pacchetti non ancora provati hanno la fiaschetta **Sperimentale**.
+Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stato attuale (0.9.88). Nello Store i pacchetti non ancora provati hanno la fiaschetta **Sperimentale**.
 
 **Provato su tutte e due le console (Smart Pro e Brick Pro)**
 - **Sistema**: avvio dalla scheda in circa 5 secondi, sospensione e ripresa, aggiornamenti firmati via Wi-Fi (tutto o niente, con il ritorno indietro), trasferimento file via Wi-Fi, backup e ripristino, Store, temi, cornici, filtri, impostazioni per una console o per un solo gioco, sei lingue.
 - **Arcade**: FinalBurn Neo e MAME 2003-Plus.
 - **Console**: Super Nintendo, Mega Drive e Nintendo 64 (con i salvataggi di stato).
-- **Cuffie e casse Bluetooth** (canale Sviluppo, dalla 0.9.83): abbinamento, suono e volume nelle cuffie, ricollegamento all'accensione e dopo la sospensione.
+- **Cuffie e casse Bluetooth** (dalla 0.9.88): abbinamento, suono e volume nelle cuffie, ricollegamento all'accensione e dopo la sospensione.
 
 **Provato su una console sola**
 - **Dreamcast con Deadcast**: Brick Pro (lo Store non lo propone sulla Smart Pro).

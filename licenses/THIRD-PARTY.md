@@ -96,5 +96,9 @@ The images reuse these binaries of the official firmware without changes, so tha
 | wpa_supplicant | `wpa_supplicant.txt` |
 | tinyalsa | `tinyalsa.txt` |
 | iw | `iw.txt` |
+| BlueZ 5.54 (Bluetooth: bluetoothd, bluetoothctl, hciattach, hciconfig, hcitool, btmgmt, btmon), D-Bus 1.10 | `GPL-2.0.txt` (BlueZ libraries and D-Bus also `LGPL-2.1.txt`) |
+| GLib 2, libsbc, libiconv, libintl | `LGPL-2.1.txt` |
+| GNU readline 6 (used by bluetoothctl) | `GPL-3.0.txt` |
+| bluez-alsa 3.1.0, ncurses, expat, libffi, PCRE | `bluetooth-libs.txt` |
 
 The following firmware components are proprietary, belong to their respective owners and are not covered by any license in this folder: PowerVR graphics libraries and firmware, `trimui_inputd`, XR829 Wi-Fi and Bluetooth firmware, boot0. Mosaik has no written permission from TrimUI or the other owners to redistribute them: they are included only so that the card works on the TrimUI console it was made for. For this reason too, **Mosaik must not be sold**, alone or on a card.

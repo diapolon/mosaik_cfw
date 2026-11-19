@@ -42,11 +42,12 @@
 - **Linux games**, with an in-game menu and sleep; from the Store (0.9.58, experimental): Freedoom, Mr.Boom and Diablo (with your own game files).
 - **Boots in about 5 seconds**, sleep with the power button.
 - **Built-in Wi-Fi** for covers, game history, time and updates.
+- **Bluetooth headphones and speakers** (from 0.9.88): all the sound goes to them, with their own volume, and they reconnect by themselves at power-on.
 - **Transfer files over Wi-Fi** from a computer or phone: scan the QR code or open `mosaik.local`, then upload ROMs and download saves without taking the card out.
 - **Backup and restore**: one zip with saves, settings, BIOS files and, if you want, the games; restore it all or only the parts you choose, also onto a new card or the other model.
 - **Apps from the Store**: Files, Images and comics (also as icons), Music player, Video, SD card test, SD card space, Diagnostics, Download images and Download files.
 - **Switch game** (Select): your last games in a row with the picture of where you left them; pick one and resume from there, without going through the menu.
-- **Quick panel** (Menu): battery, temperature, play time, Wi-Fi, speaker, LED, music, screenshot, brightness and volume.
+- **Quick panel** (Menu): battery, temperature, play time, Wi-Fi, Bluetooth, speaker, LED, music, screenshot, brightness and volume.
 - **Automatic collections**: To finish, Quick sessions, Two players, Never played, next to favorites and your own collections.
 - **Random game** as the first item of every game list, and **a game that starts at power on**.
 - **Battery page** with a chart of the last hours, the time left and what the last sleep cost; the **time set from the internet** when Wi-Fi is on.
@@ -58,13 +59,13 @@
 
 ## What works
 
-Every build is tried by hand on real consoles before it is released. This is where things stand (stable 0.9.79, Development channel 0.9.87). In the Store, packages not tried yet carry the **Experimental** flask.
+Every build is tried by hand on real consoles before it is released. This is where things stand (0.9.88). In the Store, packages not tried yet carry the **Experimental** flask.
 
 **Tried on both consoles (Smart Pro and Brick Pro)**
 - **System**: start from the card in about 5 seconds, sleep and resume, signed Wi-Fi updates (all or nothing, with the way back), file transfer over Wi-Fi, backup and restore, Store, themes, bezels, filters, settings for a console or a single game, six languages.
 - **Arcade**: FinalBurn Neo and MAME 2003-Plus.
 - **Consoles**: Super Nintendo, Mega Drive and Nintendo 64 (with save states).
-- **Bluetooth headphones and speakers** (Development channel, from 0.9.83): pairing, sound and volume in the headphones, reconnection at power-on and after sleep.
+- **Bluetooth headphones and speakers** (from 0.9.88): pairing, sound and volume in the headphones, reconnection at power-on and after sleep.
 
 **Tried on one console only**
 - **Dreamcast with Deadcast**: Brick Pro (the Store does not offer it on the Smart Pro).
