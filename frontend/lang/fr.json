@@ -693,7 +693,8 @@
     "pair_failed": "Association avec %s échouée : remets-le en mode association et réessaie",
     "connect_failed": "Connexion à %s impossible : allume-le et réessaie",
     "error": "Opération échouée avec %s",
-    "unsupported": "Bluetooth non disponible sur ce système"
+    "unsupported": "Bluetooth non disponible sur ce système",
+    "keys_paused": "Bluetooth en démarrage : boutons en pause"
   },
   "led": {
     "off": "Éteintes",

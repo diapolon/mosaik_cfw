@@ -88,8 +88,9 @@ static bool ctl(char *out, size_t n, ...) {
 void bt_enable(bool on) {
     want_on = on;
     if (on) enabled_at = now_s();
-    int r = system(on ? "touch /run/bt-touched; bt-ctl on > /dev/null 2>&1 &"
-                      : "touch /run/bt-touched; bt-ctl off > /dev/null 2>&1 &");
+    /* lo stato voluto e "apply": premendo in fretta vince l'ultima pressione (audit 0.9.88, BT-05) */
+    int r = system(on ? "touch /run/bt-touched; echo on > /run/bt-voluto; bt-ctl apply > /dev/null 2>&1 &"
+                      : "touch /run/bt-touched; echo off > /run/bt-voluto; bt-ctl apply > /dev/null 2>&1 &");
     (void)r;
     st_time = -10;
 }

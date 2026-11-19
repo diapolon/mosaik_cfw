@@ -693,7 +693,8 @@
     "pair_failed": "Abbinamento con %s non riuscito: rimettilo in modalità abbinamento e riprova",
     "connect_failed": "Collegamento a %s non riuscito: accendilo e riprova",
     "error": "Operazione non riuscita con %s",
-    "unsupported": "Bluetooth non disponibile su questo sistema"
+    "unsupported": "Bluetooth non disponibile su questo sistema",
+    "keys_paused": "Bluetooth in avvio: tasti in pausa"
   },
   "led": {
     "off": "Spenti",

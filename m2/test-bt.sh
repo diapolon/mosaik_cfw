@@ -20,7 +20,7 @@ cat > $BIN/hciattach <<'X'
 #!/bin/sh
 n=$(cat /tmp/fbt/attach_fail 2>/dev/null || echo 0)
 echo "hciattach $*" >> /tmp/fbt/calls
-if [ "$n" -gt 0 ]; then echo $((n - 1)) > /tmp/fbt/attach_fail; exit 1; fi
+if [ "$n" -gt 0 ]; then echo $((n - 1)) > /tmp/fbt/attach_fail; sleep "$(cat /tmp/fbt/attach_slow 2>/dev/null || echo 0)"; exit 1; fi
 mkdir -p /tmp/sys/bluetooth/hci0; exec sleep 300
 X
 cat > $BIN/hciconfig <<'X'
@@ -239,6 +239,77 @@ for k in 1 2 3; do
 done
 check "spento durante il ricollegamento: audio all'altoparlante (3 volte su 3)" '[ $bad = 0 ]'
 check "spento durante il ricollegamento: stato spento" '[ "$($CTL status)" = spento ]'
+reset
+
+# audit 0.9.88, BT-14: la diagnosi dell'audio (due melodie di prova, Logs/bluetooth-audio.txt)
+# era accesa di partenza anche nella stabile
+echo "--- diagnosi dell'audio spenta di partenza"
+reset
+(
+    unset BT_DIAG
+    $CTL on; $CTL scan 1 > /dev/null; $CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+    sleep 5
+    $CTL off
+)
+check "cuffie collegate senza BT_DIAG: nessuna diagnosi né melodia" '[ ! -f $ROOT/Logs/bluetooth-audio.txt ]'
+reset
+
+# audit 0.9.88, BT-08: nessuno guardava bluealsa e bluetoothd. Fermo bluealsa con le cuffie
+# collegate, l'audio restava indirizzato a lui: tutto muto
+echo "--- bluealsa e bluetoothd che si fermano"
+reset
+$CTL on; $CTL scan 1 > /dev/null; $CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+for i in $(seq 20); do [ -f /tmp/bt-audio ] && break; sleep 0.2; done
+kill "$(cat /tmp/runbt/bluealsa.pid)"
+for i in $(seq 30); do sleep 0.2; kill -0 "$(cat /tmp/runbt/bluealsa.pid)" 2>/dev/null && break; done
+check "bluealsa fermo: ripartito da solo" 'kill -0 "$(cat /tmp/runbt/bluealsa.pid)" 2>/dev/null'
+check "… e lo dice il registro" 'grep -q "bluealsa fermo" $ROOT/Logs/bluetooth.log'
+for i in $(seq 20); do [ -f /tmp/bt-audio ] && break; sleep 0.2; done
+check "… e l'audio torna alle cuffie" 'grep -q "bluealsa:DEV=02:00:00:00:00:01" $BT_ASOUND'
+kill "$(cat /tmp/runbt/bluetoothd.pid)"
+for i in $(seq 30); do sleep 0.2; kill -0 "$(cat /tmp/runbt/bluetoothd.pid)" 2>/dev/null && break; done
+check "bluetoothd fermo: ripartito da solo" 'kill -0 "$(cat /tmp/runbt/bluetoothd.pid)" 2>/dev/null && grep -q "bluetoothd fermo" $ROOT/Logs/bluetooth.log'
+$CTL off
+check "spento: niente riparte" '! pgrep -f "sleep 600" > /dev/null'
+reset
+
+# audit 0.9.88, BT-07: sulla Brick Pro trimui_inputd restava fermo per tutti e tre i tentativi
+# (fino a ~36 s) senza avviso, e restava fermo per sempre se bt-ctl veniva interrotto
+echo "--- tasti della Brick Pro mentre parte il chip"
+reset
+printf '#!/bin/sh\nwhile :; do sleep 1; done\n' > $BIN/trimui_inputd; chmod +x $BIN/trimui_inputd
+trimui_inputd & IN=$!
+state() { sed -n 's/^State:[[:space:]]*\([A-Z]\).*/\1/p' /proc/$IN/status; }
+: > /tmp/i2c3
+echo 9 > $F/attach_fail; echo 1 > $F/attach_slow   # ogni tentativo fallito dura 1 s
+( BT_I2C=/tmp/i2c3 BT_INPUTD_PAUSE=/tmp/bt-pausa $CTL on > /dev/null 2>&1 ) &
+ON=$!
+sleep 2.5   # dopo i 2 s dello spegni e riaccendi del chip, dentro il primo tentativo
+check "durante il tentativo i tasti sono fermi" '[ "$(state)" = T ]'
+check "durante l'accensione c'è il segno della pausa (avviso sullo schermo)" '[ -f /tmp/bt-pausa ]'
+wait $ON
+check "dopo tre tentativi falliti i tasti funzionano" '[ "$(state)" != T ] && [ ! -f /tmp/bt-pausa ]'
+reset; echo 9 > $F/attach_fail; echo 1 > $F/attach_slow
+( BT_I2C=/tmp/i2c3 BT_INPUTD_PAUSE=/tmp/bt-pausa exec sh /trimui/m2/bt-ctl on > /dev/null 2>&1 ) &
+ON=$!
+sleep 2.5; kill $ON; sleep 0.5
+check "bt-ctl interrotto a metà: i tasti ripartono e la pausa sparisce" '[ "$(state)" != T ] && [ ! -f /tmp/bt-pausa ]'
+kill -CONT $IN 2>/dev/null; kill $IN; rm -f $BIN/trimui_inputd /tmp/i2c3
+reset
+
+# audit 0.9.88, BT-05: l'interruttore premuto in fretta lanciava "on" e "off" in sottofondo senza
+# ordine, e vinceva un comando a caso (2 volte su 6 spento con l'interruttore acceso). Ora il
+# launcher scrive lo stato voluto e "bt-ctl apply" lo applica, l'ultimo voluto per ultimo.
+echo "--- accendi e spegni in fretta"
+export BT_WANT=/tmp/bt-voluto
+for fin in off on off on; do
+    reset
+    for w in on off on off on $fin; do echo $w > $BT_WANT; $CTL apply > /dev/null 2>&1 & sleep 0.1; done
+    wait
+    st=$($CTL status | head -n 1)
+    [ "$fin" = on ] && want=acceso || want=spento
+    check "sei pressioni, l'ultima $fin: alla fine $want" '[ "$st" = "$want" ]'
+done
 reset
 
 echo

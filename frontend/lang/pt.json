@@ -693,7 +693,8 @@
     "pair_failed": "Não foi possível emparelhar %s: coloque-o de novo em modo de emparelhamento e tente outra vez",
     "connect_failed": "Não foi possível conectar a %s: ligue-o e tente outra vez",
     "error": "A operação com %s não deu certo",
-    "unsupported": "Bluetooth não disponível neste sistema"
+    "unsupported": "Bluetooth não disponível neste sistema",
+    "keys_paused": "Bluetooth a iniciar: botões em pausa"
   },
   "led": {
     "off": "Desligados",

@@ -2,6 +2,10 @@
 # Bluetooth del sistema Arcade (chip XR829, lo stesso del Wi-Fi: HCI su UART ttyS1).
 #   bt-ctl on                  accende il chip, D-Bus, bluetoothd, bluealsa; ricollega l'ultimo dispositivo
 #   bt-ctl off                 salva gli abbinamenti e spegne tutto
+#   bt-ctl apply               accende o spegne secondo $BT_WANT (/run/bt-voluto, "on" o "off"),
+#                              scritto dal launcher a ogni pressione dell'interruttore: un apply alla
+#                              volta, e finché lo stato voluto cambia si ricomincia, così vince
+#                              l'ultima pressione (audit 0.9.88, BT-05)
 #   bt-ctl scan SECONDI        cerca, poi stampa i dispositivi (come "devices")
 #   bt-ctl devices             dispositivi conosciuti, uno per riga:
 #                              INDIRIZZO<tab>tipo<tab>abbinato<tab>collegato<tab>nome
@@ -11,7 +15,7 @@
 #   bt-ctl reconnect           ricollega l'ultimo dispositivo (6 tentativi, uno ogni 5 s)
 #   bt-ctl status              "spento", oppure "acceso" e, se c'è, "collegato INDIRIZZO tipo nome"
 #   bt-ctl diag                registro dell'audio verso le cuffie in Logs/bluetooth-audio.txt (lo fa
-#                              watch la prima volta che l'audio passa alle cuffie): catena ALSA, controlli,
+#                              watch la prima volta che l'audio passa alle cuffie, solo con BT_DIAG=1): catena ALSA, controlli,
 #                              un suono di prova da "default" e uno diretto a bluealsa
 #   bt-ctl watch               (lo avvia "on") ogni 4 s: audio verso le cuffie collegate o di nuovo
 #                              all'altoparlante, anche quando le cuffie si spengono da sole
@@ -49,6 +53,7 @@ BTWRITE=${BT_BTWRITE:-/proc/bluetooth/sleep/btwrite}
 ASOUND=${BT_ASOUND:-/run/asound.conf}
 ASOUND_BASE=${BT_ASOUND_BASE:-/run/fw/asound.conf}
 AUDIO_FLAG=${BT_AUDIO_FLAG:-/run/bt-audio}
+WANT=${BT_WANT:-/run/bt-voluto}
 TZ=$(cat /run/arcade-tz "$ROOT/System/fuso-orario.txt" 2>/dev/null | head -n 1); [ -n "$TZ" ] && export TZ || unset TZ
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 logs() { log "$@"; sync; }
@@ -104,26 +109,35 @@ address() {
     echo "$a"
 }
 
+# Brick Pro: trimui_inputd fermo solo mentre hciattach accende il chip (bus I2C 3, issue #1), un
+# tentativo alla volta, con il segno $INPUTD_PAUSE che il launcher mostra come "tasti in pausa"; un
+# trap lo fa ripartire anche se bt-ctl viene interrotto (audit 0.9.88, BT-07: prima restava fermo
+# per tutti e tre i tentativi, fino a 36 s, senza avviso, e per sempre se bt-ctl moriva)
+INPUTD_PAUSE=${BT_INPUTD_PAUSE:-/run/bt-inputd-pausa}
+inputd=""
+keys_stop() { [ -n "$inputd" ] || return 0; : > "$INPUTD_PAUSE"; kill -STOP $inputd 2> /dev/null; }
+keys_go() { [ -n "$inputd" ] && kill -CONT $inputd 2> /dev/null; rm -f "$INPUTD_PAUSE"; return 0; }
+
 chip_on() {
     # stesso chip del Wi-Fi: si aspetta che un'accensione del Wi-Fi in corso sia finita
     exec 8> "${BT_WIFI_LOCK:-/run/wifi-ctl.lock}"
     i=0; until flock -n 8 || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
-    p=""
-    [ "${BT_INPUTD:-1}" = 1 ] && [ -e "${BT_I2C:-/dev/i2c-3}" ] && p=$(pidof trimui_inputd) && kill -STOP $p 2> /dev/null
+    [ "${BT_INPUTD:-1}" = 1 ] && [ -e "${BT_I2C:-/dev/i2c-3}" ] && inputd=$(pidof trimui_inputd)
     ok=1
     for t in 1 2 3; do
         pid_stop hciattach
         rfkill_bt 0; sleep 1; rfkill_bt 1; sleep 1
+        keys_stop
         start hciattach hciattach -n ttyS1 xradio
         for i in $(seq 20); do
             [ -d "$SYS/bluetooth/hci0" ] && break
             pid_alive hciattach || break
             sleep 0.5
         done
+        keys_go
         [ -d "$SYS/bluetooth/hci0" ] && { ok=0; break; }
         logs "hciattach, tentativo $t: hci0 non comparso"
     done
-    [ -n "$p" ] && kill -CONT $p 2> /dev/null
     exec 8>&-
     [ $ok = 0 ] || return 1
     a=$(address)
@@ -262,7 +276,7 @@ case "$1" in
 on)
     lock on
     # il launcher mostra "in accensione" finché c'è questo file
-    : > "$RUN/avvio"; trap 'rm -f "$RUN/avvio"' EXIT
+    : > "$RUN/avvio"; trap 'keys_go; rm -f "$RUN/avvio"' EXIT; trap 'exit 1' INT TERM
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
     if bt_on; then log "già acceso"; exit 0; fi
     if [ ! -d "$SYS/bluetooth/hci0" ] && ! chip_on; then
@@ -399,12 +413,39 @@ diag)
     } >> "$D" 2>&1
     sync
     ;;
+apply)
+    exec 7> "$RUN/apply.lock"
+    flock 7
+    while :; do
+        w=$(cat "$WANT" 2> /dev/null)
+        case "$w" in
+            on) bt_on || sh "$0" on > /dev/null 2>&1 7>&- ;;
+            off) { bt_on || [ -d "$SYS/bluetooth/hci0" ]; } && sh "$0" off > /dev/null 2>&1 7>&- ;;
+        esac
+        [ "$(cat "$WANT" 2> /dev/null)" = "$w" ] && break
+    done
+    ;;
 watch)
     # le cuffie possono spegnersi o ricollegarsi da sole: l'audio le segue
+    # bluetoothd o bluealsa fermi: si fanno ripartire; senza bluealsa l'audio intanto torna
+    # all'altoparlante, se no resterebbe indirizzato a lui e tutto muto (audit 0.9.88, BT-08)
     diag_done=""
-    while bt_on; do
+    while [ -d "$SYS/bluetooth/hci0" ] && [ ! -f "$RUN/spegnimento" ]; do
+        if ! pid_alive bluetoothd; then
+            logs "bluetoothd fermo: riparte"
+            start bluetoothd bluetoothd -n -f /run/bluetooth/main.conf
+            for i in $(seq 30); do timeout 2 bluetoothctl show 2> /dev/null | grep -q Controller && break; sleep 0.2; done
+            timeout 5 bluetoothctl power on > /dev/null 2>&1
+        fi
+        if ! pid_alive bluealsa; then
+            logs "bluealsa fermo: riparte"
+            route
+            start bluealsa bluealsa -p a2dp-source
+            sleep 1
+        fi
         route "$(connected_audio)"
-        if [ -f "$AUDIO_FLAG" ] && [ -z "$diag_done" ] && [ "${BT_DIAG:-1}" = 1 ]; then
+        # diagnosi solo se chiesta (BT_DIAG=1): suona due melodie di prova (audit 0.9.88, BT-14)
+        if [ -f "$AUDIO_FLAG" ] && [ -z "$diag_done" ] && [ "${BT_DIAG:-0}" = 1 ]; then
             diag_done=1; sleep 3; sh "$0" diag > /dev/null 2>&1
         fi
         sleep ${BT_WATCH_EVERY:-4}
@@ -423,5 +464,5 @@ status)
     fi
     ;;
 *)
-    echo "uso: bt-ctl on|off|scan [SECONDI]|devices|pair|connect|disconnect|forget INDIRIZZO|reconnect|status|watch"; exit 2 ;;
+    echo "uso: bt-ctl on|off|apply|scan [SECONDI]|devices|pair|connect|disconnect|forget INDIRIZZO|reconnect|status|watch|volume|diag"; exit 2 ;;
 esac

@@ -693,7 +693,8 @@
     "pair_failed": "Pairing with %s failed: put it back in pairing mode and try again",
     "connect_failed": "Could not connect to %s: turn it on and try again",
     "error": "Operation failed with %s",
-    "unsupported": "Bluetooth is not available on this system"
+    "unsupported": "Bluetooth is not available on this system",
+    "keys_paused": "Bluetooth starting: buttons paused"
   },
   "led": {
     "off": "Off",

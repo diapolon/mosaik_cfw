@@ -693,7 +693,8 @@
     "pair_failed": "Kopplung mit %s fehlgeschlagen: Versetze es wieder in den Kopplungsmodus und versuche es erneut",
     "connect_failed": "Verbindung mit %s fehlgeschlagen: Schalte es ein und versuche es erneut",
     "error": "Vorgang mit %s fehlgeschlagen",
-    "unsupported": "Bluetooth ist auf diesem System nicht verfügbar"
+    "unsupported": "Bluetooth ist auf diesem System nicht verfügbar",
+    "keys_paused": "Bluetooth startet: Tasten pausiert"
   },
   "led": {
     "off": "Aus",

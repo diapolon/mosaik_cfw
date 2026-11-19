@@ -1807,22 +1807,24 @@ void ui_toast_volume(const char *msg) {
 /* Brick Pro: mentre il Wi-Fi si accende m2/wifi-ctl ferma trimui_inputd (blocco del bus I2C 3,
    issue #1) e per qualche secondo i tasti non rispondono. Finché c'è il segno della pausa un avviso
    lo dice, al posto dei messaggi brevi; il file si guarda quattro volte al secondo.
-   ARCADE_INPUTD_PAUSE: un altro file, per provarlo sul Mac. */
+   Lo stesso fa m2/bt-ctl mentre accende il chip del Bluetooth (/run/bt-inputd-pausa, audit 0.9.88,
+   BT-07). ARCADE_INPUTD_PAUSE e ARCADE_BT_INPUTD_PAUSE: altri file, per provarlo sul Mac. */
+static int paused_by;   /* 1 Wi-Fi, 2 Bluetooth */
 static bool keys_paused(void) {
     static double next = -1;
-    static bool on;
     if (UI.t >= next || UI.t < next - 1) {
-        const char *p = getenv("ARCADE_INPUTD_PAUSE");
+        const char *p = getenv("ARCADE_INPUTD_PAUSE"), *b = getenv("ARCADE_BT_INPUTD_PAUSE");
         next = UI.t + 0.25;
-        on = access(p && p[0] ? p : "/run/wifi-inputd-pausa", F_OK) == 0;
+        paused_by = access(p && p[0] ? p : "/run/wifi-inputd-pausa", F_OK) == 0 ? 1
+                  : access(b && b[0] ? b : "/run/bt-inputd-pausa", F_OK) == 0 ? 2 : 0;
     }
-    return on;
+    return paused_by != 0;
 }
 
 void ui_draw_toast(void) {
     if ((UI.t > toast_until || !toast_msg[0]) && keys_paused()) {
         TTF_Font *f = UI.f_normal;
-        const char *msg = T("wifi.keys_paused");
+        const char *msg = T(paused_by == 2 ? "bluetooth.keys_paused" : "wifi.keys_paused");
         int pad = M(0.03f), h = M(0.075f), d = M(0.012f), tw = ui_text_w(f, msg), w = tw + pad * 2 + d * 3;
         int x = (UI.w - w) / 2, y = M(UI.th.topbar_h) - h / 2;
         ui_shadow(x, y + M(0.005f), w, h, h / 2, M(0.02f), UI.th.shadow);
