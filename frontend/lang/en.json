@@ -29,8 +29,7 @@
     "loading": "Loading…",
     "leaving": "Leaving the game…",
     "starting": "Starting %s…",
-    "open": "Open",
-    "bt_headphones": "headphones"
+    "open": "Open"
   },
   "home": {
     "resume_game": "Resume game",

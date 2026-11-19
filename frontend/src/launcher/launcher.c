@@ -3932,10 +3932,7 @@ static void set_value(int item, char *buf, size_t n) {
     settings_t *s = &UI.set;
     switch (item) {
     case S_BRIGHT: snprintf(buf, n, "%d", s->brightness); break;
-    case S_VOLUME:
-        if (s->bt_route) snprintf(buf, n, "%d · %s", s->volume, T("common.bt_headphones"));
-        else snprintf(buf, n, "%d", s->volume);
-        break;
+    case S_VOLUME: snprintf(buf, n, "%d", s->volume); break;
     case S_MUSIC:
         if (!music_count()) snprintf(buf, n, "%s", T("music.none"));
         else if (!s->music_vol) snprintf(buf, n, "%s", T("common.off"));
@@ -4521,7 +4518,7 @@ static void btp_draw(void) {
             int nx = lx + M(0.01f) + ih * 3 / 2 + M(0.025f);
             bool busy = working && !strcmp(bt_job_addr, d->addr);
             const char *tag = busy ? "…" : d->connected ? T("bluetooth.tag_connected") : d->paired ? T("bluetooth.tag_paired")
-                            : d->kind == BT_INPUT ? T("bluetooth.tag_controller") : d->kind == BT_AUDIO ? T("bluetooth.tag_audio") : "";
+                            : d->kind == BT_INPUT ? T("bluetooth.tag_controller") : d->kind == BT_AUDIO || d->kind == BT_SPEAKER ? T("bluetooth.tag_audio") : "";
             int tagw = tag[0] ? ui_text_w(fs, tag) + M(0.02f) : 0;
             char fit[80];
             ui_text_fit(f, d->name, rx - nx - tagw - M(0.03f), fit, sizeof fit);
@@ -7183,7 +7180,9 @@ static void set_draw_value(int i, TTF_Font *f, int x, int cy, int maxw, bool sel
     if (set_slider(i)) {
         int nw = ui_text_w(f, "20"), bh = M(0.012f), kr = bh * 3 / 2, bw = M(0.26f);
         if (bw > maxw - nw - M(0.03f) - 2 * kr) bw = maxw - nw - M(0.03f) - 2 * kr;
-        int tot = kr + bw + M(0.03f) + nw, x0 = (right ? x - tot : x) + kr;
+        int ih = fh * 3 / 4, iw = i == S_VOLUME ? ih * 5 / 4 + M(0.02f) : 0;   /* volume: l'icona dell'uscita */
+        int tot = iw + kr + bw + M(0.03f) + nw, x0 = (right ? x - tot : x) + iw + kr;
+        if (iw) ui_volume_icon(x0 - kr - iw, cy - ih / 2, ih, t->text_dim);
         int mn = i == S_VOLUME ? 0 : 1, mxv = i == S_VOLUME ? 20 : 10;
         int v = i == S_BRIGHT ? UI.set.brightness : i == S_VOLUME ? UI.set.volume : UI.set.led_bright;
         ui_rrect(x0, cy - bh / 2, bw, bh, bh / 2, with_alpha(t->text_dim, 80));
@@ -8484,7 +8483,8 @@ static void qp_draw(void) {
         bool on = qp_row == QP_ROWS + k;
         int v = k ? UI.set.volume : UI.set.brightness, max = k ? 20 : 10;
         ui_rrect(x + pad, yy, w - 2 * pad, sh, sh / 2, on ? with_alpha(t->accent, 60) : with_alpha(t->text_dim, 30));
-        ui_text(fn, k ? ui_volume_label("quick.volume") : T("quick.brightness"), x + pad + M(0.02f), yy + (sh - fnh) / 2, t->text, ALIGN_LEFT);
+        int lw = ui_text(fn, T(k ? "quick.volume" : "quick.brightness"), x + pad + M(0.02f), yy + (sh - fnh) / 2, t->text, ALIGN_LEFT);
+        if (k) { int ih = fnh * 3 / 4; ui_volume_icon(x + pad + M(0.02f) + lw + M(0.015f), yy + (sh - ih) / 2, ih, t->text); }
         int bx = x + pad + w * 30 / 100, bw = w - 2 * pad - w * 30 / 100 - M(0.03f), bh = M(0.012f), by = yy + (sh - bh) / 2;
         ui_rrect(bx, by, bw, bh, bh / 2, with_alpha(t->text_dim, 70));
         ui_rrect(bx, by, bw * v / max, bh, bh / 2, t->accent);

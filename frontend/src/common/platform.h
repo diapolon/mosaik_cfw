@@ -64,3 +64,4 @@ void plat_amp_config(int method);
 void plat_amp_wake(void);
 void plat_amp_idle(bool keep);
 void plat_amp_restore(void);
+bool plat_wired_headphones(void);   /* cuffie col filo nella presa (per l'icona del volume) */

@@ -5,7 +5,7 @@
 #   bt-ctl scan SECONDI        cerca, poi stampa i dispositivi (come "devices")
 #   bt-ctl devices             dispositivi conosciuti, uno per riga:
 #                              INDIRIZZO<tab>tipo<tab>abbinato<tab>collegato<tab>nome
-#                              tipo: audio, input, altro; abbinato e collegato: 0 o 1
+#                              tipo: audio (cuffie), cassa, input, altro; abbinato e collegato: 0 o 1
 #   bt-ctl pair INDIRIZZO      abbina, si fida e collega
 #   bt-ctl connect|disconnect|forget INDIRIZZO
 #   bt-ctl reconnect           ricollega l'ultimo dispositivo (6 tentativi, uno ogni 5 s)
@@ -171,7 +171,7 @@ CONF
 
 # cuffie o casse abbinate e collegate in questo momento (la prima), vuoto se nessuna
 connected_audio() {
-    timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' '$2 == "audio" && $4 == 1 { print $1; exit }'
+    timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' '($2 == "audio" || $2 == "cassa") && $4 == 1 { print $1; exit }'
 }
 
 daemons_on() {
@@ -216,7 +216,12 @@ describe() {
         n=$(echo "$info" | sed -n 's/^[[:space:]]*Name: //p' | head -n 1)
         [ -z "$n" ] && continue
         case "$(echo "$info" | sed -n 's/^[[:space:]]*Icon: //p')" in
-            audio*) k=audio ;; input*) k=input ;; *) k=altro ;;
+            audio*)
+                # casse e cuffie: dalla classe del dispositivo (Bluetooth Assigned Numbers, audio/video:
+                # 5 altoparlante, 7 audio portatile, 8 auto, 10 HiFi; il resto cuffie e auricolari)
+                cls=$(echo "$info" | sed -n 's/^[[:space:]]*Class: //p' | head -n 1)
+                case "$(( (${cls:-0} >> 2) & 63 ))" in 5|7|8|10) k=cassa ;; *) k=audio ;; esac ;;
+            input*) k=input ;; *) k=altro ;;
         esac
         p=0; echo "$info" | grep -q 'Paired: yes' && p=1
         c=0; echo "$info" | grep -q 'Connected: yes' && c=1

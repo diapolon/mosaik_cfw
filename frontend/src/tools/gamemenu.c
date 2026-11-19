@@ -102,7 +102,7 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
     static const char *keys[GM_ALL] = { "game.back_to_game", "game.save_state", "game.load_state", "game.controls",
                                         "settings.volume", "settings.brightness", "game.exit" };
     i = rows[i];
-    snprintf(label, ln, "%s", i == GM_VOLUME ? ui_volume_label(keys[i]) : T(keys[i]));
+    snprintf(label, ln, "%s", T(keys[i]));
     value[0] = 0;
     if (i == GM_VOLUME) snprintf(value, vn, "%d", UI.set.volume);
     if (i == GM_BRIGHT) snprintf(value, vn, "%d", UI.set.brightness);
@@ -176,6 +176,10 @@ static void draw_rows(void) {
         if (value[0]) {
             snprintf(buf, sizeof buf, is_sel ? "‹ %s ›" : "%s", value);
             vw = ui_text(f, buf, right, ty, is_sel ? c : t->text_dim, ALIGN_RIGHT) + M(0.03f);
+            if (rows[i] == GM_VOLUME) {   /* l'icona dell'uscita: altoparlante, cuffie o cassa */
+                int ih = fh * 3 / 4;
+                vw += ui_volume_icon(right - vw - ih * 5 / 4, ry + (g_rh - ih) / 2, ih, is_sel ? c : t->text_dim) + M(0.015f);
+            }
         }
         ui_text_fit(f, label, right - vw - (g_px + M(0.05f)), buf, sizeof buf);
         ui_text(f, buf, g_px + M(0.05f), ty, c, ALIGN_LEFT);
@@ -408,7 +412,8 @@ static int volume_osd(int delta) {
             int w = M(0.62f), h = M(0.1f), x = (UI.w - w) / 2, y = M(0.05f), pad = M(0.03f);
             ui_overlay_begin(true);
             ui_rrect(x, y, w, h, h / 2, rgba(0, 0, 0, 180));
-            int lw = ui_text(UI.f_small, ui_volume_label("settings.volume"), x + pad, y + (h - TTF_FontHeight(UI.f_small)) / 2, rgba(255, 255, 255, 255), ALIGN_LEFT);
+            int ih = TTF_FontHeight(UI.f_small) * 3 / 4, iw = ui_volume_icon(x + pad, y + (h - ih) / 2, ih, rgba(255, 255, 255, 255)) + M(0.015f);
+            int lw = iw + ui_text(UI.f_small, T("settings.volume"), x + pad + iw, y + (h - TTF_FontHeight(UI.f_small)) / 2, rgba(255, 255, 255, 255), ALIGN_LEFT);
             int bx = x + pad + lw + M(0.03f), bw = x + w - pad - bx, bh = M(0.014f);
             ui_rrect(bx, y + (h - bh) / 2, bw, bh, bh / 2, rgba(255, 255, 255, 70));
             ui_rrect(bx, y + (h - bh) / 2, bw * UI.set.volume / 20, bh, bh / 2, t->accent);

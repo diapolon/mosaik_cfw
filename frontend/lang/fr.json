@@ -29,8 +29,7 @@
     "loading": "Chargement…",
     "leaving": "Sortie du jeu…",
     "starting": "Lancement de %s…",
-    "open": "Ouvrir",
-    "bt_headphones": "casque"
+    "open": "Ouvrir"
   },
   "home": {
     "resume_game": "Reprendre la partie",

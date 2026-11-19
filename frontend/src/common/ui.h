@@ -157,8 +157,13 @@ void ui_bt_icon(int x, int y, int h, int kind, color_t c);
    una volta al secondo e chiama fn, oppure, senza fn, riapre l'audio dei menu (ui_audio_reopen) */
 void ui_on_audio_route(void (*fn)(void));
 void ui_audio_reopen(void);
-/* etichetta del volume: con le cuffie Bluetooth "Volume · cuffie" (il loro volume è a parte) */
-const char *ui_volume_label(const char *key);
+/* uscita del volume: altoparlante, cuffie (col filo o Bluetooth), cassa Bluetooth. Ogni uscita ha
+   il suo volume; accanto alla parola Volume si disegna la sua icona (ui_volume_icon, larga h * 5 / 4) */
+enum { VOUT_SPEAKER, VOUT_HEADPHONES, VOUT_BT_SPEAKER };
+int ui_volume_out(void);
+int ui_volume_icon(int x, int y, int h, color_t c);
+void ui_speaker_icon(int x, int y, int h, color_t c);
+void ui_toast_volume(const char *msg);   /* come ui_toast, con l'icona dell'uscita */
 void ui_alsa_reload(void);   /* con l'audio chiuso: la prossima apertura rilegge /etc/asound.conf */
 void ui_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c);
 void ui_gear(int cx, int cy, int rad, color_t c);

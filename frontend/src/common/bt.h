@@ -7,12 +7,12 @@
 #include <stdbool.h>
 
 enum { BT_OFF, BT_STARTING, BT_ON, BT_CONNECTED };
-enum { BT_AUDIO, BT_INPUT, BT_OTHER };
+enum { BT_AUDIO, BT_SPEAKER, BT_INPUT, BT_OTHER };   /* cuffie, casse, controller, il resto */
 
 typedef struct {
     char addr[18];
     char name[64];
-    int kind;            /* BT_AUDIO cuffie e casse, BT_INPUT controller, BT_OTHER il resto */
+    int kind;            /* BT_AUDIO cuffie, BT_SPEAKER casse, BT_INPUT controller, BT_OTHER il resto */
     bool paired, connected;
 } bt_dev_t;
 

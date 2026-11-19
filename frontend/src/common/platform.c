@@ -92,6 +92,7 @@ static bool headphones(void) {
    cuffie da 8 a 61 (-9 e -71 dB: in cuffia il massimo del codec è troppo forte). Valori misurati
    a orecchio da TortOS sulla Brick, stesso codec. Livello 0: muto. */
 static bool vol_hp;
+bool plat_wired_headphones(void) { return vol_hp; }
 /* Cuffie Bluetooth (m2/bt-ctl): il volume è quello di bluealsa ("bt-ctl volume", 0..100), che
    c'è solo a collegamento avvenuto: dopo un cambio si riprova per qualche secondo. */
 static bool bt_audio(void) { return access("/run/bt-audio", F_OK) == 0; }
@@ -591,5 +592,6 @@ void plat_amp_config(int method) { (void)method; }
 void plat_amp_wake(void) {}
 void plat_amp_idle(bool keep) { (void)keep; }
 void plat_amp_restore(void) {}
+bool plat_wired_headphones(void) { return getenv("ARCADE_FAKE_JACK") != NULL; }
 
 #endif

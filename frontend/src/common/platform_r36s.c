@@ -296,5 +296,6 @@ void plat_amp_config(int method) { (void)method; }
 void plat_amp_wake(void) {}
 void plat_amp_idle(bool keep) { (void)keep; }
 void plat_amp_restore(void) {}
+bool plat_wired_headphones(void) { return false; }
 
 #endif

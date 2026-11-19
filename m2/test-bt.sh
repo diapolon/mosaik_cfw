@@ -62,6 +62,7 @@ info)
     n=$(echo "$l" | cut -d'|' -f2); [ -n "$n" ] && echo "	Name: $n"
     echo "	Alias: ${n:-x}"
     echo "	Icon: $(echo "$l" | cut -d'|' -f3)"
+    c=$(echo "$l" | cut -d'|' -f4); [ -n "$c" ] && echo "	Class: $c"
     grep -qx "$2" $F/paired 2>/dev/null && echo "	Paired: yes" || echo "	Paired: no"
     grep -qx "$2" $F/connected 2>/dev/null && echo "	Connected: yes" || echo "	Connected: no" ;;
 pair)
@@ -93,7 +94,7 @@ reset() {
     echo bluetooth > /tmp/sys/rfkill/rfkill0/type; echo 0 > /tmp/sys/rfkill/rfkill0/state
     : > $BT_BTWRITE
     printf 'sunxi_platform    : sun50iw10p1\nsunxi_serial      : 0123456789abcdef0011\n' > /tmp/sys/sunxi_info/sys_info
-    printf 'E0:9D:FA:7C:46:36|Wireless Earbuds|audio-card\n11:22:33:44:55:66|Pad|input-gaming\n5A:08:68:22:98:2B||\n' > $F/near
+    printf 'E0:9D:FA:7C:46:36|Wireless Earbuds|audio-card|0x240404\n11:22:33:44:55:66|Pad|input-gaming\n5A:08:68:22:98:2B||\nAC:DE:48:00:11:22|Cassa|audio-card|0x240414\n' > $F/near
 }
 reboot() {   # come uno spegnimento: processi e /run spariscono, la SD resta
     pkill -f "bt-ctl watch" 2>/dev/null
@@ -125,6 +126,7 @@ out=$($CTL scan 1)
 check "ricerca: cuffie come audio" 'echo "$out" | grep -q "^E0:9D:FA:7C:46:36	audio	0	0	Wireless Earbuds$"'
 check "ricerca: controller come input" 'echo "$out" | grep -q "^11:22:33:44:55:66	input	0	0	Pad$"'
 check "ricerca: senza nome non elencato" '! echo "$out" | grep -q 5A:08'
+check "ricerca: cassa riconosciuta dalla classe" 'echo "$out" | grep -q "^AC:DE:48:00:11:22	cassa	0	0	Cassa$"'
 $CTL pair E0:9D:FA:7C:46:36; r=$?
 check "abbinamento riuscito" '[ $r = 0 ]'
 check "abbinamenti sulla SD, senza la cache" 'tar -tf $ROOT/System/bluetooth/abbinamenti.tar | grep -q "E0:9D:FA:7C:46:36/info" && ! tar -tf $ROOT/System/bluetooth/abbinamenti.tar | grep -q cache/'

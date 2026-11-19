@@ -108,7 +108,7 @@ static void status_read(bt_status_t *t) {
         memcpy(t->addr, c + 11, 17);
         t->addr[17] = 0;
         const char *k = c + 29, *sp = strchr(k, ' ');
-        t->kind = !strncmp(k, "audio ", 6) ? BT_AUDIO : !strncmp(k, "input ", 6) ? BT_INPUT : BT_OTHER;
+        t->kind = !strncmp(k, "audio ", 6) ? BT_AUDIO : !strncmp(k, "cassa ", 6) ? BT_SPEAKER : !strncmp(k, "input ", 6) ? BT_INPUT : BT_OTHER;
         snprintf(t->name, sizeof t->name, "%s", sp ? sp + 1 : "");
         char *nl = strchr(t->name, '\n');
         if (nl) *nl = 0;
@@ -181,7 +181,7 @@ int bt_devices(bt_dev_t *out, int max) {
         bt_dev_t *d = &out[n++];
         memset(d, 0, sizeof *d);
         snprintf(d->addr, sizeof d->addr, "%s", f[0]);
-        d->kind = !strcmp(f[1], "audio") ? BT_AUDIO : !strcmp(f[1], "input") ? BT_INPUT : BT_OTHER;
+        d->kind = !strcmp(f[1], "audio") ? BT_AUDIO : !strcmp(f[1], "cassa") ? BT_SPEAKER : !strcmp(f[1], "input") ? BT_INPUT : BT_OTHER;
         d->paired = f[2][0] == '1';
         d->connected = f[3][0] == '1';
         snprintf(d->name, sizeof d->name, "%s", f[4]);
@@ -211,7 +211,7 @@ static bool act(const char *cmd, const char *addr) { (void)cmd; return addr_ok(a
 static struct { const char *addr, *name; int kind; double at; bool paired, connected; } sim[] = {
     { "E0:9D:FA:7C:46:36", "Wireless Earbuds", BT_AUDIO, 6, false, false },
     { "11:22:33:44:55:66", "8BitDo Pro 2", BT_INPUT, 3, false, false },
-    { "AC:DE:48:00:11:22", "JBL Flip 5", BT_AUDIO, 12, false, false },
+    { "AC:DE:48:00:11:22", "JBL Flip 5", BT_SPEAKER, 4, false, false },
     { "68:24:99:43:5C:CA", "HM_B2500_5cca", BT_OTHER, 1, false, false },
     { "40:EF:4C:10:20:30", "Cuffie da corsa", BT_AUDIO, 0, true, false },
 };

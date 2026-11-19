@@ -572,8 +572,27 @@ static void glyph_draw(int kind, int cx, int cy, int rad, color_t c) {
 void ui_star(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_STAR, cx, cy, rad, c); }
 void ui_gear(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_GEAR, cx, cy, rad, c); }
 
+/* altoparlante: corpo, cono e due onde */
+void ui_speaker_icon(int x, int y, int h, color_t c) {
+    int tk = h > 20 ? 3 : 2, x1 = x + h / 4, x2 = x + h * 11 / 20;
+    ui_rect(x, y + h * 7 / 20, x1 - x, h * 3 / 10, c);
+    ui_triangle(x1, y + h * 7 / 20, x2, y + h / 10, x2, y + h * 9 / 10, c);
+    ui_triangle(x1, y + h * 7 / 20, x2, y + h * 9 / 10, x1, y + h * 13 / 20, c);
+    ui_clip_push(x2 + tk, y, h, h);
+    ui_ring(x2, y + h / 2, h * 3 / 10, tk, c);
+    ui_ring(x2, y + h / 2, h / 2, tk, c);
+    ui_clip_pop();
+}
+
 void ui_bt_icon(int x, int y, int h, int kind, color_t c) {
     int tk = h > 20 ? 3 : 2;
+    if (kind == BT_SPEAKER) {   /* cassa: mobiletto con woofer e tweeter */
+        int w = h * 3 / 4, ox = x + h / 4;
+        ui_rborder(ox, y, w, h, h / 6, tk, c);
+        ui_ring(ox + w / 2, y + h * 13 / 20, h / 5, tk, c);
+        ui_circle(ox + w / 2, y + h / 4, h / 10 + 1, c);
+        return;
+    }
     if (kind == BT_INPUT) {   /* corpo del controller col contorno, croce e tasto pieni */
         int w = h * 3 / 2, bh = h * 2 / 3, by = y + (h - bh) / 2, cx = x + bh / 2, cy = by + bh / 2, a = bh / 4;
         ui_rborder(x, by, w, bh, bh / 2, tk, c);
@@ -1061,11 +1080,16 @@ void ui_audio_reopen(void) {
     audio_open();
 }
 
-const char *ui_volume_label(const char *key) {
-    static char buf[96];
-    if (!UI.set.bt_route) return T(key);
-    snprintf(buf, sizeof buf, "%s · %s", T(key), T("common.bt_headphones"));
-    return buf;
+int ui_volume_out(void) {
+    if (UI.set.bt_route) return bt_status()->kind == BT_SPEAKER ? VOUT_BT_SPEAKER : VOUT_HEADPHONES;
+    return plat_wired_headphones() ? VOUT_HEADPHONES : VOUT_SPEAKER;
+}
+
+int ui_volume_icon(int x, int y, int h, color_t c) {
+    int o = ui_volume_out();
+    if (o == VOUT_SPEAKER) ui_speaker_icon(x, y, h, c);
+    else ui_bt_icon(x - h / 8, y, h, o == VOUT_BT_SPEAKER ? BT_SPEAKER : BT_AUDIO, c);
+    return h * 5 / 4;
 }
 
 /* volume a parte per le cuffie Bluetooth: UI.set.volume è sempre quello dell'uscita in uso */
@@ -1725,8 +1749,8 @@ void ui_poll(void) {
         int v = UI.set.volume + pk.vol;
         UI.set.volume = v < 0 ? 0 : v > 20 ? 20 : v;
         char m[64];
-        snprintf(m, sizeof m, "%s %d", ui_volume_label("settings.volume"), UI.set.volume);
-        if (!UI.vol_bar) ui_toast(m);
+        snprintf(m, sizeof m, "%s %d", T("settings.volume"), UI.set.volume);
+        if (!UI.vol_bar) ui_toast_volume(m);
         UI.in.vol_changed = true;
         vol_save_at = UI.t + 1.0;
         UI.in.any = true;
@@ -1746,12 +1770,19 @@ void ui_poll(void) {
 
 static char toast_msg[160];
 static double toast_until;
+static int toast_icon = -1;   /* icona dell'uscita del volume (ui_toast_volume), -1 nessuna */
 static bool keys_paused(void);
 bool ui_toast_active(void) { return (toast_msg[0] && UI.t <= toast_until) || keys_paused(); }
 
 void ui_toast(const char *msg) {
     snprintf(toast_msg, sizeof toast_msg, "%s", msg);
     toast_until = UI.t + 2.2;
+    toast_icon = -1;
+}
+
+void ui_toast_volume(const char *msg) {
+    ui_toast(msg);
+    toast_icon = 1;
 }
 
 /* Brick Pro: mentre il Wi-Fi si accende m2/wifi-ctl ferma trimui_inputd (blocco del bus I2C 3,
@@ -1786,12 +1817,13 @@ void ui_draw_toast(void) {
     if (UI.t > toast_until || !toast_msg[0]) return;
     float a = (float)fmin(1.0, (toast_until - UI.t) / 0.3);
     TTF_Font *f = UI.f_normal;
-    int tw = ui_text_w(f, toast_msg), pad = M(0.03f), h = M(0.075f);
+    int tw = ui_text_w(f, toast_msg), pad = M(0.03f), h = M(0.075f), ih = h / 2, iw = toast_icon >= 0 ? ih * 5 / 4 + M(0.015f) : 0;
     /* in alto, sotto la barra di stato: in basso coprirebbe le etichette delle icone */
-    int w = tw + pad * 2, x = (UI.w - w) / 2, y = M(UI.th.topbar_h) - h / 2;
+    int w = tw + iw + pad * 2, x = (UI.w - w) / 2, y = M(UI.th.topbar_h) - h / 2;
     ui_shadow(x, y + M(0.005f), w, h, h / 2, M(0.02f), with_alpha(UI.th.shadow, (int)(UI.th.shadow.a * a)));
     ui_rrect(x, y, w, h, h / 2, with_alpha(UI.th.text, (int)(235 * a)));
-    ui_text(f, toast_msg, x + pad, y + (h - TTF_FontHeight(f)) / 2, with_alpha(UI.th.bg, (int)(255 * a)), ALIGN_LEFT);
+    if (iw) ui_volume_icon(x + pad, y + (h - ih) / 2, ih, with_alpha(UI.th.bg, (int)(255 * a)));
+    ui_text(f, toast_msg, x + pad + iw, y + (h - TTF_FontHeight(f)) / 2, with_alpha(UI.th.bg, (int)(255 * a)), ALIGN_LEFT);
 }
 
 /* ------------------------------------------------ barra stato e tasti */
