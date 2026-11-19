@@ -36,9 +36,10 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 
 **Look and apps**
 - [ ] Night filter and colour temperature
-- [ ] Icons on the Settings categories
-- [ ] Music player: real screen-off while listening, headroom against clipping; later audiobooks (position per book, speed)
-- [ ] Video: `.srt` subtitles
+- [x] Icons on the Settings categories (0.9.79)
+- [x] Music player: the screen turns off by itself while listening (1.10, 0.9.79)
+- [ ] Music player: headroom against clipping; later audiobooks (position per book, speed)
+- [x] Video: `.srt` subtitles (1.4, 0.9.79)
 
 **Project**
 - [ ] Website on mosaikcfw.org
@@ -135,7 +136,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [x] Boot area generation visible (audit R07): the system carries its images' generation in `/etc/area-avvio`, Settings → Updates → Information shows the card's and warns when it is older; wiki: writing the card again without losing anything (pushed with the next stable)
 - [x] Update as one transaction (audit R03, [#3](https://github.com/diapolon/mosaik_cfw/issues/3)): journal `System/update-journal.txt`, originals kept as `.annulla` until the first menu with loadable cores, `system-init` puts the old files back after an interrupted install or a fallback; tested on console with a forced power-off mid-install (0.9.18). Only works when falling back to a system that has this code
 - [ ] Video app (Store, experimental, 1.0, `frontend/src/apps/video.c`, FFmpeg from `toolchain/build-ffmpeg.sh`): test on both consoles: sound in sync, 720p and 1080p H.264, HEVC, VP9, MPEG-4 AVI, seeking, resume from the saved point, sleep and wake during a video, phone videos (rotation)
-- [ ] Video: `.srt` subtitles next to the video
+- [x] Video: `.srt` subtitles (1.4, 0.9.79) next to the video
 - [ ] File transfer: add `Video` to the writable folders (system change, for 0.9.62)
 - [ ] Release that brings the Video app: put the FFmpeg source (`deps/ffmpeg/ffmpeg-9.0.2.tar.xz`, LGPL) in `dist/release/sources`
 
