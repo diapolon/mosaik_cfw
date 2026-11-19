@@ -69,6 +69,26 @@ ln -s /run/fw/etc-udev $R/etc/udev
 ln -s /run/fw/asound.conf $R/etc/asound.conf
 # /etc/bluetooth scrivibile: hciattach xradio legge l'indirizzo del chip da xr_bt.conf (prova-bt)
 ln -s /run/bluetooth $R/etc/bluetooth
+# BlueZ del firmware (prova delle cuffie): bluetoothd tiene gli abbinamenti in /etc/lib/bluetooth e
+# il socket SDP in /var/run, D-Bus il suo in /var/run/dbus; i plugin ALSA di bluealsa in /usr/lib/alsa-lib
+ln -s /run/etc-lib $R/etc/lib
+ln -s /run $R/var/run
+ln -s /run/fw/alsa-lib $R/usr/lib/alsa-lib
+# suono di prova per le cuffie (prova-bt): tre note, 44,1 kHz stereo, 16 bit
+mkdir -p $R/usr/arcade/share
+python3 - $R/usr/arcade/share/prova-bt.wav <<'PY'
+import math, struct, sys, wave
+rate = 44100
+data = bytearray()
+for f in (523.25, 659.25, 783.99, 1046.5):
+    n = int(rate * 0.45)
+    for i in range(n):
+        env = min(1.0, i / 400) * (1 - i / n) ** 1.5
+        v = int(12000 * env * math.sin(2 * math.pi * f * i / rate))
+        data += struct.pack('<hh', v, v)
+w = wave.open(sys.argv[1], 'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(rate)
+w.writeframes(bytes(data)); w.close()
+PY
 ln -s /run/fw/alsa $R/usr/share/alsa
 
 # ---------------------------------------------------------------- strati per modello
@@ -90,6 +110,8 @@ models | while IFS="|" read -r id fw name file; do
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
         $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw \
         $F/usr/bin/hciattach $F/usr/bin/hciconfig $F/usr/bin/hcitool $F/usr/bin/btmgmt $F/usr/bin/btmon \
+        $F/usr/bin/bluetoothd $F/usr/bin/bluetoothctl $F/usr/bin/bluealsa $F/usr/sbin/dbus-daemon \
+        $F/usr/lib/alsa-lib/libasound_module_pcm_bluealsa.so $F/usr/lib/alsa-lib/libasound_module_ctl_bluealsa.so \
         +libEGL.so.1 +libGLESv2.so.2 +libasound.so.2 +libIMGegl.so +libsrv_um.so +libusc.so +libglslcompiler.so +libudev.so.1 \
         +libvulkan.so.1 +libVK_IMG.so.1 +libcurl.so.4 +libSDL2-2.0.so.0 \
         > $W/libs-$id.txt 2> $W/libs-mancanti-$id.txt || { echo "strato $id:"; cat $W/libs-mancanti-$id.txt; exit 1; }
@@ -110,8 +132,11 @@ models | while IFS="|" read -r id fw name file; do
     cp $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
        $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw $L/bin/
     # Bluetooth (stesso chip XR829): gli strumenti di BlueZ del firmware per la prima prova
-    # (m2/prova-bt, System/prova-bt.txt); bluetoothd e D-Bus arriveranno con l'uso vero
+    # (m2/prova-bt, System/prova-bt.txt); bluetoothd, D-Bus e bluealsa per la prova delle cuffie
     cp $F/usr/bin/hciattach $F/usr/bin/hciconfig $F/usr/bin/hcitool $F/usr/bin/btmgmt $F/usr/bin/btmon $L/bin/
+    cp $F/usr/bin/bluetoothd $F/usr/bin/bluetoothctl $F/usr/bin/bluealsa $F/usr/sbin/dbus-daemon $L/bin/
+    mkdir -p $L/alsa-lib
+    cp $F/usr/lib/alsa-lib/libasound_module_pcm_bluealsa.so $F/usr/lib/alsa-lib/libasound_module_ctl_bluealsa.so $L/alsa-lib/
     # moduli del kernel: GPU e Wi-Fi (compilati per il kernel di ogni modello)
     cp $F/lib/modules/4.9.191/pvrsrvkm.ko $F/lib/modules/4.9.191/dc_sunxi.ko $F/lib/modules/4.9.191/xradio_*.ko $L/modules/
     # Brick Pro: lo stesso driver Wi-Fi compilato per i kernel di Brick e Smart Pro, per la prova

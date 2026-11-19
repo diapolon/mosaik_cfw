@@ -4,8 +4,8 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.83
-it Prova del Bluetooth: il chip si riaccende, indirizzo fisso dato in un altro modo
-en Bluetooth test: the chip starts again, fixed address set another way
+it Prova del Bluetooth: indirizzo fisso e prova delle cuffie (abbinamento e suono)
+en Bluetooth test: fixed address and headphones test (pairing and sound)
 
 0.9.82
 it Prova del Bluetooth: nuova ricerca dei dispositivi e indirizzo fisso

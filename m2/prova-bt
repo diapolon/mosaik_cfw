@@ -3,9 +3,13 @@
 # Bluetooth come il firmware TrimUI, cerca i dispositivi vicini e scrive tutto in Logs/prova-bt.txt,
 # poi lo spegne. Non abbina niente e non scrive niente fuori da Logs.
 #
-#   prova-bt FILE        FILE contiene "[SECONDI] [wifi] [senza-pausa]"
+#   prova-bt FILE        FILE contiene "[SECONDI] [wifi] [senza-pausa] [cuffie]"
 #
 # SECONDI: durata di ciascuna ricerca (classica e BLE), 20 se manca, al massimo 60.
+# cuffie: invece delle ricerche, avvia D-Bus, bluetoothd e bluealsa del firmware, cerca con
+# bluetoothctl, abbina e collega il primo dispositivo audio trovato (cuffie in modalità
+# abbinamento), ci suona /usr/arcade/share/prova-bt.wav due volte con aplay e lo toglie. Gli
+# abbinamenti restano in /run (/etc/lib/bluetooth), cioè si perdono allo spegnimento.
 # wifi: prima si accende il Wi-Fi (wifi-ctl), per vedere se i due insieme vanno d'accordo.
 # senza-pausa: sulla Brick Pro trimui_inputd non viene fermato mentre il chip si accende (di
 # solito sì, come per il Wi-Fi, issue #1: il bus I2C 3 sotto carico).
@@ -31,10 +35,12 @@ ARGS=$(cat "$1" 2>/dev/null)
 SECS=20
 WIFI=no
 PAUSE=yes
+CUFFIE=no
 for a in $ARGS; do
     case "$a" in
         wifi) WIFI=yes ;;
         senza-pausa) PAUSE=no ;;
+        cuffie) CUFFIE=yes ;;
         *[!0-9]*|'') ;;
         *) SECS=$a ;;
     esac
@@ -46,7 +52,7 @@ log() { echo "$(cut -d' ' -f1 /proc/uptime)s $*" >> "$LOG"; sync; }
 block() { echo "--- $1" >> "$LOG"; shift; "$@" >> "$LOG" 2>&1; sync; }
 MODEL=$(readlink /run/fw 2>/dev/null)
 : > "$LOG"
-log "prova Bluetooth: ricerche da $SECS s, Wi-Fi $WIFI, pausa di trimui_inputd $PAUSE, strato $MODEL, kernel $(uname -r)"
+log "prova Bluetooth: ricerche da $SECS s, cuffie $CUFFIE, Wi-Fi $WIFI, pausa di trimui_inputd $PAUSE, strato $MODEL, kernel $(uname -r)"
 
 # interruttori radio: quello del Bluetooth si chiama di solito "bt" o "bluetooth"
 BTRF=""
@@ -98,6 +104,105 @@ done
 
 [ -n "$INPUTD" ] && kill -CONT $INPUTD 2> /dev/null && log "trimui_inputd ripreso"
 
+ESC=$(printf '\033')
+plain() { sed -e "s/$ESC\[[0-9;]*m//g" -e 's/\r//g' -e "s/$ESC\[K//g"; }
+# aspetta nell'uscita di bluetoothctl una delle due frasi, al massimo $3 secondi
+wait_for() {
+    i=0
+    while [ $i -lt "$3" ]; do
+        grep -q "$1" /tmp/btout && return 0
+        grep -q "$2" /tmp/btout && return 1
+        sleep 1; i=$((i + 1))
+    done
+    return 2
+}
+say() { echo "$*" >&3; log "bluetoothctl: $*"; }
+
+cuffie() {
+    mkdir -p /run/etc-lib/bluetooth /run/dbus /run/bluetooth
+    printf '[General]\nName = Mosaik\nClass = 0x000100\n[Policy]\nAutoEnable = true\n' > /run/bluetooth/main.conf
+    cat > /run/dbus/prova.conf <<'CONF'
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <type>system</type>
+  <listen>unix:path=/run/dbus/system_bus_socket</listen>
+  <auth>EXTERNAL</auth>
+  <policy context="default">
+    <allow user="*"/>
+    <allow own="*"/>
+    <allow send_destination="*" eavesdrop="true"/>
+    <allow receive_sender="*"/>
+  </policy>
+</busconfig>
+CONF
+    dbus-daemon --config-file=/run/dbus/prova.conf --nofork > /tmp/dbus.log 2>&1 &
+    DBUS=$!
+    sleep 1
+    [ -S /run/dbus/system_bus_socket ] && log "D-Bus avviato" || log "D-Bus NON avviato"
+    bluetoothd -n -f /run/bluetooth/main.conf > /tmp/bluetoothd.log 2>&1 &
+    BTD=$!
+    sleep 2
+    kill -0 $BTD 2> /dev/null && log "bluetoothd avviato" || log "bluetoothd NON avviato"
+    bluealsa -p a2dp-source > /tmp/bluealsa.log 2>&1 &
+    BALSA=$!
+    sleep 1
+    kill -0 $BALSA 2> /dev/null && log "bluealsa avviato" || log "bluealsa NON avviato"
+    rm -f /tmp/btin /tmp/btout; mkfifo /tmp/btin
+    bluetoothctl < /tmp/btin > /tmp/btout 2>&1 &
+    BTC=$!
+    exec 3> /tmp/btin
+    sleep 1
+    say "power on"; sleep 1
+    say "agent NoInputNoOutput"; sleep 1
+    say "default-agent"; sleep 1
+    say "scan on"
+    sleep $SECS
+    say "scan off"; sleep 1
+    log "dispositivi trovati: $(plain < /tmp/btout | grep -c 'NEW.*Device')"
+    plain < /tmp/btout | grep 'NEW.*Device' | head -40 >> "$LOG"
+    TARGET=""
+    n=0
+    for A in $(plain < /tmp/btout | grep 'NEW.*Device' | grep -o -E '([0-9A-F]{2}:){5}[0-9A-F]{2}' | awk '!seen[$0]++'); do
+        n=$((n + 1)); [ $n -gt 40 ] && break
+        n0=$(wc -l < /tmp/btout)
+        say "info $A"; sleep 1
+        if tail -n +$((n0 + 1)) /tmp/btout | plain | grep -q "Icon: audio"; then TARGET=$A; break; fi
+    done
+    if [ -z "$TARGET" ]; then
+        log "nessun dispositivo audio trovato"
+    else
+        log "dispositivo audio: $TARGET"
+        tail -n +$((n0 + 1)) /tmp/btout | plain | grep -E "Name|Class|Icon|Paired|UUID" | head -20 >> "$LOG"
+        say "pair $TARGET"
+        wait_for "Pairing successful" "Failed to pair" 30; r=$?
+        log "abbinamento: $([ $r = 0 ] && echo riuscito || { [ $r = 1 ] && echo fallito || echo nessuna risposta in 30 s; })"
+        say "trust $TARGET"; sleep 1
+        say "connect $TARGET"
+        wait_for "Connection successful" "Failed to connect" 20; r=$?
+        log "collegamento: $([ $r = 0 ] && echo riuscito || { [ $r = 1 ] && echo fallito || echo nessuna risposta in 20 s; })"
+        sleep 3
+        for t in 1 2; do
+            log "suono $t: aplay -D bluealsa:DEV=$TARGET,PROFILE=a2dp"
+            timeout 15 aplay -D "bluealsa:DEV=$TARGET,PROFILE=a2dp" /usr/arcade/share/prova-bt.wav >> "$LOG" 2>&1
+            log "suono $t finito (uscita $?)"
+            sleep 1
+        done
+        say "disconnect $TARGET"; sleep 2
+        say "remove $TARGET"; sleep 1
+    fi
+    say "quit"; sleep 1
+    exec 3>&-
+    kill $BTC $BALSA 2> /dev/null; sleep 1
+    kill $BTD 2> /dev/null; sleep 1
+    kill $DBUS 2> /dev/null
+    block "bluetoothctl" sh -c "sed -e 's/$ESC\[[0-9;]*m//g' -e 's/\r//g' -e 's/$ESC\[K//g' /tmp/btout | grep -v -E 'RSSI|ManufacturerData|TxPower|Key:|Value:|^ +[0-9a-f]{2} ' | tail -150"
+    block "bluetoothd" sh -c 'tail -60 /tmp/bluetoothd.log'
+    block "bluealsa" sh -c 'tail -40 /tmp/bluealsa.log'
+    block "D-Bus" sh -c 'tail -20 /tmp/dbus.log'
+    rm -f /tmp/btin /tmp/btout /tmp/bluetoothd.log /tmp/bluealsa.log /tmp/dbus.log
+}
+
 if [ $ok = yes ]; then
     hciconfig hci0 up >> "$LOG" 2>&1
     block "hciconfig -a" hciconfig -a hci0
@@ -111,6 +216,9 @@ if [ $ok = yes ]; then
         [ "$GOT" = "$ADDR" ] && log "indirizzo: il chip usa quello dato" || log "indirizzo: il chip NON usa quello dato (ha $GOT)"
         block "hciconfig dopo l'indirizzo" hciconfig hci0
     fi
+    if [ "$CUFFIE" = yes ]; then
+        cuffie
+    else
     log "ricerca classica con btmgmt ($SECS s): controller e cuffie in modalità abbinamento"
     MON=$ROOT/Logs/prova-bt-btmon.txt
     btmon > /tmp/prova-bt-mon 2>&1 &
@@ -129,11 +237,14 @@ if [ $ok = yes ]; then
     done
     head -c 2000000 /tmp/prova-bt-mon > "$MON"; sync
     rm -f /tmp/prova-bt-find /tmp/prova-bt-mon
-    log "ricerca BLE ($SECS s)"
-    timeout $SECS hcitool lescan > /tmp/prova-bt-le 2>> "$LOG"
-    sort -u /tmp/prova-bt-le | grep -E '^([0-9A-F]{2}:){5}' | sort -u -k1,1 >> "$LOG"
-    log "dispositivi BLE: $(grep -E '^([0-9A-F]{2}:){5}' /tmp/prova-bt-le | cut -d' ' -f1 | sort -u | wc -l)"
+    # hcitool lescan dopo btmgmt non trovava niente (0.9.83): BLE con btmgmt
+    log "ricerca BLE con btmgmt ($SECS s)"
+    timeout $SECS btmgmt find -l > /tmp/prova-bt-le 2>&1
+    timeout 5 btmgmt stop-find > /dev/null 2>&1
+    grep -A1 dev_found /tmp/prova-bt-le | grep -v '^--' | awk '/dev_found/ { a = $3 } !/dev_found/ && !seen[a]++ { print a, $0 }' | head -60 >> "$LOG"
+    log "dispositivi BLE: $(grep -o -E 'dev_found: ([0-9A-F]{2}:){5}[0-9A-F]{2}' /tmp/prova-bt-le | sort -u | wc -l)"
     rm -f /tmp/prova-bt-le
+    fi
     block "hciconfig dopo le ricerche" hciconfig hci0
     if [ "$WIFI" = yes ]; then log "Wi-Fi dopo il Bluetooth: $(iw dev wlan0 link 2>/dev/null | head -1)"; fi
     hciconfig hci0 down >> "$LOG" 2>&1
