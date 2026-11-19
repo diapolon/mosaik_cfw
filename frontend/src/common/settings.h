@@ -13,7 +13,11 @@ typedef struct {
     char device[16];     /* "smartpro" | "brickpro" */
     char lang[8];        /* file Lang/<lang>.json */
     int brightness;      /* 1..10 */
-    int volume;          /* 0..20 */
+    int volume;          /* 0..20: quello dell'uscita in uso (altoparlante o cuffie Bluetooth) */
+    int bt_volume;       /* 0..20: cuffie Bluetooth, salvato a parte ("bt_volume") */
+    bool bt_route;       /* l'audio va alle cuffie Bluetooth: volume è quello delle cuffie e
+                            vol_speaker quello dell'altoparlante (in memoria, non salvato) */
+    int vol_speaker;
     int cpu_profile;
     int autosleep_min;   /* 0 = mai */
     int autosuspend_min; /* sospensione nel launcher, 0 = mai */

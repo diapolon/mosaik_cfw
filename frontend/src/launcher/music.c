@@ -420,6 +420,7 @@ void music_before_sleep(void) {
 bool music_reopen(void) {
     if (!mixer_on) return false;
     music_before_sleep();
+    ui_alsa_reload();
     music_after_sleep();
     return true;
 }

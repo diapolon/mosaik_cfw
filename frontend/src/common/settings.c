@@ -56,6 +56,7 @@ void settings_defaults(settings_t *s) {
     strcpy(s->lang, "it");
     s->brightness = 8;
     s->volume = 12;
+    s->bt_volume = 8;
     s->cpu_profile = CPU_BALANCED;
     s->autosleep_min = 0;
     s->autosuspend_min = 5;
@@ -99,6 +100,8 @@ bool settings_load(settings_t *s, const char *root) {
     copy(s->lang, sizeof s->lang, json_str(j, "language", NULL));
     s->brightness = json_int(j, "brightness", s->brightness);
     s->volume = json_int(j, "volume", s->volume);
+    s->bt_volume = json_int(j, "bt_volume", s->bt_volume);
+    if (s->bt_volume < 0 || s->bt_volume > 20) s->bt_volume = 8;
     s->cpu_profile = json_int(j, "cpu_profile", s->cpu_profile);
     s->autosleep_min = json_int(j, "autosleep_min", s->autosleep_min);
     s->autosuspend_min = json_int(j, "autosuspend_min", s->autosuspend_min);
@@ -181,6 +184,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"language\": \"%s\",\n"
             "  \"brightness\": %d,\n"
             "  \"volume\": %d,\n"
+            "  \"bt_volume\": %d,\n"
             "  \"cpu_profile\": %d,\n"
             "  \"autosleep_min\": %d,\n"
             "  \"autosuspend_min\": %d,\n"
@@ -217,7 +221,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"debug_level\": %d\n"
             "}\n",
             json_esc(s->theme, e_theme, sizeof e_theme), json_esc(s->variant, e_var, sizeof e_var),
-            json_esc(s->device, e_dev, sizeof e_dev), json_esc(s->lang, e_lang, sizeof e_lang), s->brightness, s->volume, s->cpu_profile,
+            json_esc(s->device, e_dev, sizeof e_dev), json_esc(s->lang, e_lang, sizeof e_lang), s->brightness, s->bt_route ? s->vol_speaker : s->volume, s->bt_route ? s->volume : s->bt_volume, s->cpu_profile,
             s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->auto_time ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, json_esc(s->filter, e_filter, sizeof e_filter), s->bezel ? "true" : "false", s->dup_mode, json_esc(s->dup_emu, e_dup, sizeof e_dup), s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->autosave_exit ? "true" : "false",
             s->box_covers ? "true" : "false", s->speaker_rest,

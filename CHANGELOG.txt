@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.84
+it Bluetooth: anche i suoni e la musica del menu vanno alle cuffie
+en Bluetooth: menu sounds and music also go to the headphones
+it Volume a parte per le cuffie Bluetooth, ricordato
+en Separate volume for Bluetooth headphones, remembered
+it Con le cuffie collegate i giochi e la console non si bloccano più alla chiusura
+en With headphones connected games and the console no longer hang when closing
+
 0.9.83
 it Bluetooth (sperimentale): Impostazioni → Sistema, abbina e collega cuffie e casse
 en Bluetooth (experimental): Settings → System, pair and connect headphones and speakers

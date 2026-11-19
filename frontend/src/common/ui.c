@@ -1,6 +1,9 @@
 #include "ui.h"
 #include "wifi.h"
 #include "bt.h"
+#ifdef TRIMUI_DEVICE
+#include <dlfcn.h>
+#endif
 #include <unistd.h>
 #include <fcntl.h>
 #include "platform.h"
@@ -1035,12 +1038,35 @@ void ui_audio_takeover(void (*play)(const Sint16 *stereo, int frames)) {
     if (!play && !UI.audio && !audio_stuck) audio_open();
 }
 
+/* alsa-lib legge /etc/asound.conf una volta e, in un programma già avviato, riaprendo l'audio
+   dopo che bt-ctl l'ha cambiato restava sull'altoparlante (registro del 19 novembre: il launcher
+   teneva il codec, i programmi nuovi andavano alle cuffie). Con l'audio chiuso si butta la
+   configurazione in memoria: la prossima apertura la rilegge. libasound la carica la SDL. */
+void ui_alsa_reload(void) {
+#ifdef TRIMUI_DEVICE
+    void *h = dlopen("libasound.so.2", RTLD_NOW | RTLD_NOLOAD);
+    if (!h) return;
+    int (*f)(void) = (int (*)(void))dlsym(h, "snd_config_update_free_global");
+    if (f) f();
+    dlclose(h);
+#endif
+}
+
 void ui_audio_reopen(void) {
     if (!UI.audio || audio_stuck) return;   /* l'uscita è del mixer, o non c'è */
     SDL_AudioDeviceID dev = UI.audio;
     UI.audio = 0;
     if (!audio_close_timed(dev)) { audio_stuck = true; ui_log("audio: l'uscita non si chiude entro 3 s, si prosegue senza audio"); return; }
+    ui_alsa_reload();
     audio_open();
+}
+
+/* volume a parte per le cuffie Bluetooth: UI.set.volume è sempre quello dell'uscita in uso */
+__attribute__((unused)) static void volume_route(bool bt) {
+    if (bt == UI.set.bt_route) return;
+    if (bt) { UI.set.vol_speaker = UI.set.volume; UI.set.volume = UI.set.bt_volume; }
+    else { UI.set.bt_volume = UI.set.volume; UI.set.volume = UI.set.vol_speaker; }
+    UI.set.bt_route = bt;
 }
 
 static void (*route_hook)(void);
@@ -1057,6 +1083,8 @@ static void audio_route_check(void) {
     char now[24] = "";
     FILE *f = fopen("/run/bt-audio", "r");
     if (f) { if (!fgets(now, sizeof now, f)) now[0] = 0; fclose(f); }
+    /* anche ogni secondo: chi rilegge le impostazioni (ripristino di un backup) torna ai due volumi giusti */
+    volume_route(now[0] != 0);
     if (!known) { known = true; snprintf(cur, sizeof cur, "%s", now); return; }   /* all'avvio è già quella giusta */
     if (!strcmp(now, cur)) return;
     snprintf(cur, sizeof cur, "%s", now);
@@ -1966,6 +1994,7 @@ bool ui_init(const char *app, const char *root, const char *auto_script, int aud
     snprintf(log_path, sizeof log_path, "%s", p);
     crash_handlers();
     settings_load(&UI.set, root);
+    audio_route_check();   /* cuffie Bluetooth già collegate: il loro volume */
     crash_fd_open();
     settings_apply_tz(&UI.set);   /* prima della prima riga del log: l'ora è già quella del fuso */
     ui_log("---- avvio %s", app);
@@ -2131,6 +2160,7 @@ bool ui_init_offscreen(const char *app, const char *root) {
     snprintf(p, sizeof p, "%s/Logs/%s.log", root, app);
     snprintf(log_path, sizeof log_path, "%s", p);
     settings_load(&UI.set, root);
+    audio_route_check();   /* cuffie Bluetooth già collegate: il loro volume */
     settings_apply_tz(&UI.set);
     ui_log("---- avvio %s (fuori schermo)", app);
     lang_load(root, UI.set.lang);
