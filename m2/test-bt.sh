@@ -122,6 +122,11 @@ $CTL on
 check "seconda accensione: niente di nuovo" '[ "$(grep -c "^hciattach" $F/calls)" = "$n1" ] && grep -q "già acceso" $ROOT/Logs/bluetooth.log'
 
 echo "--- ricerca e abbinamento"
+$CTL off > /dev/null
+$CTL on > /dev/null 2>&1 &
+out=$($CTL scan 1)
+check "ricerca chiesta col Bluetooth ancora spento: aspetta che sia pronto" 'echo "$out" | grep -q "^E0:9D:FA:7C:46:36	audio"'
+wait
 out=$($CTL scan 1)
 check "ricerca: cuffie come audio" 'echo "$out" | grep -q "^E0:9D:FA:7C:46:36	audio	0	0	Wireless Earbuds$"'
 check "ricerca: controller come input" 'echo "$out" | grep -q "^11:22:33:44:55:66	input	0	0	Pad$"'

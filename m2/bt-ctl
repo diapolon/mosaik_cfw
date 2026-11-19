@@ -229,6 +229,8 @@ describe() {
     done
 }
 devices() { timeout 5 bluetoothctl devices 2> /dev/null | describe; }
+# una ricerca in corso rallenta abbinamento e collegamento: la si ferma prima
+stop_scan() { pkill -f "bluetoothctl --timeout" 2> /dev/null; timeout 3 bluetoothctl scan off > /dev/null 2>&1; }
 valid() { echo "$1" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' || { echo "indirizzo non valido: $1" >&2; exit 2; }; }
 connected_line() { timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' '$4 == 1 { print; exit }'; }
 
@@ -268,6 +270,9 @@ off)
     logs "Bluetooth spento"
     ;;
 scan)
+    # aperta la finestra subito dopo aver acceso il Bluetooth: la ricerca aspetta che sia pronto
+    # (prima finiva subito e bisognava premere Cerca una seconda volta)
+    i=0; while ! bt_on && [ $i -lt ${BT_SCAN_WAIT:-60} ]; do sleep 0.5; i=$((i + 1)); done
     bt_on || { echo "spento" >&2; exit 1; }
     s=${2:-10}; case "$s" in *[!0-9]*|'') s=10 ;; esac
     timeout $((s + 5)) bluetoothctl --timeout "$s" scan on > /dev/null 2>&1
@@ -279,6 +284,7 @@ devices)
     ;;
 pair)
     valid "$2"; bt_on || { echo "spento" >&2; exit 1; }
+    stop_scan
     out=$(timeout 40 bluetoothctl --agent NoInputNoOutput pair "$2" 2>&1)
     if ! echo "$out" | grep -q -E 'Pairing successful|AlreadyExists'; then
         logs "abbinamento con $2 non riuscito: $(echo "$out" | tail -n 1)"; echo "non riuscito" >&2; exit 1
@@ -290,6 +296,7 @@ pair)
     ;;
 connect)
     valid "$2"; bt_on || { echo "spento" >&2; exit 1; }
+    stop_scan
     out=$(timeout 30 bluetoothctl connect "$2" 2>&1)
     if echo "$out" | grep -q 'Connection successful'; then
         mkdir -p "$DIR"; echo "$2" > "$LAST"; echo "$2" > "$RUN/collegato"

@@ -247,7 +247,7 @@ const bt_status_t *bt_status(void) {
     return &st;
 }
 
-void bt_scan_start(int secs) { scan_t0 = now_s(); scan_end = scan_t0 + secs; }
+void bt_scan_start(int secs) { if (scan_t0 < 0) scan_t0 = now_s(); scan_end = now_s() + secs; }
 static bool bt_scanning_sim(void) { return now_s() < scan_end; }
 
 int bt_devices(bt_dev_t *out, int max) {

@@ -4360,7 +4360,7 @@ static void wpanel_draw(void) {
 static bt_dev_t btdevs[32], btdevs_new[32];
 static int nbtdevs, btsel, btdevs_new_n = -1;
 static float btscroll;
-static double btlist_t;
+static double btlist_t, btscan_t;
 static bool btfetching, btworking;
 static int bt_job_done = -1;   /* -1 niente, 0 non riuscito, 1 riuscito */
 static char bt_job_cmd[12], bt_job_addr[18], bt_job_name[64];
@@ -4430,6 +4430,7 @@ static void btp_start(void) {
     bt_refresh();
     btp_refresh();
     bt_scan_start(30);   /* le cuffie in abbinamento compaiono di solito entro 30 s */
+    btscan_t = UI.t;
 }
 
 static void btp_input(void) {
@@ -4448,6 +4449,8 @@ static void btp_input(void) {
         btp_refresh();
     }
     if (UI.t - btlist_t > 3) btp_refresh();   /* durante la ricerca i dispositivi arrivano a poco a poco */
+    /* finché la finestra è aperta la ricerca ricomincia da sola (non mentre si abbina o collega) */
+    if (!bt_scanning() && !__atomic_load_n(&btworking, __ATOMIC_SEQ_CST) && UI.t - btscan_t > 2) { btscan_t = UI.t; bt_scan_start(30); }
     if (in->pressed[BTN_UP] && nbtdevs) { btsel = (btsel + nbtdevs - 1) % nbtdevs; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN] && nbtdevs) { btsel = (btsel + 1) % nbtdevs; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B]) { btp_open = false; ui_sound(SND_BACK); return; }
