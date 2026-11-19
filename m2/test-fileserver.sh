@@ -236,16 +236,28 @@ check "liberate: di nuovo 200" "200" "$(curl -s -m 3 -o /dev/null -w '%{http_cod
 # senza accesso un PUT riceve 401 subito, senza che si legga il corpo (RETE-01)
 check "PUT senza accesso: 401 senza aspettare il corpo" "401" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Length: 100000000' -H 'Expect:' --data-binary @/dev/null "$U/api/put?path=Roms&name=x.zip")"
 # errori del PIN da tanti indirizzi: 20 in un minuto cambiano il PIN sullo schermo (con 4 per indirizzo
-# nessuno si blocca da solo); chi legge lo schermo entra subito col PIN nuovo (RETE-03)
+# nessuno si blocca da solo, RETE-03) e fermano i tentativi di tutti per 30 s (audit 0.9.88, RETE-07:
+# senza la pausa con 4 indirizzi non c'era più nessun limite); poi chi legge lo schermo entra
 for a in 2 3 4 5 6; do for i in 1 2 3 4; do curl -s --interface 127.0.0.$a -X POST -d pin=999999 $U/api/login >/dev/null; done; done
-check "20 errori da 5 indirizzi: il PIN vecchio non vale più" '{"error":"badpin"}' "$(curl -s --interface 127.0.0.7 -X POST -d pin=123456 $U/api/login)"
-check "col PIN nuovo dello schermo si entra subito" "200" "$(curl -s --interface 127.0.0.7 -o /dev/null -w '%{http_code}' -X POST -d pin=654321 $U/api/login)"
+check "20 errori da 5 indirizzi: pausa per tutti, anche col PIN nuovo" '{"error":"locked"}' "$(curl -s --interface 127.0.0.7 -X POST -d pin=654321 $U/api/login)"
+sleep 31
+check "dopo la pausa il PIN vecchio non vale più" '{"error":"badpin"}' "$(curl -s --interface 127.0.0.7 -X POST -d pin=123456 $U/api/login)"
+check "dopo la pausa col PIN nuovo dello schermo si entra" "200" "$(curl -s --interface 127.0.0.7 -o /dev/null -w '%{http_code}' -X POST -d pin=654321 $U/api/login)"
 # Host e Origin (RETE-03): un nome qualsiasi è una pagina web che punta alla console (DNS rebinding)
 check "Host estraneo: 421" "421" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: attacco.example' $U/)"
 check "Host mosaik.local: 200" "200" "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: mosaik.local' $U/)"
 check "Origin di un'altra pagina: 403" '{"error":"origin"}' "$(curl -s -H 'Origin: http://attacco.example' -X POST -d pin=654321 $U/api/login)"
 check "Origin della pagina stessa: accesso" "200" "$(curl -s -o /dev/null -w '%{http_code}' -H "Origin: $U" -X POST -d pin=654321 $U/api/login)"
 check "la sessione aperta resta valida" "200" "$(q -o /dev/null -w '%{http_code}' "$U/api/info")"
+# RETE-07: 4 indirizzi a turno, 30 tentativi ciascuno. Prima il PIN nuovo azzerava anche i blocchi
+# di ogni indirizzo e si arrivava a 157.000 tentativi in 20 s: ora se ne confrontano al massimo 20
+valutati=0; fermati=0
+for i in $(seq 30); do for a in 8 9 10 11; do
+    case "$(curl -s --interface 127.0.0.$a -X POST -d pin=999999 $U/api/login)" in
+    *badpin*) valutati=$((valutati + 1)) ;; *locked*) fermati=$((fermati + 1)) ;;
+    esac
+done; done
+check "4 indirizzi × 30 tentativi: al massimo 20 confrontati col PIN" "si" "$([ $valutati -le 20 ] && [ $fermati -ge 100 ] && echo si || echo "no ($valutati confrontati, $fermati fermati)")"
 kill $PID; wait $PID || true
 check "chiusura e riepilogo" "caricati 4, cambiato 1" "$(tail -1 srv.log)"
 # backup copiato sulla scheda e importato alla prima schermata, senza il server

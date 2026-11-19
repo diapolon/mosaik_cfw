@@ -54,7 +54,7 @@ log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 logs() { log "$@"; sync; }
 mkdir -p "$RUN"
 
-# un comando alla volta (come wifi-ctl); i demoni avviati qui non ereditano il descrittore 9
+# un comando alla volta (come wifi-ctl); i demoni avviati qui non ereditano i descrittori 8 e 9
 lock() {
     exec 9> "${BT_LOCK:-/run/bt-ctl.lock}"
     i=0
@@ -75,8 +75,10 @@ pid_stop() {
     rm -f "$RUN/$1.pid"
 }
 start() {   # nome, comando...: in sottofondo, uscita nel registro
+    # niente blocchi ai demoni: con l'8 (blocco del Wi-Fi, preso da chip_on) hciattach lo teneva
+    # finché il Bluetooth restava acceso e wifi-ctl non partiva più (audit 0.9.88, BT-01)
     n=$1; shift
-    "$@" >> "$LOG" 2>&1 9>&- &
+    "$@" >> "$LOG" 2>&1 8>&- 9>&- &
     echo $! > "$RUN/$n.pid"
 }
 

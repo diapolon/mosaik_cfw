@@ -120,6 +120,10 @@ check "registro" 'grep -q "Bluetooth acceso" $ROOT/Logs/bluetooth.log'
 n1=$(grep -c "^hciattach" $F/calls)
 $CTL on
 check "seconda accensione: niente di nuovo" '[ "$(grep -c "^hciattach" $F/calls)" = "$n1" ] && grep -q "già acceso" $ROOT/Logs/bluetooth.log'
+# audit 0.9.88, BT-01: hciattach ereditava il blocco del Wi-Fi e lo teneva finché il Bluetooth era
+# acceso, così ogni wifi-ctl aspettava 20 s e rinunciava (Wi-Fi che non si accende né si spegne)
+check "Bluetooth acceso: il blocco del Wi-Fi resta libero" 'flock -n $BT_WIFI_LOCK true'
+check "Bluetooth acceso: il blocco di bt-ctl resta libero" 'flock -n $BT_LOCK true'
 
 echo "--- ricerca e abbinamento"
 $CTL off > /dev/null

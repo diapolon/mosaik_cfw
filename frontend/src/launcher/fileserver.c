@@ -63,10 +63,14 @@ static fs_status_t st;
 static struct { uint32_t ip; int bad; time_t until; } pin_peers[PIN_PEERS];
 /* errori del PIN da tutti gli indirizzi insieme (revisione del 16 novembre: con più di 16
    indirizzi la tabella si riusava e i conteggi ripartivano): 20 in un minuto cambiano il PIN sullo
-   schermo (audit 0.9.72, RETE-03: prima bloccavano tutti per un minuto, anche l'utente vero) */
+   schermo (audit 0.9.72, RETE-03: prima bloccavano tutti per un minuto, anche l'utente vero) e
+   fermano per PIN_ALL_PAUSE secondi i tentativi di tutti, senza azzerare i blocchi per indirizzo
+   (audit 0.9.88, RETE-07: con l'azzeramento e senza pausa 4 indirizzi non avevano più nessun
+   limite). Al massimo 20 confronti ogni 30 s circa: in media settimane per indovinare un PIN */
 #define PIN_ALL_MAX 20
+#define PIN_ALL_PAUSE 30
 static int pin_all_bad;
-static time_t pin_all_since;
+static time_t pin_all_since, pin_all_until;
 static pthread_mutex_t auth_mu = PTHREAD_MUTEX_INITIALIZER;
 /* Connessioni (revisione del 16 novembre: un solo thread e 20 s per ogni recv, così una connessione
    lenta teneva fermo il server). Ognuna ha il suo thread, al massimo FS_MAX_CONN e FS_MAX_PER_IP per
@@ -533,7 +537,7 @@ static void do_login(req_t *r) {
     time_t now = time(NULL);
     pthread_mutex_lock(&auth_mu);
     int pp = pin_peer(r->fd, now);
-    if (now < pin_peers[pp].until) {
+    if (now < pin_peers[pp].until || now < pin_all_until) {
         pthread_mutex_unlock(&auth_mu);
         reply_err(r->fd, 429, "locked");
         return;
@@ -551,7 +555,7 @@ static void do_login(req_t *r) {
             if (getenv("ARCADE_FS_PIN2")) snprintf(np, sizeof np, "%.6s", getenv("ARCADE_FS_PIN2"));   /* prove */
             memcpy(pin, np, sizeof pin);
             pin_all_bad = 0;
-            memset(pin_peers, 0, sizeof pin_peers);
+            pin_all_until = now + PIN_ALL_PAUSE;   /* il blocco di chi ha sbagliato resta */
         }
         pthread_mutex_unlock(&auth_mu);
         event(FS_EV_FAIL, "PIN");
@@ -1869,6 +1873,7 @@ bool fs_start(const char *dir) {
     memset(pin_peers, 0, sizeof pin_peers);
     pin_all_bad = 0;
     pin_all_since = 0;
+    pin_all_until = 0;
     nconn = 0;
     browsers_load();
     restore_remove_zip();   /* un ripristino lasciato a metà non si riprende: si ricarica dalla pagina */
