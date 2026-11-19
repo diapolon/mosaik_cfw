@@ -668,9 +668,10 @@
   "bluetooth": {
     "title": "Bluetooth-Geräte",
     "starting": "Bluetooth wird gestartet…",
-    "searching": "Suche nach Geräten…",
+    "searching": "Suche läuft…",
     "none": "Keine Geräte gefunden",
     "hint": "Versetze Kopfhörer oder Controller in den Kopplungsmodus",
+    "press_y": "Drücke Y, um Kopfhörer, Lautsprecher und Controller zu suchen",
     "connected_to": "Verbunden mit %s",
     "none_connected": "Kein Gerät verbunden",
     "tag_connected": "verbunden",

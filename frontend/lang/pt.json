@@ -668,9 +668,10 @@
   "bluetooth": {
     "title": "Dispositivos Bluetooth",
     "starting": "Iniciando o Bluetooth…",
-    "searching": "Procurando dispositivos…",
+    "searching": "Busca em andamento…",
     "none": "Nenhum dispositivo encontrado",
     "hint": "Coloque os fones ou o controle em modo de emparelhamento",
+    "press_y": "Aperte Y para procurar fones, caixas de som e controles",
     "connected_to": "Conectado a %s",
     "none_connected": "Nenhum dispositivo conectado",
     "tag_connected": "conectado",

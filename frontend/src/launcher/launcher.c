@@ -4361,7 +4361,7 @@ static bt_dev_t btdevs[32], btdevs_new[32];
 static int nbtdevs, btsel, btdevs_new_n = -1;
 static int btgen, btdevs_new_gen;   /* un elenco chiesto prima della fine di un'azione è vecchio: si butta */
 static float btscroll;
-static double btlist_t, btscan_t;
+static double btlist_t;
 static bool btfetching, btworking;
 static int bt_job_done = -1;   /* -1 niente, 0 non riuscito, 1 riuscito */
 static char bt_job_cmd[12], bt_job_addr[18], bt_job_name[64];
@@ -4432,8 +4432,7 @@ static void btp_start(void) {
     btscroll = 0;
     bt_refresh();
     btp_refresh();
-    bt_scan_start(30);   /* le cuffie in abbinamento compaiono di solito entro 30 s */
-    btscan_t = UI.t;
+    /* la ricerca non parte da sola: si chiede con Y (sembrava già in corso, 19 novembre) */
 }
 
 static void btp_input(void) {
@@ -4459,8 +4458,6 @@ static void btp_input(void) {
         btlist_t = -10;
     }
     if (UI.t - btlist_t > 3) btp_refresh();   /* durante la ricerca i dispositivi arrivano a poco a poco */
-    /* finché la finestra è aperta la ricerca ricomincia da sola (non mentre si abbina o collega) */
-    if (!bt_scanning() && !__atomic_load_n(&btworking, __ATOMIC_SEQ_CST) && UI.t - btscan_t > 2) { btscan_t = UI.t; bt_scan_start(30); }
     if (in->pressed[BTN_UP] && nbtdevs) { btsel = (btsel + nbtdevs - 1) % nbtdevs; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_DOWN] && nbtdevs) { btsel = (btsel + 1) % nbtdevs; ui_sound(SND_MOVE); }
     if (in->pressed[BTN_B]) { btp_open = false; ui_sound(SND_BACK); return; }
@@ -4502,14 +4499,14 @@ static void btp_draw(void) {
     if (bs->state == BT_OFF || bs->state == BT_STARTING) snprintf(line, sizeof line, "%s", T("bluetooth.starting"));
     else if (bs->state == BT_CONNECTED) snprintf(line, sizeof line, T("bluetooth.connected_to"), bs->name);
     else if (scanning) snprintf(line, sizeof line, "%s", T("bluetooth.searching"));
-    else snprintf(line, sizeof line, "%s", T("bluetooth.hint"));
+    else snprintf(line, sizeof line, "%s", T("bluetooth.press_y"));
     ui_text(fs, line, lx, cy, bs->state == BT_CONNECTED ? t->accent : t->text_dim, ALIGN_LEFT);
     cy += sh + M(0.03f);
     int top = cy, area = rows * rh;
     if (!nbtdevs) {
-        const char *k = bs->state == BT_OFF || bs->state == BT_STARTING ? "bluetooth.starting" : scanning ? "bluetooth.searching" : "bluetooth.none";
+        const char *k = bs->state == BT_OFF || bs->state == BT_STARTING ? "bluetooth.starting" : scanning ? "bluetooth.searching" : "bluetooth.press_y";
         ui_text(f, T(k), x + w / 2, top + area / 2 - fh / 2, t->text_dim, ALIGN_CENTER);
-        if (!strcmp(k, "bluetooth.none")) ui_text(fs, T("bluetooth.hint"), x + w / 2, top + area / 2 + fh / 2 + M(0.01f), t->text_dim, ALIGN_CENTER);
+        if (!strcmp(k, "bluetooth.press_y")) ui_text(fs, T("bluetooth.hint"), x + w / 2, top + area / 2 + fh / 2 + M(0.01f), t->text_dim, ALIGN_CENTER);
     } else {
         float target = btscroll;
         if (btsel * rh - target > area - rh) target = btsel * rh - (area - rh);

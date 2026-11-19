@@ -668,9 +668,10 @@
   "bluetooth": {
     "title": "Bluetooth devices",
     "starting": "Starting Bluetooth…",
-    "searching": "Looking for devices…",
+    "searching": "Search in progress…",
     "none": "No devices found",
     "hint": "Put your headphones or controller in pairing mode",
+    "press_y": "Press Y to search for headphones, speakers and controllers",
     "connected_to": "Connected to %s",
     "none_connected": "No device connected",
     "tag_connected": "connected",

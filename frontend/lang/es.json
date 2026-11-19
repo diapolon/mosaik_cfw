@@ -668,9 +668,10 @@
   "bluetooth": {
     "title": "Dispositivos Bluetooth",
     "starting": "Iniciando el Bluetooth…",
-    "searching": "Buscando dispositivos…",
+    "searching": "Búsqueda en curso…",
     "none": "No se ha encontrado ningún dispositivo",
     "hint": "Pon los auriculares o el mando en modo de vinculación",
+    "press_y": "Pulsa Y para buscar auriculares, altavoces y mandos",
     "connected_to": "Conectado a %s",
     "none_connected": "Ningún dispositivo conectado",
     "tag_connected": "conectado",

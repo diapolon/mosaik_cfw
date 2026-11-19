@@ -668,9 +668,10 @@
   "bluetooth": {
     "title": "Appareils Bluetooth",
     "starting": "Démarrage du Bluetooth…",
-    "searching": "Recherche des appareils…",
+    "searching": "Recherche en cours…",
     "none": "Aucun appareil trouvé",
     "hint": "Mets ton casque ou ta manette en mode association",
+    "press_y": "Appuie sur Y pour chercher casques, enceintes et manettes",
     "connected_to": "Connecté à %s",
     "none_connected": "Aucun appareil connecté",
     "tag_connected": "connecté",
