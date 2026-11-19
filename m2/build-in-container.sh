@@ -171,8 +171,12 @@ models | while IFS="|" read -r id fw name file; do
     if [ -s $W/libs-mancanti-$id.txt ]; then echo "librerie non trovate ($id):"; cat $W/libs-mancanti-$id.txt; fi
 done
 
+# licenze anche nel sistema: Arcade/Licenses non arriva con l'aggiornamento Wi-Fi, e chi aggiorna
+# riceve i programmi del Bluetooth (audit 0.9.88, LIC-07)
+mkdir -p $R/usr/share/licenses && cp $T/licenses/* $R/usr/share/licenses/
 chmod 755 $R/sbin/init $R/usr/arcade/bin/* $R/usr/bin/setterm
 [ -x $R/sbin/init ] || { echo "sbin/init non eseguibile"; exit 1; }
+[ -f $R/usr/share/licenses/THIRD-PARTY.md ] && [ -f $R/usr/share/licenses/bluetooth-libs.txt ] || { echo "licenze mancanti nel sistema"; exit 1; }
 rm -f $W/arcade-system.squashfs
 mksquashfs $R $W/arcade-system.squashfs -comp zstd -all-root -noappend -quiet >/dev/null
 echo "sistema: $(du -h $W/arcade-system.squashfs | cut -f1)"

@@ -30,6 +30,10 @@ if solo and not have_site:
     sys.exit("--solo-sito: manca la cartella site/")
 if not have_site:
     print("niente cartella site/: salto le pagine del sito (immagini, aggiornamento e Store si fanno lo stesso)")
+# i sorgenti GPL e LGPL dei programmi del firmware che il sistema porta (Bluetooth) vanno allegati a
+# ogni Release: senza, una Release non si prepara (audit 0.9.88, LIC-06 e DEV-04)
+if not solo and subprocess.call(["sh", os.path.join(top, "toolchain", "sorgenti-firmware.sh"), "--check"]) != 0:
+    sys.exit("mancano sorgenti in dist/release/sources: sh toolchain/sorgenti-firmware.sh")
 if not solo:
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(os.path.join(out, "download"))

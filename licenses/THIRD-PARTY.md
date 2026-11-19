@@ -82,7 +82,7 @@ The sources are attached to each release.
 
 ## Taken unchanged from the official TrimUI firmware v1.1.1
 
-The images reuse these binaries of the official firmware without changes, so that the card starts on the console it was made for (official firmware: https://github.com/trimui/firmware_smartpro and https://github.com/trimui/firmware_brickpro). **TrimUI has not published the source code of its Linux kernel and U-Boot**: it has been asked for publicly since 2024 (https://github.com/trimui/firmware_smartpro/issues/29, https://github.com/trimui/firmware_smartpro/issues/1). Mosaik does not have that source code either, so it cannot offer it; as soon as TrimUI publishes it, it will be linked here. The other GPL and LGPL programs in this table are unchanged builds of the upstream projects, whose source code is public on their sites.
+The images reuse these binaries of the official firmware without changes, so that the card starts on the console it was made for (official firmware: https://github.com/trimui/firmware_smartpro and https://github.com/trimui/firmware_brickpro). **TrimUI has not published the source code of its Linux kernel and U-Boot**: it has been asked for publicly since 2024 (https://github.com/trimui/firmware_smartpro/issues/29, https://github.com/trimui/firmware_smartpro/issues/1). Mosaik does not have that source code either, so it cannot offer it; as soon as TrimUI publishes it, it will be linked here. The other GPL and LGPL programs in this table were built by TrimUI from these upstream versions with Allwinner's Tina SDK (based on OpenWrt), which may apply its own small patches; their upstream source code is public on the projects' sites. For the Bluetooth programs, the source code of the exact upstream versions is attached to every Mosaik release (`bluez-5.54.tar.xz`, `sbc-1.3.tar.xz`, `readline-6.3.tar.gz`, `libiconv-1.15.tar.gz`, `gettext-0.19.6.tar.xz`, `dbus-1.10.4.tar.gz`, `glib-2.50.1.tar.xz`). **Exception: `hciattach` is BlueZ 5.54 with Allwinner's patch for the XR829 Bluetooth chip** (`hciattach_xradio.c`, which loads the chip firmware and sets its address). Neither TrimUI nor Allwinner has published that patch: it has been asked for together with the kernel source, and it will be linked here as soon as it is available.
 
 | Component | License |
 |---|---|
@@ -96,9 +96,10 @@ The images reuse these binaries of the official firmware without changes, so tha
 | wpa_supplicant | `wpa_supplicant.txt` |
 | tinyalsa | `tinyalsa.txt` |
 | iw | `iw.txt` |
-| BlueZ 5.54 (Bluetooth: bluetoothd, bluetoothctl, hciattach, hciconfig, hcitool, btmgmt, btmon), D-Bus 1.10 | `GPL-2.0.txt` (BlueZ libraries and D-Bus also `LGPL-2.1.txt`) |
-| GLib 2, libsbc, libiconv, libintl | `LGPL-2.1.txt` |
-| GNU readline 6 (used by bluetoothctl) | `GPL-3.0.txt` |
-| bluez-alsa 3.1.0, ncurses, expat, libffi, PCRE | `bluetooth-libs.txt` |
+| BlueZ 5.54 (Bluetooth: bluetoothd, bluetoothctl, hciattach with Allwinner's XR829 patch, hciconfig, hcitool, btmgmt, btmon; libbluetooth) | `GPL-2.0.txt` |
+| D-Bus 1.10.4 (dbus-daemon, libdbus) | `GPL-2.0.txt` (D-Bus is dual-licensed: GPL-2.0 or AFL-2.1) |
+| GLib 2.50.1, sbc 1.3, libiconv 1.15, libintl from gettext 0.19.6 | `LGPL-2.1.txt` |
+| GNU readline 6.3 (used by bluetoothctl) | `GPL-3.0.txt` |
+| bluez-alsa (3.1.0, snapshot of 22 November 2021), ncurses 5.9, expat 2.1.0, libffi 3.3, PCRE 8.38 | `bluetooth-libs.txt` |
 
 The following firmware components are proprietary, belong to their respective owners and are not covered by any license in this folder: PowerVR graphics libraries and firmware, `trimui_inputd`, XR829 Wi-Fi and Bluetooth firmware, boot0. Mosaik has no written permission from TrimUI or the other owners to redistribute them: they are included only so that the card works on the TrimUI console it was made for. For this reason too, **Mosaik must not be sold**, alone or on a card.
