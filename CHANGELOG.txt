@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.85
+it Bluetooth: il volume delle cuffie ora cambia davvero
+en Bluetooth: the headphones volume now really changes
+it Con le cuffie collegate il volume si chiama "Volume · cuffie"
+en With headphones connected the volume is called "Volume · headphones"
+
 0.9.84
 it Bluetooth: anche i suoni e la musica del menu vanno alle cuffie
 en Bluetooth: menu sounds and music also go to the headphones
