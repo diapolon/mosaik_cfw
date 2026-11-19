@@ -981,49 +981,45 @@ static void cover_or_note(int cx, int cy, int side, const skin_t *s) {
 static void player_draw(const skin_t *s) {
     theme_t *t = &UI.th;
     ui_topbar(FT("music.title"));
-    int top = M(t->topbar_h), bot = UI.h - ui_keybar_h(), avail = bot - top;
-    int ch = avail * 93 / 100, cw = ch * 9 / 10, mx = M(t->margin);
-    if (cw > UI.w - 2 * mx) cw = UI.w - 2 * mx;
-    int x0 = (UI.w - cw) / 2, y0 = top + (avail - ch) / 2, r = M(0.04f);
+    /* in orizzontale, come lo schermo (1.11): un pannello largo con la copertina (o lo spettro, per
+       l'aspetto "title") quadrata a sinistra e a destra titolo, barra del brano e controlli. Prima
+       era una scheda verticale al centro, con metà schermo vuoto ai lati */
+    int top = M(t->topbar_h), bot = UI.h - ui_keybar_h(), avail = bot - top, mx = M(t->margin);
+    int ch = avail * 93 / 100, cw = UI.w - 2 * mx;
+    int x0 = mx, y0 = top + (avail - ch) / 2, r = M(0.04f);
     panel(x0, y0, cw, ch, r, s);
-    int pad = cw * 8 / 100, x = x0 + pad, w = cw - 2 * pad, cx = x0 + cw / 2;
-    int fsh = TTF_FontHeight(UI.f_small), fnh = TTF_FontHeight(UI.f_normal), fth = TTF_FontHeight(UI.f_title);
+    int pad = ch * 8 / 100, side = ch - 2 * pad;
+    if (side > cw * 45 / 100) side = cw * 45 / 100;
+    int lx = x0 + pad, ly = y0 + (ch - side) / 2;   /* riquadro di sinistra */
+    int x = lx + side + pad, w = x0 + cw - pad - x, cx = x + w / 2;   /* colonna di destra */
+    int fsh = TTF_FontHeight(UI.f_small), fth = TTF_FontHeight(UI.f_title);
     int is = fsh, ts = ch * 6 / 100;   /* icone piccole, controlli */
 #define Y(f) (y0 + (int)(ch * (f)))
     const char *title = cur >= 0 ? cur_title() : FT(ntracks ? "music.choose" : "music.none"), *artist = cur_artist();
-    if (s->layout == LAY_COVER) {
-        modes(x + is / 2, Y(0.075f), x + w - is / 2, Y(0.075f), is, s);
-        int side = ch * 36 / 100;
-        cover_or_note(cx, Y(0.08f) + side / 2, side, s);
-        ctext(UI.f_title, title, cx, Y(0.52f) - fth / 2, w, s->text);
-        if (artist[0]) ctext(UI.f_normal, artist, cx, Y(0.595f) - fnh / 2, w, s->dim);
-        progress(x, Y(0.68f), w, true, s);
-        transport(x, Y(0.835f), w, ts, 1.05f, s);
-        ic_speaker(x + is / 2, Y(0.945f), is, s->dim);
-        level_bar(x + is + M(0.015f), Y(0.945f), w / 2, UI.set.volume / 20.0f, s);
-    } else if (s->layout == LAY_SPECTRUM) {
-        modes(x + w - is * 5 / 2, Y(0.07f), x + w - is / 2, Y(0.07f), is, s);
-        int side = ch * 28 / 100;
-        if (cover_tex) cover_or_note(cx, Y(0.08f) + side / 2, side, s);
-        else ic_note(cx, Y(0.08f) + side / 2, side * 8 / 10, with_alpha(s->text, 210));
-        ctext(UI.f_normal, title, cx, Y(0.425f) - fnh / 2, w, s->text);
-        if (artist[0]) ctext(UI.f_small, artist, cx, Y(0.48f) - fsh / 2, w, s->dim);
-        bars_draw(x, Y(0.52f), w, ch * 16 / 100, s);
-        progress(x, Y(0.725f), w, false, s);
-        int py = Y(0.775f), ph = ch * 15 / 100;
+    /* a sinistra: copertina, o la nota; per l'aspetto "title" lo spettro grande */
+    if (s->layout == LAY_TITLE) bars_draw(lx, ly + side / 6, side, side * 2 / 3, s);
+    else if (s->layout == LAY_SPECTRUM && !cover_tex) ic_note(lx + side / 2, ly + side / 2, side * 7 / 10, with_alpha(s->text, 210));
+    else cover_or_note(lx + side / 2, ly + side / 2, side, s);
+    /* titolo e artista su due righe se servono, centrati nella colonna */
+    char tl[2][160];
+    int nt = ui_wrap(UI.f_title, title, w, tl, 2);
+    modes(x + is / 2, Y(0.09f), x + w - is / 2, Y(0.09f), is, s);
+    int ty = Y(nt > 1 ? 0.16f : 0.22f);
+    for (int k = 0; k < nt; k++, ty += fth) ctext(UI.f_title, tl[k], cx, ty, w, s->text);
+    if (artist[0]) ctext(UI.f_normal, artist, cx, ty + M(0.005f), w, s->dim);
+    if (s->layout == LAY_SPECTRUM) {
+        bars_draw(x, Y(0.40f), w, ch * 14 / 100, s);
+        progress(x, Y(0.61f), w, true, s);
+        int py = Y(0.71f), ph = ch * 15 / 100;
         ui_rrect(x - pad / 3, py, w + pad * 2 / 3, ph, M(0.025f), rgba(0, 0, 0, s->glass ? 50 : 20));
         if (s->glass) ui_rborder(x - pad / 3, py, w + pad * 2 / 3, ph, M(0.025f), thin(), with_alpha(s->border, s->border.a / 2));
         transport(x, py + ph / 2, w, ts, 0.95f, s);
-        level_bar(x, Y(0.96f), w * 4 / 10, UI.set.volume / 20.0f, s);
+        level_bar(x, Y(0.94f), w * 4 / 10, UI.set.volume / 20.0f, s);
     } else {
-        modes(x + is / 2, Y(0.07f), x + w - is / 2, Y(0.07f), is, s);
-        ctext(UI.f_title, title, cx, Y(0.18f) - fth / 2, w, s->text);
-        if (artist[0]) ctext(UI.f_normal, artist, cx, Y(0.265f) - fnh / 2, w, s->dim);
-        bars_draw(x, Y(0.33f), w, ch * 22 / 100, s);
-        progress(x, Y(0.625f), w, true, s);
-        transport(x, Y(0.8f), w, ts, 1.3f, s);
-        int hw = cw / 8, hh = M(0.006f) > 3 ? M(0.006f) : 3;
-        ui_rrect(cx - hw / 2, Y(0.94f), hw, hh, hh / 2, with_alpha(s->dim, 110));
+        progress(x, Y(0.55f), w, true, s);
+        transport(x, Y(0.75f), w, ts, s->layout == LAY_TITLE ? 1.3f : 1.05f, s);
+        ic_speaker(x + is / 2, Y(0.92f), is, s->dim);
+        level_bar(x + is + M(0.015f), Y(0.92f), w / 2, UI.set.volume / 20.0f, s);
     }
 #undef Y
     const char *h[] = { "B", FT("music.list"), NULL, "START", FT("music.skin"), "", "SELECT", FT("music.screen_off"), "",
