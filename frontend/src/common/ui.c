@@ -2066,7 +2066,15 @@ void ui_shutdown_code(int code) {
     shut_step("font");
     fonts_clear();
     shut_step("audio");
-    if (UI.audio) SDL_CloseAudioDevice(UI.audio);
+    /* con le cuffie Bluetooth la chiusura dell'audio (alsa-lib con bluealsa) può non tornare più
+       (NextUI #810): si aspetta al massimo 3 s, poi si esce subito; il codice è già in exit.txt */
+    if (UI.audio && !audio_close_timed(UI.audio)) {
+        ui_log("chiusura: l'audio non si chiude entro 3 s, uscita immediata");
+        if (logf_) fclose(logf_);
+        logf_ = NULL;
+        _exit(code >= 0 ? code : 0);
+    }
+    UI.audio = 0;
     shut_step("renderer");
     if (UI.canvas) SDL_DestroyTexture(UI.canvas);
     SDL_DestroyRenderer(UI.ren);

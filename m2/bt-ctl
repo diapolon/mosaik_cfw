@@ -10,6 +10,9 @@
 #   bt-ctl connect|disconnect|forget INDIRIZZO
 #   bt-ctl reconnect           ricollega l'ultimo dispositivo (6 tentativi, uno ogni 5 s)
 #   bt-ctl status              "spento", oppure "acceso" e, se c'è, "collegato INDIRIZZO tipo nome"
+#   bt-ctl diag                registro dell'audio verso le cuffie in Logs/bluetooth-audio.txt (lo fa
+#                              watch la prima volta che l'audio passa alle cuffie): catena ALSA, controlli,
+#                              un suono di prova da "default" e uno diretto a bluealsa
 #   bt-ctl watch               (lo avvia "on") ogni 4 s: audio verso le cuffie collegate o di nuovo
 #                              all'altoparlante, anche quando le cuffie si spengono da sole
 #
@@ -325,10 +328,31 @@ reconnect)
     log "ricollegamento a $a non riuscito"
     exit 1
     ;;
+diag)
+    D=${ARCADE_LOG_DIR:-$ROOT/Logs}/bluetooth-audio.txt
+    a=$(cat "$AUDIO_FLAG" 2> /dev/null)
+    {
+        echo "=== $(date) · cuffie: ${a:-nessuna}"
+        echo "--- /etc/asound.conf"; ls -l /etc/asound.conf "$ASOUND"; tail -18 "$ASOUND"
+        echo "--- aplay -L (bluealsa e default)"; aplay -L 2>&1 | grep -i -E -A1 "^(default|bluealsa|sysdefault)" | head -20
+        echo "--- controlli"; amixer controls 2>&1 | grep -i -E "blue|soft|digital volume"
+        echo "--- flusso del codec"; cat /proc/asound/audiocodec/pcm0p/sub0/status 2>&1 | head -4
+        echo "--- chi usa l'audio"; for p in /proc/[0-9]*; do ls -l "$p/fd" 2> /dev/null | grep -q /dev/snd && echo "$(basename "$p") $(tr '\0' ' ' < "$p/cmdline" | cut -c1-80)"; done
+        echo "--- suono di prova da default (aplay -v)"; timeout 8 aplay -v -D default /usr/arcade/share/prova-bt.wav 2>&1 | head -60; echo "uscita $?"
+        echo "--- Bluetooth Volume"; amixer cget name='Bluetooth Volume' 2>&1 | tail -3
+        [ -n "$a" ] && { echo "--- suono di prova diretto a bluealsa"; timeout 8 aplay -D "bluealsa:DEV=$a,PROFILE=a2dp" /usr/arcade/share/prova-bt.wav 2>&1 | tail -5; echo "uscita $?"; }
+        echo "--- bluealsa"; pid_alive bluealsa && echo "in funzione" || echo "NON in funzione"
+    } >> "$D" 2>&1
+    sync
+    ;;
 watch)
     # le cuffie possono spegnersi o ricollegarsi da sole: l'audio le segue
+    diag_done=""
     while bt_on; do
         route "$(connected_audio)"
+        if [ -f "$AUDIO_FLAG" ] && [ -z "$diag_done" ] && [ "${BT_DIAG:-1}" = 1 ]; then
+            diag_done=1; sleep 3; sh "$0" diag > /dev/null 2>&1
+        fi
         sleep ${BT_WATCH_EVERY:-4}
     done
     route

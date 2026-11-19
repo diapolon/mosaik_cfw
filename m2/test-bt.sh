@@ -11,7 +11,7 @@ check() { if eval "$2"; then ok "$1"; else ko "$1"; fi; }
 
 F=/tmp/fbt                      # stato dei programmi finti
 export ROOT=/tmp/sd/Arcade BT_SYS=/tmp/sys BT_STORE=/tmp/store BT_RUN=/tmp/runbt BT_BTWRITE=/tmp/btwrite
-export BT_LOCK=/tmp/bt.lock BT_WIFI_LOCK=/tmp/wifi.lock BT_I2C=/nessuno BT_RECONNECT_WAIT=0 BT_WATCH_EVERY=1
+export BT_LOCK=/tmp/bt.lock BT_WIFI_LOCK=/tmp/wifi.lock BT_I2C=/nessuno BT_RECONNECT_WAIT=0 BT_WATCH_EVERY=1 BT_DIAG=0
 export BT_ASOUND=/tmp/asound.conf BT_ASOUND_BASE=/tmp/asound.base BT_AUDIO_FLAG=/tmp/bt-audio
 BIN=/tmp/fbin; mkdir -p $BIN; export PATH=$BIN:$PATH
 CTL="sh /trimui/m2/bt-ctl"

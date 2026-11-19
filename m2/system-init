@@ -15,6 +15,8 @@ export ROOT=/mnt/SDCARD/Arcade HOME=/mnt/SDCARD/Arcade FB_TITLE=MOSAIK
 export TRIMUI_MODEL="$(cat /run/trimui-model)" ARCADE_STANDALONE=1
 # configurazione ALSA modificabile (cuffie Bluetooth, m2/bt-ctl): /etc/asound.conf → /run/asound.conf
 cp /run/fw/asound.conf /run/asound.conf 2>/dev/null
+# alsa-lib con bluealsa si bloccava nei lock interni (NextUI #810): come NextUI, senza
+export LIBASOUND_THREAD_SAFE=0
 # diagnostica facoltativa: Arcade/System/device-env.sh (vedi device-env.sh.esempio), per
 # esempio TRIMUI_JOYDEBUG=1 (tasti nel log) o ARCADE_DEBUG_SHOT=1 (istantanea dei giochi)
 [ -f "$ROOT/System/device-env.sh" ] && . "$ROOT/System/device-env.sh"
