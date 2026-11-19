@@ -56,6 +56,35 @@
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
 - **Three save slots per game** with preview and date, plus an automatic save with a previous copy.
 
+## What works
+
+Every build is tried by hand on real consoles before it is released. This is where things stand (stable 0.9.79, Development channel 0.9.83). In the Store, packages not tried yet carry the **Experimental** flask.
+
+**Tried on both consoles (Smart Pro and Brick Pro)**
+- **System**: start from the card in about 5 seconds, sleep and resume, signed Wi-Fi updates (all or nothing, with the way back), file transfer over Wi-Fi, backup and restore, Store, themes, bezels, filters, settings for a console or a single game, six languages.
+- **Arcade**: FinalBurn Neo and MAME 2003-Plus.
+- **Consoles**: Super Nintendo, Mega Drive and Nintendo 64 (with save states).
+
+**Tried on one console only**
+- **Dreamcast with Deadcast**: Brick Pro (the Store does not offer it on the Smart Pro).
+- **Bluetooth headphones and speakers** (0.9.83, Development channel): Brick Pro. Still to try on the Smart Pro, where the stock firmware 1.1.x broke Bluetooth.
+- **SD card test**: Brick Pro.
+
+**Experimental: you can install them, they have not been tried yet**
+- **Consoles**: NES, Game Boy and Game Boy Color, Game Boy Advance, PC Engine, PlayStation, PSP, Atari 2600, 7800 and Lynx, ColecoVision, Intellivision, Neo Geo Pocket, WonderSwan, Virtual Boy, Pokémon mini, Dreamcast with Flycast (Smart Pro only).
+- **Arcade**: MAME 2010.
+- **Computers**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS, Amiga.
+- **Linux games**: Freedoom, Mr.Boom, Diablo (DevilutionX).
+- **Apps**: Music player, Video, Download files, SD card space, Diagnostics.
+- **Bluetooth controllers**: they can be paired, nobody has tried one yet.
+
+**Known problems**
+- Brick Pro: the speaker hisses when nothing is playing ([#4](https://github.com/diapolon/mosaik_cfw/issues/4)).
+- Smart Pro: the left stick can stop at the centre after a fast flick ([#9](https://github.com/diapolon/mosaik_cfw/issues/9)).
+- Bluetooth: the sound arrives 150-250 ms late; Linux games, standalone emulators (Nintendo 64, Dreamcast, PSP), Music player and Video move to the headphones only when they are started again.
+
+Tried something marked experimental? Say whether it works in an [issue](https://github.com/diapolon/mosaik_cfw/issues): with your report it can lose the flask.
+
 ## The interface
 
 <table>
