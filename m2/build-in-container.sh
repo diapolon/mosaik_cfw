@@ -70,9 +70,9 @@ ln -s /run/fw/asound.conf $R/etc/asound.conf
 # /etc/bluetooth scrivibile: hciattach xradio legge l'indirizzo del chip da xr_bt.conf (prova-bt)
 ln -s /run/bluetooth $R/etc/bluetooth
 # BlueZ del firmware (prova delle cuffie): bluetoothd tiene gli abbinamenti in /etc/lib/bluetooth e
-# il socket SDP in /var/run, D-Bus il suo in /var/run/dbus; i plugin ALSA di bluealsa in /usr/lib/alsa-lib
+# il socket SDP in /var/run, D-Bus il suo in /var/run/dbus (/var è un tmpfs dell'initramfs: il
+# collegamento /var/run lo fa prova-bt); i plugin ALSA di bluealsa in /usr/lib/alsa-lib
 ln -s /run/etc-lib $R/etc/lib
-ln -s /run $R/var/run
 ln -s /run/fw/alsa-lib $R/usr/lib/alsa-lib
 # suono di prova per le cuffie (prova-bt): tre note, 44,1 kHz stereo, 16 bit
 mkdir -p $R/usr/arcade/share

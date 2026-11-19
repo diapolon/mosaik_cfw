@@ -122,6 +122,9 @@ say() { kill -0 $BTC 2> /dev/null || { log "bluetoothctl non c'è più: $*"; ret
 
 cuffie() {
     mkdir -p /run/etc-lib/bluetooth /run/dbus /run/bluetooth
+    # /var è un tmpfs dell'initramfs: /var/run (socket di D-Bus e SDP) va creato qui
+    [ -e /var/run ] || ln -s /run /var/run
+    log "/var/run: $(ls -ld /var/run 2>&1)"
     printf '[General]\nName = Mosaik\nClass = 0x000100\n[Policy]\nAutoEnable = true\n' > /run/bluetooth/main.conf
     cat > /run/dbus/prova.conf <<'CONF'
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
