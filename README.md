@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.mosaikcfw.org">Website</a> ·
   <a href="https://github.com/diapolon/mosaik_cfw/releases">Download</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#loading-games">Loading games</a> ·

@@ -42,7 +42,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [x] Video: `.srt` subtitles (1.4, 0.9.79)
 
 **Project**
-- [ ] Website on mosaikcfw.org
+- [x] Website on mosaikcfw.org (19 Nov 2026: Home and Download in English and Italian, `make-site.py` → `dist/mosaikcfw.org`, on the Plesk VPS)
 
 
 ## Testing
@@ -142,5 +142,5 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 
 ## Project
 
-- [ ] Website on mosaikcfw.org
+- [x] Website on mosaikcfw.org (19 Nov 2026: Home and Download in English and Italian, `make-site.py` → `dist/mosaikcfw.org`, on the Plesk VPS)
 - [ ] English version of the build documentation (`m2/README.md`)
