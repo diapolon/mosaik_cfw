@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.83
+it Prova del Bluetooth: il chip si riaccende, indirizzo fisso dato in un altro modo
+en Bluetooth test: the chip starts again, fixed address set another way
+
 0.9.82
 it Prova del Bluetooth: nuova ricerca dei dispositivi e indirizzo fisso
 en Bluetooth test: new device search and fixed address

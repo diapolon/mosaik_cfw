@@ -17,8 +17,10 @@
 #
 # Indirizzo: hciattach xradio lo legge da /sys/class/addr_mgt/addr_bt (che sulla Brick Pro non
 # c'è), poi da /etc/bluetooth/xr_bt.conf, e senza nessuno dei due ne inventa uno a ogni accensione.
-# /etc/bluetooth è un collegamento a /run/bluetooth (dalla 0.9.82): qui si scrive un indirizzo in
-# xr_bt.conf prima di hciattach e si guarda se il chip lo usa.
+# Con un xr_bt.conf "XX:XX:XX:XX:XX:XX" hciattach si ferma a metà (0.9.82): il file non va scritto.
+# hciattach dà l'indirizzo al chip con il comando del fornitore 0xfc0a (02 00 06 e i 6 byte al
+# contrario, visto nel registro della 0.9.80): qui lo si manda dopo l'accensione, poi down/up perché
+# il kernel rilegga l'indirizzo, e si guarda se il chip lo usa.
 # Ricerca classica: con hcitool inq il chip non mandava mai la fine della ricerca (0.9.81) e
 # hcitool, che stampa solo alla fine, restava fermo. Ora btmgmt find -b, che scrive ogni
 # dispositivo appena lo trova, con btmon acceso (Logs/prova-bt-btmon.txt) per vedere gli eventi.
@@ -59,14 +61,9 @@ for f in hciattach hciconfig hcitool btmgmt btmon; do command -v $f > /dev/null 
 for d in /lib/firmware /run/fw/lib/firmware; do ls $d/*xr829_bt* 2> /dev/null | while read -r f; do log "firmware $f ($(wc -c < "$f") byte)"; done; done
 [ -e /proc/bluetooth/sleep/btwrite ] && log "/proc/bluetooth/sleep/btwrite presente"
 for a in /sys/class/addr_mgt/*; do [ -f "$a" ] && log "$(basename "$a"): '$(cat "$a" 2>/dev/null)' ($(ls -l "$a" | cut -d' ' -f1))"; done
-[ -f /etc/bluetooth/xr_bt.conf ] && log "xr_bt.conf: $(cat /etc/bluetooth/xr_bt.conf)"
+[ -e /etc/bluetooth/xr_bt.conf ] && log "xr_bt.conf presente: hciattach potrebbe fermarsi"
 # indirizzo di prova: primo byte fisso, il resto a caso
 ADDR=$(hexdump -n 5 -e '"2C" 5/1 ":%02X"' /dev/urandom 2>/dev/null)
-if [ -n "$ADDR" ] && mkdir -p /run/bluetooth && echo "$ADDR" > /etc/bluetooth/xr_bt.conf 2>> "$LOG"; then
-    log "xr_bt.conf scritto: $ADDR"
-else
-    log "xr_bt.conf non scrivibile ($(ls -ld /etc/bluetooth 2>&1))"; ADDR=""
-fi
 
 if [ "$WIFI" = yes ]; then
     log "Wi-Fi: accendo"
@@ -105,8 +102,15 @@ if [ $ok = yes ]; then
     hciconfig hci0 up >> "$LOG" 2>&1
     block "hciconfig -a" hciconfig -a hci0
     block "versione del chip" hciconfig hci0 version
-    GOT=$(hciconfig hci0 | sed -n 's/.*BD Address: \([0-9A-F:]*\).*/\1/p')
-    [ -n "$ADDR" ] && { [ "$GOT" = "$ADDR" ] && log "indirizzo: usato quello di xr_bt.conf" || log "indirizzo: NON usato quello di xr_bt.conf (il chip ha $GOT)"; }
+    if [ -n "$ADDR" ]; then
+        log "indirizzo di prova $ADDR con il comando 0xfc0a"
+        block "hcitool cmd 0x3f 0x000a" hcitool -i hci0 cmd 0x3f 0x000a 02 00 06 $(echo "$ADDR" | awk -F: '{ print $6, $5, $4, $3, $2, $1 }')
+        hciconfig hci0 down >> "$LOG" 2>&1
+        hciconfig hci0 up >> "$LOG" 2>&1
+        GOT=$(hciconfig hci0 | sed -n 's/.*BD Address: \([0-9A-F:]*\).*/\1/p')
+        [ "$GOT" = "$ADDR" ] && log "indirizzo: il chip usa quello dato" || log "indirizzo: il chip NON usa quello dato (ha $GOT)"
+        block "hciconfig dopo l'indirizzo" hciconfig hci0
+    fi
     log "ricerca classica con btmgmt ($SECS s): controller e cuffie in modalità abbinamento"
     MON=$ROOT/Logs/prova-bt-btmon.txt
     btmon > /tmp/prova-bt-mon 2>&1 &
