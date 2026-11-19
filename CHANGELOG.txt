@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.87
+it Sistema più leggero: da 73 a 55 MB, aggiornamenti più veloci da scaricare
+en Lighter system: from 73 to 55 MB, faster updates to download
+it Bluetooth: la ricerca parte subito e continua finché la finestra è aperta
+en Bluetooth: the search starts right away and goes on while the window is open
+it Dispositivi Bluetooth: stato aggiornato subito, collegato in giallo
+en Bluetooth devices: status updated right away, connected in yellow
+
 0.9.86
 it Accanto al volume l'icona dell'uscita: altoparlante, cuffie o cassa Bluetooth
 en Next to the volume, the icon of the output: speaker, headphones or Bluetooth speaker
