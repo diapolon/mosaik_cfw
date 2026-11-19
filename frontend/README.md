@@ -1,15 +1,16 @@
-# Prototipo frontend arcade (Mac)
+# Frontend di Mosaik: launcher, runner e app
 
-Launcher con temi grafici e runner libretro per FinalBurn Neo e mame2003-plus, pensati
-per TrimUI Smart Pro (TG5040) e Brick Pro (TG4040). Questa versione gira sul Mac, in una
-finestra che simula lo schermo della console. Il progetto completo è descritto in
+Launcher con temi grafici, runner libretro e app di Mosaik per TrimUI Smart Pro (TG5040) e
+Brick Pro (TG4040): arcade, console, computer e giochi Linux. Gli emulatori non sono nel
+sistema: ogni core è un pacchetto dello Store (`toolchain/package.sh`, `toolchain/make-store.py`).
+Sul Mac gira in una finestra che simula lo schermo della console. Il progetto completo è descritto in
 [../STUDIO-CFW-TG5040.md](../STUDIO-CFW-TG5040.md).
 
 ## Avvio rapido
 
 ```bash
 make
-FBNEO_ROMS="$HOME/Downloads/Emu/recalbox_OK/roms/fbneo" MAME_ROMS="$HOME/Downloads/Emu/Arcade - Mame 2003 Plus" ./setup-mac.sh
+FBNEO_ROMS=/percorso/delle/rom/fbneo MAME_ROMS=/percorso/delle/rom/mame2003plus ./setup-mac.sh
 ./run-mac.sh
 ```
 
@@ -73,7 +74,9 @@ partite finiscono in `System/stats.tsv` e compaiono nella scheda del gioco.
 
 | Voce | Cosa fa |
 |---|---|
-| Riprendi, Salva stato, Carica stato | Stato salvato in `Saves/<core>/<rom>.state` |
+| Riprendi, Salva stato, Carica stato | Stato nello slot in uso: `Saves/<console o core>/<gioco>.state` (`.2.state`, `.3.state`) |
+| Salvataggi › | I tre slot, il salvataggio automatico e la copia precedente, con anteprima e data |
+| Disco | Solo per i giochi su più dischi (PlayStation con `.m3u`): cambia disco aprendo e richiudendo il vassoio; grigio con un disco solo |
 | Proporzioni, Filtro video, Cornice | Originale / Pixel interi / Schermo intero; i filtri di `Filters/`; cornice sì/no |
 | Rotazione schermo | Normale, oppure 90° a sinistra o a destra per giocare i verticali con la console di lato (TATE); la croce direzionale ruota di conseguenza |
 | Opzioni del gioco › | Opzioni del core: prima i **DIP switch** (vite, difficoltà, monete…), poi le altre. Con FBNeo "Diagnostic Input" dà accesso al **menu di servizio** del gioco |
@@ -81,9 +84,18 @@ partite finiscono in `System/stats.tsv` e compaiono nella scheda del gioco.
 | Ricomincia, Esci al menu, Spegni | |
 
 Proporzioni, filtro, rotazione e comandi valgono per il singolo gioco
-(`Saves/<core>/<rom>.cfg`); senza file valgono quelli delle impostazioni generali. Le opzioni
-del core cambiate dal menu finiscono in `Saves/<core>/<rom>.opt`; quelle comuni a tutti i
+(`Saves/<console o core>/<gioco>.cfg`); senza file valgono quelli delle impostazioni generali.
+Le opzioni del core cambiate dal menu finiscono in `.opt` accanto; quelle comuni a tutti i
 giochi si possono scrivere in `System/core-options.txt`.
+
+**Dove finiscono i file di un gioco.** Per le console la cartella è quella della console
+(`Saves/md`, `Saves/gb`, `Saves/ps`…: l'id di `Emulators/<id>.json`), per gli arcade quella del
+core (`Saves/fbneo`). Il nome è l'identità del gioco: il nome del file, oppure
+`nome [sottocartella]` / `nome [zip]` per due ROM con lo stesso nome nello stesso emulatore. Il
+salvataggio a batteria (`.srm`, `.rtc`; per il Neo Geo Pocket anche la flash, con la patch del
+core) si scrive ogni 10 s se cambia e a ogni uscita, sospensione o batteria scarica. I file
+delle versioni fino alla 0.9.17 in `Saves/<core>/` si copiano nelle cartelle nuove al primo
+avvio (`launcher/savesplit.c`, registro `.spostati-per-console.txt`).
 
 ## Struttura
 
@@ -98,25 +110,26 @@ sdcard/        SD simulata, con le stesse cartelle che avrà la scheda della con
 
 Il launcher e il runner sono due programmi separati, avviati a turno da `run-mac.sh`. Il
 launcher scrive il gioco scelto in `System/next.txt` ed esce con codice 10. Il runner esce
-con 0 per tornare al menu e con 20 per spegnere. Sulla console lo stesso ciclo lo farà lo
-script di avvio.
+con 0 per tornare al menu e con 20 per spegnere. Sulla console lo stesso ciclo lo fa
+`m2/system-init`.
 
 ### Cartelle della SD
 
 | Cartella | Contenuto |
 |---|---|
 | `Emulators/<id>.json` | Un file per emulatore (vedi sotto) |
-| `Roms/FBNEO`, `Roms/MAME2003P` | ROM per emulatore, anche in sottocartelle (`neogeo/`, `cps2/`…) |
-| `Bios` | Cartella di sistema dei core (il BIOS Neo Geo può stare anche accanto alle ROM) |
-| `Saves/<core>` | Stati salvati e NVRAM |
-| `Media/<tipo>/<rom>.png` | Immagini scaricate dallo scraper: `snap`, `title`, `marquee`, `flyer`. Si possono mettere anche a mano in `Media/<core>/<rom>.png`; senza immagini il launcher genera una copertina |
+| `Roms/<cartella>` | ROM per emulatore (`roms` del suo JSON), anche in sottocartelle (`neogeo/`, `cps2/`…): `FBNEO`, `MAME2003P`, `NES`, `SNES`, `MD`, `SMS`, `GG`, `PCE`, `GB`, `GBC`, `GBA`, `NGP`. Il launcher crea all'avvio quelle che mancano |
+| `Bios` | Cartella di sistema dei core: `neogeo.zip` (può stare anche accanto alle ROM), `gba_bios.bin` facoltativo |
+| `Saves/<console>` | Per le console l'id dell'emulatore (`md`, `gb`, `ps`…), per gli arcade quello del core (`fbneo`): stati salvati, NVRAM, impostazioni del gioco e salvataggi a batteria (`<rom>.srm`, `<rom>.rtc` per l'orologio della cartuccia; Beetle NeoPop scrive il suo `<rom>.flash` all'uscita) |
+| `Media/<tipo>/<rom>.png` | Immagini scaricate dallo scraper: `snap`, `title`, `marquee`, `flyer`, `box` (scatole, solo console). Si possono mettere anche a mano in `Media/<core>/<rom>.png`; senza immagini il launcher genera una copertina |
+| `Dats` | Indici dei titoli: `<id>.tsv` arcade (con `<id>.roms`) dai DAT; `<id>.tsv` delle console, `arcadedb.tsv` (genere, giocatori), `history/` e `libretro/` scritti dallo scraper sulla console |
 | `Linux/<gioco>/launch.sh` | Giochi Linux: `game.json` (titolo, anno, autore, `env`, `keys`) e `cover.png` facoltativi |
-| `Music/` | Musica di sottofondo del launcher |
+| `Music/` | `Music/Menu`: musica del menu (spenta di partenza); il resto è del Lettore musicale |
 | `Filters/<id>/filter.json` | Filtri video (vedi sotto) |
 | `Bezels/` | Cornici: `<core>/<rom>.png`, `<rom>.png`, `_default.png`, `_default_vertical.png` |
 | `Themes/<tema>/theme.json` | Temi; `Themes/_shared/fonts` contiene i font condivisi (licenza OFL) |
 | `Lang/<codice>.json` | Testi dell'interfaccia: `it`, `en`, `fr`, `es`, `de`, `pt` |
-| `System` | Impostazioni, preferiti, recenti, collezioni, nascosti, `core-options.txt` per le opzioni dei core |
+| `System` | `settings.json`, preferiti, recenti, collezioni, nascosti, `core-options.txt` per le opzioni dei core |
 | `Logs` | `Arcade.log`, unico log di launcher e runner in ordine di tempo: senza porta seriale è il primo strumento di debug |
 
 ## Emulatori
@@ -134,19 +147,59 @@ Ogni emulatore è un file `Emulators/<id>.json`:
 }
 ```
 
-Per aggiungerne uno servono:
-1. il file di configurazione;
-2. il core libretro in `Cores/` (`<core>.dylib` sul Mac, `.so` sulla console);
-3. la cartella delle ROM.
+Una console ha qualche campo in più:
 
-L'indice dei titoli (`index`) è facoltativo: senza, il titolo è il nome del file. Le
-schede della libreria, la voce "Giochi doppi" e lo scraper si adattano da soli agli
-emulatori presenti. I salvataggi finiscono in `Saves/<id>/`.
+```json
+{
+  "name": "Game Boy",
+  "core": "gambatte_libretro",
+  "roms": "Roms/GB",
+  "extensions": ["gb", "dmg", "zip"],
+  "kind": "console",
+  "art": "handheld",
+  "short": "Game Boy",
+  "thumbnails": "Nintendo - Game Boy",
+  "order": 50
+}
+```
+
+| Campo | Significato |
+|---|---|
+| `name` | Unico obbligatorio. Gli altri hanno un valore predefinito dall'id (`<id>_libretro`, `Roms/<ID>`, `Dats/<id>.tsv`, zip e 7z) |
+| `index` | Indice dei titoli; senza, il titolo è il nome del file |
+| `kind` | `"console"`: niente ArcadeDB, doppioni né cabinato; lo scraper usa il CRC della ROM |
+| `thumbnails` | Nome della raccolta di miniature libretro e del sistema in libretro-database |
+| `short` | Sigla sulla cartuccia nella schermata Piattaforme (predefinita: l'id in maiuscolo) |
+| `art` | Disegno in Piattaforme: `handheld`, `handheld-wide`, `disc`, `disc-white`, `nes`, `snes`, `md`, `sms`, `pce`; altrimenti una console da casa generica |
+| `maker`, `year` | Produttore e anno della console, sulle schede del layout galleria |
+| `bios` | Nomi dei BIOS in `Bios/`, ne basta uno (Sega CD: uno per regione): se mancano tutti, la diagnosi del gioco che non parte lo dice |
+| `planned` | `true`: console non ancora supportata, solo in grigio in Piattaforme («In arrivo»), senza core né cartella (oggi `dc`) |
+
+Giochi su più dischi: un `.m3u` (estensione dell'emulatore) elenca i dischi, uno per riga,
+nella stessa cartella; in elenco va solo il `.m3u`, non i dischi che elenca.
+
+Per aggiungere un emulatore servono il file di configurazione, il core libretro in `Cores/`
+(`<core>.dylib` sul Mac, `.so` sulla console) e la cartella delle ROM. Le schede della
+libreria, la voce "Giochi doppi" e lo scraper si adattano da soli agli emulatori presenti.
+Se il core non legge gli zip (non c'è `zip` tra le sue estensioni), il runner estrae in `/tmp`
+la prima voce con un'estensione giusta: un gioco per zip. I core si compilano con
+`toolchain/build-cores.sh`; i sorgenti dei core GPL/MPL sono allegati alle release.
 
 **Giochi senza ROM**: con Impostazioni → *Giochi senza ROM: Mostrati* la libreria mostra
 anche il catalogo degli emulatori. Sono solo i giochi principali dell'indice, non cloni né
 BIOS: circa 2.600 per FBNeo e 3.100 per MAME 2003+. I giochi mancanti compaiono scuriti
 con l'etichetta "Senza ROM", e la scheda indica quale file copiare e dove.
+
+## Impostazioni
+
+Stanno in `System/settings.json`, riscritto per intero a ogni cambio. Tra le chiavi:
+`resume_last` (riprendi l'ultimo gioco all'accensione), `autosave_exit` (salvataggio
+automatico anche uscendo al menu, spento di base), `box_covers` (per le console la scatola come
+copertina, se scaricata; acceso di base), `speaker_rest` (amplificatore a riposo, prova per il
+fruscio della Brick Pro: 0 sempre acceso, 1 spento con `/sys/class/speaker/mute`, 2 con
+`HpSpeaker Switch`), `timezone` (anche in `/run/arcade-tz` e `System/fuso-orario.txt` per gli
+script), `update_channel`, `wifi`, `debug_level`. Una chiave mancante prende il valore
+predefinito.
 
 ## Salvaschermo e batteria
 
@@ -161,14 +214,25 @@ con l'etichetta "Senza ROM", e la scheda indica quale file copiare e dove.
 
 Un tema è una cartella con `theme.json` (commenti `//` ammessi). Campi principali:
 
-- `layout`: `carousel` (home con riquadri, libreria a griglia), `list` (elenco con anteprima) o
-  `bar` (categorie in orizzontale e giochi in verticale, come il tema Onda);
+- `layout`: `carousel` (home con riquadri, libreria a griglia), `list` (elenco con anteprima),
+  `bar` (categorie in orizzontale e giochi in verticale, come il tema Onda) o `vetrina` (dalla
+  0.9.30: home con l'illustrazione grande della voce scelta su una fascia obliqua, il nome a
+  lettere piene e la striscia delle piattaforme in basso, come il tema Copertina dello Store; la
+  libreria resta a griglia) o `galleria` (dalla 0.9.32: schede Preferiti, Recenti e Piattaforme
+  in alto con L/R, il nome grande a sinistra e un carosello di schede con il disegno della
+  piattaforma, produttore e anno, come il tema Stellato). Un sistema che non conosce il layout
+  usa `carousel`;
 - `fonts.regular`, `fonts.title`: percorsi relativi al tema. Con un font variabile si sceglie
   lo spessore con `:N` (per Nunito 3 = Regular, 6 = Bold);
 - `metrics`: misure in frazioni dell'altezza dello schermo, quindi lo stesso tema si adatta
   a 1280×720 e a 1024×768;
 - `variants`: una o più combinazioni di colori (`background`, `background2` per il
-  gradiente, `surface`, `text`, `text_dim`, `accent`, `accent_text`, `shadow`, `line`);
+  gradiente, `surface`, `text`, `text_dim`, `accent`, `accent_text`, `shadow`, `line`,
+  `highlight` per il titolo della vetrina, se no l'accento) e `label`, il nome della variante
+  (testo o `{ "it": ..., "en": ... }`: per i temi dello Store, che non sono nei file delle lingue);
+- temi dello Store: una cartella in `frontend/package/themes/<id>/` diventa il pacchetto
+  `tema-<id>` (cartella Temi), con `version` e `texts` (titolo e descrizione per lingua) presi dal
+  `theme.json`;
 - `metrics.tile_aspect`: proporzione dei riquadri (1 quadrati, 1.333 per mostrare intere le
   schermate 4:3 dei giochi arcade);
 - `media.cover`: tipi di immagine per i riquadri, in ordine di preferenza (es. `["title", "snap"]`);
@@ -176,7 +240,8 @@ Un tema è una cartella con `theme.json` (commenti `//` ammessi). Campi principa
   `media.preview`: immagini per l'anteprima del layout a elenco; `media.marquee`: mostra il marquee
   sopra l'anteprima;
 - `animation.speed`, `animation.pulse`, `effects.scanlines`, `effects.waves` (onde animate di
-  sfondo), `sound_style` (`soft` o `retro`),
+  sfondo), `effects.stars` (cielo stellato sul colore `background`, con la fascia di
+  `background2` in basso), `sound_style` (`soft` o `retro`),
   `title`, `title_uppercase`, `background_image`.
 
 I temi possono richiamare lo stile di altre console, ma non devono contenere loghi, font,
@@ -232,16 +297,25 @@ Un filtro è una cartella `Filters/<id>/` con `filter.json`:
   Il runner usa il renderer OpenGL sul Mac e OpenGL ES 2 sulla console. Se lo shader non
   compila, il gioco si vede senza shader e l'errore finisce nel log.
 
-Inclusi:
-- Nitido, Morbido, Scanline, Griglia LCD, CRT: generati da `tools/make_assets.py`;
-- **Pixel nitidi**, **CRT curvo** (5 parametri) e **CRT con bagliore** (preset a 3 passaggi):
-  shader, con i sorgenti in `filters/pixel-nitidi`, `filters/crt-curvo`, `filters/crt-bagliore`.
+Nel sistema (`frontend/filters`): Nitido, Morbido, Scanline, Griglia LCD, CRT, generati da
+`tools/make_assets.py`.
+
+Nello Store, cartella Filtri (dalla 0.9.51): una serie è un pacchetto `filtri-<serie>`, con i
+filtri in `frontend/package/filters/<serie>/Filters/<id>` e la descrizione in `pack.json`
+accanto (`version`, `color`, `texts` per lingua, come le cornici). La serie `shader` ha **Pixel
+nitidi**, **CRT curvo** (5 parametri) e **CRT con bagliore** (preset a 3 passaggi). Sulle schede
+che li hanno già dal sistema lo Store li mostra da aggiornare; togliendo il filtro in uso le
+impostazioni tornano a Nitido.
 
 Le **cornici** sono PNG con una finestra trasparente dove va il gioco, cercate in
 quest'ordine:
 1. `Bezels/<core>/<rom>.png`;
 2. `Bezels/<rom>.png`;
-3. `Bezels/_default.png` per i giochi orizzontali o `_default_vertical.png` per i verticali.
+3. `Bezels/<console>/_default.png` (la console è quella di `Saves/<console>`, per gli arcade l'id dell'emulatore);
+4. `Bezels/<console>/_mosaik.png`, dei pacchetti Cornici dello Store (`frontend/package/bezels`, disegnati da `tools/make_bezels.py`): lo Store scrive solo questi, quelli dell'utente vengono prima;
+5. `Bezels/_default.png` per i giochi orizzontali o `_default_vertical.png` per i verticali (tutti con `_vertical` prima di `.png` per i giochi verticali).
+
+Per ogni nome si prova prima `<nome>-<L>x<A>.png` con la misura dello schermo (`_mosaik-1024x768.png` sulla Brick Pro), poi `<nome>.png`.
 
 La finestra viene trovata da sola. In alternativa si indica con `"viewport": [x, y, w, h]` in
 un `.json` con lo stesso nome della PNG. Le cornici predefinite sono originali e pensate per
@@ -285,20 +359,31 @@ attendere il gioco.
 python3 tools/scrape.py sdcard
 ```
 
-Oppure dal launcher: **Impostazioni → Scarica immagini**, con barra di avanzamento e
-possibilità di interrompere. È la stessa logica scritta in C con libcurl, quindi funzionerà
-anche sulla console via Wi-Fi.
+Oppure dal launcher: **Impostazioni → Strumenti → Scarica immagini**, con barra di
+avanzamento e possibilità di interrompere (`launcher/scraper.c`, in C con libcurl, via Wi-Fi
+sulla console). Lo script Python fa solo gli arcade.
 
-Lo scraper cerca su **ArcadeDB** (adb.arcadeitalia.net) per nome ROM, e usa le **miniature
-libretro** come riserva per titolo. Scarica schermata di gioco, schermata titolo e marquee
-(`--types snap,title,marquee,flyer` per scegliere), più genere e numero di giocatori in
-`Dats/arcadedb.tsv`. Funziona così:
-- fa una richiesta al secondo e scarica solo ciò che manca;
-- ricorda le immagini non trovate in `Media/non-trovate.txt` (`--retry` per riprovarle);
-- riduce a 640 px le immagini più grandi.
+**Arcade.** Lo scraper cerca su **ArcadeDB** (adb.arcadeitalia.net) per nome ROM, e usa le
+**miniature libretro** come riserva per titolo. Scarica schermata di gioco, schermata titolo e
+marquee (`--types snap,title,marquee,flyer` per scegliere), più genere e numero di giocatori in
+`Dats/arcadedb.tsv` e la storia in `Dats/history/`.
 
-Non serve nessun account. Sono servizi gratuiti della comunità: conviene non abbassare
-`--delay`.
+**Console.** Calcola il CRC della ROM (anche dentro lo zip; senza l'intestazione iNES e quella
+da 512 byte dei copiatori SNES e delle HuCard) e lo cerca nei file `metadat` di
+**libretro-database** (CC BY-SA 4.0): anno, editore, sviluppatore, genere, giocatori. I file
+si tengono in `Dats/libretro/<campo>/<sistema>.dat` e si riscaricano dopo 30 giorni. Il
+risultato va nell'indice della console `Dats/<id>.tsv` (stesso formato degli indici arcade; il
+nome No-Intro diventa il titolo) e genere e giocatori in `Dats/arcadedb.tsv`. Le immagini
+vengono dalle miniature libretro del sistema (`thumbnails`): `Named_Snaps`, `Named_Titles` e
+`Named_Boxarts` in `Media/box`. Pacchetto e aggiornamenti non portano mai questi file.
+
+In entrambi i casi:
+- una richiesta al secondo, e si scarica solo ciò che manca;
+- le immagini non trovate sono ricordate in `Media/non-trovate.txt` (`--retry` per riprovarle);
+- le immagini più grandi si riducono a 640 px.
+
+Non serve nessun account: sono servizi gratuiti della comunità, conviene non abbassare
+`--delay`. Le fonti e le licenze dei dati scaricati sono in `licenses/THIRD-PARTY.md`.
 
 ## Sulla console (app per il firmware originale)
 
@@ -373,6 +458,14 @@ make -C mame2003-plus -j6
 Su macOS recente mame2003-plus non compila senza una correzione: in
 `src/lib/zlib/zutil.h` va tolta la riga `define fdopen(fd,mode) NULL`.
 
+I core delle console stanno accanto, come cloni dei repository libretro: `libretro-fceumm`,
+`snes9x`, `Genesis-Plus-GX`, `beetle-pce-fast-libretro`, `gambatte-libretro`, `mgba`,
+`beetle-ngp-libretro`, `pcsx_rearmed` (con il sottomodulo `frontend/libpicofe`). Per la console
+li compila tutti `toolchain/build-cores.sh`, nel container del kit, applicando le patch di
+`toolchain/patches/` (flash del Neo Geo Pocket come memoria di salvataggio; nome di registro
+`lr` per le binutils del kit in PCSX ReARMed); sul Mac si compilano con il `Makefile` libretro
+di ciascuno. I sorgenti con le patch vanno allegati alle release (`dist/release/sources`).
+
 ## Prove automatiche
 
 Launcher e runner accettano `--auto` con una sequenza di tasti, attese e screenshot, e
@@ -386,10 +479,10 @@ girano senza finestra visibile:
 `down:<tasto>` e `up:<tasto>` tengono premuto e rilasciano un tasto, per provare le
 combinazioni (es. `down:menu,up,up,up:menu`).
 
-## Limiti del prototipo
+## Limiti noti
 
-- Luminosità, Wi-Fi e profilo CPU sono simulati: sulla console agiranno su retroilluminazione,
-  rete e frequenza della CPU.
+- Sul Mac luminosità, Wi-Fi e profilo CPU sono simulati: sulla console agiscono su
+  retroilluminazione, rete e frequenza della CPU.
 - I valori delle opzioni dei core restano nella lingua del core (di solito inglese).
 - Giochi Linux: i tasti come tastiera non gestiscono il mouse (alcuni giochi PC lo
   richiedono); i codici dei tasti della console vanno verificati sul dispositivo.
@@ -402,18 +495,7 @@ combinazioni (es. `down:menu,up,up,up:menu`).
 
 ## Licenze e distribuzione
 
-Il progetto è pensato per uso personale. Se un giorno si volessero pubblicare le immagini o il
-pacchetto, va tenuto conto di cosa contengono:
-
-| Parte | Licenza | Cosa comporta |
-|---|---|---|
-| Pezzi di avvio, kernel, moduli e librerie GPU, `trimui_inputd`, SDL2 e librerie del firmware TrimUI | proprietari / non dichiarati | Ridistribuirli richiede il permesso di TrimUI: meglio far estrarre i pezzi dal firmware ufficiale a chi installa (come fanno gli script di `toolchain/`) |
-| FinalBurn Neo | licenza FBNeo, **non commerciale** | Niente vendita né uso commerciale |
-| mame2003-plus | licenza MAME storica, **non commerciale** | Come sopra |
-| BusyBox, dosfstools (`fsck.fat`), kernel Linux | GPL | Chi distribuisce i binari deve offrire i sorgenti |
-| SDL2_ttf, SDL2_image, SDL2_mixer, libcurl | zlib, MIT/curl | Libere, con nota di copyright |
-| Font dei temi | SIL OFL | Liberi, con la licenza allegata |
-| Certificati (`cacert.pem`) | MPL 2.0 (Mozilla) | Liberi |
-| Valori audio presi da Knulli | dati di configurazione | Citare la fonte |
+Il codice del progetto è sotto LGPL v3 (`COPYING`, `COPYING.LESSER`, `LICENSE-NOTICE`); le
+licenze dei componenti esterni sono in `licenses/THIRD-PARTY.md`.
 
 Le ROM e i BIOS non fanno parte del progetto: ognuno usa i propri.
