@@ -585,8 +585,15 @@ journal_finish() {   # sistema nuovo confermato, corrente saltata prima di togli
     sync
     prec_back
 }
+# "sistema no" nel giornale: aggiornamento dei soli dati (AGG-12). Si legge prima di journal_restore,
+# che toglie il giornale
+journal_sys() {
+    [ -f "$JOURNAL" ] && grep -qx 'sistema no' "$JOURNAL" && jsys=no
+    return 0
+}
 journal_check() {
     [ -f "$JOURNAL" ] || return 0
+    journal_sys
     jst=$(sed -n 's/^stato //p' "$JOURNAL" | head -n 1)
     jver=$(sed -n 's/^version //p' "$JOURNAL" | head -n 1)
     if [ "$jst" != installato ]; then
@@ -606,10 +613,15 @@ journal_check() {
 # ferma come in journal_check, prima di togliere il segno di prova o scambiare i sistemi: dopo,
 # journal_finish cancellerebbe le copie di un ripristino non riuscito (verifica audit V26-01)
 rollback() {
+    journal_sys
     journal_restore || journal_stuck
     # aggiornamento senza sistema nuovo: bastano i file di prima, nessun riavvio (il .prec messo da
     # parte dal launcher torna al suo posto, il sistema in uso non si cambia)
-    if [ -f "$SYSF.prec-dati" ] || [ ! -f "$SYSF.prec" ]; then rm -f "$PENDING"; prec_back; sync; return 1; fi
+    # Anche con "sistema no" nel giornale: la corrente può mancare fra update-pending e il .prec messo
+    # da parte, e allora si scambierebbe il sistema in uso con quello più vecchio (audit 0.9.88, AGG-12)
+    if [ -f "$SYSF.prec-dati" ] || [ ! -f "$SYSF.prec" ] || [ "${jsys:-}" = no ]; then
+        rm -f "$PENDING"; prec_back; sync; return 1
+    fi
     step "aggiornamento non riuscito: torno al sistema precedente"
     # il sistema può mancare se la corrente è saltata durante lo scambio dei file
     if { [ ! -f "$SYSF" ] || mv -f "$SYSF" "$SYSF.guasto"; } && mv -f "$SYSF.prec" "$SYSF"; then

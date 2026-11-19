@@ -44,7 +44,9 @@ static const char *payload = "";
 static unsigned rotation;
 static size_t ser_size(void) { return strlen(payload); }
 static bool ser(void *b, size_t n) { memcpy(b, payload, n); return true; }
-static struct { size_t (*serialize_size)(void); bool (*serialize)(void *, size_t); } core = { ser_size, ser };
+static unsigned char *unser_ram;   /* lo stato finto rimette in memoria la SRAM che aveva (i primi 4 byte) */
+static bool unser(const void *b, size_t n) { if (unser_ram) memcpy(unser_ram, b, n < 4 ? n : 4); return true; }
+static struct { size_t (*serialize_size)(void); bool (*serialize)(void *, size_t); bool (*unserialize)(const void *, size_t); } core = { ser_size, ser, unser };
 static char root[512], core_path[8] = "c", rom_path[8] = "r", title[8] = "t";
 static char system_id[32];   /* vuoto: un gioco arcade */
 static char core_id[8] = "c";
@@ -64,6 +66,7 @@ sed -n '/^\/\* -* salvataggi a batteria \*\/$/,/^static void sram_load/p' $R | s
 fn $R '^static void sram_load'
 fn $R '^static void sram_save'
 fn $R '^static void write_resume'
+fn $R '^static bool state_load_file'
 fn $G '^static void commit_file'
 fn $G '^static void write_list'
 cat <<'C'
@@ -205,6 +208,17 @@ int main(void) {
     ram[0] = 'P'; sram_save();
     { char b[4] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 1, f) != 1) b[0] = 0; fclose(f); } same("e la memoria a parte, nel suo .srm", b, "P"); }
     same(".rtc non riscritto se non cambia", get(q), "T1");
+    puts("--- stato caricato subito dopo un salvataggio nel gioco (audit 0.9.88, GIO-10)");
+    with_rtc = 0; FORGET(); remove(p); remove(q); memset(ram, 0, sizeof ram);
+    put(p, "Prim"); sram_load();
+    ram[0] = 'D'; ram[1] = 'o'; ram[2] = 'p'; ram[3] = 'o';   /* salvato nel gioco: sram_tick non è ancora passato */
+    { char sp[600]; snprintf(sp, sizeof sp, "%s/stato", dir); put(sp, "Vecc"); unser_ram = ram;
+      same("lo stato si carica", state_load_file(sp) ? "si" : "no", "si"); unser_ram = NULL; }
+    { char b[8] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 4, f) != 4) b[0] = 0; fclose(f); }
+      b[4] = 0; same("il salvataggio fatto nel gioco prima dello stato è nel .srm", b, "Dopo"); }
+    sram_save();
+    { char b[8] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 4, f) != 4) b[0] = 0; fclose(f); }
+      b[4] = 0; same("… e la SRAM vecchia dello stato non lo copre", b, "Dopo"); }
     return errors != 0;
 }
 C

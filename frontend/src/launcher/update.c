@@ -767,7 +767,10 @@ static bool journal_write(const char *state) {
     snprintf(t, sizeof t, "%s.tmp", p);
     FILE *f = fopen(t, "w");
     if (!f) return false;
-    bool ok = fprintf(f, "mosaik-giornale 1\nversion %s\nstato %s\n", st.version, state) > 0;
+    /* "sistema no": aggiornamento dei soli dati, system-init non scambia mai il sistema (AGG-12) */
+    bool has_sys = false;
+    for (int i = 0; i < nitems; i++) if (items[i].need && !strcmp(items[i].path, SYSFILE)) has_sys = true;
+    bool ok = fprintf(f, "mosaik-giornale 1\nversion %s\nstato %s\nsistema %s\n", st.version, state, has_sys ? "si" : "no") > 0;
     for (int i = 0; ok && i < nitems; i++) {
         item_t *it = &items[i];
         if (!it->need || !strcmp(it->path, SYSFILE)) continue;

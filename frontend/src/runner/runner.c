@@ -1080,6 +1080,9 @@ static bool state_save(bool autosave) {
 }
 
 static bool state_load_file(const char *p) {
+    /* un salvataggio fatto nel gioco da meno di 10 s (sram_tick) va sulla scheda prima che lo stato
+       rimetta in memoria la SRAM vecchia, o non ci arriva più (audit 0.9.88, GIO-10) */
+    sram_save();
     FILE *f = fopen(p, "rb");
     if (!f) return false;
     fseek(f, 0, SEEK_END);

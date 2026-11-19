@@ -124,6 +124,20 @@ card installato "1.0 B"; echo 3 > $PENDING; rm -f $SYSF.nuovo; echo vecchio > $S
 restored && [ "$(cat $SYSF)" = sistema ] && [ "$(cat $SYSF.prec)" = vecchio ] && [ ! -e $SYSF.prec-dati ] && [ ! -e $PENDING ] && ! grep -q finish /tmp/j/log \
     && ok "file di prima rimessi, sistema in uso tenuto, precedente rimesso al suo posto" || ko "soli dati: $(ls $ROOT/System) $(cat /tmp/j/log)"
 rm -f /tmp/j/log
+echo "--- soli dati, corrente mancata fra update-pending e il .prec messo da parte (audit 0.9.88, AGG-12)"
+card applico "1.0 B"; echo "sistema no" >> $J; echo 1 > $PENDING; rm -f $SYSF.nuovo; echo vecchio > $SYSF.prec
+(
+    RUNVER="1.0 A"; LOG=/tmp/j/log
+    step() { echo "$*" >> $LOG; }
+    halt_with() { echo "fermo: $*" >> $LOG; exit 0; }
+    finish() { echo "finish $*" >> $LOG; exit 0; }
+    sync() { :; }
+    . /tmp/giornale.sh
+    journal_check
+)
+restored && [ "$(cat $SYSF)" = sistema ] && [ "$(cat $SYSF.prec)" = vecchio ] && [ ! -e $SYSF.guasto ] && [ ! -e $PENDING ] && ! grep -q finish /tmp/j/log \
+    && ok "file di prima rimessi, il sistema in uso resta, nessun riavvio" || ko "AGG-12: $(ls $ROOT/System) $(cat /tmp/j/log)"
+rm -f /tmp/j/log
 echo "--- aggiornamento dei soli dati confermato"
 card installato "1.0 B"; rm -f $SYSF.nuovo; echo vecchio > $SYSF.prec-dati; run "1.0 B"
 [ "$(cat $SYSF.prec)" = vecchio ] && [ ! -e $SYSF.prec-dati ] && [ ! -e $J ] && ok "conferma: precedente rimesso" || ko "conferma soli dati: $(ls $ROOT/System)"
