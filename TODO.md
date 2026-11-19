@@ -21,6 +21,12 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [ ] Bluetooth: first a test without user interface on both consoles, then game controllers, later headphones
 - [ ] Check `mosaik.local` on the Smart Pro, a fixed Wi-Fi address across power-ons, and WPA3-only networks
 
+**Transfer files** (code review of 0.9.72, RETE-06; proposal)
+- [ ] "Remember this browser" travels in clear HTTP and is valid for a year: on a network without a password someone listening can take it. Proposal: no "Remember" on open networks (only the PIN), and remembered browsers valid 30 days instead of a year
+- [ ] Say on the transfer page that `Apps` and `Linux` hold programs the console runs: writing there with the PIN skips the Store signature
+- [ ] Names of 250 characters or more fail with "io" (the temporary `.name.part` adds 6)
+- [ ] Download files: also block NAT64 (`64:ff9b::/96`) and 6to4 (`2002::/16`) addresses that contain a private address
+
 **Games**
 - [ ] Faster fast-forward (cores skip the frames that are not shown)
 - [ ] Dreamcast (Deadcast): test on the Smart Pro, then a clean exit when the game is closed from outside
