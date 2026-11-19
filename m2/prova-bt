@@ -1,0 +1,104 @@
+#!/bin/sh
+# Prima prova del Bluetooth (chip XR829, lo stesso del Wi-Fi), senza interfaccia: accende il
+# Bluetooth come il firmware TrimUI, cerca i dispositivi vicini e scrive tutto in Logs/prova-bt.txt,
+# poi lo spegne. Non abbina niente e non scrive niente fuori da Logs.
+#
+#   prova-bt FILE        FILE contiene "[SECONDI] [wifi] [senza-pausa]"
+#
+# SECONDI: durata di ciascuna ricerca (classica e BLE), 20 se manca, al massimo 60.
+# wifi: prima si accende il Wi-Fi (wifi-ctl), per vedere se i due insieme vanno d'accordo.
+# senza-pausa: sulla Brick Pro trimui_inputd non viene fermato mentre il chip si accende (di
+# solito sì, come per il Wi-Fi, issue #1: il bus I2C 3 sotto carico).
+#
+# Il Bluetooth del chip è un HCI su UART (ttyS1): nessun driver nel kernel, hciattach manda il
+# firmware fw_xr829_bt.bin e crea hci0. Come TortOS: fino a 3 tentativi, con il chip spento e
+# riacceso (rfkill) fra uno e l'altro, perché un tentativo fallito può lasciarlo bloccato.
+# Ogni passo va nel registro con sync: dopo un blocco l'ultima riga dice a che punto si era.
+# La chiama system-init solo con System/prova-bt.txt, che rinomina prima.
+ROOT=${ROOT:-/mnt/SDCARD/Arcade}
+LOG=$ROOT/Logs/prova-bt.txt
+ARGS=$(cat "$1" 2>/dev/null)
+SECS=20
+WIFI=no
+PAUSE=yes
+for a in $ARGS; do
+    case "$a" in
+        wifi) WIFI=yes ;;
+        senza-pausa) PAUSE=no ;;
+        *[!0-9]*|'') ;;
+        *) SECS=$a ;;
+    esac
+done
+[ "$SECS" -gt 60 ] && SECS=60
+[ "$SECS" -lt 5 ] && SECS=5
+T0=$(cut -d' ' -f1 /proc/uptime)
+log() { echo "$(cut -d' ' -f1 /proc/uptime)s $*" >> "$LOG"; sync; }
+block() { echo "--- $1" >> "$LOG"; shift; "$@" >> "$LOG" 2>&1; sync; }
+MODEL=$(readlink /run/fw 2>/dev/null)
+: > "$LOG"
+log "prova Bluetooth: ricerche da $SECS s, Wi-Fi $WIFI, pausa di trimui_inputd $PAUSE, strato $MODEL, kernel $(uname -r)"
+
+# interruttori radio: quello del Bluetooth si chiama di solito "bt" o "bluetooth"
+BTRF=""
+for r in /sys/class/rfkill/rfkill*; do
+    [ -d "$r" ] || continue
+    log "rfkill $(basename "$r"): nome $(cat "$r/name" 2>/dev/null), tipo $(cat "$r/type" 2>/dev/null), stato $(cat "$r/state" 2>/dev/null)"
+    [ "$(cat "$r/type" 2>/dev/null)" = bluetooth ] && BTRF=$r
+done
+[ -z "$BTRF" ] && log "nessun rfkill di tipo bluetooth"
+[ -e /dev/ttyS1 ] && log "ttyS1 presente" || log "ttyS1 ASSENTE"
+for f in hciattach hciconfig hcitool; do command -v $f > /dev/null && log "$f: $(command -v $f)" || log "$f MANCA"; done
+for d in /lib/firmware /run/fw/lib/firmware; do ls $d/*xr829_bt* 2> /dev/null | while read -r f; do log "firmware $f ($(wc -c < "$f") byte)"; done; done
+[ -e /proc/bluetooth/sleep/btwrite ] && log "/proc/bluetooth/sleep/btwrite presente"
+
+if [ "$WIFI" = yes ]; then
+    log "Wi-Fi: accendo"
+    wifi-ctl on >> "$LOG" 2>&1
+    log "Wi-Fi: $(iw dev wlan0 link 2>/dev/null | head -1)"
+fi
+
+radio() {   # 0 spento, 1 acceso
+    [ -n "$BTRF" ] && echo "$1" > "$BTRF/state" 2>/dev/null
+    [ -e /proc/bluetooth/sleep/btwrite ] && echo "$1" > /proc/bluetooth/sleep/btwrite 2>/dev/null
+}
+
+INPUTD=$(pidof trimui_inputd)
+case "$MODEL" in *tg4040*) [ "$PAUSE" = yes ] && [ -n "$INPUTD" ] && { kill -STOP $INPUTD; log "trimui_inputd fermo"; } ;; esac
+
+ok=no
+for t in 1 2 3; do
+    radio 0; sleep 1; radio 1; sleep 1
+    log "tentativo $t: hciattach -n ttyS1 xradio"
+    hciattach -n ttyS1 xradio >> "$LOG" 2>&1 &
+    HPID=$!
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        [ -d /sys/class/bluetooth/hci0 ] && break
+        kill -0 $HPID 2> /dev/null || break
+        sleep 1
+    done
+    if [ -d /sys/class/bluetooth/hci0 ]; then ok=yes; log "hci0 comparso dopo $i s"; break; fi
+    log "hci0 non comparso (hciattach $(kill -0 $HPID 2> /dev/null && echo ancora vivo || echo uscito))"
+    kill $HPID 2> /dev/null
+    wait $HPID 2> /dev/null
+done
+
+[ -n "$INPUTD" ] && kill -CONT $INPUTD 2> /dev/null && log "trimui_inputd ripreso"
+
+if [ $ok = yes ]; then
+    hciconfig hci0 up >> "$LOG" 2>&1
+    block "hciconfig -a" hciconfig -a hci0
+    block "versione del chip" hciconfig hci0 version
+    log "ricerca classica ($SECS s): controller e cuffie in modalità abbinamento"
+    block "hcitool scan" timeout $((SECS + 5)) hcitool scan --length=$(( (SECS * 100 + 127) / 128 )) --flush
+    log "ricerca BLE ($SECS s)"
+    block "hcitool lescan" timeout $SECS hcitool lescan --duplicates
+    block "hciconfig dopo le ricerche" hciconfig hci0
+    if [ "$WIFI" = yes ]; then log "Wi-Fi dopo il Bluetooth: $(iw dev wlan0 link 2>/dev/null | head -1)"; fi
+    hciconfig hci0 down >> "$LOG" 2>&1
+fi
+
+block "messaggi del kernel" sh -c 'dmesg | grep -i -E "bluetooth|hci|ttyS1|uart|xr829|xradio|rfkill" | tail -60'
+kill $HPID 2> /dev/null
+radio 0
+[ "$WIFI" = yes ] && wifi-ctl off >> "$LOG" 2>&1
+log "fine: Bluetooth $( [ $ok = yes ] && echo acceso e spento || echo NON acceso), $(awk -v a="$T0" -v b="$(cut -d' ' -f1 /proc/uptime)" 'BEGIN { printf "%.0f", b - a }') s"
