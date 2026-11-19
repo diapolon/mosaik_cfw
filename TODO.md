@@ -18,7 +18,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [ ] Memory and battery use over a long session, on both models
 
 **Wireless**
-- [ ] Bluetooth: first a test without user interface on both consoles, then game controllers, later headphones
+- [ ] Bluetooth: first a test without user interface on both consoles (`m2/prova-bt`, `System/prova-bt.txt`, ready 19 Nov), then game controllers, later headphones. Stock firmware 1.1.0/1.1.1 broke Bluetooth on the Smart Pro (trimui/firmware_smartpro#50, #70): the test tells whether the chip answers with its tools
 - [ ] Check `mosaik.local` on the Smart Pro, a fixed Wi-Fi address across power-ons, and WPA3-only networks
 
 **Transfer files** (code review of 0.9.72, RETE-06; proposal)
