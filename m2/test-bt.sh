@@ -312,5 +312,27 @@ for fin in off on off on; do
 done
 reset
 
+# revisione della 0.9.91: watch uscito da solo lasciava watch.pid, e un PID vecchio poteva essere
+# di un altro processo (off lo avrebbe ucciso, on non avrebbe più avviato watch)
+echo "--- watch che esce da solo"
+reset
+$CTL on > /dev/null 2>&1
+for i in $(seq 20); do [ -f /tmp/runbt/watch.pid ] && break; sleep 0.2; done
+rm -rf /tmp/sys/bluetooth/hci0   # il chip sparisce: watch esce
+sleep 3
+check "watch uscito: il suo PID non resta" '[ ! -f /tmp/runbt/watch.pid ]'
+reset
+
+# revisione della 0.9.91: route interrotto fra asound.conf e il segno /run/bt-audio lasciava
+# l'uscita verso bluealsa, e off non la rimetteva perché guardava solo il segno
+echo "--- uscita verso le cuffie senza il segno"
+reset
+$CTL on > /dev/null 2>&1
+printf 'pcm.!default { type plug slave.pcm "bluealsa:DEV=02:00:00:00:00:01,PROFILE=a2dp" }\n' >> $BT_ASOUND
+rm -f /tmp/bt-audio
+$CTL off > /dev/null 2>&1
+check "spento: altoparlante rimesso anche senza il segno" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE'
+reset
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

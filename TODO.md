@@ -22,6 +22,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [ ] Check `mosaik.local` on the Smart Pro, a fixed Wi-Fi address across power-ons, and WPA3-only networks
 
 **Transfer files** (code review of 0.9.72, RETE-06; proposal)
+- [ ] The 30-second pause after 20 wrong PINs (RETE-07, 0.9.90) applies to everyone, also with the right PIN: a device on the same network that keeps sending wrong PINs keeps the owner out, and the PIN on screen keeps changing. Remembered browsers and closing and reopening the window are not affected. Proposal: right after the pause, accept the PIN just shown on the console before counting new errors
 - [ ] "Remember this browser" travels in clear HTTP and is valid for a year: on a network without a password someone listening can take it. Proposal: no "Remember" on open networks (only the PIN), and remembered browsers valid 30 days instead of a year
 - [ ] Say on the transfer page that `Apps` and `Linux` hold programs the console runs: writing there with the PIN skips the Store signature
 - [ ] Names of 250 characters or more fail with "io" (the temporary `.name.part` adds 6)

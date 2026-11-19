@@ -186,6 +186,7 @@ cmp $D/arcade-system.squashfs $S/System/arcade-system.squashfs && ok "sistema nu
 J=$S/System/update-journal.txt
 grep -qx 'stato installato' $J && grep -qx 'version 0.9.0 20270101.0000' $J && grep -qx 'file Lang/it.json' $J && grep -qx 'nuovo Cores/a.so' $J \
     && ok "giornale: versione, stato, file sostituiti e file nuovi" || ko "giornale: $(cat $J 2>&1)"
+grep -qx 'sistema si' $J && ok "giornale: aggiornamento con il sistema nuovo, \"sistema si\" (AGG-12)" || ko "giornale senza \"sistema si\": $(cat $J 2>&1)"
 cmp $W/vecchio $S/System/arcade-system.squashfs.prec && ok "sistema vecchio conservato"
 cmp $A/Cores/a.so $S/Cores/a.so && cmp $A/Lang/it.json $S/Lang/it.json && cmp $A/Themes/t/theme.json $S/Themes/t/theme.json && ok "dati aggiornati"
 cmp $A/Dats/fbneo.roms $S/Dats/fbneo.roms && [ ! -e $S/Dats/md.tsv ] && [ ! -e $S/Dats/libretro ] && ok "indice arcade sì, indice della console e dati libretro no" || ko "indici sbagliati"
@@ -219,6 +220,7 @@ expect "$(./t $W/sd 2>/dev/null)" "5 0 6" "versione nuova annunciata subito, col
 expect "$(./t $W/sd install 2>/dev/null)" "10 0 1" "un solo file"
 cmp $A/Lang/it.json $S/Lang/it.json && [ ! -e $S/System/arcade-system.squashfs.prec ] && ok "sistema non toccato"
 [ -f $S/System/update-pending ] && grep -qx 'file Lang/it.json' $S/System/update-journal.txt && ok "anche senza sistema nuovo: avvio di prova e giornale" || ko "aggiornamento dei soli dati senza prova"
+grep -qx 'sistema no' $S/System/update-journal.txt && ok "soli dati: \"sistema no\" nel giornale, system-init non scambia il sistema (AGG-12)" || ko "soli dati senza \"sistema no\": $(cat $S/System/update-journal.txt 2>&1)"
 rm -f $S/System/update-pending $S/System/update-journal.txt   # come dopo la conferma
 echo "--- versione nuova ma file già tutti uguali"
 expect "$(./t $W/sd install 2>/dev/null)" "4 0 0" "dopo il confronto: già aggiornato, niente scaricato"

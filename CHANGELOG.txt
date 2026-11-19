@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.92
+it Bluetooth: niente melodia di prova alla prima connessione delle cuffie
+en Bluetooth: no test melody when the headphones connect the first time
+it Bluetooth: se il servizio dell'audio si ferma riparte da solo, senza console muta
+en Bluetooth: if the audio service stops it starts again, no silent console
+it Brick Pro: tasti in pausa solo per pochi secondi mentre si accende il Bluetooth, con avviso
+en Brick Pro: buttons paused only a few seconds while Bluetooth starts, with a notice
+it Bluetooth: premendo l'interruttore in fretta vale l'ultima pressione
+en Bluetooth: pressing the switch quickly, the last press wins
+
 0.9.91
 it Un salvataggio fatto nel gioco non si perde più caricando subito dopo uno stato
 en A save made in the game is no longer lost when a state is loaded right after

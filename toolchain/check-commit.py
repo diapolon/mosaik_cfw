@@ -126,14 +126,24 @@ def commit_preparato(parole, errori):
     for path in git("diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z").split("\0"):
         if path:
             controlla_percorso(path, errori)
-    path, n = None, 0
-    for riga in git("diff", "--cached", "-U0", "--no-color", "--no-ext-diff", "--diff-filter=ACMR").splitlines():
-        if riga.startswith("+++ "):
-            path = riga[6:] if riga.startswith("+++ b/") else None
+    # Nomi con lettere accentate: senza core.quotePath=false git li scrive tra virgolette ("+++ "b/…")
+    # e il file non si controllava; l'intestazione "+++ " vale solo dopo "diff --git", se no una riga
+    # aggiunta che comincia con "++ " fermava i controlli del resto del file (revisione della 0.9.91)
+    path, n, testa = None, 0, False
+    for riga in git("-c", "core.quotePath=false", "diff", "--cached", "-U0", "--no-color", "--no-ext-diff",
+                    "--diff-filter=ACMR").splitlines():
+        if riga.startswith("diff --git "):
+            path, testa = None, True
+        elif testa and riga.startswith("+++ "):
+            p = riga[4:]
+            if p.startswith('"') and p.endswith('"'):
+                p = p[1:-1]
+            path = p[2:] if p.startswith("b/") else None
         elif riga.startswith("@@"):
+            testa = False
             m = re.search(r"\+(\d+)", riga)
             n = int(m.group(1)) if m else 0
-        elif riga.startswith("+") and path:
+        elif not testa and riga.startswith("+") and path:
             controlla_riga(path, n, riga[1:], parole, errori)
             n += 1
     for chi in ("GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"):

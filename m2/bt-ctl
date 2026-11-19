@@ -179,7 +179,9 @@ CONF
         } > "$ASOUND.part" && mv -f "$ASOUND.part" "$ASOUND" && echo "$1" > "$AUDIO_FLAG"
         log "audio verso le cuffie $1"
     else
-        [ -f "$AUDIO_FLAG" ] || return 0
+        # anche senza il segno, se asound.conf non è quello dello strato: un route interrotto fra il
+        # file e il segno lo lasciava verso bluealsa (revisione della 0.9.91)
+        [ -f "$AUDIO_FLAG" ] || { [ -f "$ASOUND_BASE" ] && ! cmp -s "$ASOUND" "$ASOUND_BASE"; } || return 0
         cp -f "$ASOUND_BASE" "$ASOUND.part" && mv -f "$ASOUND.part" "$ASOUND"
         rm -f "$AUDIO_FLAG"
         log "audio di nuovo all'altoparlante"
@@ -290,9 +292,11 @@ on)
     fi
     logs "Bluetooth acceso"
     rm -f "$RUN/spegnimento"
-    flock -u 9
+    # i PID prima di lasciare il blocco: un off che arriva subito li trova e ferma i due processi
+    # (revisione della 0.9.91); i figli non tengono il blocco (9>&-)
     [ -s "$LAST" ] && { sh "$0" reconnect > /dev/null 2>&1 9>&- & echo $! > "$RUN/reconnect.pid"; }
     pid_alive watch || { sh "$0" watch > /dev/null 2>&1 9>&- & echo $! > "$RUN/watch.pid"; }
+    flock -u 9
     exit 0
     ;;
 off)
@@ -426,6 +430,8 @@ apply)
     done
     ;;
 watch)
+    # uscito da solo (il chip sparito): il PID non deve restare, potrebbe diventare di un altro processo
+    trap '[ "$(cat "$RUN/watch.pid" 2> /dev/null)" = $$ ] && rm -f "$RUN/watch.pid"' EXIT
     # le cuffie possono spegnersi o ricollegarsi da sole: l'audio le segue
     # bluetoothd o bluealsa fermi: si fanno ripartire; senza bluealsa l'audio intanto torna
     # all'altoparlante, se no resterebbe indirizzato a lui e tutto muto (audit 0.9.88, BT-08)
