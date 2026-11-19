@@ -67,6 +67,8 @@ mkdir -p $R/lib
 ln -s /run/fw/udev $R/lib/udev
 ln -s /run/fw/etc-udev $R/etc/udev
 ln -s /run/fw/asound.conf $R/etc/asound.conf
+# /etc/bluetooth scrivibile: hciattach xradio legge l'indirizzo del chip da xr_bt.conf (prova-bt)
+ln -s /run/bluetooth $R/etc/bluetooth
 ln -s /run/fw/alsa $R/usr/share/alsa
 
 # ---------------------------------------------------------------- strati per modello
@@ -87,7 +89,7 @@ models | while IFS="|" read -r id fw name file; do
         /build/out/cores/*.so $DC $PS $AP \
         $F/usr/trimui/bin/trimui_inputd $F/usr/bin/amixer $F/usr/bin/tinymix $F/usr/bin/aplay $F/usr/bin/tinyplay \
         $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw \
-        $F/usr/bin/hciattach $F/usr/bin/hciconfig $F/usr/bin/hcitool \
+        $F/usr/bin/hciattach $F/usr/bin/hciconfig $F/usr/bin/hcitool $F/usr/bin/btmgmt $F/usr/bin/btmon \
         +libEGL.so.1 +libGLESv2.so.2 +libasound.so.2 +libIMGegl.so +libsrv_um.so +libusc.so +libglslcompiler.so +libudev.so.1 \
         +libvulkan.so.1 +libVK_IMG.so.1 +libcurl.so.4 +libSDL2-2.0.so.0 \
         > $W/libs-$id.txt 2> $W/libs-mancanti-$id.txt || { echo "strato $id:"; cat $W/libs-mancanti-$id.txt; exit 1; }
@@ -109,7 +111,7 @@ models | while IFS="|" read -r id fw name file; do
        $F/usr/bin/tinypcminfo $F/sbin/udevd $F/sbin/udevadm $F/usr/sbin/wpa_supplicant $F/usr/sbin/wpa_cli $F/usr/sbin/iw $L/bin/
     # Bluetooth (stesso chip XR829): gli strumenti di BlueZ del firmware per la prima prova
     # (m2/prova-bt, System/prova-bt.txt); bluetoothd e D-Bus arriveranno con l'uso vero
-    cp $F/usr/bin/hciattach $F/usr/bin/hciconfig $F/usr/bin/hcitool $L/bin/
+    cp $F/usr/bin/hciattach $F/usr/bin/hciconfig $F/usr/bin/hcitool $F/usr/bin/btmgmt $F/usr/bin/btmon $L/bin/
     # moduli del kernel: GPU e Wi-Fi (compilati per il kernel di ogni modello)
     cp $F/lib/modules/4.9.191/pvrsrvkm.ko $F/lib/modules/4.9.191/dc_sunxi.ko $F/lib/modules/4.9.191/xradio_*.ko $L/modules/
     # Brick Pro: lo stesso driver Wi-Fi compilato per i kernel di Brick e Smart Pro, per la prova

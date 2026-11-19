@@ -15,11 +15,13 @@
 # riacceso (rfkill) fra uno e l'altro, perché un tentativo fallito può lasciarlo bloccato.
 # Ogni passo va nel registro con sync: dopo un blocco l'ultima riga dice a che punto si era.
 #
-# Indirizzo: hciattach xradio lo legge da /sys/class/addr_mgt/addr_bt, poi da
-# /etc/bluetooth/xr_bt.conf, e senza nessuno dei due ne inventa uno a ogni accensione (prima prova,
-# 0.9.80). Qui si prova a scriverne uno in addr_bt prima di hciattach e si guarda se il chip lo usa.
-# Ricerca classica: hcitool inq (indirizzo e classe, che dice se è un gamepad o delle cuffie),
-# poi hcitool name per ognuno; hcitool scan stampa solo alla fine e il timeout lo perdeva.
+# Indirizzo: hciattach xradio lo legge da /sys/class/addr_mgt/addr_bt (che sulla Brick Pro non
+# c'è), poi da /etc/bluetooth/xr_bt.conf, e senza nessuno dei due ne inventa uno a ogni accensione.
+# /etc/bluetooth è un collegamento a /run/bluetooth (dalla 0.9.82): qui si scrive un indirizzo in
+# xr_bt.conf prima di hciattach e si guarda se il chip lo usa.
+# Ricerca classica: con hcitool inq il chip non mandava mai la fine della ricerca (0.9.81) e
+# hcitool, che stampa solo alla fine, restava fermo. Ora btmgmt find -b, che scrive ogni
+# dispositivo appena lo trova, con btmon acceso (Logs/prova-bt-btmon.txt) per vedere gli eventi.
 # La chiama system-init solo con System/prova-bt.txt, che rinomina prima.
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
 LOG=$ROOT/Logs/prova-bt.txt
@@ -53,15 +55,17 @@ for r in /sys/class/rfkill/rfkill*; do
 done
 [ -z "$BTRF" ] && log "nessun rfkill di tipo bluetooth"
 [ -e /dev/ttyS1 ] && log "ttyS1 presente" || log "ttyS1 ASSENTE"
-for f in hciattach hciconfig hcitool; do command -v $f > /dev/null && log "$f: $(command -v $f)" || log "$f MANCA"; done
+for f in hciattach hciconfig hcitool btmgmt btmon; do command -v $f > /dev/null && log "$f: $(command -v $f)" || log "$f MANCA"; done
 for d in /lib/firmware /run/fw/lib/firmware; do ls $d/*xr829_bt* 2> /dev/null | while read -r f; do log "firmware $f ($(wc -c < "$f") byte)"; done; done
 [ -e /proc/bluetooth/sleep/btwrite ] && log "/proc/bluetooth/sleep/btwrite presente"
 for a in /sys/class/addr_mgt/*; do [ -f "$a" ] && log "$(basename "$a"): '$(cat "$a" 2>/dev/null)' ($(ls -l "$a" | cut -d' ' -f1))"; done
 [ -f /etc/bluetooth/xr_bt.conf ] && log "xr_bt.conf: $(cat /etc/bluetooth/xr_bt.conf)"
 # indirizzo di prova: primo byte fisso, il resto a caso
 ADDR=$(hexdump -n 5 -e '"2C" 5/1 ":%02X"' /dev/urandom 2>/dev/null)
-if [ -f /sys/class/addr_mgt/addr_bt ] && [ -n "$ADDR" ]; then
-    echo "$ADDR" > /sys/class/addr_mgt/addr_bt 2>> "$LOG" && log "addr_bt scritto: $ADDR, ora '$(cat /sys/class/addr_mgt/addr_bt 2>/dev/null)'" || log "addr_bt non scrivibile"
+if [ -n "$ADDR" ] && mkdir -p /run/bluetooth && echo "$ADDR" > /etc/bluetooth/xr_bt.conf 2>> "$LOG"; then
+    log "xr_bt.conf scritto: $ADDR"
+else
+    log "xr_bt.conf non scrivibile ($(ls -ld /etc/bluetooth 2>&1))"; ADDR=""
 fi
 
 if [ "$WIFI" = yes ]; then
@@ -102,29 +106,30 @@ if [ $ok = yes ]; then
     block "hciconfig -a" hciconfig -a hci0
     block "versione del chip" hciconfig hci0 version
     GOT=$(hciconfig hci0 | sed -n 's/.*BD Address: \([0-9A-F:]*\).*/\1/p')
-    [ -n "$ADDR" ] && { [ "$GOT" = "$ADDR" ] && log "indirizzo: usato quello scritto in addr_bt" || log "indirizzo: NON usato quello scritto in addr_bt (il chip ha $GOT)"; }
-    log "ricerca classica ($SECS s): controller e cuffie in modalità abbinamento"
-    INQ=/tmp/prova-bt-inq
-    timeout $((SECS + 15)) hcitool inq --length=$(( (SECS * 100 + 127) / 128 )) --flush > $INQ 2>> "$LOG"
-    log "ricerca classica finita (uscita $?)"
+    [ -n "$ADDR" ] && { [ "$GOT" = "$ADDR" ] && log "indirizzo: usato quello di xr_bt.conf" || log "indirizzo: NON usato quello di xr_bt.conf (il chip ha $GOT)"; }
+    log "ricerca classica con btmgmt ($SECS s): controller e cuffie in modalità abbinamento"
+    MON=$ROOT/Logs/prova-bt-btmon.txt
+    btmon > /tmp/prova-bt-mon 2>&1 &
+    BTMON=$!
+    sleep 1
+    timeout $SECS btmgmt find -b > /tmp/prova-bt-find 2>&1
+    log "btmgmt find finito (uscita $?)"
+    timeout 5 btmgmt stop-find > /dev/null 2>&1
     hcitool cmd 0x01 0x0002 > /dev/null 2>&1   # Inquiry Cancel, se è ancora in corso
-    n=0
-    grep -o -E '([0-9A-F]{2}:){5}[0-9A-F]{2}.*class: 0x[0-9a-fA-F]+' $INQ | sort -u -k1,1 | while read -r a rest; do
-        n=$((n + 1)); [ $n -gt 20 ] && break
-        c=${rest##*class: }
-        case $(( (c >> 8) & 31 )) in
-            1) k=computer ;; 2) k=telefono ;; 4) k=audio ;;
-            5) case $(( (c >> 2) & 15 )) in 1) k=joystick ;; 2) k=gamepad ;; *) k="periferica $(( (c >> 6) & 3 ))" ;; esac ;;
-            *) k=altro ;;
-        esac
-        log "classico: $a classe $c ($k), nome '$(timeout 10 hcitool name "$a" 2>/dev/null)'"
+    sleep 1
+    kill $BTMON 2> /dev/null; wait $BTMON 2> /dev/null
+    block "btmgmt find -b" sh -c 'grep -v "^$" /tmp/prova-bt-find | head -150'
+    log "dispositivi classici: $(grep -o -E 'dev_found: ([0-9A-F]{2}:){5}[0-9A-F]{2}' /tmp/prova-bt-find | sort -u | wc -l)"
+    for e in "Inquiry Complete" "Inquiry Result" "Extended Inquiry Result" "Remote Name Req Complete" "Hardware Error" "Command Status"; do
+        log "btmon: \"$e\" $(grep -c "Event: $e" /tmp/prova-bt-mon) volte"
     done
-    log "dispositivi classici: $(grep -o -E '([0-9A-F]{2}:){5}[0-9A-F]{2}' $INQ | sort -u | wc -l)"
+    head -c 2000000 /tmp/prova-bt-mon > "$MON"; sync
+    rm -f /tmp/prova-bt-find /tmp/prova-bt-mon
     log "ricerca BLE ($SECS s)"
     timeout $SECS hcitool lescan > /tmp/prova-bt-le 2>> "$LOG"
     sort -u /tmp/prova-bt-le | grep -E '^([0-9A-F]{2}:){5}' | sort -u -k1,1 >> "$LOG"
     log "dispositivi BLE: $(grep -E '^([0-9A-F]{2}:){5}' /tmp/prova-bt-le | cut -d' ' -f1 | sort -u | wc -l)"
-    rm -f $INQ /tmp/prova-bt-le
+    rm -f /tmp/prova-bt-le
     block "hciconfig dopo le ricerche" hciconfig hci0
     if [ "$WIFI" = yes ]; then log "Wi-Fi dopo il Bluetooth: $(iw dev wlan0 link 2>/dev/null | head -1)"; fi
     hciconfig hci0 down >> "$LOG" 2>&1
