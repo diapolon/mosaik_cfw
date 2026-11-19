@@ -186,6 +186,8 @@ connected_line() { timeout 5 bluetoothctl paired-devices 2> /dev/null | describe
 case "$1" in
 on)
     lock on
+    # il launcher mostra "in accensione" finché c'è questo file
+    : > "$RUN/avvio"; trap 'rm -f "$RUN/avvio"' EXIT
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
     if bt_on; then log "già acceso"; exit 0; fi
     if [ ! -d "$SYS/bluetooth/hci0" ] && ! chip_on; then

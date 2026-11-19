@@ -12,7 +12,7 @@ BUILD   := build
 # Video: FFmpeg di Homebrew (brew install ffmpeg); senza, l'app non si compila e basta
 FFMPEG_PKGS := libavformat libavcodec libswscale libswresample libavutil
 VIDEO_MAC := $(if $(shell pkg-config --exists $(FFMPEG_PKGS) && echo si),$(BUILD)/video)
-COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c
+COMMON  := src/common/ui.c src/common/json.c src/common/settings.c src/common/lang.c src/common/filters.c src/common/platform.c src/common/wifi.c src/common/bt.c
 
 all: $(BUILD)/launcher $(BUILD)/runner $(BUILD)/gamewatch $(BUILD)/gamemenu $(BUILD)/files $(BUILD)/viewer $(BUILD)/music $(BUILD)/sdtest $(BUILD)/scraper $(BUILD)/sdgrow $(BUILD)/diag $(BUILD)/urlget $(VIDEO_MAC)
 

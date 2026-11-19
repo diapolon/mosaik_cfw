@@ -11,6 +11,7 @@
 #include "music.h"
 #include "../common/platform.h"
 #include "../common/wifi.h"
+#include "../common/bt.h"
 #include "update.h"
 #include "stickcal.h"
 #include "fileserver.h"
@@ -125,6 +126,10 @@ static int nwnets, wsel;
 static float wscroll;
 static double wscan_t, wlist_t;
 static char wifi_target[33], wifi_pass[64];
+/* finestra dei dispositivi Bluetooth */
+static bool btp_open;
+static void btp_start(void);
+static void btp_job(const char *cmd, const char *addr, const char *name);
 static int dlg_sel;
 
 static bool is_list_layout(void) { return !strcmp(UI.th.layout, "list"); }
@@ -616,7 +621,7 @@ static void quiet_begin(void) {
 }
 
 /* conferme delle azioni che fanno perdere qualcosa (Annulla già selezionato) */
-enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3, CFM_STORE, CFM_PKG, CFM_RESTPKG, CFM_FRAG };
+enum { CFM_NONE, CFM_FORGET, CFM_GENRES, CFM_COLL, CFM_STICKS, CFM_RESTART, CFM_RESETSET, CFM_RESETSET2, CFM_ERASE, CFM_ERASE2, CFM_ERASE3, CFM_STORE, CFM_PKG, CFM_RESTPKG, CFM_FRAG, CFM_BTFORGET };
 static void frag_keep(void);
 static void frag_delete(void);
 static double cfm_hold;
@@ -626,6 +631,7 @@ static char pkg_path[1300], pkg_name[64], pkg_label[32];   /* ultima conferma di
 #define CFM_HOLD_S 3.0
 static int cfm_kind, cfm_sel;
 static char cfm_ssid[33];
+static char cfm_bt[18], cfm_bt_name[64];   /* dispositivo Bluetooth da dimenticare */
 
 static bool have_games(void) {
     for (int i = 0; i < ngames; i++)
@@ -3720,12 +3726,12 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_AUTOBOOT, S_AUTOTIME, S_BATTERY, S_CHANTEST, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_AUTOBOOT, S_AUTOTIME, S_BATTERY, S_CHANTEST, S_BT, S_BTDEVS, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset", "autoboot", "auto_time", "battery", "channel_test",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset", "autoboot", "auto_time", "battery", "channel_test", "bluetooth", "bluetooth_devs",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
@@ -3735,7 +3741,7 @@ static const int cat_items[SC_COUNT][12] = {
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_THEMERESET, S_BOXCOVER, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOBOOT, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
-    { S_BATTERY, S_WIFI, S_WIFINETS, S_AUTOTIME, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
+    { S_BATTERY, S_WIFI, S_WIFINETS, S_BT, S_BTDEVS, S_AUTOTIME, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },          /* ROM e immagini */
     { S_FILESERVER, S_RESETSET, S_ERASE, -1 },  /* scheda e dati (lo Store sta nella home dalla 0.9.49) */
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUPPORT, -1 },
@@ -3778,6 +3784,7 @@ static int page_rows_of(int page, int *rows) {
         int it = cat_items[page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
         if (it == S_WIFINETS && !wifi_supported()) continue;
+        if ((it == S_BT || it == S_BTDEVS) && !bt_supported()) continue;
         if (it == S_STICKCAL && !sc_available()) continue;
         if (it == S_GRIDCOLS) continue;   /* la libreria ora ha una misura fissa per tema */
         if ((it == S_KEYF1 || it == S_KEYF2 || it == S_KEYHOME) && !has_extra_keys()) continue;
@@ -3794,6 +3801,7 @@ static int page_rows(int *rows) { return page_rows_of(set_page, rows); }
 static bool set_disabled(int i) {
     switch (i) {
     case S_SCRAPE: case S_UPDATE: case S_WIFINETS: case S_FILESERVER: return !UI.set.wifi;
+    case S_BTDEVS: return !UI.set.bluetooth;
     case S_MUSIC: return !music_count() && !music_title()[0];   /* se qualcosa suona si può sempre spegnere */
     case S_LEDCOLOR: case S_LEDBRIGHT: return !UI.set.led_mode;
     case S_VARIANT: return UI.th.nvariants < 2;
@@ -3988,6 +3996,15 @@ static void set_value(int item, char *buf, size_t n) {
         else snprintf(buf, n, "%s", T("wifi.disconnected"));
         break;
     }
+    case S_BT: snprintf(buf, n, "%s", T(s->bluetooth ? "common.on" : "common.off")); break;
+    case S_BTDEVS: {
+        const bt_status_t *bs = bt_status();
+        if (!s->bluetooth) snprintf(buf, n, "%s", T("common.off"));
+        else if (bs->state == BT_CONNECTED) snprintf(buf, n, "%s", bs->name);
+        else if (bs->state == BT_ON) snprintf(buf, n, "%s", T("bluetooth.none_connected"));
+        else snprintf(buf, n, "%s", T("bluetooth.starting"));
+        break;
+    }
     case S_SAVER: snprintf(buf, n, "%s", T(saver_keys[s->saver % 5])); break;
     case S_PADS: {
         int np = ui_pads_external();
@@ -4108,6 +4125,10 @@ static void set_change(int item, int dir) {
     case S_WIFI:
         s->wifi = !s->wifi;
         if (wifi_supported()) wifi_enable(s->wifi);
+        break;
+    case S_BT:
+        s->bluetooth = !s->bluetooth;
+        if (bt_supported()) bt_enable(s->bluetooth);
         break;
     case S_SAVER: s->saver = (s->saver + dir + 5) % 5; break;
     case S_PADS: s->ext_p1 = !s->ext_p1; break;
@@ -4330,6 +4351,215 @@ static void wpanel_draw(void) {
     const char *hint[] = { "B", T("common.back"), "Y", T("wifi.refresh"), "X", T("wifi.forget"), "A", T("wifi.connect") };
     if (can_forget) ui_hints(hint, 8);
     else { const char *h2[] = { "B", T("common.back"), "Y", T("wifi.refresh"), "A", T("wifi.connect") }; ui_hints(h2, 6); }
+}
+
+/* Dispositivi Bluetooth: abbinati in alto (il collegato per primo), sotto quelli trovati dalla
+   ricerca (cuffie e casse, controller con l'etichetta sperimentale; gli altri non si possono usare
+   e non si mostrano). A collega, scollega o abbina; X dimentica un abbinato; Y cerca di nuovo.
+   Elenco e azioni chiamano bt-ctl, che può metterci secondi: sempre in un thread. */
+static bt_dev_t btdevs[32], btdevs_new[32];
+static int nbtdevs, btsel, btdevs_new_n = -1;
+static float btscroll;
+static double btlist_t;
+static bool btfetching, btworking;
+static int bt_job_done = -1;   /* -1 niente, 0 non riuscito, 1 riuscito */
+static char bt_job_cmd[12], bt_job_addr[18], bt_job_name[64];
+
+static bool btp_usable(const bt_dev_t *d) { return d->paired || d->kind != BT_OTHER; }
+
+static int btfetch_worker(void *arg) {
+    (void)arg;
+    bt_dev_t all[48];
+    int n = bt_devices(all, 48), k = 0;
+    for (int i = 0; i < n && k < 32; i++) if (btp_usable(&all[i])) btdevs_new[k++] = all[i];
+    __atomic_store_n(&btdevs_new_n, k, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&btfetching, false, __ATOMIC_SEQ_CST);
+    return 0;
+}
+
+static void btp_refresh(void) {
+    if (__atomic_load_n(&btfetching, __ATOMIC_SEQ_CST)) return;
+    btlist_t = UI.t;
+    __atomic_store_n(&btfetching, true, __ATOMIC_SEQ_CST);
+    SDL_Thread *th = SDL_CreateThread(btfetch_worker, "bt", NULL);
+    if (th) SDL_DetachThread(th);
+    else __atomic_store_n(&btfetching, false, __ATOMIC_SEQ_CST);
+}
+
+static void btp_collect(void) {
+    if (__atomic_load_n(&btfetching, __ATOMIC_SEQ_CST)) return;
+    int n = __atomic_load_n(&btdevs_new_n, __ATOMIC_SEQ_CST);
+    if (n < 0) return;
+    __atomic_store_n(&btdevs_new_n, -1, __ATOMIC_SEQ_CST);
+    char cur[18];
+    snprintf(cur, sizeof cur, "%s", btsel < nbtdevs ? btdevs[btsel].addr : "");
+    memcpy(btdevs, btdevs_new, sizeof(bt_dev_t) * (size_t)n);
+    nbtdevs = n;
+    for (int i = 0; i < nbtdevs; i++) if (!strcmp(btdevs[i].addr, cur)) btsel = i;
+    if (btsel >= nbtdevs) btsel = nbtdevs ? nbtdevs - 1 : 0;
+}
+
+static int btjob_worker(void *arg) {
+    (void)arg;
+    bool ok = !strcmp(bt_job_cmd, "pair") ? bt_pair(bt_job_addr) : !strcmp(bt_job_cmd, "connect") ? bt_connect(bt_job_addr)
+            : !strcmp(bt_job_cmd, "disconnect") ? bt_disconnect(bt_job_addr) : bt_forget(bt_job_addr);
+    __atomic_store_n(&bt_job_done, ok ? 1 : 0, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&btworking, false, __ATOMIC_SEQ_CST);
+    return 0;
+}
+
+static void btp_job(const char *cmd, const char *addr, const char *name) {
+    if (__atomic_load_n(&btworking, __ATOMIC_SEQ_CST)) { ui_toast(T("bluetooth.busy")); ui_sound(SND_ERROR); return; }
+    snprintf(bt_job_cmd, sizeof bt_job_cmd, "%s", cmd);
+    snprintf(bt_job_addr, sizeof bt_job_addr, "%s", addr);
+    snprintf(bt_job_name, sizeof bt_job_name, "%s", name);
+    __atomic_store_n(&bt_job_done, -1, __ATOMIC_SEQ_CST);
+    __atomic_store_n(&btworking, true, __ATOMIC_SEQ_CST);
+    SDL_Thread *th = SDL_CreateThread(btjob_worker, "btjob", NULL);
+    if (th) SDL_DetachThread(th);
+    else { __atomic_store_n(&btworking, false, __ATOMIC_SEQ_CST); return; }
+    char m[160];
+    const char *k = !strcmp(cmd, "pair") ? "bluetooth.pairing" : !strcmp(cmd, "connect") ? "bluetooth.connecting" : NULL;
+    if (k) { snprintf(m, sizeof m, T(k), name); ui_toast(m); }
+}
+
+static void btp_start(void) {
+    btp_open = true;
+    btsel = 0;
+    btscroll = 0;
+    bt_refresh();
+    btp_refresh();
+    bt_scan_start(30);   /* le cuffie in abbinamento compaiono di solito entro 30 s */
+}
+
+static void btp_input(void) {
+    input_t *in = &UI.in;
+    btp_collect();
+    int done = __atomic_load_n(&bt_job_done, __ATOMIC_SEQ_CST);
+    if (done >= 0) {   /* azione finita: com'è andata */
+        __atomic_store_n(&bt_job_done, -1, __ATOMIC_SEQ_CST);
+        char m[160];
+        bool pair = !strcmp(bt_job_cmd, "pair"), conn = !strcmp(bt_job_cmd, "connect"), forget = !strcmp(bt_job_cmd, "forget");
+        if (!done) snprintf(m, sizeof m, T(pair ? "bluetooth.pair_failed" : conn ? "bluetooth.connect_failed" : "bluetooth.error"), bt_job_name);
+        else snprintf(m, sizeof m, T(pair || conn ? "bluetooth.connected" : forget ? "bluetooth.forgot" : "bluetooth.disconnected"), bt_job_name);
+        ui_toast(m);
+        ui_sound(done ? SND_OK : SND_ERROR);
+        bt_refresh();
+        btp_refresh();
+    }
+    if (UI.t - btlist_t > 3) btp_refresh();   /* durante la ricerca i dispositivi arrivano a poco a poco */
+    if (in->pressed[BTN_UP] && nbtdevs) { btsel = (btsel + nbtdevs - 1) % nbtdevs; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN] && nbtdevs) { btsel = (btsel + 1) % nbtdevs; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_B]) { btp_open = false; ui_sound(SND_BACK); return; }
+    if (in->pressed[BTN_Y]) {
+        if (bt_scanning()) ui_toast(T("bluetooth.searching"));
+        else { bt_scan_start(30); ui_toast(T("bluetooth.searching")); }
+        ui_sound(SND_OK);
+    }
+    if (!nbtdevs) return;
+    bt_dev_t *d = &btdevs[btsel];
+    if (in->pressed[BTN_X] && d->paired) {
+        snprintf(cfm_bt, sizeof cfm_bt, "%s", d->addr);
+        snprintf(cfm_bt_name, sizeof cfm_bt_name, "%s", d->name);
+        cfm_kind = CFM_BTFORGET;
+        cfm_sel = 0;
+        ui_sound(SND_OK);
+        return;
+    }
+    if (in->pressed[BTN_A]) {
+        btp_job(d->connected ? "disconnect" : d->paired ? "connect" : "pair", d->addr, d->name);
+        ui_sound(SND_OK);
+    }
+}
+
+/* cuffie (archetto e padiglioni) o controller (corpo e croce) */
+static void bt_icon(int x, int y, int h, int kind, color_t c) {
+    int tk = h > 20 ? 3 : 2;
+    if (kind == BT_INPUT) {
+        int w = h * 3 / 2, bh = h * 2 / 3, by = y + (h - bh) / 2;
+        ui_rrect(x, by, w, bh, bh / 2, c);
+        color_t hole = with_alpha(UI.th.popup, 255);
+        int cx = x + bh / 2, cy = by + bh / 2, a = bh / 4;
+        ui_rect(cx - a, cy - tk / 2, 2 * a, tk, hole);
+        ui_rect(cx - tk / 2, cy - a, tk, 2 * a, hole);
+        ui_circle(x + w - bh / 2, cy, bh / 7 + 1, hole);
+    } else {
+        int w = h;
+        ui_ring(x + w / 2, y + h / 2, h / 2 - 1, tk, c);
+        ui_rect(x, y + h / 2, w, h / 2, with_alpha(UI.th.popup, 255));
+        ui_rrect(x, y + h / 2 - tk, w / 4, h / 2 + tk, w / 10, c);
+        ui_rrect(x + w - w / 4, y + h / 2 - tk, w / 4, h / 2 + tk, w / 10, c);
+    }
+}
+
+static void btp_draw(void) {
+    theme_t *t = &UI.th;
+    TTF_Font *f = UI.f_normal, *fs = UI.f_small;
+    int fh = TTF_FontHeight(f), sh = TTF_FontHeight(fs);
+    int pad = M(0.04f), rh = fh + M(0.03f), rows = 6;
+    int w = M(0.95f), h = pad + TTF_FontHeight(UI.f_title) + M(0.01f) + sh + M(0.03f) + rows * rh + pad, x, y;
+    if (h > UI.h - M(t->hintbar_h) - M(0.02f)) { rows = (UI.h - M(t->hintbar_h) - M(0.02f) - (h - rows * rh)) / rh; h = pad + TTF_FontHeight(UI.f_title) + M(0.01f) + sh + M(0.03f) + rows * rh + pad; }
+    panel_box(w, h, &x, &y);
+    int lx = x + pad, rx = x + w - pad, cy = y + pad;
+    ui_text(UI.f_title, T("bluetooth.title"), lx, cy, t->text, ALIGN_LEFT);
+    cy += TTF_FontHeight(UI.f_title) + M(0.01f);
+    const bt_status_t *bs = bt_status();
+    bool scanning = bt_scanning(), working = __atomic_load_n(&btworking, __ATOMIC_SEQ_CST);
+    char line[160];
+    if (bs->state == BT_OFF || bs->state == BT_STARTING) snprintf(line, sizeof line, "%s", T("bluetooth.starting"));
+    else if (bs->state == BT_CONNECTED) snprintf(line, sizeof line, T("bluetooth.connected_to"), bs->name);
+    else if (scanning) snprintf(line, sizeof line, "%s", T("bluetooth.searching"));
+    else snprintf(line, sizeof line, "%s", T("bluetooth.hint"));
+    ui_text(fs, line, lx, cy, bs->state == BT_CONNECTED ? t->accent : t->text_dim, ALIGN_LEFT);
+    cy += sh + M(0.03f);
+    int top = cy, area = rows * rh;
+    if (!nbtdevs) {
+        const char *k = bs->state == BT_OFF || bs->state == BT_STARTING ? "bluetooth.starting" : scanning ? "bluetooth.searching" : "bluetooth.none";
+        ui_text(f, T(k), x + w / 2, top + area / 2 - fh / 2, t->text_dim, ALIGN_CENTER);
+        if (!strcmp(k, "bluetooth.none")) ui_text(fs, T("bluetooth.hint"), x + w / 2, top + area / 2 + fh / 2 + M(0.01f), t->text_dim, ALIGN_CENTER);
+    } else {
+        float target = btscroll;
+        if (btsel * rh - target > area - rh) target = btsel * rh - (area - rh);
+        if (btsel * rh < target) target = btsel * rh;
+        btscroll = ui_approach(btscroll, target);
+        ui_clip_push(x, top, w, area);
+        for (int i = 0; i < nbtdevs; i++) {
+            int ry = top + (int)(i * rh - btscroll);
+            if (ry + rh < top || ry > top + area) continue;
+            bt_dev_t *d = &btdevs[i];
+            bool sel = i == btsel;
+            if (sel) {
+                ui_rrect(lx - M(0.015f), ry, rx - lx + M(0.03f), rh - M(0.008f), M(t->panel_radius), t->accent);
+                selection_ring(lx - M(0.015f), ry, rx - lx + M(0.03f), rh - M(0.008f), M(t->panel_radius));
+            }
+            color_t tc = sel ? t->accent_text : t->text, dc = sel ? with_alpha(t->accent_text, 200) : t->text_dim;
+            int ty = ry + (rh - M(0.008f) - fh) / 2, ih = M(0.03f), iy = ry + (rh - M(0.008f) - ih) / 2;
+            if (d->kind != BT_OTHER) {
+                /* l'icona si ritaglia sul colore sotto: con la riga scelta, il colore della riga */
+                theme_t keep = *t;
+                if (sel) UI.th.popup = t->accent;
+                bt_icon(lx + M(0.01f), iy, ih, d->kind, tc);
+                UI.th = keep;
+            }
+            int nx = lx + M(0.01f) + ih * 3 / 2 + M(0.025f);
+            bool busy = working && !strcmp(bt_job_addr, d->addr);
+            const char *tag = busy ? "…" : d->connected ? T("bluetooth.tag_connected") : d->paired ? T("bluetooth.tag_paired")
+                            : d->kind == BT_INPUT ? T("bluetooth.tag_controller") : d->kind == BT_AUDIO ? T("bluetooth.tag_audio") : "";
+            int tagw = tag[0] ? ui_text_w(fs, tag) + M(0.02f) : 0;
+            char fit[80];
+            ui_text_fit(f, d->name, rx - nx - tagw - M(0.03f), fit, sizeof fit);
+            ui_text(f, fit, nx, ty, tc, ALIGN_LEFT);
+            if (tag[0]) ui_text(fs, tag, rx - M(0.01f), ry + (rh - M(0.008f) - sh) / 2, d->connected && !sel ? t->accent : dc, ALIGN_RIGHT);
+        }
+        ui_clip_pop();
+    }
+    const char *act = !nbtdevs ? NULL : btdevs[btsel].connected ? T("bluetooth.disconnect") : btdevs[btsel].paired ? T("bluetooth.connect") : T("bluetooth.pair");
+    bool can_forget = nbtdevs && btdevs[btsel].paired;
+    const char *hint[8] = { "B", T("common.back"), "Y", T("bluetooth.refresh") };
+    int nh = 4;
+    if (can_forget) { hint[nh++] = "X"; hint[nh++] = T("bluetooth.forget"); }
+    if (act) { hint[nh++] = "A"; hint[nh++] = act; }
+    ui_hints(hint, nh);
 }
 
 /* ------------------------------------------------------------ Store */
@@ -6902,6 +7132,11 @@ static void settings_input(void) {
             if (UI.set.wifi) { wpanel_start(); ui_sound(SND_OK); }
             else ui_sound(SND_ERROR);
         }
+        else if (set_sel == S_BT) { set_change(S_BT, +1); ui_sound(SND_OK); }
+        else if (set_sel == S_BTDEVS) {
+            if (UI.set.bluetooth) { btp_start(); ui_sound(SND_OK); }
+            else ui_sound(SND_ERROR);
+        }
         else if (set_sel == S_ROMCHECK) {
             quiet_begin();
             rcq_open = true; rcq_sel = 0; ui_sound(SND_OK);
@@ -6943,7 +7178,7 @@ static const char *set_cat_sub(int row) {
 }
 static bool set_has_value(int i) { return i != S_CHANTEST && i != S_BATTERY && i != S_THEMERESET && i != S_FILESERVER && i != S_RESETSET && i != S_ERASE && i != S_STORE && i != S_POWER && i != S_SUSPENDNOW && i != S_RESTART && i != S_SCRAPE && i != S_ROMCHECK && i != S_CLEANMEDIA; }
 static bool set_slider(int i) { return i == S_BRIGHT || i == S_VOLUME || i == S_LEDBRIGHT; }
-static bool set_switch(int i) { return i == S_WIFI || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER || i == S_AUTOTIME; }
+static bool set_switch(int i) { return i == S_WIFI || i == S_BT || i == S_RESUME || i == S_BEZEL || i == S_AUTOSAVE || i == S_BOXCOVER || i == S_AUTOTIME; }
 
 /* riquadro di una voce: bordo del colore del tema se scelto */
 static void set_box(int x, int y, int w, int h, int r, bool sel) {
@@ -6983,13 +7218,13 @@ static void set_draw_value(int i, TTF_Font *f, int x, int cy, int maxw, bool sel
         return;
     }
     if (set_switch(i)) {
-        bool on = i == S_WIFI ? UI.set.wifi : i == S_BEZEL ? UI.set.bezel : i == S_AUTOSAVE ? UI.set.autosave_exit : i == S_BOXCOVER ? UI.set.box_covers : i == S_AUTOTIME ? UI.set.auto_time : UI.set.resume_last;
+        bool on = i == S_WIFI ? UI.set.wifi : i == S_BT ? UI.set.bluetooth : i == S_BEZEL ? UI.set.bezel : i == S_AUTOSAVE ? UI.set.autosave_exit : i == S_BOXCOVER ? UI.set.box_covers : i == S_AUTOTIME ? UI.set.auto_time : UI.set.resume_last;
         int sh = f == UI.f_small ? M(0.032f) : M(0.04f), sw = sh * 9 / 5;
         draw_switch(right ? x - sw : x, cy - sh / 2, sh, on);
         return;
     }
     color_t vc = sel ? t->accent : t->text_dim;
-    bool arrows = sel && i != S_INFO && i != S_SUPPORT && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_STICKCAL && i != S_WIFINETS;
+    bool arrows = sel && i != S_INFO && i != S_SUPPORT && i != S_CLOCK && i != S_UPDATE && i != S_GENRES && i != S_COLLS && i != S_PADTEST && i != S_STICKCAL && i != S_WIFINETS && i != S_BTDEVS;
     int aw = arrows ? ui_text_w(f, "‹") + M(0.015f) : 0, rr = fh / 3, dw = i == S_LEDCOLOR ? 2 * rr + M(0.015f) : 0;
     ui_text_fit(f, val, maxw - 2 * aw - dw, fit, sizeof fit);
     int tw = ui_text_w(f, fit), x0 = right ? x - (2 * aw + dw + tw) : x;
@@ -7181,14 +7416,14 @@ static void settings_draw(void) {
         for (int k = 0; k < n; k++) ui_text(fs, lines[k], mx, bottom - desc_h + M(0.012f) + k * fsh, t->text_dim, ALIGN_LEFT);
     }
     /* con una finestra aperta, la barra dei tasti è quella della finestra */
-    if (clock_open || sdinfo_open || batt_open || chtest_open || support_open || wpanel_open || clean_open || fsrv_open) return;
+    if (clock_open || sdinfo_open || batt_open || chtest_open || support_open || wpanel_open || btp_open || clean_open || fsrv_open) return;
     int end;
     if (set_page < 0) {
         const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
         end = ui_keybar(h, 6);
     } else {
         bool act = set_sel == S_POWER || set_sel == S_SUSPENDNOW || set_sel == S_RESTART || set_sel == S_CLOCK || set_sel == S_UPDATE || set_sel == S_GENRES || set_sel == S_COLLS ||
-                   set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_ROMCHECK ||
+                   set_sel == S_PADTEST || set_sel == S_STICKCAL || set_sel == S_WIFINETS || set_sel == S_BTDEVS || set_sel == S_ROMCHECK ||
                    set_sel == S_SCRAPE || set_sel == S_CLEANMEDIA || set_sel == S_INFO || set_sel == S_FILESERVER ||
                    set_sel == S_RESETSET || set_sel == S_ERASE || set_sel == S_STORE || set_sel == S_SUPPORT || set_sel == S_THEMERESET || set_sel == S_BATTERY || set_sel == S_CHANTEST;
         const char *h[] = { "A", T(act ? "common.open" : "common.change"), NULL, "B", T("common.back"), NULL,
@@ -8097,6 +8332,8 @@ static void cfm_input(void) {
         pkg_checked = false;   /* ce ne può essere un altro */
     } else if (k == CFM_RESETSET2) {
         rst_start(false);
+    } else if (k == CFM_BTFORGET) {
+        btp_job("forget", cfm_bt, cfm_bt_name);
     } else if (k == CFM_FORGET) {
         char m[160];
         snprintf(m, sizeof m, T("wifi.forgot"), cfm_ssid);
@@ -8113,9 +8350,11 @@ static void cfm_input(void) {
 /* ------------------------------------------------- pannello rapido
    Tasto Menu nel launcher, da qualsiasi schermata: stato della console (batteria, temperatura,
    processore, memoria), tempo di gioco, e i comandi più usati senza passare dalle Impostazioni:
-   Wi-Fi, altoparlante a riposo, LED, musica, cattura, sospendi, riavvia, spegni; sotto
-   luminosità e volume. Righe 0-1 i riquadri (4 per riga), 2 luminosità, 3 volume. */
-enum { QT_WIFI, QT_SPEAKER, QT_LED, QT_MUSIC, QT_SHOT, QT_SUSPEND, QT_RESTART, QT_POWER, QT_COUNT };
+   Wi-Fi, Bluetooth, altoparlante a riposo, LED, musica, cattura, sospendi, riavvia, spegni; sotto
+   luminosità e volume. Righe 0-2 i riquadri (3 per riga), 3 luminosità, 4 volume. */
+enum { QT_WIFI, QT_BT, QT_SPEAKER, QT_LED, QT_MUSIC, QT_SHOT, QT_SUSPEND, QT_RESTART, QT_POWER, QT_COUNT };
+#define QP_COLS 3
+#define QP_ROWS ((QT_COUNT + QP_COLS - 1) / QP_COLS)
 static bool qp_open;
 static int qp_row, qp_col;
 static double qp_info_t = -10;
@@ -8157,6 +8396,10 @@ static void qp_time(long s, char *out, size_t n) {
 static void qp_do(int t) {
     switch (t) {
     case QT_WIFI: set_change(S_WIFI, +1); break;
+    case QT_BT:
+        if (bt_supported()) set_change(S_BT, +1);
+        else { ui_toast(T("bluetooth.unsupported")); ui_sound(SND_ERROR); }
+        break;
     case QT_SPEAKER: set_change(S_SPEAKER, +1); break;
     case QT_LED: set_change(S_LED, +1); break;
     case QT_MUSIC:
@@ -8188,12 +8431,12 @@ static void qp_input(void) {
     input_t *in = &UI.in;
     if (in->pressed[BTN_MENU] || in->pressed[BTN_B]) { qp_open = false; ui_sound(SND_BACK); return; }
     if (in->pressed[BTN_UP] && qp_row > 0) { qp_row--; ui_sound(SND_MOVE); }
-    if (in->pressed[BTN_DOWN] && qp_row < 3) { qp_row++; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN] && qp_row < QP_ROWS + 1) { qp_row++; ui_sound(SND_MOVE); }
     int dir = in->pressed[BTN_RIGHT] ? 1 : in->pressed[BTN_LEFT] ? -1 : 0;
-    if (qp_row < 2) {
-        if (dir && qp_col + dir >= 0 && qp_col + dir < 4) { qp_col += dir; ui_sound(SND_MOVE); }
-        if (in->pressed[BTN_A]) qp_do(qp_row * 4 + qp_col);
-    } else if (dir) set_change(qp_row == 2 ? S_BRIGHT : S_VOLUME, dir);
+    if (qp_row < QP_ROWS) {
+        if (dir && qp_col + dir >= 0 && qp_col + dir < QP_COLS) { qp_col += dir; ui_sound(SND_MOVE); }
+        if (in->pressed[BTN_A]) qp_do(qp_row * QP_COLS + qp_col);
+    } else if (dir) set_change(qp_row == QP_ROWS ? S_BRIGHT : S_VOLUME, dir);
     if (UI.t - qp_info_t > 2) qp_refresh();
 }
 
@@ -8203,8 +8446,8 @@ static void qp_draw(void) {
     TTF_Font *fs = UI.f_small, *fn = UI.f_normal;
     int fsh = TTF_FontHeight(fs), fnh = TTF_FontHeight(fn);
     int pad = M(0.03f), gap = M(0.015f), w = UI.w - 2 * M(t->margin);
-    int tw = (w - 2 * pad - 3 * gap) / 4, th = fnh + fsh + M(0.04f), sh = fnh + M(0.03f);
-    int h = pad + fsh * 2 + M(0.02f) + 2 * th + gap + M(0.02f) + 2 * sh + gap + pad;
+    int tw = (w - 2 * pad - (QP_COLS - 1) * gap) / QP_COLS, th = fnh + fsh + M(0.035f), sh = fnh + M(0.03f);
+    int h = pad + fsh * 2 + M(0.02f) + QP_ROWS * th + (QP_ROWS - 1) * gap + M(0.02f) + 2 * sh + gap + pad;
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(x, y, w, h, r, t->popup);
@@ -8229,16 +8472,19 @@ static void qp_draw(void) {
     } else ui_text(fs, T("quick.never"), x + pad, yy, t->text_dim, ALIGN_LEFT);
     yy += fsh + M(0.02f);
     /* riquadri */
-    static const char *const keys[QT_COUNT] = { "quick.wifi", "quick.speaker", "quick.led", "quick.music", "quick.shot", "quick.suspend", "quick.restart", "quick.power" };
+    static const char *const keys[QT_COUNT] = { "quick.wifi", "quick.bluetooth", "quick.speaker", "quick.led", "quick.music", "quick.shot", "quick.suspend", "quick.restart", "quick.power" };
     for (int i = 0; i < QT_COUNT; i++) {
-        int cx = x + pad + (i % 4) * (tw + gap), cy = yy + (i / 4) * (th + gap);
-        bool on = qp_row == i / 4 && qp_col == i % 4;
+        int cx = x + pad + (i % QP_COLS) * (tw + gap), cy = yy + (i / QP_COLS) * (th + gap);
+        bool on = qp_row == i / QP_COLS && qp_col == i % QP_COLS;
         ui_rrect(cx, cy, tw, th, M(t->panel_radius), on ? t->accent : with_alpha(t->text_dim, 40));
         color_t tc = on ? t->accent_text : t->text, dc = on ? t->accent_text : t->text_dim;
         char val[96] = "", fit[120];
         if (i == QT_WIFI) {
             const wifi_status_t *ws = wifi_status(false);
             snprintf(val, sizeof val, "%s", !UI.set.wifi ? T("common.off") : ws && ws->ssid[0] ? ws->ssid : T("common.on"));
+        } else if (i == QT_BT) {
+            const bt_status_t *bs = bt_status();
+            snprintf(val, sizeof val, "%s", !bt_supported() || !UI.set.bluetooth ? T("common.off") : bs->state == BT_CONNECTED ? bs->name : T("common.on"));
         } else if (i == QT_SPEAKER) set_value(S_SPEAKER, val, sizeof val);
         else if (i == QT_LED) set_value(S_LED, val, sizeof val);
         else if (i == QT_MUSIC) snprintf(val, sizeof val, "%s", music_title()[0] ? music_title() : T("quick.no_track"));
@@ -8249,10 +8495,10 @@ static void qp_draw(void) {
             ui_text(fs, fit, cx + M(0.012f), cy + M(0.012f) + fnh, dc, ALIGN_LEFT);
         }
     }
-    yy += 2 * th + gap + M(0.02f);
+    yy += QP_ROWS * th + (QP_ROWS - 1) * gap + M(0.02f);
     /* luminosità e volume */
     for (int k = 0; k < 2; k++, yy += sh + gap) {
-        bool on = qp_row == 2 + k;
+        bool on = qp_row == QP_ROWS + k;
         int v = k ? UI.set.volume : UI.set.brightness, max = k ? 20 : 10;
         ui_rrect(x + pad, yy, w - 2 * pad, sh, sh / 2, on ? with_alpha(t->accent, 60) : with_alpha(t->text_dim, 30));
         ui_text(fn, T(k ? "quick.volume" : "quick.brightness"), x + pad + M(0.02f), yy + (sh - fnh) / 2, t->text, ALIGN_LEFT);
@@ -8393,6 +8639,7 @@ static void cfm_draw(void) {
     }
     else if (cfm_kind == CFM_STICKS) ui_confirm_draw(T("confirm.sticks_title"), T("confirm.sticks_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
     else if (cfm_kind == CFM_COLL) ui_confirm_draw(T("confirm.coll_title"), T("confirm.coll_body"), T("common.cancel"), T("coll.delete"), cfm_sel);
+    else if (cfm_kind == CFM_BTFORGET) ui_confirm_draw(T("confirm.bt_forget_title"), T("confirm.bt_forget_body"), T("common.cancel"), T("bluetooth.forget"), cfm_sel);
     else if (cfm_kind == CFM_FORGET) ui_confirm_draw(T("confirm.forget_title"), T("confirm.forget_body"), T("common.cancel"), T("wifi.forget"), cfm_sel);
     else ui_confirm_draw(T("confirm.genres_title"), T("confirm.genres_body"), T("common.cancel"), T("confirm.restore"), cfm_sel);
 }
@@ -9757,7 +10004,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = batt_open = chtest_open = support_open = wpanel_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = batt_open = chtest_open = support_open = wpanel_open = btp_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -9811,6 +10058,7 @@ int main(int argc, char **argv) {
         else if (dlg_open) dialog_input();
         else if (clock_open) clock_input();
         else if (wpanel_open) wpanel_input();
+        else if (btp_open) btp_input();
         else if (clean_open) clean_input();
         else if (sdinfo_open) sdinfo_input();
         else if (batt_open) batt_input();
@@ -9878,6 +10126,7 @@ int main(int argc, char **argv) {
         if (dlg_open && !dlg_suspend) dialog_draw();
         if (clock_open) clock_draw();
         if (wpanel_open) wpanel_draw();
+        if (btp_open) btp_draw();
         if (clean_open) clean_draw();
         if (sdinfo_open) sdinfo_draw();
         if (batt_open) batt_draw();
@@ -9935,14 +10184,14 @@ int main(int argc, char **argv) {
         }
         /* frammenti recuperati dal controllo della scheda: una volta per avvio, se ce ne sono di nuovi */
         if (pkg_checked && !frag_checked && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
-            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open) {
+            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !btp_open && !kb_open) {
             frag_checked = true;
             if (!rec_pending && frag_find()) { cfm_kind = CFM_FRAG; cfm_sel = 1; }
         }
         /* dopo un ripristino: una volta per avvio, a Wi-Fi collegato, rimettere i pacchetti del backup
            (prima dell'invito della scheda senza emulatori, che allora non serve) */
         if (pkg_checked && !restpkg_asked && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
-            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
+            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !btp_open && !kb_open && sto_online()) {
             restpkg_asked = true;
             if ((restpkg_n = store_restore_pending(UI.root)) > 0) {
                 cfm_kind = CFM_RESTPKG;
@@ -9953,7 +10202,7 @@ int main(int argc, char **argv) {
         /* nessun emulatore (scheda nuova): una volta per avvio, l'invito ad aprire lo Store, solo
            a Wi-Fi collegato (senza rete lo Store non ha il catalogo) e non mentre si sceglie la rete */
         if (pkg_checked && !store_asked && NEMUS == 0 && !atomic_load(&imp_state) && !setup_step && !upd_open && !dlg_open && !cfm_kind &&
-            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !kb_open && sto_online()) {
+            !rdy_open && !sdbad_open && !rec_open && screen != SCR_STORE && !fsrv_open && !wpanel_open && !btp_open && !kb_open && sto_online()) {
             store_asked = true;
             cfm_kind = CFM_STORE;
             cfm_sel = 1;
