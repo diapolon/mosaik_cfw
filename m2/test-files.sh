@@ -262,6 +262,10 @@ inp inputd_pause A
 inp inputd_pause B; : > $W/kill.log
 inp inputd_resume A
 [ ! -s $W/kill.log ] && ok "il timer di un'accensione vecchia non lo fa ripartire" || ko "ripartito dal timer vecchio"
+: > $W/bt-pausa
+(WIFI_BT_PAUSE=$W/bt-pausa; inp inputd_resume B)
+[ ! -s $W/kill.log ] && [ ! -e $W/inputd-pausa ] && ok "Bluetooth che si accende: i tasti restano fermi per lui (revisione della 0.9.92)" || ko "ripartito durante la pausa del Bluetooth: $(cat $W/kill.log)"
+rm -f $W/bt-pausa; inp inputd_pause B; : > $W/kill.log
 inp inputd_resume B
 [ "$(cat $W/kill.log)" = "-CONT 4242" ] && [ ! -e $W/inputd-pausa ] && ok "riparte al collegamento" || ko "non ripartito: $(cat $W/kill.log)"
 : > $W/kill.log; inp inputd_resume ""

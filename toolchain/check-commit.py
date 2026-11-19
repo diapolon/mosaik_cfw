@@ -135,7 +135,7 @@ def commit_preparato(parole, errori):
         if riga.startswith("diff --git "):
             path, testa = None, True
         elif testa and riga.startswith("+++ "):
-            p = riga[4:]
+            p = riga[4:].rstrip("\t")   # git aggiunge un tab dopo i nomi con spazi
             if p.startswith('"') and p.endswith('"'):
                 p = p[1:-1]
             path = p[2:] if p.startswith("b/") else None

@@ -18,7 +18,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [ ] Memory and battery use over a long session, on both models
 
 **Wireless**
-- [ ] Bluetooth (stable from 0.9.88, tried on the Smart Pro and the Brick Pro: pairing, reconnection, sound and volume in the headphones). Still to do: the rest of the 0.9.88 code review (sound after sleep with headphones, BT-03 and BT-04, to try on the console first; quick on/off, bluealsa watchdog, Brick Pro buttons while the chip starts); switch output also in the Music player, Video, Linux games and standalone emulators; controllers with someone who has one; the XR829 patch of `hciattach`, asked to TrimUI in trimui/firmware_smartpro#29
+- [ ] Bluetooth (stable from 0.9.88, tried on the Smart Pro and the Brick Pro: pairing, reconnection, sound and volume in the headphones). Still to do: sound after sleep with headphones (BT-03 and BT-04, to try on the console first); console tests of the 0.9.92-0.9.93 fixes (quick on/off, services restarted with the headphones reconnected after a crash of bluealsa, Brick Pro buttons with Wi-Fi and Bluetooth starting together); switch output also in the Music player, Video, Linux games and standalone emulators; controllers with someone who has one; the XR829 patch of `hciattach`, asked to TrimUI in trimui/firmware_smartpro#29
 - [ ] Check `mosaik.local` on the Smart Pro, a fixed Wi-Fi address across power-ons, and WPA3-only networks
 
 **Transfer files** (code review of 0.9.72, RETE-06; proposal)

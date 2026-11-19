@@ -47,7 +47,8 @@ inputd_pause() {
 inputd_resume() {   # $1: gettone dell'accensione, vuoto = qualunque
     [ -f $INPUTD_PAUSE ] || return 0
     [ -n "$1" ] && [ "$1" != "$(sed -n 1p $INPUTD_PAUSE)" ] && return 0
-    kill -CONT $(sed -n 2p $INPUTD_PAUSE) 2> /dev/null
+    # se intanto li tiene fermi il Bluetooth (m2/bt-ctl, accensione del chip), li fa ripartire lui
+    [ -f "${WIFI_BT_PAUSE:-/run/bt-inputd-pausa}" ] || kill -CONT $(sed -n 2p $INPUTD_PAUSE) 2> /dev/null
     rm -f $INPUTD_PAUSE
 }
 # i tasti tornano appena la prima ricerca delle reti ha dato i risultati, con mezzo secondo di

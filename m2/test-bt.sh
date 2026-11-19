@@ -40,7 +40,7 @@ cat > $BIN/dbus-daemon <<'X'
 #!/bin/sh
 exec python3 -c "import socket,time;s=socket.socket(socket.AF_UNIX);s.bind('/run/dbus/system_bus_socket');time.sleep(600)"
 X
-printf '#!/bin/sh\nexec sleep 600\n' > $BIN/bluetoothd
+printf '#!/bin/sh\n[ -f /tmp/fbt/btd_fail ] && exit 1\npgrep -f system_bus_socket > /dev/null || exit 1\nexec sleep 600\n' > $BIN/bluetoothd
 printf '#!/bin/sh\nexec sleep 600\n' > $BIN/bluealsa
 # bluetoothctl: dispositivi vicini in $F/near (indirizzo|nome|icona), conosciuti in $F/known,
 # abbinati e collegati in $F/paired, $F/connected; gli abbinamenti scritti come bluetoothd
@@ -73,11 +73,12 @@ pair)
     echo "Pairing successful" ;;
 trust) echo "Changing $2 trust succeeded" ;;
 connect)
+    echo "btctl connect $2" >> $F/calls
     [ -f $F/connect_fail ] && { echo "Failed to connect: org.bluez.Error.Failed"; exit 1; }
     [ -f $F/connect_slow ] && sleep $(cat $F/connect_slow)   # cuffie che rispondono dopo un po'
     grep -qx "$2" $F/paired 2>/dev/null || { echo "Failed to connect"; exit 1; }
     echo "$2" > $F/connected; echo "Connection successful" ;;
-disconnect) rm -f $F/connected; echo "Successful disconnected" ;;
+disconnect) echo "btctl disconnect $2" >> $F/calls; rm -f $F/connected; echo "Successful disconnected" ;;
 remove)
     grep -vx "$2" $F/paired > $F/p2 2>/dev/null; mv $F/p2 $F/paired; rm -f $F/connected
     rm -rf /tmp/store/$(cat $F/addr)/$2; echo "Device has been removed" ;;
@@ -266,6 +267,7 @@ check "bluealsa fermo: ripartito da solo" 'kill -0 "$(cat /tmp/runbt/bluealsa.pi
 check "… e lo dice il registro" 'grep -q "bluealsa fermo" $ROOT/Logs/bluetooth.log'
 for i in $(seq 20); do [ -f /tmp/bt-audio ] && break; sleep 0.2; done
 check "… e l'audio torna alle cuffie" 'grep -q "bluealsa:DEV=02:00:00:00:00:01" $BT_ASOUND'
+check "… dopo aver ricollegato le cuffie (il bluealsa nuovo non ha il flusso A2DP di prima)" 'grep -q "btctl disconnect 02:00:00:00:00:01" $F/calls && [ "$(grep -c "btctl connect 02:00:00:00:00:01" $F/calls)" -ge 2 ]'
 kill "$(cat /tmp/runbt/bluetoothd.pid)"
 for i in $(seq 30); do sleep 0.2; kill -0 "$(cat /tmp/runbt/bluetoothd.pid)" 2>/dev/null && break; done
 check "bluetoothd fermo: ripartito da solo" 'kill -0 "$(cat /tmp/runbt/bluetoothd.pid)" 2>/dev/null && grep -q "bluetoothd fermo" $ROOT/Logs/bluetooth.log'
@@ -294,6 +296,14 @@ reset; echo 9 > $F/attach_fail; echo 1 > $F/attach_slow
 ON=$!
 sleep 2.5; kill $ON; sleep 0.5
 check "bt-ctl interrotto a metà: i tasti ripartono e la pausa sparisce" '[ "$(state)" != T ] && [ ! -f /tmp/bt-pausa ]'
+# revisione della 0.9.92: alla fine dell'accensione del Bluetooth i tasti ripartivano anche se nel
+# frattempo li aveva fermati il Wi-Fi (la sua accensione, issue #1)
+reset
+kill -STOP $IN; : > /tmp/wifi-pausa   # il Wi-Fi si sta accendendo: tasti fermi
+( BT_I2C=/tmp/i2c3 BT_INPUTD_PAUSE=/tmp/bt-pausa BT_WIFI_PAUSE=/tmp/wifi-pausa $CTL on > /dev/null 2>&1 )
+check "Bluetooth acceso mentre parte il Wi-Fi: i tasti restano fermi per il Wi-Fi" '[ "$(state)" = T ]'
+check "… e la pausa del Bluetooth è tolta" '[ ! -f /tmp/bt-pausa ]'
+$CTL off > /dev/null 2>&1; rm -f /tmp/wifi-pausa
 kill -CONT $IN 2>/dev/null; kill $IN; rm -f $BIN/trimui_inputd /tmp/i2c3
 reset
 
@@ -332,6 +342,43 @@ printf 'pcm.!default { type plug slave.pcm "bluealsa:DEV=02:00:00:00:00:01,PROFI
 rm -f /tmp/bt-audio
 $CTL off > /dev/null 2>&1
 check "spento: altoparlante rimesso anche senza il segno" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE'
+reset
+
+# revisione della 0.9.92: D-Bus fermo faceva ripartire bluetoothd all'infinito (che senza D-Bus esce
+# subito), una riga di registro e un sync ogni giro
+echo "--- D-Bus fermo e ripartenze senza fine"
+reset
+$CTL on > /dev/null 2>&1
+for i in $(seq 20); do [ -f /tmp/runbt/watch.pid ] && break; sleep 0.2; done
+pkill -f system_bus_socket
+for i in $(seq 40); do sleep 0.2; pgrep -f system_bus_socket > /dev/null && kill -0 "$(cat /tmp/runbt/bluetoothd.pid)" 2>/dev/null && break; done
+check "D-Bus fermo: ripartono D-Bus e bluetoothd" 'pgrep -f system_bus_socket > /dev/null && kill -0 "$(cat /tmp/runbt/bluetoothd.pid)" 2>/dev/null && grep -q "D-Bus fermo" $ROOT/Logs/bluetooth.log'
+touch $F/btd_fail; kill "$(cat /tmp/runbt/bluetoothd.pid)"
+sleep 12
+n=$(grep -c "bluetoothd fermo" $ROOT/Logs/bluetooth.log)
+check "bluetoothd che non riparte: al massimo 3 tentativi ($n), poi si smette e lo si dice" '[ "$n" -le 3 ] && grep -q "smetto" $ROOT/Logs/bluetooth.log'
+rm -f $F/btd_fail; $CTL off > /dev/null 2>&1
+reset
+
+# revisione della 0.9.92: apply "off" guardava solo hci0; sparito il chip, i demoni restavano accesi
+echo "--- spento con il chip già sparito"
+reset
+$CTL on > /dev/null 2>&1
+rm -rf /tmp/sys/bluetooth/hci0
+echo off > /tmp/bt-voluto; BT_WANT=/tmp/bt-voluto $CTL apply > /dev/null 2>&1
+check "apply off: demoni fermati anche senza hci0" '[ ! -s /tmp/runbt/bluetoothd.pid ] && ! pgrep -f "sleep 600" > /dev/null'
+reset
+
+# revisione della 0.9.92: un off chiesto mentre un on lungo (all'avvio o al risveglio) teneva il
+# blocco rinunciava, e il Bluetooth restava acceso con l'interruttore su spento
+echo "--- spento mentre un'accensione lunga tiene il blocco"
+reset
+$CTL on > /dev/null 2>&1
+sh -c "exec 9> /tmp/bt.lock; flock 9; sleep 4" &
+H=$!; sleep 0.5
+echo off > /tmp/bt-voluto; BT_LOCK_TRIES=10 BT_WANT=/tmp/bt-voluto $CTL apply > /dev/null 2>&1
+wait $H
+check "l'off arriva lo stesso, appena il blocco si libera" '[ "$($CTL status)" = spento ]'
 reset
 
 echo

@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.93
+it Brick Pro: Wi-Fi e Bluetooth accesi insieme non fanno più ripartire i tasti a metà accensione
+en Brick Pro: Wi-Fi and Bluetooth started together no longer resume the buttons halfway
+it Bluetooth: i servizi fermi ripartono al massimo 3 volte, poi le cuffie si ricollegano
+en Bluetooth: stopped services restart at most 3 times, then the headphones reconnect
+it Bluetooth: spento dall'interruttore anche mentre si sta ancora accendendo
+en Bluetooth: turned off by the switch even while it is still starting
+
 0.9.92
 it Bluetooth: niente melodia di prova alla prima connessione delle cuffie
 en Bluetooth: no test melody when the headphones connect the first time
