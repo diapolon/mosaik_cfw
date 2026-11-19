@@ -94,7 +94,7 @@ reset() {
     echo bluetooth > /tmp/sys/rfkill/rfkill0/type; echo 0 > /tmp/sys/rfkill/rfkill0/state
     : > $BT_BTWRITE
     printf 'sunxi_platform    : sun50iw10p1\nsunxi_serial      : 0123456789abcdef0011\n' > /tmp/sys/sunxi_info/sys_info
-    printf 'E0:9D:FA:7C:46:36|Wireless Earbuds|audio-card|0x240404\n11:22:33:44:55:66|Pad|input-gaming\n5A:08:68:22:98:2B||\nAC:DE:48:00:11:22|Cassa|audio-card|0x240414\n' > $F/near
+    printf '02:00:00:00:00:01|Wireless Earbuds|audio-card|0x240404\n11:22:33:44:55:66|Pad|input-gaming\n02:00:00:00:00:05||\n02:00:00:00:00:03|Cassa|audio-card|0x240414\n' > $F/near
 }
 reboot() {   # come uno spegnimento: processi e /run spariscono, la SD resta
     pkill -f "bt-ctl watch" 2>/dev/null
@@ -125,25 +125,25 @@ echo "--- ricerca e abbinamento"
 $CTL off > /dev/null
 $CTL on > /dev/null 2>&1 &
 out=$($CTL scan 1)
-check "ricerca chiesta col Bluetooth ancora spento: aspetta che sia pronto" 'echo "$out" | grep -q "^E0:9D:FA:7C:46:36	audio"'
+check "ricerca chiesta col Bluetooth ancora spento: aspetta che sia pronto" 'echo "$out" | grep -q "^02:00:00:00:00:01	audio"'
 wait
 out=$($CTL scan 1)
-check "ricerca: cuffie come audio" 'echo "$out" | grep -q "^E0:9D:FA:7C:46:36	audio	0	0	Wireless Earbuds$"'
+check "ricerca: cuffie come audio" 'echo "$out" | grep -q "^02:00:00:00:00:01	audio	0	0	Wireless Earbuds$"'
 check "ricerca: controller come input" 'echo "$out" | grep -q "^11:22:33:44:55:66	input	0	0	Pad$"'
 check "ricerca: senza nome non elencato" '! echo "$out" | grep -q 5A:08'
-check "ricerca: cassa riconosciuta dalla classe" 'echo "$out" | grep -q "^AC:DE:48:00:11:22	cassa	0	0	Cassa$"'
-$CTL pair E0:9D:FA:7C:46:36; r=$?
+check "ricerca: cassa riconosciuta dalla classe" 'echo "$out" | grep -q "^02:00:00:00:00:03	cassa	0	0	Cassa$"'
+$CTL pair 02:00:00:00:00:01; r=$?
 check "abbinamento riuscito" '[ $r = 0 ]'
-check "abbinamenti sulla SD, senza la cache" 'tar -tf $ROOT/System/bluetooth/abbinamenti.tar | grep -q "E0:9D:FA:7C:46:36/info" && ! tar -tf $ROOT/System/bluetooth/abbinamenti.tar | grep -q cache/'
-check "ultimo dispositivo ricordato" '[ "$(cat $ROOT/System/bluetooth/ultimo.txt)" = E0:9D:FA:7C:46:36 ]'
-check "stato collegato" '$CTL status | grep -q "^collegato E0:9D:FA:7C:46:36 audio Wireless Earbuds$"'
-check "audio verso le cuffie" 'grep -q "bluealsa:DEV=E0:9D:FA:7C:46:36,PROFILE=a2dp" $BT_ASOUND && grep -q "type hw card audiocodec" $BT_ASOUND && [ "$(cat /tmp/bt-audio)" = E0:9D:FA:7C:46:36 ]'
+check "abbinamenti sulla SD, senza la cache" 'tar -tf $ROOT/System/bluetooth/abbinamenti.tar | grep -q "02:00:00:00:00:01/info" && ! tar -tf $ROOT/System/bluetooth/abbinamenti.tar | grep -q cache/'
+check "ultimo dispositivo ricordato" '[ "$(cat $ROOT/System/bluetooth/ultimo.txt)" = 02:00:00:00:00:01 ]'
+check "stato collegato" '$CTL status | grep -q "^collegato 02:00:00:00:00:01 audio Wireless Earbuds$"'
+check "audio verso le cuffie" 'grep -q "bluealsa:DEV=02:00:00:00:00:01,PROFILE=a2dp" $BT_ASOUND && grep -q "type hw card audiocodec" $BT_ASOUND && [ "$(cat /tmp/bt-audio)" = 02:00:00:00:00:01 ]'
 check "uscita delle cuffie senza softvol" '! grep -q softvol $BT_ASOUND'
-check "devices: abbinato e collegato" '$CTL devices | grep -q "^E0:9D:FA:7C:46:36	audio	1	1	"'
-$CTL disconnect E0:9D:FA:7C:46:36
+check "devices: abbinato e collegato" '$CTL devices | grep -q "^02:00:00:00:00:01	audio	1	1	"'
+$CTL disconnect 02:00:00:00:00:01
 check "scollegate: audio all'altoparlante" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE && [ ! -f /tmp/bt-audio ]'
-$CTL connect E0:9D:FA:7C:46:36
-check "ricollegate a mano: audio alle cuffie" 'grep -q "bluealsa:DEV=E0:9D:FA:7C:46:36" $BT_ASOUND'
+$CTL connect 02:00:00:00:00:01
+check "ricollegate a mano: audio alle cuffie" 'grep -q "bluealsa:DEV=02:00:00:00:00:01" $BT_ASOUND'
 check "indirizzo non valido rifiutato" '! $CTL connect pippo 2>/dev/null'
 
 echo "--- spegnimento e riaccensione"
@@ -153,21 +153,21 @@ check "stato spento" '[ "$($CTL status)" = spento ]'
 check "spento: audio di nuovo all'altoparlante" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE && [ ! -f /tmp/bt-audio ]'
 reboot
 $CTL on
-check "abbinamenti ripresi dalla SD" '[ -f /tmp/store/$A/E0:9D:FA:7C:46:36/info ]'
+check "abbinamenti ripresi dalla SD" '[ -f /tmp/store/$A/02:00:00:00:00:01/info ]'
 check "stesso indirizzo dopo la riaccensione" '[ "$(cat $F/addr)" = "$A" ]'
 for i in $(seq 30); do [ -f /tmp/runbt/collegato ] && break; sleep 0.2; done
-check "ricollegato da solo all'ultimo dispositivo" '[ "$(cat /tmp/runbt/collegato 2>/dev/null)" = E0:9D:FA:7C:46:36 ]'
+check "ricollegato da solo all'ultimo dispositivo" '[ "$(cat /tmp/runbt/collegato 2>/dev/null)" = 02:00:00:00:00:01 ]'
 for i in $(seq 20); do [ -f /tmp/bt-audio ] && break; sleep 0.2; done
-check "dopo il ricollegamento l'audio torna alle cuffie" 'grep -q "bluealsa:DEV=E0:9D:FA:7C:46:36" $BT_ASOUND'
+check "dopo il ricollegamento l'audio torna alle cuffie" 'grep -q "bluealsa:DEV=02:00:00:00:00:01" $BT_ASOUND'
 rm -f $F/connected   # le cuffie si spengono da sole
 for i in $(seq 30); do [ -f /tmp/bt-audio ] || break; sleep 0.2; done
 check "cuffie spente: audio all'altoparlante da solo" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE && [ ! -f /tmp/bt-audio ]'
-echo E0:9D:FA:7C:46:36 > $F/connected   # e si riaccendono
+echo 02:00:00:00:00:01 > $F/connected   # e si riaccendono
 for i in $(seq 30); do [ -f /tmp/bt-audio ] && break; sleep 0.2; done
-check "cuffie riaccese: audio di nuovo alle cuffie" 'grep -q "bluealsa:DEV=E0:9D:FA:7C:46:36" $BT_ASOUND'
+check "cuffie riaccese: audio di nuovo alle cuffie" 'grep -q "bluealsa:DEV=02:00:00:00:00:01" $BT_ASOUND'
 
 echo "--- dimentica"
-$CTL forget E0:9D:FA:7C:46:36
+$CTL forget 02:00:00:00:00:01
 check "tolto dalla SD" '! tar -tf $ROOT/System/bluetooth/abbinamenti.tar | grep -q E0:9D'
 check "non più l'ultimo" '[ ! -f $ROOT/System/bluetooth/ultimo.txt ]'
 check "dimenticate: audio all'altoparlante" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE'
@@ -176,12 +176,12 @@ $CTL off
 
 echo "--- ricollegamento che non riesce"
 reset
-$CTL on > /dev/null; $CTL scan 1 > /dev/null; $CTL pair E0:9D:FA:7C:46:36 > /dev/null; $CTL off
+$CTL on > /dev/null; $CTL scan 1 > /dev/null; $CTL pair 02:00:00:00:00:01 > /dev/null; $CTL off
 reboot
 touch $F/connect_fail
 $CTL on
-for i in $(seq 40); do grep -q "ricollegamento a E0:9D:FA:7C:46:36 non riuscito" $ROOT/Logs/bluetooth.log && break; sleep 0.2; done
-check "dopo 6 tentativi rinuncia e lo scrive" 'grep -q "ricollegamento a E0:9D:FA:7C:46:36 non riuscito" $ROOT/Logs/bluetooth.log'
+for i in $(seq 40); do grep -q "ricollegamento a 02:00:00:00:00:01 non riuscito" $ROOT/Logs/bluetooth.log && break; sleep 0.2; done
+check "dopo 6 tentativi rinuncia e lo scrive" 'grep -q "ricollegamento a 02:00:00:00:00:01 non riuscito" $ROOT/Logs/bluetooth.log'
 check "il Bluetooth resta acceso" '[ "$($CTL status)" = acceso ]'
 rm -f $F/connect_fail
 $CTL off

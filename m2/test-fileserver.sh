@@ -6,7 +6,7 @@ set -e
 apk add -q build-base zlib-dev curl unzip zip python3 zbar imagemagick >/dev/null
 W=/tmp/fs; rm -rf $W; mkdir -p $W/sd/System $W/sd/Roms/FBNEO $W/sd/Saves/fbneo $W/sd/Cores $W/sd/Linux $W/sd/Media; cd $W
 printf 'network={ssid="x" psk="segreto"}\n' > sd/System/wifi.conf
-mkdir -p sd/System/bluetooth; echo chiavi > sd/System/bluetooth/abbinamenti.tar; echo 2C:00:00:00:00:01 > sd/System/bluetooth/indirizzo.txt
+mkdir -p sd/System/bluetooth; echo chiavi > sd/System/bluetooth/abbinamenti.tar; echo 02:00:00:00:00:09 > sd/System/bluetooth/indirizzo.txt
 echo '{}' > sd/System/settings.json
 echo salvataggio > sd/Saves/fbneo/gioco.srm
 echo core > sd/Cores/core.so

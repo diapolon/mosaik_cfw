@@ -209,11 +209,11 @@ static bool act(const char *cmd, const char *addr) { (void)cmd; return addr_ok(a
 #else
 /* ------------------------------------------------------------ Mac: dispositivi simulati */
 static struct { const char *addr, *name; int kind; double at; bool paired, connected; } sim[] = {
-    { "E0:9D:FA:7C:46:36", "Wireless Earbuds", BT_AUDIO, 6, false, false },
+    { "02:00:00:00:00:01", "Wireless Earbuds", BT_AUDIO, 6, false, false },
     { "11:22:33:44:55:66", "8BitDo Pro 2", BT_INPUT, 3, false, false },
-    { "AC:DE:48:00:11:22", "JBL Flip 5", BT_SPEAKER, 4, false, false },
-    { "68:24:99:43:5C:CA", "HM_B2500_5cca", BT_OTHER, 1, false, false },
-    { "40:EF:4C:10:20:30", "Cuffie da corsa", BT_AUDIO, 0, true, false },
+    { "02:00:00:00:00:03", "JBL Flip 5", BT_SPEAKER, 4, false, false },
+    { "02:00:00:00:00:04", "Sensore BLE", BT_OTHER, 1, false, false },
+    { "02:00:00:00:00:02", "Cuffie da corsa", BT_AUDIO, 0, true, false },
 };
 #define NSIM ((int)(sizeof sim / sizeof *sim))
 static bool sim_on;
