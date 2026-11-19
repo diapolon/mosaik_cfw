@@ -151,6 +151,12 @@ void ui_star(int cx, int cy, int rad, color_t c);
 void ui_vgradient(int x, int y, int w, int h, color_t top, color_t bottom);
 /* icona Wi-Fi a ventaglio: level 0..3 archi accesi (-1 come 0: i colori li sceglie chi chiama) */
 void ui_wifi_icon(int x, int y, int h, int level, color_t on, color_t off);
+/* cuffie (kind BT_AUDIO) o controller (BT_INPUT), largo h * 3 / 2 */
+void ui_bt_icon(int x, int y, int h, int kind, color_t c);
+/* uscita audio cambiata (cuffie Bluetooth collegate o scollegate, /run/bt-audio): ui_end lo vede
+   una volta al secondo e chiama fn, oppure, senza fn, riapre l'audio dei menu (ui_audio_reopen) */
+void ui_on_audio_route(void (*fn)(void));
+void ui_audio_reopen(void);
 void ui_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c);
 void ui_gear(int cx, int cy, int rad, color_t c);
 

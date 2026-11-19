@@ -94,7 +94,7 @@ void bt_enable(bool on) {
     st_time = -10;
 }
 
-/* "spento" / "acceso" / "acceso\ncollegato INDIRIZZO nome" */
+/* "spento" / "acceso" / "acceso\ncollegato INDIRIZZO tipo nome" */
 static void status_read(bt_status_t *t) {
     char buf[256];
     memset(t, 0, sizeof *t);
@@ -107,7 +107,9 @@ static void status_read(bt_status_t *t) {
     if (c && strlen(c) > 28 && c[28] == ' ') {
         memcpy(t->addr, c + 11, 17);
         t->addr[17] = 0;
-        snprintf(t->name, sizeof t->name, "%s", c + 29);
+        const char *k = c + 29, *sp = strchr(k, ' ');
+        t->kind = !strncmp(k, "audio ", 6) ? BT_AUDIO : !strncmp(k, "input ", 6) ? BT_INPUT : BT_OTHER;
+        snprintf(t->name, sizeof t->name, "%s", sp ? sp + 1 : "");
         char *nl = strchr(t->name, '\n');
         if (nl) *nl = 0;
         if (addr_ok(t->addr)) t->state = BT_CONNECTED;
@@ -231,6 +233,7 @@ static void status_read(bt_status_t *t) {
     for (int i = 0; i < NSIM; i++)
         if (sim[i].connected) {
             t->state = BT_CONNECTED;
+            t->kind = sim[i].kind;
             snprintf(t->addr, sizeof t->addr, "%s", sim[i].addr);
             snprintf(t->name, sizeof t->name, "%s", sim[i].name);
         }

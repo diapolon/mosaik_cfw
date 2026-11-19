@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "wifi.h"
+#include "bt.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include "platform.h"
@@ -568,6 +569,25 @@ static void glyph_draw(int kind, int cx, int cy, int rad, color_t c) {
 void ui_star(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_STAR, cx, cy, rad, c); }
 void ui_gear(int cx, int cy, int rad, color_t c) { glyph_draw(GLYPH_GEAR, cx, cy, rad, c); }
 
+void ui_bt_icon(int x, int y, int h, int kind, color_t c) {
+    int tk = h > 20 ? 3 : 2;
+    if (kind == BT_INPUT) {   /* corpo del controller col contorno, croce e tasto pieni */
+        int w = h * 3 / 2, bh = h * 2 / 3, by = y + (h - bh) / 2, cx = x + bh / 2, cy = by + bh / 2, a = bh / 4;
+        ui_rborder(x, by, w, bh, bh / 2, tk, c);
+        ui_rect(cx - a, cy - tk / 2, 2 * a + 1, tk, c);
+        ui_rect(cx - tk / 2, cy - a, tk, 2 * a + 1, c);
+        ui_circle(x + w - bh / 2, cy, bh / 7 + 1, c);
+        return;
+    }
+    /* cuffie: archetto (la metà alta di un anello) e due padiglioni */
+    int w = h, ox = x + h / 4;
+    ui_clip_push(ox, y, w, h / 2 + 1);
+    ui_ring(ox + w / 2, y + h / 2, h / 2 - 1, tk, c);
+    ui_clip_pop();
+    ui_rrect(ox, y + h / 2 - tk, w / 4, h / 2 + tk, w / 10, c);
+    ui_rrect(ox + w - w / 4, y + h / 2 - tk, w / 4, h / 2 + tk, w / 10, c);
+}
+
 void ui_wifi_icon(int x, int y, int h, int level, color_t on, color_t off) {
     int cx = x + h / 2, cy = y + h / 2, rad = h * 6 / 10;
     glyph_draw(GLYPH_WIFI_DOT, cx, cy, rad, level > 0 ? on : off);
@@ -1013,6 +1033,37 @@ void ui_audio_takeover(void (*play)(const Sint16 *stereo, int frames)) {
     if (play && UI.audio) { SDL_CloseAudioDevice(UI.audio); UI.audio = 0; }
     pcm_hook = play;
     if (!play && !UI.audio && !audio_stuck) audio_open();
+}
+
+void ui_audio_reopen(void) {
+    if (!UI.audio || audio_stuck) return;   /* l'uscita è del mixer, o non c'è */
+    SDL_AudioDeviceID dev = UI.audio;
+    UI.audio = 0;
+    if (!audio_close_timed(dev)) { audio_stuck = true; ui_log("audio: l'uscita non si chiude entro 3 s, si prosegue senza audio"); return; }
+    audio_open();
+}
+
+static void (*route_hook)(void);
+void ui_on_audio_route(void (*fn)(void)) { route_hook = fn; }
+
+/* /run/bt-audio: indirizzo delle cuffie verso cui va l'audio, assente = altoparlante */
+static void audio_route_check(void) {
+#ifdef TRIMUI_DEVICE
+    static double next;
+    static char cur[24];
+    static bool known;
+    if (!plat_standalone() || UI.t < next) return;
+    next = UI.t + 1.0;
+    char now[24] = "";
+    FILE *f = fopen("/run/bt-audio", "r");
+    if (f) { if (!fgets(now, sizeof now, f)) now[0] = 0; fclose(f); }
+    if (!known) { known = true; snprintf(cur, sizeof cur, "%s", now); return; }   /* all'avvio è già quella giusta */
+    if (!strcmp(now, cur)) return;
+    snprintf(cur, sizeof cur, "%s", now);
+    ui_log("audio: uscita cambiata (%s)", now[0] ? "cuffie Bluetooth" : "altoparlante");
+    if (route_hook) route_hook();
+    else ui_audio_reopen();
+#endif
 }
 
 void ui_play_pcm(const Sint16 *stereo, int frames) {
@@ -1809,6 +1860,14 @@ void ui_topbar(const char *title) {
         color_t pulse = with_alpha(t->text, 60 + (int)(195 * (0.5 + 0.5 * sin(UI.t * 4))));
         ui_wifi_icon(x, cy - wh / 2, wh, 3, pulse, pulse);
     } else wifi_icon(x, cy - wh / 2, wh, level, t->text);
+    /* cuffie o controller Bluetooth collegati: la loro icona prima del Wi-Fi */
+    if (UI.set.bluetooth && bt_supported()) {
+        const bt_status_t *bs = bt_status();
+        if (bs->state == BT_CONNECTED) {
+            x -= M(0.02f) + wh * 3 / 2;
+            ui_bt_icon(x, cy - wh / 2, wh, bs->kind, t->text);
+        }
+    }
     time_t now = time(NULL);
     struct tm tmv;
     localtime_r(&now, &tmv);
@@ -2189,6 +2248,7 @@ void ui_background(void) {
 }
 
 void ui_end(void) {
+    audio_route_check();
     ui_draw_toast();
     if (UI.th.scanlines) {
         for (int y = 0; y < UI.h; y += 3) ui_rect(0, y, UI.w, 1, rgba(0, 0, 0, 38));

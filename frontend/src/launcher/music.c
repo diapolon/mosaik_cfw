@@ -417,6 +417,13 @@ void music_before_sleep(void) {
     wd(NULL);
     title[0] = 0;
 }
+bool music_reopen(void) {
+    if (!mixer_on) return false;
+    music_before_sleep();
+    music_after_sleep();
+    return true;
+}
+
 void music_after_sleep(void) {
     int i = sleep_track;
     bool detached = sleep_detached;

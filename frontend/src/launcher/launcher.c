@@ -4472,26 +4472,6 @@ static void btp_input(void) {
     }
 }
 
-/* cuffie (archetto e padiglioni) o controller (corpo e croce) */
-static void bt_icon(int x, int y, int h, int kind, color_t c) {
-    int tk = h > 20 ? 3 : 2;
-    if (kind == BT_INPUT) {
-        int w = h * 3 / 2, bh = h * 2 / 3, by = y + (h - bh) / 2;
-        ui_rrect(x, by, w, bh, bh / 2, c);
-        color_t hole = with_alpha(UI.th.popup, 255);
-        int cx = x + bh / 2, cy = by + bh / 2, a = bh / 4;
-        ui_rect(cx - a, cy - tk / 2, 2 * a, tk, hole);
-        ui_rect(cx - tk / 2, cy - a, tk, 2 * a, hole);
-        ui_circle(x + w - bh / 2, cy, bh / 7 + 1, hole);
-    } else {
-        int w = h;
-        ui_ring(x + w / 2, y + h / 2, h / 2 - 1, tk, c);
-        ui_rect(x, y + h / 2, w, h / 2, with_alpha(UI.th.popup, 255));
-        ui_rrect(x, y + h / 2 - tk, w / 4, h / 2 + tk, w / 10, c);
-        ui_rrect(x + w - w / 4, y + h / 2 - tk, w / 4, h / 2 + tk, w / 10, c);
-    }
-}
-
 static void btp_draw(void) {
     theme_t *t = &UI.th;
     TTF_Font *f = UI.f_normal, *fs = UI.f_small;
@@ -4534,13 +4514,7 @@ static void btp_draw(void) {
             }
             color_t tc = sel ? t->accent_text : t->text, dc = sel ? with_alpha(t->accent_text, 200) : t->text_dim;
             int ty = ry + (rh - M(0.008f) - fh) / 2, ih = M(0.03f), iy = ry + (rh - M(0.008f) - ih) / 2;
-            if (d->kind != BT_OTHER) {
-                /* l'icona si ritaglia sul colore sotto: con la riga scelta, il colore della riga */
-                theme_t keep = *t;
-                if (sel) UI.th.popup = t->accent;
-                bt_icon(lx + M(0.01f), iy, ih, d->kind, tc);
-                UI.th = keep;
-            }
+            if (d->kind != BT_OTHER) ui_bt_icon(lx + M(0.01f), iy, ih, d->kind, tc);
             int nx = lx + M(0.01f) + ih * 3 / 2 + M(0.025f);
             bool busy = working && !strcmp(bt_job_addr, d->addr);
             const char *tag = busy ? "…" : d->connected ? T("bluetooth.tag_connected") : d->paired ? T("bluetooth.tag_paired")
@@ -8347,6 +8321,12 @@ static void cfm_input(void) {
     }
 }
 
+/* cuffie Bluetooth collegate o scollegate: la musica, se suona, riparte dov'era sulla nuova uscita;
+   altrimenti si riapre l'audio dei menu */
+static void launcher_audio_route(void) {
+    if (!music_reopen()) ui_audio_reopen();
+}
+
 /* ------------------------------------------------- pannello rapido
    Tasto Menu nel launcher, da qualsiasi schermata: stato della console (batteria, temperatura,
    processore, memoria), tempo di gioco, e i comandi più usati senza passare dalle Impostazioni:
@@ -9956,6 +9936,7 @@ int main(int argc, char **argv) {
         autoboot_start();
     }
     music_init(UI.root);
+    ui_on_audio_route(launcher_audio_route);
     plat_amp_config(UI.set.speaker_rest);   /* fruscio della Brick Pro (issue #4) */
     ui_mark("musica");
     screen = SCR_HOME;

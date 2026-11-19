@@ -92,8 +92,19 @@ static bool headphones(void) {
    cuffie da 8 a 61 (-9 e -71 dB: in cuffia il massimo del codec è troppo forte). Valori misurati
    a orecchio da TortOS sulla Brick, stesso codec. Livello 0: muto. */
 static bool vol_hp;
-static void vol_apply(int raw, int dac) {
+/* Cuffie Bluetooth (m2/bt-ctl): l'audio va a bluealsa attraverso il volume software "Bluetooth
+   Volume" (0..255, da -51 a 0 dB) che bt-ctl mette in /run/asound.conf; il controllo nasce solo
+   quando un programma apre l'audio, quindi dopo un cambio si riprova per qualche secondo. */
+static bool bt_audio(void) { return access("/run/bt-audio", F_OK) == 0; }
+static int vol_bt = -1, bt_tries;
+static bool bt_vol_ok;
+static void vol_apply(int raw, int dac, int btv) {
     char cmd[200];
+    if (btv >= 0) {
+        snprintf(cmd, sizeof cmd, "amixer -q cset name='Bluetooth Volume' %d >/dev/null 2>&1", btv);
+        bt_vol_ok = system(cmd) == 0;
+        return;
+    }
     snprintf(cmd, sizeof cmd, "amixer -q cset name='digital volume' %d >/dev/null 2>&1; amixer -q sset 'DAC volume' %d >/dev/null 2>&1",
              raw, dac);
     if (system(cmd) != 0) ui_log("volume: amixer non riuscito");
@@ -104,17 +115,17 @@ static void vol_apply(int raw, int dac) {
    valore chiesto */
 static pthread_mutex_t vol_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t vol_cond = PTHREAD_COND_INITIALIZER;
-static int vol_raw = -1, vol_dac;
+static int vol_raw = -1, vol_dac, vol_btv = -1;
 static bool vol_thread_on;
 static void *vol_worker(void *arg) {
     (void)arg;
     pthread_mutex_lock(&vol_lock);
     for (;;) {
         while (vol_raw < 0) pthread_cond_wait(&vol_cond, &vol_lock);
-        int raw = vol_raw, dac = vol_dac;
+        int raw = vol_raw, dac = vol_dac, btv = vol_btv;
         vol_raw = -1;
         pthread_mutex_unlock(&vol_lock);
-        vol_apply(raw, dac);
+        vol_apply(raw, dac, btv);
         pthread_mutex_lock(&vol_lock);
     }
     return NULL;
@@ -128,10 +139,12 @@ static void set_volume(int level) {
         raw = lo + ((20 - (level > 20 ? 20 : level)) * (hi - lo) + 9) / 19;
     }
     int dac = level ? 160 : 0;
+    vol_bt = bt_audio();
+    int btv = vol_bt ? (level > 20 ? 20 : level < 0 ? 0 : level) * 255 / 20 : -1;
     static int logged;
-    if (logged++ < 3) ui_log("volume: livello %d, %s, digital volume %d", level, vol_hp ? "cuffie" : "altoparlante", raw);
+    if (logged++ < 3 || vol_bt) ui_log("volume: livello %d, %s, digital volume %d", level, vol_bt ? "cuffie Bluetooth" : vol_hp ? "cuffie" : "altoparlante", raw);
     if (!vol_thread_on) {   /* la prima volta (all'avvio) subito, poi il thread */
-        vol_apply(raw, dac);
+        vol_apply(raw, dac, btv);
         pthread_t t;
         if (pthread_create(&t, NULL, vol_worker, NULL) == 0) { pthread_detach(t); vol_thread_on = true; }
         return;
@@ -139,6 +152,7 @@ static void set_volume(int level) {
     pthread_mutex_lock(&vol_lock);
     vol_raw = raw;
     vol_dac = dac;
+    vol_btv = btv;
     pthread_cond_signal(&vol_cond);
     pthread_mutex_unlock(&vol_lock);
 }
@@ -298,6 +312,8 @@ void plat_apply(const settings_t *s) {
         if (vol >= 0 && ms - last > 500) {
             last = ms;
             if (headphones() != vol_hp) { ui_log("cuffie %s", vol_hp ? "tolte" : "collegate"); set_volume(vol); }
+            else if (bt_audio() != vol_bt) { ui_log("cuffie Bluetooth %s", vol_bt ? "scollegate" : "collegate"); bt_tries = 0; set_volume(vol); }
+            else if (vol_bt && !bt_vol_ok && bt_tries < 20) { bt_tries++; set_volume(vol); }
         }
     }
     /* FN attivo: prestazioni massime, qualunque sia il profilo scelto */

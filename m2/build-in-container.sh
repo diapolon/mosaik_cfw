@@ -66,7 +66,8 @@ printf "hosts: files dns\nnetworks: files\n" > $R/etc/nsswitch.conf
 mkdir -p $R/lib
 ln -s /run/fw/udev $R/lib/udev
 ln -s /run/fw/etc-udev $R/etc/udev
-ln -s /run/fw/asound.conf $R/etc/asound.conf
+# asound.conf in /run: system-init ci copia quello dello strato, bt-ctl lo cambia per le cuffie
+ln -s /run/asound.conf $R/etc/asound.conf
 # /etc/bluetooth scrivibile: hciattach xradio legge l'indirizzo del chip da xr_bt.conf (prova-bt)
 ln -s /run/bluetooth $R/etc/bluetooth
 # BlueZ del firmware (prova delle cuffie): bluetoothd tiene gli abbinamenti in /etc/lib/bluetooth e

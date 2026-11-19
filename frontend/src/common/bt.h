@@ -18,6 +18,7 @@ typedef struct {
 
 typedef struct {
     int state;
+    int kind;                  /* del dispositivo collegato */
     char addr[18], name[64];   /* dispositivo collegato (BT_CONNECTED) */
 } bt_status_t;
 

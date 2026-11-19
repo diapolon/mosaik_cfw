@@ -9,7 +9,9 @@
 #   bt-ctl pair INDIRIZZO      abbina, si fida e collega
 #   bt-ctl connect|disconnect|forget INDIRIZZO
 #   bt-ctl reconnect           ricollega l'ultimo dispositivo (6 tentativi, uno ogni 5 s)
-#   bt-ctl status              "spento", oppure "acceso" e, se c'è, "collegato INDIRIZZO nome"
+#   bt-ctl status              "spento", oppure "acceso" e, se c'è, "collegato INDIRIZZO tipo nome"
+#   bt-ctl watch               (lo avvia "on") ogni 4 s: audio verso le cuffie collegate o di nuovo
+#                              all'altoparlante, anche quando le cuffie si spengono da sole
 #
 # Strada provata sulla Brick Pro con m2/prova-bt (docs locali STUDIO-BLUETOOTH):
 # - hciattach -n ttyS1 xradio, fino a 3 tentativi con il chip spento e riacceso fra uno e l'altro;
@@ -25,6 +27,10 @@
 #   la FAT non ammette ":" nei nomi, quindi sulla SD vanno in System/bluetooth/abbinamenti.tar,
 #   scritto dopo ogni abbinamento, "dimentica" e spegnimento, e ripreso a ogni accensione.
 #   Contiene le chiavi: come wifi.conf, non si vede dal trasferimento file.
+# - audio: tutti i programmi usano il dispositivo ALSA "default" di /etc/asound.conf → /run/asound.conf
+#   (copia di quello dello strato, /run/fw/asound.conf). Con cuffie o casse collegate si aggiunge un
+#   pcm.!default verso bluealsa, con un volume software ("Bluetooth Volume", lo regola platform.c), e
+#   /run/bt-audio dice a launcher e runner di riaprire l'audio; scollegate, si rimette la copia.
 ROOT=${ROOT:-/mnt/SDCARD/Arcade}
 DIR=$ROOT/System/bluetooth
 TAR=$DIR/abbinamenti.tar
@@ -34,6 +40,9 @@ SYS=${BT_SYS:-/sys/class}
 STORE=${BT_STORE:-/run/etc-lib/bluetooth}
 RUN=${BT_RUN:-/run/bt}
 BTWRITE=${BT_BTWRITE:-/proc/bluetooth/sleep/btwrite}
+ASOUND=${BT_ASOUND:-/run/asound.conf}
+ASOUND_BASE=${BT_ASOUND_BASE:-/run/fw/asound.conf}
+AUDIO_FLAG=${BT_AUDIO_FLAG:-/run/bt-audio}
 TZ=$(cat /run/arcade-tz "$ROOT/System/fuso-orario.txt" 2>/dev/null | head -n 1); [ -n "$TZ" ] && export TZ || unset TZ
 log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
 logs() { log "$@"; sync; }
@@ -130,6 +139,45 @@ save() {
     fi
 }
 
+# audio verso le cuffie ($1) o, senza argomento, di nuovo all'altoparlante
+route() {
+    if [ -n "$1" ]; then
+        [ "$(cat "$AUDIO_FLAG" 2> /dev/null)" = "$1" ] && return 0
+        {
+            cat "$ASOUND_BASE"
+            cat <<CONF
+
+# Bluetooth (bt-ctl): cuffie $1
+pcm.!default {
+    type plug
+    slave.pcm {
+        type softvol
+        slave.pcm "bluealsa:DEV=$1,PROFILE=a2dp"
+        control {
+            name "Bluetooth Volume"
+            card audiocodec
+        }
+        min_dB -51.0
+        max_dB 0.0
+        resolution 256
+    }
+}
+CONF
+        } > "$ASOUND.part" && mv -f "$ASOUND.part" "$ASOUND" && echo "$1" > "$AUDIO_FLAG"
+        log "audio verso le cuffie $1"
+    else
+        [ -f "$AUDIO_FLAG" ] || return 0
+        cp -f "$ASOUND_BASE" "$ASOUND.part" && mv -f "$ASOUND.part" "$ASOUND"
+        rm -f "$AUDIO_FLAG"
+        log "audio di nuovo all'altoparlante"
+    fi
+}
+
+# cuffie o casse abbinate e collegate in questo momento (la prima), vuoto se nessuna
+connected_audio() {
+    timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' '$2 == "audio" && $4 == 1 { print $1; exit }'
+}
+
 daemons_on() {
     [ -e /var/run ] || ln -s /run /var/run 2> /dev/null
     mkdir -p "$STORE" /run/dbus /run/bluetooth
@@ -202,10 +250,13 @@ on)
     logs "Bluetooth acceso"
     flock -u 9
     [ -s "$LAST" ] && { sh "$0" reconnect > /dev/null 2>&1 9>&- & }
+    pid_alive watch || { sh "$0" watch > /dev/null 2>&1 9>&- & echo $! > "$RUN/watch.pid"; }
     exit 0
     ;;
 off)
     lock off
+    pid_stop watch
+    route
     save
     timeout 5 bluetoothctl power off > /dev/null 2>&1
     pid_stop bluealsa; pid_stop bluetoothd; pid_stop dbus
@@ -242,6 +293,7 @@ connect)
     if echo "$out" | grep -q 'Connection successful'; then
         mkdir -p "$DIR"; echo "$2" > "$LAST"; echo "$2" > "$RUN/collegato"
         logs "collegato $2"
+        a=$(connected_audio); [ -n "$a" ] && route "$a"
     else
         logs "collegamento con $2 non riuscito: $(echo "$out" | tail -n 1)"; echo "non riuscito" >&2; exit 1
     fi
@@ -250,6 +302,7 @@ disconnect)
     valid "$2"; bt_on || exit 0
     timeout 10 bluetoothctl disconnect "$2" > /dev/null 2>&1
     rm -f "$RUN/collegato"
+    route "$(connected_audio)"
     log "scollegato $2"
     ;;
 forget)
@@ -257,6 +310,7 @@ forget)
     timeout 10 bluetoothctl remove "$2" > /dev/null 2>&1
     [ "$(cat "$LAST" 2> /dev/null)" = "$2" ] && rm -f "$LAST"
     [ "$(cat "$RUN/collegato" 2> /dev/null)" = "$2" ] && rm -f "$RUN/collegato"
+    route "$(connected_audio)"
     lock forget; save
     logs "dimenticato $2"
     ;;
@@ -264,24 +318,32 @@ reconnect)
     a=$(cat "$LAST" 2> /dev/null); [ -n "$a" ] || exit 0
     for t in 1 2 3 4 5 6; do
         bt_on || exit 1
-        timeout 5 bluetoothctl info "$a" 2> /dev/null | grep -q 'Connected: yes' && { echo "$a" > "$RUN/collegato"; exit 0; }
-        timeout 15 bluetoothctl connect "$a" 2>&1 | grep -q 'Connection successful' && { echo "$a" > "$RUN/collegato"; logs "ricollegato $a"; exit 0; }
+        timeout 5 bluetoothctl info "$a" 2> /dev/null | grep -q 'Connected: yes' && { echo "$a" > "$RUN/collegato"; route "$(connected_audio)"; exit 0; }
+        timeout 15 bluetoothctl connect "$a" 2>&1 | grep -q 'Connection successful' && { echo "$a" > "$RUN/collegato"; logs "ricollegato $a"; route "$(connected_audio)"; exit 0; }
         sleep ${BT_RECONNECT_WAIT:-5}
     done
     log "ricollegamento a $a non riuscito"
     exit 1
+    ;;
+watch)
+    # le cuffie possono spegnersi o ricollegarsi da sole: l'audio le segue
+    while bt_on; do
+        route "$(connected_audio)"
+        sleep ${BT_WATCH_EVERY:-4}
+    done
+    route
     ;;
 status)
     bt_on || { echo spento; exit 0; }
     echo acceso
     c=$(connected_line)
     if [ -n "$c" ]; then
-        echo "$c" | awk -F'\t' '{ print "collegato " $1 " " $5 }'
+        echo "$c" | awk -F'\t' '{ print "collegato " $1 " " $2 " " $5 }'
         echo "$c" | cut -f1 > "$RUN/collegato"
     else
         rm -f "$RUN/collegato"
     fi
     ;;
 *)
-    echo "uso: bt-ctl on|off|scan [SECONDI]|devices|pair|connect|disconnect|forget INDIRIZZO|reconnect|status"; exit 2 ;;
+    echo "uso: bt-ctl on|off|scan [SECONDI]|devices|pair|connect|disconnect|forget INDIRIZZO|reconnect|status|watch"; exit 2 ;;
 esac
