@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.90
+it Bluetooth: spegnendolo mentre ricollega le cuffie, l'audio torna sempre all'altoparlante
+en Bluetooth: turning it off while it reconnects the headphones always brings the sound back to the speaker
+it Video 1.5 nello Store: sottotitoli .srt giusti anche con gli a capo di Linux e Mac
+en Video 1.5 in the Store: .srt subtitles right also with Linux and Mac line endings
+
 0.9.89
 it Wi-Fi: si accende e si spegne anche con il Bluetooth acceso
 en Wi-Fi: turns on and off even with Bluetooth on
