@@ -7,7 +7,7 @@
 Usa ciò che ha prodotto m2/build-m2.sh: dist/arcade-system.squashfs, dist/arcade-version.txt e
 dist/SD/Arcade. Crea l'elenco dei file (update.txt), lo firma con la chiave privata
 (~/.config/arcade-update/update-key.pem) e resta in ascolto finché non si preme Ctrl-C.
-La console lo trova da sola con un messaggio broadcast (UDP 8766). Con --out scrive invece in
+Sulla console l'indirizzo va scritto in System/update-url.txt (http://IP-DEL-MAC:8765). Con --out scrive invece in
 una cartella update.txt, update.sig e file-0, file-1...: file statici da caricare su un server
 web o in una Release di GitHub (indirizzo da mettere nel file UPDATE_URL). Passano solo i file
 del sistema: niente ROM, salvataggi o impostazioni.
@@ -18,18 +18,16 @@ import http.server
 import os
 import re
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
-import threading
 
 ap = argparse.ArgumentParser()
 top = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ap.add_argument("--dist", default=os.path.join(top, "dist"))
 ap.add_argument("--key", default=os.path.expanduser("~/.config/arcade-update/update-key.pem"))
 ap.add_argument("--http-port", type=int, default=8765)
-ap.add_argument("--udp-port", type=int, default=8766)
+ap.add_argument("--udp-port", type=int, default=8766, help="ignorato: la console non cerca più il server in rete (AGG-09)")
 ap.add_argument("--out", help="cartella in cui preparare i file da pubblicare")
 ap.add_argument("--reinstall", type=int, help="soglia dell'invito a riscrivere la SD (altrimenti RISCRIVERE_SOTTO di m2/area-avvio.conf)")
 args = ap.parse_args()
@@ -157,21 +155,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass
 
 
-def udp_responder():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind(("", args.udp_port))
-    while True:
-        data, addr = s.recvfrom(64)
-        if data == b"ARCADE-UPDATE?":
-            s.sendto(f"ARCADE-UPDATE {args.http_port}".encode(), addr)
-            print("console trovata:", addr[0], flush=True)
-
-
-threading.Thread(target=udp_responder, daemon=True).start()
 total = sum(os.path.getsize(p) for _, p in files)
 print(f"Aggiornamento {version}: {len(files)} file, {total // (1 << 20)} MB.")
-print("Sulla console: Impostazioni > Strumenti > Aggiorna sistema. Ctrl-C per finire.", flush=True)
+print("Sulla console: System/update-url.txt con http://IP-DEL-MAC:%d, poi Impostazioni > Aggiornamenti. Ctrl-C per finire." % args.http_port, flush=True)
 try:
     http.server.ThreadingHTTPServer(("", args.http_port), Handler).serve_forever()
 except KeyboardInterrupt:

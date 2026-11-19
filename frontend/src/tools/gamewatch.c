@@ -94,6 +94,16 @@ static void set_key(int p, const char *v) {
 }
 static void set_pad(int p, const char *v) { pad_codes[p] = (int)strtol(v, NULL, 0); }
 
+#ifdef __linux__
+/* intero da un file di /sys, -1 se non si legge */
+static int sys_int(const char *path) {
+    FILE *f = fopen(path, "r");
+    int v = -1;
+    if (f) { if (fscanf(f, "%d", &v) != 1) v = -1; fclose(f); }
+    return v;
+}
+#endif
+
 static double now(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -422,6 +432,20 @@ int main(int argc, char **argv) {
             struct input_event skip;
             for (int j = 0; j < nfds; j++) while (fds[j].fd >= 0 && read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
             continue;
+        }
+        /* batteria scarica (audit 0.9.72, GIO-08): il runner salva la partita al 4%; qui non si
+           può, quindi al 3% senza caricatore si chiude il gioco in ordine (gli emulatori a sé
+           scrivono i salvataggi) e si spegne, prima che la console si spenga da sola */
+        static double batt_next;
+        if (standalone && now() >= batt_next) {
+            batt_next = now() + 15;
+            int pct = sys_int("/sys/class/power_supply/axp2202-battery/capacity");
+            if (pct >= 0 && pct <= 3 && sys_int("/sys/class/power_supply/axp2202-usb/online") != 1) {
+                fprintf(stderr, "gamewatch: batteria al %d%%, chiudo il gioco e spengo\n", pct);
+                stop_group(pid);
+                if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+                return 120;
+            }
         }
         if (power_at && now() - power_at >= 1.2) {
             fprintf(stderr, "gamewatch: tasto di accensione tenuto, chiudo il gioco e spengo\n");

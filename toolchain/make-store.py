@@ -21,6 +21,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 
 top = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +30,7 @@ ap.add_argument("--src", default=os.path.join(top, "dist", "store-src"))
 ap.add_argument("--out", default=os.path.join(top, "dist", "site", "store"))
 ap.add_argument("--key", default=os.path.expanduser("~/.config/arcade-update/update-key.pem"))
 ap.add_argument("--labels", help="file 'cartella_sorgente commit' (altrimenti dal volume Docker)")
+ap.add_argument("--built", type=int, help="data del catalogo in secondi (prove); di solito adesso")
 args = ap.parse_args()
 
 # pacchetto -> (nome, cartella dei sorgenti in /build/src per il commit, categoria dello Store:
@@ -188,7 +190,9 @@ if os.path.exists(_extra) and not os.environ.get("STORE_STATO"):
     stato.setdefault("experimental", []).extend(_x.get("experimental", []))
     stato.setdefault("min_system", {}).update(_x.get("min_system", {}))
     stato.setdefault("models", {}).update(_x.get("models", {}))
-catalog = {"format": 1, "packages": [], "packages2": []}
+# "built": quando è stato fatto il catalogo. La console rifiuta un catalogo firmato più vecchio di
+# quello che ha già (un mirror o un indirizzo di prova rimasto: audit 0.9.72, AGG-11)
+catalog = {"format": 1, "built": args.built if args.built is not None else int(time.time()), "packages": [], "packages2": []}
 for pid in sorted(os.listdir(args.src)):
     root = os.path.join(args.src, pid)
     theme = theme_info(root) if pid not in PACKAGES and os.path.isdir(root) else None

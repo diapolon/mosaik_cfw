@@ -178,6 +178,9 @@
     "nofav_text2": "Press Y to add it to your favorites.",
     "open_all": "Open All",
     "none_title": "No games",
+    "nores_title": "No results",
+    "nores_search": "No games for “%s”.",
+    "nores_filters": "No games with the chosen filters.",
     "autosave": "Autosave available"
   },
   "library": {

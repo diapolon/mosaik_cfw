@@ -178,6 +178,9 @@
     "nofav_text2": "Prime Y para o adicionar aos favoritos.",
     "open_all": "Abrir Todos",
     "none_title": "Nenhum jogo",
+    "nores_title": "Sem resultados",
+    "nores_search": "Nenhum jogo para «%s».",
+    "nores_filters": "Nenhum jogo com os filtros escolhidos.",
     "autosave": "Gravação automática disponível"
   },
   "library": {

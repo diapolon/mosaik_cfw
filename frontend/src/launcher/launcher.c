@@ -138,8 +138,11 @@ static bool is_gallery_layout(void) { return !strcmp(UI.th.layout, "galleria"); 
 static void gl_draw(void);
 static void gl_input(void);
 
+static bool carousel_stale;   /* preferiti cambiati con Y nella home: le carte si rifanno uscendo */
+static void build_carousel(void);
 static void go(int scr) {
     if (scr == screen) return;
+    if (screen == SCR_HOME && carousel_stale) { carousel_stale = false; build_carousel(); }
     back_screen = screen;
     screen = scr;
     screen_t0 = UI.t;
@@ -1087,14 +1090,22 @@ static bool game_autosave(int gi, time_t *when) {
     return has;
 }
 
-/* copertina, o il riquadro "Senza immagine" che tiene il posto */
+/* copertina, o il riquadro che tiene il posto: il nome del gioco e sotto "Senza immagine", così
+   due giochi senza immagine si distinguono (audit 0.9.72, LAU-08) */
 static void cover_box(const game_t *g, int x, int y, int w, int h, int r) {
     theme_t *t = &UI.th;
     if (media_image(g, t->cover_types, t->ncover)) { draw_cover(g, x, y, w, h, r); return; }
     ui_rrect(x, y, w, h, r, with_alpha(t->text, 28));
-    char fit[80];
-    ui_text_fit(UI.f_small, T("lib.no_image"), w - M(0.02f), fit, sizeof fit);
-    ui_text(UI.f_small, fit, x + w / 2, y + h / 2 - TTF_FontHeight(UI.f_small) / 2, t->text_dim, ALIGN_CENTER);
+    char fit[80], lines[3][160];
+    TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
+    int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), pad = M(0.015f);
+    int maxl = (h - 2 * pad - fsh) / fnh;
+    if (maxl > 3) maxl = 3;
+    int n = maxl > 0 ? ui_wrap(fn, g->title, w - 2 * pad, lines, maxl) : 0;
+    int ty = y + (h - n * fnh - fsh) / 2;
+    for (int k = 0; k < n; k++, ty += fnh) ui_text(fn, lines[k], x + w / 2, ty, t->text, ALIGN_CENTER);
+    ui_text_fit(fs, T("lib.no_image"), w - 2 * pad, fit, sizeof fit);
+    ui_text(fs, fit, x + w / 2, ty, t->text_dim, ALIGN_CENTER);
 }
 
 /* riquadro con la sola immagine; senza immagine, il nome del gioco al centro */
@@ -1192,12 +1203,16 @@ static void empty_panel(int x, int y, int w, int h, const char *title, const cha
 }
 
 /* che cosa fa A quando la categoria è vuota */
-enum { LE_NONE, LE_REFRESH, LE_OPEN_ALL, LE_STORE };
+enum { LE_NONE, LE_REFRESH, LE_OPEN_ALL, LE_STORE, LE_FILTERED };
+static void clear_filters(void);
+static bool filters_active(void) { return search[0] || genre_sel >= 0 || coll_sel != COLL_ALL || only_problems; }
 static int lib_empty_kind(void) {
     if (nview) return LE_NONE;
     /* scheda senza emulatori: copiare i giochi non basta, prima lo Store (audit 0.9.72, LAU-05) */
     if (!NEMUS) return LE_STORE;
     if (!have_games()) return LE_REFRESH;
+    /* vuota per una ricerca o un filtro rimasti attivi: lo si dice, A li toglie (audit 0.9.72, LAU-06) */
+    if (filters_active()) return LE_FILTERED;
     if (ntabs && tabs[tab_sel] == TAB_FAV) return LE_OPEN_ALL;
     return LE_NONE;
 }
@@ -1386,7 +1401,7 @@ static void title_list(int x, int y, int w, int h) {
         const game_t *g = &games[view[i]];
         ui_text_fit(fn, g->title, w - 2 * M(0.016f), fit, sizeof fit);
         ui_text(fn, fit, x + M(0.016f), yy + M(0.006f), t->text, ALIGN_LEFT);
-        const char *sub = media_image(g, t->cover_types, t->ncover) ? games_core_label(g->core) : T("lib.no_image");
+        const char *sub = games_core_label(g->core);   /* l'emulatore anche senza immagine (LAU-08) */
         ui_text_fit(fs, sub, w - 2 * M(0.016f), fit, sizeof fit);
         ui_text(fs, fit, x + M(0.016f), yy + M(0.006f) + fnh, t->text_dim, ALIGN_LEFT);
     }
@@ -1798,7 +1813,9 @@ static void home_input(void) {
         games_toggle_fav(UI.root, &games[g]);
         ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
         build_tabs();
-        build_carousel();
+        /* la carta resta al suo posto finché si è nella home: un secondo Y la rimette com'era,
+           invece di agire sul gioco scivolato lì (audit 0.9.72, LAU-09) */
+        carousel_stale = true;
         ui_sound(SND_OK);
     }
     if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
@@ -3094,7 +3111,9 @@ static void vt_input(void) {
         games_toggle_fav(UI.root, &games[g]);
         ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
         build_tabs();
-        build_carousel();
+        /* la carta resta al suo posto finché si è nella home: un secondo Y la rimette com'era,
+           invece di agire sul gioco scivolato lì (audit 0.9.72, LAU-09) */
+        carousel_stale = true;
         ui_sound(SND_OK);
     }
     if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
@@ -3561,6 +3580,11 @@ static void library_draw(void) {
         if (empty == LE_STORE) empty_panel(mx, y, W, area_h, T("store.ask_title"), T("store.ask_body"), NULL, T("store.open"));
         else if (empty == LE_REFRESH) empty_panel(mx, y, W, area_h, T("lib.empty_title"), T("lib.empty_text"), T("lib.empty_text2"), T("lib.refresh"));
         else if (empty == LE_OPEN_ALL) empty_panel(mx, y, W, area_h, T("lib.nofav_title"), T("lib.nofav_text"), T("lib.nofav_text2"), T("lib.open_all"));
+        else if (empty == LE_FILTERED) {
+            char what[120] = "";
+            if (search[0]) snprintf(what, sizeof what, T("lib.nores_search"), search);
+            empty_panel(mx, y, W, area_h, T("lib.nores_title"), what[0] ? what : T("lib.nores_filters"), NULL, T("filters.clear"));
+        }
         else empty_panel(mx, y, W, area_h, T("lib.none_title"), T("library.empty"), NULL, NULL);
     } else if (style == LS_CARDS) {
         card_grid(y, area_h);
@@ -3610,6 +3634,7 @@ static void library_input(void) {
     }
     if (in->pressed[BTN_A] && empty == LE_OPEN_ALL) { tab_sel = 0; lib_sel = 0; build_view(); ui_sound(SND_OK); return; }
     if (in->pressed[BTN_A] && empty == LE_STORE) { sto_start(); ui_sound(SND_OK); return; }
+    if (in->pressed[BTN_A] && empty == LE_FILTERED) { clear_filters(); ui_sound(SND_OK); return; }
     lib_common_input(lib_style() == LS_CARDS ? GRID_COLS : 1);
 }
 
@@ -8790,6 +8815,16 @@ static void filters_changed(void) {
     build_view();
 }
 
+/* Azzera i filtri: dal pannello dei filtri o con A sulla libreria vuota per un filtro */
+static void clear_filters(void) {
+    search[0] = 0;
+    genre_sel = -1;
+    coll_sel = COLL_ALL;
+    only_problems = false;
+    build_tabs();
+    filters_changed();
+}
+
 /* Gioco a caso, prima voce della lista: fra quelli mostrati (piattaforma, collezione, filtri),
    solo quelli con la ROM; si apre la sua scheda, da cui si avvia o si torna indietro */
 static void random_game(void) {
@@ -8842,12 +8877,7 @@ static void fpanel_input(void) {
     }
     if (in->pressed[BTN_A] && fpanel_sel == FP_SEARCH) { kb_open = true; kb_mode = KBM_SEARCH; kb_row = 1; kb_col = 0; ui_sound(SND_OK); }
     if (in->pressed[BTN_A] && fpanel_sel == FP_CLEAR) {
-        search[0] = 0;
-        genre_sel = -1;
-        coll_sel = COLL_ALL;
-        only_problems = false;
-        build_tabs();
-        filters_changed();
+        clear_filters();
         ui_sound(SND_OK);
     }
     if (in->pressed[BTN_B] || in->pressed[BTN_SELECT]) { fpanel_open = false; ui_sound(SND_BACK); }

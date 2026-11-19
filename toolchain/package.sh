@@ -40,6 +40,12 @@ pkg() {   # pkg PACCHETTO FILE_DEL_CORE NOME_SULLA_SCHEDA EMULATORE...
         cp "$FE/emulators/$e.json" "$PKG/$id/Emulators/"
         # indice arcade fatto dai DAT (build_index.py: <id>.tsv con accanto <id>.roms)
         if [ -f "$FE/sdcard/Dats/$e.roms" ]; then
+            # la SD simulata del Mac serve anche alle prove: l'indice va solo se è intero, cioè
+            # .tsv e .roms con un gioco per riga e lo stesso numero di righe (audit 0.9.72, AGG-09)
+            nr=$(wc -l < "$FE/sdcard/Dats/$e.roms"); nt=$(wc -l < "$FE/sdcard/Dats/$e.tsv" 2>/dev/null || echo 0)
+            if [ "$nr" -lt 100 ] || [ "$nr" != "$nt" ]; then
+                echo "errore: indice $e incoerente ($nt titoli, $nr elenchi di file): rifallo con frontend/tools/build_index.py" >&2; exit 1
+            fi
             mkdir -p "$PKG/$id/Dats"
             cp -L "$FE/sdcard/Dats/$e.roms" "$FE/sdcard/Dats/$e.tsv" "$PKG/$id/Dats/"
         fi
@@ -287,7 +293,9 @@ fi
 mkdir -p "$DATA/Themes"
 cp -RL "$FE/sdcard/Themes/_shared" "$DATA/Themes/"
 cp -R "$FE/themes/." "$DATA/Themes/"
-cp -RL "$FE/sdcard/Bezels" "$DATA/"
+# le cornici predefinite dal repository, non dalla SD simulata del Mac (AGG-09)
+mkdir -p "$DATA/Bezels"
+cp "$FE/bezels/"*.png "$DATA/Bezels/"
 # i filtri dal repository, non dalla SD simulata del Mac: lì possono esserci anche quelli dello Store
 mkdir -p "$DATA/Filters"
 cp -R "$FE/filters/." "$DATA/Filters/"

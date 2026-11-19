@@ -109,4 +109,23 @@ echo "--- nessun giornale"
 card installato "1.0 B"; rm $J; run "1.0 A"
 [ "$(cat $ROOT/Cores/a.so)" = nuovo ] && [ -f $ROOT/Cores/a.so.annulla ] && ok "niente da fare" || ko "toccato senza giornale"
 
+echo "--- aggiornamento dei soli dati (AGG-05): tre prove fallite, il sistema non cambia"
+card installato "1.0 B"; echo 3 > $PENDING; rm -f $SYSF.nuovo; echo vecchio > $SYSF.prec-dati
+(
+    RUNVER="1.0 B"; LOG=/tmp/j/log
+    step() { echo "$*" >> $LOG; }
+    halt_with() { echo "fermo: $*" >> $LOG; exit 0; }
+    finish() { echo "finish $*" >> $LOG; exit 0; }
+    sync() { :; }
+    . /tmp/giornale.sh
+    rollback
+    journal_check
+)
+restored && [ "$(cat $SYSF)" = sistema ] && [ "$(cat $SYSF.prec)" = vecchio ] && [ ! -e $SYSF.prec-dati ] && [ ! -e $PENDING ] && ! grep -q finish /tmp/j/log \
+    && ok "file di prima rimessi, sistema in uso tenuto, precedente rimesso al suo posto" || ko "soli dati: $(ls $ROOT/System) $(cat /tmp/j/log)"
+rm -f /tmp/j/log
+echo "--- aggiornamento dei soli dati confermato"
+card installato "1.0 B"; rm -f $SYSF.nuovo; echo vecchio > $SYSF.prec-dati; run "1.0 B"
+[ "$(cat $SYSF.prec)" = vecchio ] && [ ! -e $SYSF.prec-dati ] && [ ! -e $J ] && ok "conferma: precedente rimesso" || ko "conferma soli dati: $(ls $ROOT/System)"
+
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors errori"; exit 1; }

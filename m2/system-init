@@ -544,6 +544,14 @@ journal_restore() {
 }
 # file della versione precedente non rimessi (scheda in errore): niente launcher con file di due
 # versioni; il giornale e le copie restano e alla riaccensione si riprova (verifica audit, FIX-R03)
+# aggiornamento dei soli dati (audit 0.9.72, AGG-05): il launcher mette da parte il sistema
+# precedente come .prec-dati, così l'initramfs non può tornare a un sistema più vecchio con i dati
+# della versione in uso; finito l'aggiornamento (confermato o disfatto) torna .prec
+prec_back() {
+    [ -f "$SYSF.prec-dati" ] || return 0
+    if [ -f "$SYSF.prec" ]; then rm -f "$SYSF.prec-dati"; else mv -f "$SYSF.prec-dati" "$SYSF.prec"; fi
+    sync
+}
 journal_stuck() {
     halt_with "AGGIORNAMENTO DA RIPRISTINARE" "RIACCENDI: SI RIPROVA"
 }
@@ -551,6 +559,7 @@ journal_finish() {   # sistema nuovo confermato, corrente saltata prima di togli
     journal_paths | while IFS= read -r rel; do rm -f "$ROOT/$rel.annulla"; done
     rm -f "$JOURNAL"
     sync
+    prec_back
 }
 journal_check() {
     [ -f "$JOURNAL" ] || return 0
@@ -560,9 +569,11 @@ journal_check() {
         step "aggiornamento interrotto durante l'installazione"
         journal_restore || journal_stuck
         [ -f "$PENDING" ] && rollback   # il sistema nuovo era già al suo posto: si riparte dal precedente
+        prec_back
         if [ ! -f "$SYSF" ] && [ -f "$SYSF.prec" ]; then mv -f "$SYSF.prec" "$SYSF"; sync; fi
     elif [ "$jver" != "$RUNVER" ]; then
         journal_restore || journal_stuck   # l'avvio è tornato al sistema precedente
+        prec_back
     elif [ ! -f "$PENDING" ]; then
         journal_finish
     fi
@@ -572,8 +583,9 @@ journal_check() {
 # journal_finish cancellerebbe le copie di un ripristino non riuscito (verifica audit V26-01)
 rollback() {
     journal_restore || journal_stuck
-    # aggiornamento senza sistema nuovo: bastano i file di prima, nessun riavvio
-    if [ ! -f "$SYSF.prec" ]; then rm -f "$PENDING"; sync; return 1; fi
+    # aggiornamento senza sistema nuovo: bastano i file di prima, nessun riavvio (il .prec messo da
+    # parte dal launcher torna al suo posto, il sistema in uso non si cambia)
+    if [ -f "$SYSF.prec-dati" ] || [ ! -f "$SYSF.prec" ]; then rm -f "$PENDING"; prec_back; sync; return 1; fi
     step "aggiornamento non riuscito: torno al sistema precedente"
     # il sistema può mancare se la corrente è saltata durante lo scambio dei file
     if { [ ! -f "$SYSF" ] || mv -f "$SYSF" "$SYSF.guasto"; } && mv -f "$SYSF.prec" "$SYSF"; then

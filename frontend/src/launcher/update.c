@@ -108,6 +108,16 @@ static void drop_broken_system(const char *root) {
     if (unlink(g) == 0) ui_log("aggiornamento: tolto il sistema che non partiva (.guasto)");
 }
 
+/* il sistema precedente messo da parte da un aggiornamento dei soli dati torna .prec (AGG-05) */
+static void prec_back(const char *root) {
+    char prev[1100], aside[1100];
+    snprintf(prev, sizeof prev, "%s/System/arcade-system.squashfs.prec", root);
+    snprintf(aside, sizeof aside, "%s/System/arcade-system.squashfs.prec-dati", root);
+    if (access(aside, F_OK) != 0) return;
+    if (access(prev, F_OK) == 0) unlink(aside);
+    else if (rename(aside, prev) == 0) ui_log("aggiornamento: sistema precedente rimesso al suo posto");
+}
+
 void update_confirm_boot(const char *root) {
     char p[1100], j_path[1100];
     drop_broken_system(root);
@@ -135,10 +145,12 @@ void update_confirm_boot(const char *root) {
         }
         unlink(j_path);
         ui_log("aggiornamento: giornale chiuso, %d file nell'elenco, %d copie di sicurezza tolte", j.n, gone);
+        prec_back(root);
         sync();
         return;
     }
     if (unlink(p) == 0) ui_log("aggiornamento: il sistema nuovo funziona");
+    prec_back(root);
 }
 
 const char *update_current(void) {
@@ -822,6 +834,15 @@ static void *apply_worker(void *arg) {
     if (!sys && !write_pending(pend_all)) {
         ui_log("aggiornamento: impossibile scrivere update-pending");
         unlink(pend_all); rollback_apply(false, NULL, NULL); return NULL;
+    }
+    /* soli dati (audit 0.9.72, AGG-05): il sistema precedente va da parte come .prec-dati, così
+       alla terza prova fallita l'initramfs non torna a un sistema più vecchio di quello in uso con i
+       dati di questa versione; system-init o la conferma lo rimettono. Solo girando sul principale */
+    if (!sys && running_system() == RUN_MAIN) {
+        char prev[1100], aside[1100];
+        snprintf(prev, sizeof prev, "%s/%s.prec", root_dir, SYSFILE);
+        snprintf(aside, sizeof aside, "%s/%s.prec-dati", root_dir, SYSFILE);
+        if (access(prev, F_OK) == 0 && rename(prev, aside) == 0) ui_log("aggiornamento dei soli dati: sistema precedente messo da parte");
     }
     if (sys) {
         char prev[1100], pend[1100];

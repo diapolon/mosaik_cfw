@@ -570,6 +570,27 @@ static void prune_cache(void) {
     }
 }
 
+/* data del catalogo ("built", secondi; 0 per i cataloghi fatti prima del 19 novembre) */
+static double catalog_built(const char *text) {
+    jval *j = text ? json_parse(text) : NULL;
+    double b = j ? json_num(j, "built", 0) : 0;
+    json_free(j);
+    return b;
+}
+
+/* catalogo firmato ma più vecchio di quello sulla scheda: un mirror o un indirizzo di prova rimasto
+   farebbero "aggiornare" a pacchetti più vecchi, anche se autentici (audit 0.9.72, AGG-11) */
+static bool catalog_older(const char *text) {
+    char p[1200];
+    snprintf(p, sizeof p, "%s/System/store.json", root_dir);
+    size_t kl = 0;
+    char *kept = read_file(p, 1 << 20, &kl);
+    double was = catalog_built(kept), now_b = catalog_built(text);
+    free(kept);
+    if (now_b < was) { ui_log("store: catalogo del %.0f più vecchio di quello sulla scheda (%.0f): tengo questo", now_b, was); return true; }
+    return false;
+}
+
 static void *fetch_worker(void *arg) {
     (void)arg;
     mem_t t = { malloc(1 << 20), 0, 1 << 20 }, s = { malloc(512), 0, 512 };
@@ -585,6 +606,7 @@ static void *fetch_worker(void *arg) {
     int n = 0;
     if (!got) { st.error = SE_NETWORK; ui_log("store: catalogo non scaricato"); }
     else if (!signature_ok(t.buf, t.len, (unsigned char *)s.buf, s.len)) { st.error = SE_SIGNATURE; got = false; ui_log("store: firma del catalogo non valida"); }
+    else if (catalog_older(t.buf)) { st.error = SE_CATALOG; got = false; }
     else if (!parse_catalog(t.buf, &e, &n)) { st.error = SE_CATALOG; got = false; ui_log("store: catalogo non valido"); }
     if (got) {
         set_catalog(e, n);

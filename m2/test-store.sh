@@ -126,7 +126,7 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
         echo tv > pkgsrc/cornici-tv/Bezels/nes/_mosaik.png
     fi
     printf 'fbneo d15071a\nmgba 7a12d6d\n' > labels.txt
-    rm -rf www; python3 /trimui/toolchain/make-store.py --src pkgsrc --out www --key ${2:-key.pem} --labels labels.txt > /dev/null
+    rm -rf www; python3 /trimui/toolchain/make-store.py --src pkgsrc --out www --key ${2:-key.pem} --labels labels.txt ${BUILT:+--built $BUILT} > /dev/null
 }
 mk 1
 cd www; python3 -m http.server 8099 --bind 127.0.0.1 >/dev/null 2>&1 & SRV=$!; cd ..
@@ -269,6 +269,9 @@ check "cache: tolti .part e immagini che il catalogo non ha" "no no" "$([ -e sd/
 # catalogo firmato con un'altra chiave: si resta con quello sulla scheda
 mk 2 altra.pem
 check "firma sbagliata: errore, catalogo di prima" "2 2 3 files:0 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
+# catalogo firmato ma più vecchio di quello sulla scheda (un mirror, un indirizzo di prova): rifiutato (AGG-11)
+BUILT=1000 mk 2
+check "catalogo più vecchio: errore, catalogo di prima" "2 3 3 files:0 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
 # catalogo e firma in un file solo (store.cat): la console legge quello, e una firma separata
 # vecchia o rovinata accanto non conta (13 nov: GitHub li ha serviti spaiati per due minuti)
 mk 2
