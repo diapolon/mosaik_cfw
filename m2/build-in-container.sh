@@ -138,6 +138,19 @@ models | while IFS="|" read -r id fw name file; do
     cp $F/usr/bin/bluetoothd $F/usr/bin/bluetoothctl $F/usr/bin/bluealsa $F/usr/sbin/dbus-daemon $L/bin/
     mkdir -p $L/alsa-lib
     cp $F/usr/lib/alsa-lib/libasound_module_pcm_bluealsa.so $F/usr/lib/alsa-lib/libasound_module_ctl_bluealsa.so $L/alsa-lib/
+    # i programmi e le librerie del Bluetooth nel firmware hanno ancora i simboli di debug (libgio
+    # 10 MB, 1,6 senza): via, come fa strip --strip-unneeded (restano i simboli dinamici che servono
+    # a caricarli). Le copie in usr/bin e bin si tolgono uguali, così lo squashfs le tiene una volta.
+    for f in $L/bin/bluetoothd $L/bin/bluetoothctl $L/bin/bluealsa $L/bin/dbus-daemon $L/bin/btmon $L/bin/btmgmt \
+             $L/bin/hciattach $L/bin/hciconfig $L/bin/hcitool $L/usr/bin/bluetoothd $L/usr/bin/bluetoothctl $L/usr/bin/bluealsa \
+             $L/usr/sbin/dbus-daemon $L/usr/bin/btmon $L/usr/bin/btmgmt $L/usr/bin/hciattach $L/usr/bin/hciconfig $L/usr/bin/hcitool \
+             $L/alsa-lib/*.so $L/usr/lib/alsa-lib/*bluealsa*.so; do
+        [ -f "$f" ] && [ ! -L "$f" ] && strip --strip-unneeded "$f"
+    done
+    for n in libbluetooth libdbus-1 libexpat libffi libgio-2.0 libglib-2.0 libgmodule-2.0 libgobject-2.0 libgthread-2.0 \
+             libiconv libintl libncurses libpcre libreadline libsbc; do
+        for f in $L/usr/lib/$n.so*; do [ -f "$f" ] && [ ! -L "$f" ] && strip --strip-unneeded "$f"; done
+    done
     # moduli del kernel: GPU e Wi-Fi (compilati per il kernel di ogni modello)
     cp $F/lib/modules/4.9.191/pvrsrvkm.ko $F/lib/modules/4.9.191/dc_sunxi.ko $F/lib/modules/4.9.191/xradio_*.ko $L/modules/
     # Brick Pro: lo stesso driver Wi-Fi compilato per i kernel di Brick e Smart Pro, per la prova
