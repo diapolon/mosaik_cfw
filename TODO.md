@@ -18,7 +18,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [ ] Memory and battery use over a long session, on both models
 
 **Wireless**
-- [ ] Bluetooth: first a test without user interface on both consoles (`m2/prova-bt`, `System/prova-bt.txt`, ready 19 Nov), then game controllers, later headphones. Stock firmware 1.1.0/1.1.1 broke Bluetooth on the Smart Pro (trimui/firmware_smartpro#50, #70): the test tells whether the chip answers with its tools
+- [ ] Bluetooth (0.9.83 on the Development channel, tried on the Brick Pro): service `m2/bt-ctl` (fixed address from the SoC serial, pairings in `System/bluetooth/abbinamenti.tar`, reconnect, audio to bluealsa through `/run/asound.conf`), Settings and quick panel. Still to do: try it on the Smart Pro (stock firmware 1.1.x broke Bluetooth there, trimui/firmware_smartpro#50, #70); audio in games and over long sessions; switch output also in the Music player, Video, Linux games and standalone emulators; shrink the system (+12 MB: glib/gio, D-Bus); controllers with someone who has one
 - [ ] Check `mosaik.local` on the Smart Pro, a fixed Wi-Fi address across power-ons, and WPA3-only networks
 
 **Transfer files** (code review of 0.9.72, RETE-06; proposal)

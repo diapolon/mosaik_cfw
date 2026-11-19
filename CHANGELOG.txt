@@ -4,8 +4,14 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.83
-it Prova del Bluetooth: indirizzo fisso e prova delle cuffie (abbinamento e suono)
-en Bluetooth test: fixed address and headphones test (pairing and sound)
+it Bluetooth (sperimentale): Impostazioni → Sistema, abbina e collega cuffie e casse
+en Bluetooth (experimental): Settings → System, pair and connect headphones and speakers
+it Con le cuffie collegate il suono va a loro, con la loro icona in alto
+en With headphones connected the sound goes to them, with their icon at the top
+it Le cuffie si ricollegano da sole all'accensione e dopo la sospensione
+en Headphones reconnect by themselves at power-on and after sleep
+it Pannello rapido con la casella Bluetooth
+en Quick panel with a Bluetooth tile
 
 0.9.82
 it Prova del Bluetooth: nuova ricerca dei dispositivi e indirizzo fisso
