@@ -49,7 +49,7 @@ $(BUILD)/viewer: $(COMMON) $(APPKIT) src/apps/viewer.c src/launcher/zipread.c sr
 $(BUILD)/music: $(COMMON) $(APPKIT) src/apps/music.c src/apps/appkit.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(COMMON) $(APPKIT) src/apps/music.c $(LDLIBS) $(shell pkg-config --libs SDL2_mixer)
 
-$(BUILD)/video: $(COMMON) $(APPKIT) src/apps/video.c src/apps/appkit.h src/common/*.h | $(BUILD)
+$(BUILD)/video: $(COMMON) $(APPKIT) src/apps/video.c src/apps/srt.h src/apps/appkit.h src/common/*.h | $(BUILD)
 	$(CC) $(CFLAGS) $(shell pkg-config --cflags $(FFMPEG_PKGS)) -o $@ $(COMMON) $(APPKIT) src/apps/video.c $(LDLIBS) $(shell pkg-config --libs $(FFMPEG_PKGS))
 
 # Diagnostica (scarica 4 MB per la prova del Wi-Fi: libcurl)

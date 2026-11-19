@@ -649,7 +649,7 @@ static int io_interrupt(void *u) {
 
 static double clock_now(void);
 /* ------------------------------------------------------------ sottotitoli (.srt) */
-typedef struct { double a, b; char *text; } sub_t;
+#include "srt.h"   /* lettura del file: provata da m2/test-srt.sh */
 static sub_t *subs;
 static int nsubs, sub_last;
 static bool subs_on = true;
@@ -659,45 +659,6 @@ static void subs_free(void) {
     free(subs);
     subs = NULL;
     nsubs = sub_last = 0;
-}
-
-static bool srt_time(const char *s, double *t) {   /* 00:01:02,345 (anche con il punto) */
-    int h, m, sec, ms;
-    if (sscanf(s, "%d:%d:%d%*[,.]%d", &h, &m, &sec, &ms) != 4) return false;
-    *t = h * 3600.0 + m * 60.0 + sec + ms / 1000.0;
-    return true;
-}
-
-static bool utf8_ok(const unsigned char *p) {
-    while (*p) {
-        int n = *p < 0x80 ? 0 : (*p & 0xE0) == 0xC0 ? 1 : (*p & 0xF0) == 0xE0 ? 2 : (*p & 0xF8) == 0xF0 ? 3 : -1;
-        if (n < 0) return false;
-        p++;
-        while (n--) { if ((*p & 0xC0) != 0x80) return false; p++; }
-    }
-    return true;
-}
-
-/* testo di una battuta: senza i tag (<i>, {\an8}), Latin-1 portato in UTF-8, righe unite con \n */
-static char *sub_clean(const char *in, bool latin1) {
-    size_t n = strlen(in);
-    char *out = malloc(n * 2 + 1), *o = out;
-    if (!out) return NULL;
-    for (const unsigned char *p = (const unsigned char *)in; *p; p++) {
-        if (*p == '<') { const char *e = strchr((const char *)p, '>'); if (e) { p = (const unsigned char *)e; continue; } }
-        if (*p == '{' && p[1] == '\\') { const char *e = strchr((const char *)p, '}'); if (e) { p = (const unsigned char *)e; continue; } }
-        if (*p == '\r') continue;
-        if (latin1 && *p >= 0x80) { *o++ = (char)(0xC0 | (*p >> 6)); *o++ = (char)(0x80 | (*p & 0x3F)); }
-        else *o++ = (char)*p;
-    }
-    while (o > out && (o[-1] == '\n' || o[-1] == ' ')) o--;
-    *o = 0;
-    return out;
-}
-
-static int sub_cmp(const void *x, const void *y) {
-    double a = ((const sub_t *)x)->a, b = ((const sub_t *)y)->a;
-    return a < b ? -1 : a > b;
 }
 
 static void subs_load(int i) {
@@ -717,42 +678,9 @@ static void subs_load(int i) {
     fclose(f);
     if (!buf) return;
     buf[len] = 0;
-    char *s = buf;
-    if ((unsigned char)s[0] == 0xEF && (unsigned char)s[1] == 0xBB && (unsigned char)s[2] == 0xBF) s += 3;   /* BOM */
-    bool latin1 = !utf8_ok((const unsigned char *)s);
-    int cap = 0;
-    char *line = s;
-    while (line && *line) {
-        /* un blocco: numero (facoltativo), "inizio --> fine", righe di testo, riga vuota */
-        char *next = strchr(line, '\n');
-        if (next) *next++ = 0;
-        char *arrow = strstr(line, "-->");
-        double a, b;
-        if (!arrow || !srt_time(line, &a) || !srt_time(arrow + 3 + strspn(arrow + 3, " "), &b)) { line = next; continue; }
-        char text[600] = "";
-        size_t tl = 0;
-        line = next;
-        while (line && *line && *line != '\r') {
-            next = strchr(line, '\n');
-            if (next) *next++ = 0;
-            if (tl < sizeof text - 2) tl += (size_t)snprintf(text + tl, sizeof text - tl, "%s%s", tl ? "\n" : "", line);
-            line = next;
-        }
-        if (tl >= sizeof text) tl = sizeof text - 1;
-        if (nsubs == cap) {
-            int nc = cap ? cap * 2 : 512;
-            if (nc > 20000) break;
-            sub_t *ns = realloc(subs, (size_t)nc * sizeof *ns);
-            if (!ns) break;
-            subs = ns;
-            cap = nc;
-        }
-        char *clean = sub_clean(text, latin1);
-        if (!clean || !clean[0]) { free(clean); continue; }
-        subs[nsubs++] = (sub_t){ a, b, clean };
-    }
+    bool latin1 = false;
+    nsubs = srt_parse(buf, &subs, &latin1);
     free(buf);
-    if (nsubs > 1) qsort(subs, (size_t)nsubs, sizeof *subs, sub_cmp);
     ui_log("video: %d sottotitoli da %s%s", nsubs, strrchr(p, '/') ? strrchr(p, '/') + 1 : p, latin1 ? " (Latin-1)" : "");
 }
 

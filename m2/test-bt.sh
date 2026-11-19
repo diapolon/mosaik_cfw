@@ -52,7 +52,7 @@ pgrep -f "sleep 600" > /dev/null || { echo "Waiting to connect to bluetoothd..."
 line() { grep "^$1|" $F/known 2>/dev/null | head -n 1; }
 case "$1" in
 show) echo "Controller $(cat $F/addr 2>/dev/null) (public)" ;;
-power) echo "Changing power $2 succeeded" ;;
+power) [ "$2" = off ] && [ -f $F/poweroff_slow ] && sleep $(cat $F/poweroff_slow); echo "Changing power $2 succeeded" ;;
 scan) cat $F/near >> $F/known 2>/dev/null; sort -u -o $F/known $F/known ;;
 devices) cut -d'|' -f1,2 $F/known 2>/dev/null | while IFS='|' read -r a n; do echo "Device $a ${n:-$(echo $a | tr : -)}"; done ;;
 paired-devices) cat $F/paired 2>/dev/null | while read -r a; do echo "Device $a $(line $a | cut -d'|' -f2)"; done ;;
@@ -74,6 +74,7 @@ pair)
 trust) echo "Changing $2 trust succeeded" ;;
 connect)
     [ -f $F/connect_fail ] && { echo "Failed to connect: org.bluez.Error.Failed"; exit 1; }
+    [ -f $F/connect_slow ] && sleep $(cat $F/connect_slow)   # cuffie che rispondono dopo un po'
     grep -qx "$2" $F/paired 2>/dev/null || { echo "Failed to connect"; exit 1; }
     echo "$2" > $F/connected; echo "Connection successful" ;;
 disconnect) rm -f $F/connected; echo "Successful disconnected" ;;
@@ -85,7 +86,7 @@ X
 chmod +x $BIN/*
 
 reset() {
-    pkill -f "bt-ctl watch" 2>/dev/null
+    pkill -f "bt-ctl watch" 2>/dev/null; pkill -f "bt-ctl reconnect" 2>/dev/null
     pkill -f "sleep 600" 2>/dev/null; pkill -f "sleep 300" 2>/dev/null; pkill -f system_bus_socket 2>/dev/null
     sleep 0.3
     rm -rf /tmp/sd /tmp/sys /tmp/store /tmp/runbt $F /run/dbus /tmp/bt.lock /tmp/bt-audio
@@ -163,6 +164,8 @@ for i in $(seq 30); do [ -f /tmp/runbt/collegato ] && break; sleep 0.2; done
 check "ricollegato da solo all'ultimo dispositivo" '[ "$(cat /tmp/runbt/collegato 2>/dev/null)" = 02:00:00:00:00:01 ]'
 for i in $(seq 20); do [ -f /tmp/bt-audio ] && break; sleep 0.2; done
 check "dopo il ricollegamento l'audio torna alle cuffie" 'grep -q "bluealsa:DEV=02:00:00:00:00:01" $BT_ASOUND'
+for i in $(seq 10); do [ -f /tmp/runbt/reconnect.pid ] || break; sleep 0.2; done
+check "ricollegamento finito: niente PID rimasto" '[ ! -f /tmp/runbt/reconnect.pid ]'
 rm -f $F/connected   # le cuffie si spengono da sole
 for i in $(seq 30); do [ -f /tmp/bt-audio ] || break; sleep 0.2; done
 check "cuffie spente: audio all'altoparlante da solo" 'cmp -s $BT_ASOUND $BT_ASOUND_BASE && [ ! -f /tmp/bt-audio ]'
@@ -220,6 +223,22 @@ echo "x" > $ROOT/System/bluetooth/indirizzo.txt
 reboot; $CTL on
 check "indirizzo rovinato: ne fa uno nuovo valido" 'grep -q -E "^2C(:[0-9A-F]{2}){5}$" $ROOT/System/bluetooth/indirizzo.txt'
 $CTL off
+
+# audit 0.9.88, BT-02: spento mentre il ricollegamento automatico aspettava le cuffie, il
+# ricollegamento finiva dopo e rimandava l'audio a bluealsa ormai fermo: console muta
+echo "--- spento mentre ricollega le cuffie"
+bad=0
+for k in 1 2 3; do
+    reset
+    $CTL on; $CTL scan 1 > /dev/null; $CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+    $CTL disconnect 02:00:00:00:00:01 > /dev/null; $CTL off
+    echo 1.5 > $F/connect_slow; echo 1 > $F/poweroff_slow
+    $CTL on                       # ultimo.txt c'è: ricollegamento in sottofondo
+    sleep 1.2; $CTL off; sleep 3
+    { [ -f /tmp/bt-audio ] || grep -q bluealsa $BT_ASOUND; } && bad=$((bad + 1))
+done
+check "spento durante il ricollegamento: audio all'altoparlante (3 volte su 3)" '[ $bad = 0 ]'
+check "spento durante il ricollegamento: stato spento" '[ "$($CTL status)" = spento ]'
 reset
 
 echo
