@@ -58,16 +58,16 @@
 
 ## What works
 
-Every build is tried by hand on real consoles before it is released. This is where things stand (stable 0.9.79, Development channel 0.9.83). In the Store, packages not tried yet carry the **Experimental** flask.
+Every build is tried by hand on real consoles before it is released. This is where things stand (stable 0.9.79, Development channel 0.9.87). In the Store, packages not tried yet carry the **Experimental** flask.
 
 **Tried on both consoles (Smart Pro and Brick Pro)**
 - **System**: start from the card in about 5 seconds, sleep and resume, signed Wi-Fi updates (all or nothing, with the way back), file transfer over Wi-Fi, backup and restore, Store, themes, bezels, filters, settings for a console or a single game, six languages.
 - **Arcade**: FinalBurn Neo and MAME 2003-Plus.
 - **Consoles**: Super Nintendo, Mega Drive and Nintendo 64 (with save states).
+- **Bluetooth headphones and speakers** (Development channel, from 0.9.83): pairing, sound and volume in the headphones, reconnection at power-on and after sleep.
 
 **Tried on one console only**
 - **Dreamcast with Deadcast**: Brick Pro (the Store does not offer it on the Smart Pro).
-- **Bluetooth headphones and speakers** (0.9.83, Development channel): Brick Pro. Still to try on the Smart Pro, where the stock firmware 1.1.x broke Bluetooth.
 - **SD card test**: Brick Pro.
 
 **Experimental: you can install them, they have not been tried yet**

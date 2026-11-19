@@ -58,16 +58,16 @@
 
 ## Cosa funziona
 
-Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stato attuale (stabile 0.9.79, canale Sviluppo 0.9.83). Nello Store i pacchetti non ancora provati hanno la fiaschetta **Sperimentale**.
+Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stato attuale (stabile 0.9.79, canale Sviluppo 0.9.87). Nello Store i pacchetti non ancora provati hanno la fiaschetta **Sperimentale**.
 
 **Provato su tutte e due le console (Smart Pro e Brick Pro)**
 - **Sistema**: avvio dalla scheda in circa 5 secondi, sospensione e ripresa, aggiornamenti firmati via Wi-Fi (tutto o niente, con il ritorno indietro), trasferimento file via Wi-Fi, backup e ripristino, Store, temi, cornici, filtri, impostazioni per una console o per un solo gioco, sei lingue.
 - **Arcade**: FinalBurn Neo e MAME 2003-Plus.
 - **Console**: Super Nintendo, Mega Drive e Nintendo 64 (con i salvataggi di stato).
+- **Cuffie e casse Bluetooth** (canale Sviluppo, dalla 0.9.83): abbinamento, suono e volume nelle cuffie, ricollegamento all'accensione e dopo la sospensione.
 
 **Provato su una console sola**
 - **Dreamcast con Deadcast**: Brick Pro (lo Store non lo propone sulla Smart Pro).
-- **Cuffie e casse Bluetooth** (0.9.83, canale Sviluppo): Brick Pro. Da provare sulla Smart Pro, dove il firmware originale 1.1.x ha rotto il Bluetooth.
 - **Test della SD**: Brick Pro.
 
 **Sperimentale: si possono installare, non sono ancora stati provati**
