@@ -175,7 +175,8 @@ app urlget
 if [ -f "$DIST/apps/video" ] && [ -d "$DIST/video/lib" ]; then
     app video
     cp -R "$DIST/video/lib" "$PKG/video/Apps/video/lib"
-    cp "$DIST/video/LICENSE-ffmpeg.txt" "$PKG/video/Apps/video/" 2>/dev/null || true
+    # la licenza LGPL deve accompagnare le librerie: senza, niente pacchetto (audit 0.9.72, LIC-05)
+    cp "$DIST/video/LICENSE-ffmpeg.txt" "$PKG/video/Apps/video/" || { echo "errore: manca LICENSE-ffmpeg.txt (toolchain/build-ffmpeg.sh)" >&2; exit 1; }
 else
     echo "attenzione: manca l'app Video o FFmpeg (toolchain/build-ffmpeg.sh): niente pacchetto Video" >&2
 fi

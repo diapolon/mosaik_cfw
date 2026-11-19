@@ -62,7 +62,8 @@ for l in avformat avcodec avutil swscale swresample; do
     strip "$LIBOUT/$so"
     cp "$LIBOUT/$so" "$OUT/lib/$so"
 done
-cp "$SRC/COPYING.LGPLv2.1" "$LIBOUT/../LICENSE-ffmpeg.txt" 2>/dev/null || cp "$PREFIX/share/ffmpeg/COPYING.LGPLv2.1" "$LIBOUT/../LICENSE-ffmpeg.txt" 2>/dev/null || true
+cp "$SRC/COPYING.LGPLv2.1" "$LIBOUT/../LICENSE-ffmpeg.txt" 2>/dev/null || cp "$PREFIX/share/ffmpeg/COPYING.LGPLv2.1" "$LIBOUT/../LICENSE-ffmpeg.txt" \
+    || { echo "errore: manca COPYING.LGPLv2.1 di FFmpeg" >&2; exit 1; }   # senza licenza niente librerie (LIC-05)
 echo "== vtest"
 gcc -O2 -mcpu=cortex-a53 -Wall -Wextra -o "$OUT/vtest" /trimui/toolchain/vtest/vtest.c \
     -I"$PREFIX/include" -L"$PREFIX/lib" -lavformat -lavcodec -lswscale -lswresample -lavutil \

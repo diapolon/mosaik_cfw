@@ -256,7 +256,7 @@ Mosaik è gratis e resterà gratis. Se ti piace e vuoi aiutarne lo sviluppo, puo
 
 ## Compilare
 
-La compilazione usa Docker e richiede componenti estratti dal firmware ufficiale TrimUI, che non sono in questo repository. Vedi [`m2/README.md`](m2/README.md).
+La compilazione usa Docker e richiede componenti estratti dal firmware ufficiale TrimUI, che non sono in questo repository. [`CONTRIBUTING.md`](CONTRIBUTING.md) (in inglese) elenca ogni dipendenza con indirizzo e commit, i comandi, le prove, come un fork usa la propria chiave di firma e come si aggiunge un emulatore; [`m2/README.md`](m2/README.md) spiega l'immagine della SD.
 
 ## Licenza
 

@@ -4,7 +4,7 @@ The license texts are in this folder. The code written for Mosaik is covered by 
 
 ## Emulators
 
-Included without changes to their code.
+They are not in the system images: each one is a package that the console downloads from the Store (`Cores/`, `Emulators/`). Their code is unchanged, except where a row says **Modified by Mosaik**; the source code of the GPL, LGPL, MPL and zlib emulators is attached to each release and to the Store release.
 
 | Component | License | Source |
 |---|---|---|
@@ -17,9 +17,9 @@ Included without changes to their code.
 | Gambatte (Game Boy, Game Boy Color) | `GPL-2.0.txt` | https://github.com/libretro/gambatte-libretro/tree/77f2567d718b8973d02caa2daa8dce4953faf811 (source also attached to each release) |
 | mGBA (Game Boy Advance) | `MPL-2.0.txt` | https://github.com/libretro/mgba/tree/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6 (source also attached to each release) |
 | Beetle PCE Fast (PC Engine) | `GPL-2.0.txt` | https://github.com/libretro/beetle-pce-fast-libretro/tree/2de1ce1c3f237b161c126c54ba407990bb86d1e9 (source also attached to each release) |
-| Beetle NeoPop (Neo Geo Pocket) | `GPL-2.0.txt` | https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227 with `toolchain/patches/beetle-ngp-saveram.patch` (source and patch also attached to each release) |
+| Beetle NeoPop (Neo Geo Pocket) | `GPL-2.0.txt` | https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227 **Modified by Mosaik** with `toolchain/patches/beetle-ngp-saveram.patch` (source and patch also attached to each release) |
 | Deadcast (Dreamcast), based on Flycast | `GPL-2.0.txt`; its menu library `deadui-MIT.txt` and font `NotoSans-OFL-1.1.txt` are in `Cores/deadcast/licenses` | https://github.com/tyrannotorus/emulator-dreamcast-deadcast/tree/1.2.5, the author's package `DC-DEADCAST.pak.zip` 1.2.5 used as is (source also attached to each release) |
-| PCSX ReARMed (PlayStation) | `GPL-2.0.txt` | https://github.com/libretro/pcsx_rearmed/tree/7b0e8f8fadfbce3d170d195b9d9eecaabfa08c8e with `toolchain/patches/pcsx-rearmed-lr.patch` (source and patch also attached to each release) |
+| PCSX ReARMed (PlayStation) | `GPL-2.0.txt` | https://github.com/libretro/pcsx_rearmed/tree/7b0e8f8fadfbce3d170d195b9d9eecaabfa08c8e **Modified by Mosaik** with `toolchain/patches/pcsx-rearmed-lr.patch` (source and patch also attached to each release) |
 | Stella 2014 (Atari 2600) | `GPL-2.0.txt` | https://github.com/libretro/stella2014-libretro/tree/7d1361e407e63f29e52892655069e5fb4096e691 (source also attached to each release) |
 | ProSystem (Atari 7800) | `GPL-2.0.txt` | https://github.com/libretro/prosystem-libretro/tree/8a88014287c7a01cd568067e5a557d0a2b2a051f (source also attached to each release) |
 | Gearcoleco (ColecoVision) | `GPL-3.0.txt` | https://github.com/drhelius/Gearcoleco/tree/2805e70fd56c3bb6a0412a4ddaf210eefc8a5d7c (source also attached to each release) |
@@ -31,12 +31,22 @@ Included without changes to their code.
 | ScummVM 2026.4.0 (adventure games), libretro port with its data files and themes in `Cores/scummvm` | `GPL-3.0.txt` (GPL-3.0-or-later; engines and data files under their own compatible licenses, listed in `Cores/scummvm/scummvm` and in the source) | https://github.com/scummvm/scummvm/tree/7d2709da5136866589f7602f5f5a7b17de03420e with https://github.com/libretro/libretro-deps/tree/bab7d258c451c0e7cba4b6a79f1b062c13efff38 and https://github.com/libretro/libretro-common/tree/879c8d507b0b52e77e27d759239c2b5df1e26dfd (source also attached to each release) |
 | Flycast (Dreamcast on the Smart Pro), standalone SDL2 program in `Cores/flycast`, with a static libcurl 8.10.1 (HTTP only) | `GPL-2.0.txt` (GPL-2.0-or-later); libcurl `curl.txt`; both in `Cores/flycast/licenses`; the other bundled libraries are listed in the source | https://github.com/flyinghead/flycast/tree/72b8e67 with its submodules (source attached to the Store release as `flycast-72b8e67.tar.xz`), built by `toolchain/build-flycast.sh` |
 | PPSSPP 1.20.4 (PlayStation Portable), standalone SDL2 program in `Cores/ppsspp` | `GPL-2.0.txt` (GPL-2.0-or-later); the bundled FFmpeg is LGPL-2.1-or-later (`LGPL-2.1.txt`); the other bundled libraries are listed in the source | https://github.com/hrydgard/ppsspp/tree/fa50bb1976065c4f8b1b47af227d367fe9771555 with its submodules (source, FFmpeg included, also attached to each release) |
-| Mupen64Plus 2.6.0 (Nintendo 64), standalone SDL2 program in `Cores/mupen64plus`: core, console front end, SDL audio and input, HLE RSP, Rice and Glide64mk2 video plugins | `GPL-2.0.txt` (GPL-2.0-or-later); built with libpng 1.6 (libpng license) and zlib (zlib license) linked in. Modified by Mosaik: `toolchain/patches/mupen64plus-ui-console-mosaik.patch` (stops the emulation on SIGTERM so the saves are written) | https://github.com/mupen64plus |
+| Mupen64Plus 2.6.0 (Nintendo 64), standalone SDL2 program in `Cores/mupen64plus`: core, console front end, SDL audio and input, HLE RSP, Rice and Glide64mk2 video plugins | `GPL-2.0.txt` (GPL-2.0-or-later); built with libpng 1.6 (libpng license) and zlib (zlib license) linked in. **Modified by Mosaik**: `toolchain/patches/mupen64plus-ui-console-mosaik.patch` changes only the console front end (stops the emulation on SIGTERM so the saves are written, saves and loads a state on SIGUSR1 and SIGUSR2 for Mosaik's menu, writes the frames per second to the log) | https://github.com/mupen64plus, core at commit daae68e (source of all the modules and the patch also attached to each release as `mupen64plus-daae68e.tar.gz` and `mupen64plus-daae68e-mosaik.patch`) |
 | Fuse 1.6.0 (ZX Spectrum), libretro port; includes the Spectrum ROMs, distributed with Amstrad's permission as in Fuse | `GPL-3.0.txt` (GPL-3.0-or-later) | https://github.com/libretro/fuse-libretro/tree/e997e2b (source also attached to each release) |
 | blueMSX (MSX, MSX2), libretro port, with its machine definitions and databases in `Cores/bluemsx`; only the C-BIOS machines carry BIOS files (C-BIOS, BSD-style license in `cbios.txt`). The original MSX BIOS files are not distributed | `GPL-2.0.txt` (GPL-2.0-or-later) | https://github.com/libretro/blueMSX-libretro/tree/e3086eb (source also attached to each release) |
 | VICE 3.10 x64 (Commodore 64), libretro port | `GPL-2.0.txt` (GPL-2.0-or-later) | https://github.com/libretro/vice-libretro/tree/76cde0b (source also attached to each release) |
 | DOSBox Pure (DOS), based on DOSBox | `GPL-2.0.txt` (GPL-2.0-or-later) | https://codeberg.org/schelling/dosbox-pure (commit 9cccfa2; source also attached to each release) |
 | PUAE 5.3.1 (Amiga), libretro port of P-UAE/WinUAE; includes the free AROS Kickstart replacement (AROS Public License). Original Kickstart files are not distributed | `GPL-2.0.txt` (GPL-2.0-or-later) | https://github.com/libretro/libretro-uae/tree/d366f77 (source also attached to each release) |
+
+## Linux games and apps (Store packages)
+
+| Component | License | Source |
+|---|---|---|
+| Freedoom 0.13.0 (game data, Phase 1 and 2) | BSD-3-Clause, `COPYING-freedoom.txt` in `Linux/Freedoom` | https://freedoom.github.io |
+| Crispy Doom, the Doom engine of the Freedoom package | `GPL-2.0.txt` (GPL-2.0-or-later), `COPYING-crispy-doom.md` in `Linux/Freedoom` | https://github.com/fabiangreffrath/crispy-doom/tree/fdeabe4c (source also attached to each release) |
+| Mr.Boom, libretro core run as a Linux game | MIT, `LICENSE-mrboom.txt` in `Linux/MrBoom` | https://github.com/libretro/mrboom-libretro/tree/40ac320 |
+| DevilutionX 1.5.5 (Diablo engine; the Diablo game files are not included, you copy your own `DIABDAT.MPQ`) | Sustainable Use License 1.0 (source available, **non-commercial use only**), `LICENSE-devilutionx.md` in `Linux/Diablo` | https://github.com/diasurgical/devilutionX/tree/1.5.5 (source also attached to each release) |
+| FFmpeg 9.0.2 libraries of the **Video** app | `LGPL-2.1.txt` (LGPL-2.1-or-later), `LICENSE-ffmpeg.txt` in `Apps/video` | https://ffmpeg.org (source attached to each release and to the Store release as `ffmpeg-9.0.2.tar.xz`) |
 
 ## Data downloaded by the console
 
@@ -72,6 +82,8 @@ The sources are attached to each release.
 
 ## Taken unchanged from the official TrimUI firmware v1.1.1
 
+The images reuse these binaries of the official firmware without changes, so that the card starts on the console it was made for (official firmware: https://github.com/trimui/firmware_smartpro and https://github.com/trimui/firmware_brickpro). **TrimUI has not published the source code of its Linux kernel and U-Boot**: it has been asked for publicly since 2024 (https://github.com/trimui/firmware_smartpro/issues/29, https://github.com/trimui/firmware_smartpro/issues/1). Mosaik does not have that source code either, so it cannot offer it; as soon as TrimUI publishes it, it will be linked here. The other GPL and LGPL programs in this table are unchanged builds of the upstream projects, whose source code is public on their sites.
+
 | Component | License |
 |---|---|
 | Linux 4.9.191 kernel and modules, U-Boot | `GPL-2.0.txt` |
@@ -85,4 +97,4 @@ The sources are attached to each release.
 | tinyalsa | `tinyalsa.txt` |
 | iw | `iw.txt` |
 
-The following firmware components are proprietary, belong to their respective owners and are not covered by any license in this folder: PowerVR graphics libraries and firmware, `trimui_inputd`, XR829 Wi-Fi and Bluetooth firmware, boot0.
+The following firmware components are proprietary, belong to their respective owners and are not covered by any license in this folder: PowerVR graphics libraries and firmware, `trimui_inputd`, XR829 Wi-Fi and Bluetooth firmware, boot0. Mosaik has no written permission from TrimUI or the other owners to redistribute them: they are included only so that the card works on the TrimUI console it was made for. For this reason too, **Mosaik must not be sold**, alone or on a card.

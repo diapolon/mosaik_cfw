@@ -20,12 +20,16 @@ dist, src, out = os.path.join(top, "dist"), os.path.join(top, "site"), os.path.j
 if not os.path.exists(os.path.join(dist, "arcade-version.txt")):
     sys.exit("manca dist/arcade-version.txt: prima sh m2/build-m2.sh")
 version, stamp = open(os.path.join(dist, "arcade-version.txt")).read().split()
-if not os.path.isdir(src):
-    sys.exit("manca la cartella site/: il modello del sito non è nel repository")
+# site/ (le pagine HTML del sito) non è nel repository: senza, si preparano solo immagini,
+# aggiornamento, Store e build-info.txt, cioè tutto quello che serve a una Release su GitHub
+have_site = os.path.isdir(src)
+if not have_site:
+    print("niente cartella site/: salto le pagine del sito (immagini, aggiornamento e Store si fanno lo stesso)")
 shutil.rmtree(out, ignore_errors=True)
 os.makedirs(os.path.join(out, "download"))
-shutil.copytree(os.path.join(src, "assets"), os.path.join(out, "assets"))
-shutil.copytree(os.path.join(top, "licenses"), os.path.join(out, "assets", "licenses"))
+if have_site:
+    shutil.copytree(os.path.join(src, "assets"), os.path.join(out, "assets"))
+    shutil.copytree(os.path.join(top, "licenses"), os.path.join(out, "assets", "licenses"))
 subprocess.run([sys.executable, os.path.join(top, "toolchain", "update-server.py"), "--out", os.path.join(out, "update")], check=True)
 # emulatori: pacchetti dello Store e catalogo firmato, accanto ai file dell'aggiornamento
 subprocess.run([sys.executable, os.path.join(top, "toolchain", "make-store.py"), "--out", os.path.join(out, "store")], check=True)
@@ -57,46 +61,51 @@ def fill(text, extra):
     return text
 
 
-conf = json.load(open(os.path.join(src, "site.json"), encoding="utf-8"))
-layout = open(os.path.join(src, "layout.html"), encoding="utf-8").read()
-for lang, c in conf.items():
-    up = "../" if c["prefix"] else ""
-    guides = list(c["guides"])
-    paths = {"LANG": lang, "ASSETS": up + "assets/", "SHOTS": up + c["shots"], "DL": up + "download/", "DESCRIPTION": c["description"]}
+def build_pages():
+    conf = json.load(open(os.path.join(src, "site.json"), encoding="utf-8"))
+    layout = open(os.path.join(src, "layout.html"), encoding="utf-8").read()
+    for lang, c in conf.items():
+        up = "../" if c["prefix"] else ""
+        guides = list(c["guides"])
+        paths = {"LANG": lang, "ASSETS": up + "assets/", "SHOTS": up + c["shots"], "DL": up + "download/", "DESCRIPTION": c["description"]}
 
 
-    def read(slug):
-        return open(os.path.join(src, lang, slug + ".html"), encoding="utf-8").read()
+        def read(slug):
+            return open(os.path.join(src, lang, slug + ".html"), encoding="utf-8").read()
 
 
-    def write(slug, title, body, section):
-        other = conf[c["other"]]["prefix"]
-        other_href = ("../" if c["prefix"] else other) + slug + ".html"
-        links = "".join(f'<a href="{k}.html"' + (' aria-current="page"' if k == section else "") + f">{v}</a>" for k, v in c["nav"].items())
-        links += f'<a class="lang" href="{other_href}" lang="{c["other"]}" hreflang="{c["other"]}">{c["other_label"]}</a>'
-        full_title = c["site"] if slug == "index" else f"{title} · Mosaik"
-        page = layout.replace("{{BODY}}", body).replace("{{FOOTER}}", c["footer"]).replace("{{TOPLINKS}}", links)
-        page = fill(page.replace("{{PAGE_TITLE}}", full_title), paths)
-        assert "{{" not in page, f"segnaposto non sostituito in {lang}/{slug}"
-        path = os.path.join(out, c["prefix"], slug + ".html")
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        open(path, "w", encoding="utf-8").write(page)
+        def write(slug, title, body, section):
+            other = conf[c["other"]]["prefix"]
+            other_href = ("../" if c["prefix"] else other) + slug + ".html"
+            links = "".join(f'<a href="{k}.html"' + (' aria-current="page"' if k == section else "") + f">{v}</a>" for k, v in c["nav"].items())
+            links += f'<a class="lang" href="{other_href}" lang="{c["other"]}" hreflang="{c["other"]}">{c["other_label"]}</a>'
+            full_title = c["site"] if slug == "index" else f"{title} · Mosaik"
+            page = layout.replace("{{BODY}}", body).replace("{{FOOTER}}", c["footer"]).replace("{{TOPLINKS}}", links)
+            page = fill(page.replace("{{PAGE_TITLE}}", full_title), paths)
+            assert "{{" not in page, f"segnaposto non sostituito in {lang}/{slug}"
+            path = os.path.join(out, c["prefix"], slug + ".html")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            open(path, "w", encoding="utf-8").write(page)
 
 
-    write("index", c["nav"]["index"], read("index"), "index")
-    write("download", c["nav"]["download"], f'<main><h1>{c["nav"]["download"]}</h1>' + read("download") + "</main>", "download")
-    write("licenses", c["licenses_title"], f'<main><h1>{c["licenses_title"]}</h1>' + read("licenses") + "</main>", "")
-    cards = "".join(f'<a class="card link" href="{g}.html"><h3>{c["guides"][g][0]}</h3><p>{c["guides"][g][1]}</p></a>' for g in guides)
-    write("guide", c["nav"]["guide"], f'<main><h1>{c["nav"]["guide"]}</h1><p class="lead">{c["guide_lead"]}</p><div class="cards">{cards}</div></main>', "guide")
-    for n, g in enumerate(guides):
-        side = "".join(f'<li><a href="{x}.html"' + (' aria-current="page"' if x == g else "") + f'>{c["guides"][x][0]}</a></li>' for x in guides)
-        pager = ""
-        if n > 0:
-            pager += f'<a class="prev" href="{guides[n - 1]}.html"><small>{c["prev"]}</small>{c["guides"][guides[n - 1]][0]}</a>'
-        if n + 1 < len(guides):
-            pager += f'<a class="next" href="{guides[n + 1]}.html"><small>{c["next"]}</small>{c["guides"][guides[n + 1]][0]}</a>'
-        body = f'<div class="doc"><aside class="side"><ul>{side}</ul></aside><main class="article"><h1>{c["guides"][g][0]}</h1>' + read(g) + f'<nav class="pager">{pager}</nav></main></div>'
-        write(g, c["guides"][g][0], body, "guide")
+        write("index", c["nav"]["index"], read("index"), "index")
+        write("download", c["nav"]["download"], f'<main><h1>{c["nav"]["download"]}</h1>' + read("download") + "</main>", "download")
+        write("licenses", c["licenses_title"], f'<main><h1>{c["licenses_title"]}</h1>' + read("licenses") + "</main>", "")
+        cards = "".join(f'<a class="card link" href="{g}.html"><h3>{c["guides"][g][0]}</h3><p>{c["guides"][g][1]}</p></a>' for g in guides)
+        write("guide", c["nav"]["guide"], f'<main><h1>{c["nav"]["guide"]}</h1><p class="lead">{c["guide_lead"]}</p><div class="cards">{cards}</div></main>', "guide")
+        for n, g in enumerate(guides):
+            side = "".join(f'<li><a href="{x}.html"' + (' aria-current="page"' if x == g else "") + f'>{c["guides"][x][0]}</a></li>' for x in guides)
+            pager = ""
+            if n > 0:
+                pager += f'<a class="prev" href="{guides[n - 1]}.html"><small>{c["prev"]}</small>{c["guides"][guides[n - 1]][0]}</a>'
+            if n + 1 < len(guides):
+                pager += f'<a class="next" href="{guides[n + 1]}.html"><small>{c["next"]}</small>{c["guides"][guides[n + 1]][0]}</a>'
+            body = f'<div class="doc"><aside class="side"><ul>{side}</ul></aside><main class="article"><h1>{c["guides"][g][0]}</h1>' + read(g) + f'<nav class="pager">{pager}</nav></main></div>'
+            write(g, c["guides"][g][0], body, "guide")
+
+
+if have_site:
+    build_pages()
 # --- provenienza della build (audit prelancio R09): commit di Mosaik e dei core, immagine del
 # kit, SHA-256 di quello che si distribuisce. Va allegato alla release insieme alle immagini.
 def sha256(path):
