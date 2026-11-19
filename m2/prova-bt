@@ -48,6 +48,8 @@ done
 [ "$SECS" -gt 60 ] && SECS=60
 [ "$SECS" -lt 5 ] && SECS=5
 T0=$(cut -d' ' -f1 /proc/uptime)
+# bluetoothctl legge da una FIFO: se muore, scriverci non deve uccidere la prova (0.9.83 bis)
+trap '' PIPE
 log() { echo "$(cut -d' ' -f1 /proc/uptime)s $*" >> "$LOG"; sync; }
 block() { echo "--- $1" >> "$LOG"; shift; "$@" >> "$LOG" 2>&1; sync; }
 MODEL=$(readlink /run/fw 2>/dev/null)
@@ -116,7 +118,7 @@ wait_for() {
     done
     return 2
 }
-say() { echo "$*" >&3; log "bluetoothctl: $*"; }
+say() { kill -0 $BTC 2> /dev/null || { log "bluetoothctl non c'è più: $*"; return 1; }; echo "$*" >&3; log "bluetoothctl: $*"; }
 
 cuffie() {
     mkdir -p /run/etc-lib/bluetooth /run/dbus /run/bluetooth
@@ -136,23 +138,36 @@ cuffie() {
   </policy>
 </busconfig>
 CONF
-    dbus-daemon --config-file=/run/dbus/prova.conf --nofork > /tmp/dbus.log 2>&1 &
+    DLOG=$ROOT/Logs/prova-bt-dbus.txt BDLOG=$ROOT/Logs/prova-bt-bluetoothd.txt BALOG=$ROOT/Logs/prova-bt-bluealsa.txt
+    : > "$BDLOG"; : > "$BALOG"
+    btmon > /tmp/prova-bt-mon 2>&1 &
+    BTMON=$!
+    dbus-daemon --config-file=/run/dbus/prova.conf --nofork > "$DLOG" 2>&1 &
     DBUS=$!
     sleep 1
     [ -S /run/dbus/system_bus_socket ] && log "D-Bus avviato" || log "D-Bus NON avviato"
-    bluetoothd -n -f /run/bluetooth/main.conf > /tmp/bluetoothd.log 2>&1 &
-    BTD=$!
-    sleep 2
-    kill -0 $BTD 2> /dev/null && log "bluetoothd avviato" || log "bluetoothd NON avviato"
-    bluealsa -p a2dp-source > /tmp/bluealsa.log 2>&1 &
+    for t in 1 2; do
+        bluetoothd -n -d -f /run/bluetooth/main.conf >> "$BDLOG" 2>&1 &
+        BTD=$!
+        sleep 3
+        if kill -0 $BTD 2> /dev/null; then log "bluetoothd avviato"; break; fi
+        wait $BTD; log "bluetoothd NON avviato (uscita $?)"; sync
+        block "bluetoothd" tail -30 "$BDLOG"
+    done
+    if ! kill -0 $BTD 2> /dev/null; then
+        kill $BTMON $DBUS 2> /dev/null
+        return
+    fi
+    bluealsa -p a2dp-source > "$BALOG" 2>&1 &
     BALSA=$!
-    sleep 1
-    kill -0 $BALSA 2> /dev/null && log "bluealsa avviato" || log "bluealsa NON avviato"
+    sleep 2
+    kill -0 $BALSA 2> /dev/null && log "bluealsa avviato" || { wait $BALSA; log "bluealsa NON avviato (uscita $?)"; block "bluealsa" tail -20 "$BALOG"; }
     rm -f /tmp/btin /tmp/btout; mkfifo /tmp/btin
     bluetoothctl < /tmp/btin > /tmp/btout 2>&1 &
     BTC=$!
     exec 3> /tmp/btin
     sleep 1
+    kill -0 $BTC 2> /dev/null || { log "bluetoothctl NON avviato"; block "bluetoothctl" cat /tmp/btout; }
     say "power on"; sleep 1
     say "agent NoInputNoOutput"; sleep 1
     say "default-agent"; sleep 1
@@ -195,12 +210,11 @@ CONF
     exec 3>&-
     kill $BTC $BALSA 2> /dev/null; sleep 1
     kill $BTD 2> /dev/null; sleep 1
-    kill $DBUS 2> /dev/null
+    kill $DBUS $BTMON 2> /dev/null
+    head -c 3000000 /tmp/prova-bt-mon > "$ROOT/Logs/prova-bt-btmon.txt"; rm -f /tmp/prova-bt-mon; sync
     block "bluetoothctl" sh -c "sed -e 's/$ESC\[[0-9;]*m//g' -e 's/\r//g' -e 's/$ESC\[K//g' /tmp/btout | grep -v -E 'RSSI|ManufacturerData|TxPower|Key:|Value:|^ +[0-9a-f]{2} ' | tail -150"
-    block "bluetoothd" sh -c 'tail -60 /tmp/bluetoothd.log'
-    block "bluealsa" sh -c 'tail -40 /tmp/bluealsa.log'
-    block "D-Bus" sh -c 'tail -20 /tmp/dbus.log'
-    rm -f /tmp/btin /tmp/btout /tmp/bluetoothd.log /tmp/bluealsa.log /tmp/dbus.log
+    log "registri completi: Logs/prova-bt-bluetoothd.txt, prova-bt-bluealsa.txt, prova-bt-dbus.txt, prova-bt-btmon.txt"
+    rm -f /tmp/btin /tmp/btout
 }
 
 if [ $ok = yes ]; then
