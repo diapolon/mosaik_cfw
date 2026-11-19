@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.89
+it Wi-Fi: si accende e si spegne anche con il Bluetooth acceso
+en Wi-Fi: turns on and off even with Bluetooth on
+it Trasferimento file: dopo molti PIN sbagliati, 30 secondi di pausa per tutti
+en File transfer: after many wrong PINs, a 30-second pause for everyone
+
 0.9.88
 it Cuffie e casse Bluetooth su Smart Pro e Brick Pro: Impostazioni → Sistema → Bluetooth
 en Bluetooth headphones and speakers on Smart Pro and Brick Pro: Settings → System → Bluetooth
