@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.97
+it Impostazioni: barra di scorrimento nelle pagine con più voci di quelle che si vedono
+en Settings: scroll bar on pages with more items than fit on screen
+it Il numero dei giochi in Informazioni e nella Libreria è quello di «Tutti», senza i doppi
+en The number of games in Information and in the Library is the one of "All", without duplicates
+it Pannello «Ricerca e filtri»: lo stesso nome della barra dei tasti
+en "Search and filters" panel: the same name as in the key bar
+
 0.9.96
 it Aggiornamento scaricato a metà: dopo uno spegnimento riprende da dove era
 en Update half downloaded: after a power off it resumes where it was

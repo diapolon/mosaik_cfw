@@ -68,6 +68,7 @@ static bool ring_init;
 /* libreria */
 /* schede: tutti, un emulatore ciascuno (TAB_EMU + indice), Linux, preferiti */
 enum { TAB_ALL, TAB_LINUX, TAB_FAV, TAB_EMU = 100, TAB_COLL = 200, TAB_AUTO = 250, TAB_PLAN = 300 };
+static int plat_count(int tab);   /* giochi della scheda, come le conta Piattaforme */
 /* collezioni automatiche (TAB_AUTO + AUTO_*): si riempiono da sole con statistiche, salvataggi e
    dati dello scraper; compaiono solo se hanno almeno un gioco */
 enum { AUTO_FINISH, AUTO_QUICK, AUTO_TWO, AUTO_NEVER, AUTO_COUNT };
@@ -589,7 +590,7 @@ static void reload_games(void) {
     build_carousel();
     build_tabs();
     build_view();
-    ui_log("giochi trovati: %d", ngames);
+    ui_log("giochi trovati: %d (%d file)", plat_count(TAB_ALL), ngames);   /* come «Tutti», senza i doppi (LAU-14) */
 }
 
 /* Giochi Linux: le variabili "env" di game.json vanno in System/next.env, che lo
@@ -2134,7 +2135,7 @@ static void home_draw_bar(int y, int bottom) {
     char subbuf[160];
     switch (m) {
     case HM_GAME: title = games[gi].title; home_game_sub(gi, subbuf, sizeof subbuf); sub = subbuf; action = T(gi == resume_idx ? "home.resume" : "common.play"); break;
-    case HM_LIBRARY: title = T("home.btn_library"); snprintf(subbuf, sizeof subbuf, T("info.games"), ngames); sub = subbuf; break;
+    case HM_LIBRARY: title = T("home.btn_library"); snprintf(subbuf, sizeof subbuf, T("info.games"), plat_count(TAB_ALL)); sub = subbuf; break;
     case HM_FAV: {
         int nf = 0;
         for (int i = 0; i < ngames; i++) nf += games[i].fav && !games[i].user_hidden;
@@ -3770,7 +3771,7 @@ static void library_input(void) {
         build_view();
         build_carousel();
         char m[64];
-        snprintf(m, sizeof m, T("info.games"), ngames);
+        snprintf(m, sizeof m, T("info.games"), plat_count(TAB_ALL));
         ui_toast(m);
         ui_sound(SND_OK);
         return;
@@ -4103,7 +4104,7 @@ static void set_value(int item, char *buf, size_t n) {
         break;
     }
     case S_DEVICE: snprintf(buf, n, "%s", device_label(s->device)); break;
-    case S_INFO: snprintf(buf, n, T("info.games"), ngames); break;
+    case S_INFO: snprintf(buf, n, T("info.games"), plat_count(TAB_ALL)); break;   /* come «Tutti» (LAU-14) */
     case S_LANG: snprintf(buf, n, "%s", nlangs ? lang_names[lang_index()] : UI.set.lang); break;
     default: buf[0] = 0;
     }
@@ -7455,6 +7456,19 @@ static void settings_draw(void) {
             }
         }
         ui_clip_pop();
+        /* voci che non stanno tutte: una barra di scorrimento nel margine a destra; prima niente diceva
+           che sotto c'erano altre righe (audit 0.9.72, LAU-14) */
+        int total = nrows * step - gap;
+        if (total > area_h + 1) {
+            int bw = M(0.006f) > 2 ? M(0.006f) : 2, bx = mx + W + M(0.008f);
+            int thumb = area_h * area_h / total;
+            if (thumb < bw * 4) thumb = bw * 4;
+            float pos = set_scroll / (float)(total - area_h);
+            if (pos < 0) pos = 0;
+            if (pos > 1) pos = 1;
+            ui_rrect(bx, y, bw, area_h, bw / 2, with_alpha(t->text_dim, 50));
+            ui_rrect(bx, y + (int)((area_h - thumb) * pos), bw, thumb, bw / 2, t->text_dim);
+        }
         /* a cosa serve la voce scelta */
         char lines[2][160];
         int n = ui_wrap(fs, set_text("settings_desc", set_sel), W, lines, 2);
@@ -7712,6 +7726,9 @@ static void setup_draw(void) {
         for (int i = 0; i < n; i++, ty += fn) ui_text(UI.f_normal, lines[i], x + pad, ty, t->text, ALIGN_LEFT);
         const char *labels[2] = { T("setup.later"), T("setup.connect") };
         ui_popup_buttons(x, y, w, h, labels, 2, setup_sel, -1);
+        /* la barra sotto la finestra restava vuota e chiara sopra lo schermo oscurato (LAU-14) */
+        const char *hint[] = { "<>", T("common.change"), "A", T("common.ok") };
+        ui_hints(hint, 4);
     }
 }
 
@@ -9289,7 +9306,7 @@ static void fpanel_draw(void) {
     int w = M(1.05f) < UI.w - 2 * M(t->margin) ? M(1.05f) : UI.w - 2 * M(t->margin);
     int h = pad * 2 + TTF_FontHeight(UI.f_title) + M(0.02f) + rh * FP_COUNT + TTF_FontHeight(UI.f_small) + M(0.02f), x, y;
     panel_box(w, h, &x, &y);
-    ui_text(UI.f_title, T("filters.title"), x + pad, y + pad, t->text, ALIGN_LEFT);
+    ui_text(UI.f_title, T("lib.search_filters"), x + pad, y + pad, t->text, ALIGN_LEFT);   /* come nella barra (LAU-14) */
     int ry = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
     TTF_Font *f = UI.f_normal;
     int fh = TTF_FontHeight(f);

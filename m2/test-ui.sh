@@ -234,5 +234,30 @@ C
 gcc -Wall -o /tmp/cerca /tmp/cerca.c 2>/tmp/cerca.err || cat /tmp/cerca.err
 check "pokemon trova Pokémon, POKÉMON trova Pokemon, citta trova Città ($(/tmp/cerca))" '[ "$(/tmp/cerca)" = 111101 ]'
 
+# audit 0.9.72, LAU-14: Informazioni (e la Libreria nella home) contavano anche i doppi nascosti:
+# 6548 giochi contro i 4920 di «Tutti». Ora lo stesso numero di «Tutti»
+echo "--- numero dei giochi uguale a «Tutti» (LAU-14)"
+dup_root
+printf '{ "language": "it", "setup_done": true, "duplicates": 1, "duplicates_emu": "fbneo" }\n' > $R/System/settings.json
+rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "wait:40,quit" > /tmp/l.log 2>&1
+check "due copie dello stesso gioco, una nascosta: 1 gioco ($(grep -o 'giochi trovati:.*' $R/Logs/Arcade.log | tail -1))" 'grep -q "giochi trovati: 1 (2 file)" $R/Logs/Arcade.log'
+
+# LAU-14: nelle pagine lunghe delle impostazioni niente diceva che sotto c'erano altre voci. Ora una
+# barra di scorrimento a destra delle voci: scorrendo fino in fondo si sposta
+echo "--- pagina lunga delle impostazioni: barra di scorrimento (LAU-14)"
+printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
+./build/launcher --root $R --auto "wait:40,start,wait:30,down,wait:20,a,wait:30,shot:/tmp/set-su.png,down,down,down,down,down,down,down,down,down,down,wait:30,shot:/tmp/set-giu.png,quit" > /tmp/l.log 2>&1
+cat > /tmp/banda.py <<'X'
+import sys
+from PIL import Image
+a, b = Image.open(sys.argv[1]).convert("RGB"), Image.open(sys.argv[2]).convert("RGB")
+w, h = a.size
+print(sum(1 for y in range(h * 15 // 100, h * 75 // 100) for x in range(w * 970 // 1000, w * 995 // 1000) if a.getpixel((x, y)) != b.getpixel((x, y))))
+X
+n=$(python3 /tmp/banda.py /tmp/set-su.png /tmp/set-giu.png)
+check "in fondo alla pagina la barra a destra si è spostata ($n pixel)" '[ "$n" -gt 20 ]'
+
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }
