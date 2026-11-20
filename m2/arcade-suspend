@@ -192,7 +192,7 @@ if [ ! -f /run/sd-ok ]; then
     echo "arcade: la SD non risponde dopo il risveglio (sospensione $r, tentativi $tries)" > /dev/kmsg
     { echo "risveglio senza SD: $(date)"; dmesg | tail -60; } > /run/sd-guasta 2>&1
     [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
-    [ $bt = 1 ] && ( sleep 2; bt-ctl on > /dev/null 2>&1 & )
+    [ $bt = 1 ] && ( sleep 2; bt-ctl auto > /dev/null 2>&1 & )
     exit 0
 fi
 step "risveglio (sospensione $r, tentativi $tries, sveglia: ${woke:--}, batteria $(battery)%)"
@@ -200,5 +200,5 @@ step "sorgenti di risveglio prima:${WS_BEFORE:- nessuna} dopo:$(ws_line); esclus
 consumi_mark   # e una al risveglio: batteria prima e dopo dicono quanto consuma lo standby
 sync   # la riga del risveglio sulla SD anche se poi la console viene spenta a forza
 [ $wifi = 1 ] && ( wifi-ctl on > /dev/null 2>&1 & )
-[ $bt = 1 ] && ( sleep 2; bt-ctl on > /dev/null 2>&1 & )
+[ $bt = 1 ] && ( sleep 2; bt-ctl auto > /dev/null 2>&1 & )
 [ "$r" != "non riuscita" ]

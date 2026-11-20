@@ -4765,11 +4765,8 @@ static void sto_input(void) {
     if (sto_job) {   /* lavoro finito: com'è andata */
         store_join();
         sto_job = false;
-        static const char *errk[] = { "", "store.err_network", "store.err_signature", "store.err_catalog", "store.err_space",
-                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned", "store.err_system",
-                                      "store.err_model" };
         if (s->phase == ST_DONE) { ui_toast(T("store.done")); ui_sound(SND_OK); }
-        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_MODEL ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
+        else { ui_toast(T(store_err_key(s->error ? s->error : SE_WRITE))); ui_sound(SND_ERROR); }
         if (store_changed()) { reload_games(); sto_themes_refresh(); }
         return;
     }
@@ -8399,8 +8396,7 @@ static void cfm_input(void) {
         snprintf(msg, sizeof msg, T("store.working"), pkg_name);
         ui_busy(msg, 0);
         int r = store_offline_install(UI.root, pkg_path);
-        ui_toast(T(r == SE_NONE ? "store.done" : r == SE_UNSIGNED ? "store.err_unsigned" : r == SE_SYSTEM ? "store.err_system"
-                   : r == SE_MODEL ? "store.err_model" : "store.err_verify"));
+        ui_toast(T(store_err_key(r)));
         reload_games();
         pkg_checked = false;   /* ce ne può essere un altro */
     } else if (k == CFM_RESETSET2) {

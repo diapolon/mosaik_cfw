@@ -378,7 +378,7 @@ fi
 # Bluetooth: se acceso nelle impostazioni, dopo il Wi-Fi (stesso chip: bt-ctl aspetta comunque
 # che l'accensione del Wi-Fi sia finita). Se nel frattempo lo si è toccato dal menu vale quella scelta.
 if grep -q '"bluetooth": *true' "$ROOT/System/settings.json" 2>/dev/null; then
-    ( sleep 22; [ -e /run/bt-touched ] || bt-ctl on ) > /dev/null 2>&1 &
+    ( sleep 22; [ -e /run/bt-touched ] || bt-ctl auto ) > /dev/null 2>&1 &
 fi
 
 # rapporto per la diagnosi (Logs/sistema.txt), con il registro diagnostico "Prestazioni" o

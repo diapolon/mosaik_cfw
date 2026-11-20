@@ -21,6 +21,13 @@ cat > $BIN/hciattach <<'X'
 n=$(cat /tmp/fbt/attach_fail 2>/dev/null || echo 0)
 echo "hciattach $*" >> /tmp/fbt/calls
 if [ "$n" -gt 0 ]; then echo $((n - 1)) > /tmp/fbt/attach_fail; sleep "$(cat /tmp/fbt/attach_slow 2>/dev/null || echo 0)"; exit 1; fi
+# chip che non risponde con hciattach vivo: segna in hang_bad ogni momento in cui trimui_inputd gira
+if [ -f /tmp/fbt/attach_hang ]; then
+    IN=$(cat /tmp/fbt/inputd_pid)
+    chk() { grep -q '^State:[[:space:]]*T' /proc/$IN/status || echo inputd > /tmp/fbt/hang_bad; }
+    trap 'chk; exit 0' TERM   # anche nel momento in cui bt-ctl lo ferma
+    while :; do chk; sleep 0.05; done
+fi
 mkdir -p /tmp/sys/bluetooth/hci0; exec sleep 300
 X
 cat > $BIN/hciconfig <<'X'
@@ -322,6 +329,20 @@ check "durante il tentativo i tasti sono fermi" '[ "$(state)" = T ]'
 check "durante l'accensione c'è il segno della pausa (avviso sullo schermo)" '[ -f /tmp/bt-pausa ]'
 wait $ON
 check "dopo tre tentativi falliti i tasti funzionano" '[ "$(state)" != T ] && [ ! -f /tmp/bt-pausa ]'
+# revisione indipendente della 0.9.102, rilievo 1: i tasti si fermavano solo dopo lo spegni e
+# riaccendi del chip (nella 0.9.91 prima), e ripartivano con hciattach ancora vivo dopo un tentativo
+# senza risposta: il chip, lo stesso del Wi-Fi, lavorava con trimui_inputd sul bus I2C 3 (issue #1)
+reset; echo 9 > $F/attach_fail; echo 1 > $F/attach_slow
+( BT_I2C=/tmp/i2c3 BT_INPUTD_PAUSE=/tmp/bt-pausa $CTL on > /dev/null 2>&1 ) &
+ON=$!
+sleep 0.5   # dentro lo spegni e riaccendi del chip, prima di hciattach
+check "chip spento e riacceso con i tasti già fermi" '[ "$(state)" = T ]'
+wait $ON
+reset; : > $F/attach_hang; echo $IN > $F/inputd_pid
+( BT_I2C=/tmp/i2c3 BT_INPUTD_PAUSE=/tmp/bt-pausa BT_HCI_TRIES=4 $CTL on > /dev/null 2>&1 )
+check "hciattach senza risposta fermato prima che i tasti ripartano" '[ ! -f $F/hang_bad ]'
+check "… e alla fine i tasti funzionano" '[ "$(state)" != T ] && [ ! -f /tmp/bt-pausa ]'
+pkill -f "fbin/hciattach" 2>/dev/null; rm -f $F/attach_hang
 reset; echo 9 > $F/attach_fail; echo 1 > $F/attach_slow
 ( BT_I2C=/tmp/i2c3 BT_INPUTD_PAUSE=/tmp/bt-pausa exec sh /trimui/m2/bt-ctl on > /dev/null 2>&1 ) &
 ON=$!
@@ -554,6 +575,56 @@ check "senza il blocco il chip non si tocca (uscita $r)" '! grep -q "^hciattach"
 kill $H 2>/dev/null; wait $H 2>/dev/null
 $CTL on > /dev/null 2>&1
 check "blocco libero: si accende" '[ "$($CTL status)" = acceso ]'
+$CTL off > /dev/null 2>&1
+reset
+
+# revisione indipendente della 0.9.102, rilievo 2: risveglio e avvio chiamavano "bt-ctl on", che
+# con il chip tenuto dal Wi-Fi oltre l'attesa esce con 75; solo apply riprovava, e il Bluetooth
+# restava spento con l'impostazione accesa
+echo "--- avvio e risveglio con il chip tenuto a lungo dal Wi-Fi"
+reset; rm -f /tmp/bt-voluto
+sh -c "exec 8> $BT_WIFI_LOCK; flock 8; exec sleep 2" & H=$!
+sleep 0.3
+BT_WIFI_LOCK_TRIES=5 BT_RETRY_WAIT=1 BT_WANT=/tmp/bt-voluto $CTL auto > /dev/null 2>&1
+check "riprova finché il Wi-Fi lascia il chip, e si accende" '[ "$($CTL status)" = acceso ]'
+wait $H 2>/dev/null; $CTL off > /dev/null 2>&1
+reset; echo off > /tmp/bt-voluto; : > $F/calls
+BT_WANT=/tmp/bt-voluto $CTL auto > /dev/null 2>&1
+check "spento dall'interruttore nel frattempo: non si accende" '! grep -q "^hciattach" $F/calls && [ "$($CTL status)" = spento ]'
+rm -f /tmp/bt-voluto
+check "risveglio e avvio usano bt-ctl auto" '[ "$(grep -c "bt-ctl auto" /trimui/m2/arcade-suspend)" = 2 ] && grep -q "bt-ctl auto" /trimui/m2/system-init && ! grep -q "bt-ctl on" /trimui/m2/arcade-suspend /trimui/m2/system-init'
+reset
+
+# rilievo 4: dopo "smetto di farli ripartire" la guardia restava viva ma inerte; riaccendere
+# dall'interruttore faceva ripartire i servizi senza più nessuno che li sorvegliasse
+echo "--- guardia di nuovo attiva dopo aver rinunciato"
+reset
+BT_RESTARTS=1 $CTL on > /dev/null 2>&1
+touch $F/btd_fail; kill "$(cat /tmp/runbt/bluetoothd.pid)"
+for i in $(seq 60); do grep -q "smetto di farli ripartire" $ROOT/Logs/bluetooth.log && break; sleep 0.2; done
+check "rinuncia dopo i tentativi" 'grep -q "smetto di farli ripartire" $ROOT/Logs/bluetooth.log'
+rm -f $F/btd_fail; sleep 1.5
+$CTL on > /dev/null 2>&1
+check "riacceso dall'interruttore" '[ "$($CTL status)" = acceso ]'
+kill "$(cat /tmp/runbt/bluetoothd.pid)"; sleep 0.3
+for i in $(seq 40); do [ "$($CTL status)" = acceso ] && break; sleep 0.2; done
+check "… e un bluetoothd fermo riparte di nuovo" '[ "$($CTL status)" = acceso ]'
+$CTL off > /dev/null 2>&1
+reset
+
+# rilievo 5: volume_back leggeva il volume una volta e lo riprovava per 3 s: un volume scelto
+# nel frattempo veniva rimesso a quello vecchio
+echo "--- volume cambiato mentre le cuffie si ricollegano"
+reset
+printf 'Wireless Earbuds - A2DP\n' > $F/mixer
+$CTL on > /dev/null 2>&1; $CTL scan 1 > /dev/null; $CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+$CTL volume 35 > /dev/null 2>&1
+rm -f $F/mixer $F/connected; : > $F/calls   # il controllo di bluealsa arriva più tardi
+( BT_VOLUME_WAIT=1 $CTL reconnect > /dev/null 2>&1 ) & R=$!
+sleep 0.5; $CTL volume 60 > /dev/null 2>&1
+sleep 1; printf 'Wireless Earbuds - A2DP\n' > $F/mixer
+wait $R
+check "vale l'ultimo volume scelto ($(grep "^volume" $F/calls | tail -n 1))" '[ "$(grep "^volume" $F/calls | tail -n 1)" = "volume Wireless Earbuds - A2DP 60%" ] && [ "$(cat /tmp/runbt/volume)" = 60 ]'
 $CTL off > /dev/null 2>&1
 reset
 

@@ -62,6 +62,10 @@ int main(int c, char **v) {
         if (!store_offline_find(root, p, sizeof p, n, sizeof n, l, sizeof l)) { puts("niente"); return 0; }
         int r = store_offline_install(root, p);
 #ifndef STORE_0957
+        if (getenv("RIPETI")) {   /* il messaggio del launcher e se lo ripropone nella stessa accensione */
+            printf("%s %s\n", store_err_key(r), store_offline_find(root, p, sizeof p, n, sizeof n, l, sizeof l) ? "di nuovo" : "niente");
+            return 0;
+        }
         printf("%s %s\n", n, r == SE_NONE ? "installato" : r == SE_UNSIGNED ? "non verificato" : r == SE_SYSTEM ? "sistema"
                               : r == SE_MODEL ? "modello" : r == SE_SPACE ? "spazio" : "errore");
 #else
@@ -371,6 +375,12 @@ if [ $piccola = 1 ]; then
     cp -r sd/System $W/piccola/; cp sd/store-fbneo-*.zip sd/store.json sd/store.sig $W/piccola/
     cat /dev/zero > $W/piccola/riempi 2>/dev/null || true   # piena del tutto
     check "scheda piena: «spazio», non «non corrisponde»" "spazio" "$(./t $W/piccola offline 0.9.50 2>/dev/null | awk '{print $NF}')"
+    # revisione indipendente della 0.9.102, rilievo 3: il launcher mostrava «non corrisponde» per ogni
+    # errore che non fosse firma, sistema o modello; e il pacchetto, segnato come visto prima di
+    # installarlo, non si riproponeva più dopo aver liberato spazio
+    check "scheda piena: messaggio «spazio» e non riproposto subito" "store.err_space niente" "$(RIPETI=1 ./t $W/piccola offline 0.9.50 2>/dev/null)"
+    rm -f $W/piccola/riempi
+    check "spazio liberato: alla prossima accensione si ripropone e si installa" "installato" "$(./t $W/piccola offline 0.9.50 2>/dev/null | awk '{print $NF}')"
     umount $W/piccola
 else
     echo "  (scheda piena non provata: serve docker --privileged per un tmpfs piccolo)"

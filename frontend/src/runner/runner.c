@@ -877,6 +877,9 @@ static double rate_target;   /* scorta di audio voluta, in byte (due fotogrammi 
 static unsigned audio_gen_seen;
 static void audio_follow(void) {
     if (UI.automation) return;
+    /* un'uscita riaperta mentre il gioco suonava è già vista: se poi la scheda si blocca, il
+       suono non si riattiva da solo con un secondo blocco di 250 ms (revisione della 0.9.102) */
+    if (audio_on && UI.audio) audio_gen_seen = UI.audio_gen;
     if (audio_on && !UI.audio) {
         audio_on = false;
         ui_log("audio: uscita chiusa, il gioco va col timer");

@@ -656,13 +656,20 @@ int main(void) {
     audio_follow(); int c = audio_on;         /* niente audio: il ritmo torna al timer */
     UI.audio = 3; UI.audio_gen = 3;
     audio_follow(); int d = audio_on;
-    printf("%d%d%d%d\n", a, b, c, d);
+    /* revisione indipendente della 0.9.102, rilievo 6: uscita riaperta mentre il gioco suonava, poi
+       la scheda si blocca: il contatore visto era vecchio e il suono si riattivava subito, con un
+       secondo blocco di 250 ms prima del timer */
+    UI.audio = 4; UI.audio_gen = 4;
+    audio_follow();
+    audio_on = false;
+    audio_follow(); int e = audio_on;
+    printf("%d%d%d%d%d\n", a, b, c, d, e);
     return 0;
 }
 C
 } > $W/af.c
 gcc -Wall -o $W/af $W/af.c 2> $W/af.err || cat $W/af.err
-check "muto con la stessa uscita, suona con la nuova, timer senza uscita, suona alla riapertura ($($W/af))" [ "$($W/af)" = 0101 ]
+check "muto con la stessa uscita, suona con la nuova, timer senza uscita, suona alla riapertura, timer dopo un blocco ($($W/af))" [ "$($W/af)" = 01010 ]
 
 echo "--- controllo delle librerie nella costruzione"
 LC="python3 -I /trimui/toolchain/libclosure.py"

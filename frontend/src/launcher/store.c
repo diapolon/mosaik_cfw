@@ -1436,6 +1436,17 @@ static void mark_seen_as(const char *path, bool for_system) {
 }
 static void mark_seen(const char *path) { mark_seen_as(path, false); }
 
+/* pacchetti già proposti in questa accensione (anche quelli non segnati come visti) */
+static char tried[16][600];
+static int ntried;
+static void tried_add(const char *path) {
+    if (ntried < 16) seen_key(path, tried[ntried++], sizeof tried[0]);
+}
+static bool tried_has(const char *key) {
+    for (int i = 0; i < ntried; i++) if (!strcmp(tried[i], key)) return true;
+    return false;
+}
+
 bool store_offline_find(const char *root, char *path, int pn, char *name, int nn, char *label, int ln) {
     snprintf(root_dir, sizeof root_dir, "%s", root);
     char dirs[2][1100];
@@ -1453,7 +1464,7 @@ bool store_offline_find(const char *root, char *path, int pn, char *name, int nn
             char full[1300], key[600];
             snprintf(full, sizeof full, "%s/%s", dirs[d], de->d_name);
             seen_key(full, key, sizeof key);
-            if (seen(key)) continue;
+            if (seen(key) || tried_has(key)) continue;
             { size_t l = strlen(key); snprintf(key + l, sizeof key - l, "\tsistema %s", system_version); }
             if (seen(key)) continue;   /* rifiutato con questo sistema: si ripropone col prossimo */
             FILE *z = fopen(full, "rb");
@@ -1527,14 +1538,30 @@ int store_offline_install(const char *root, const char *path) {
     /* rifiutato per mancanza del catalogo: non segnato come visto, così copiando accanto
        store.json e store.sig all'avvio dopo si propone di nuovo */
     int refuse = SE_NONE;
+    tried_add(path);   /* in questa accensione non si ripropone, comunque vada */
     if (!signed_sha(path, want, &refuse)) { ui_log("store: %s non è in un catalogo firmato: rifiutato", b); return SE_UNSIGNED; }
-    mark_seen_as(path, refuse == SE_SYSTEM);
-    if (refuse) { ui_log("store: %s %s: non installato", b, refuse == SE_SYSTEM ? "chiede un sistema più nuovo" : "non è per questo modello"); return refuse; }
-    if (!sha256_file(path, sha) || strcmp(sha, want)) { ui_log("store: %s non corrisponde al catalogo: non installato", b); return SE_VERIFY; }
+    if (refuse) {
+        mark_seen_as(path, refuse == SE_SYSTEM);
+        ui_log("store: %s %s: non installato", b, refuse == SE_SYSTEM ? "chiede un sistema più nuovo" : "non è per questo modello");
+        return refuse;
+    }
+    if (!sha256_file(path, sha) || strcmp(sha, want)) { mark_seen(path); ui_log("store: %s non corrisponde al catalogo: non installato", b); return SE_VERIFY; }
     st.cancel = false;
     int err = install_zip(path, NULL, NULL, 0);
+    /* visto solo con un esito definitivo: dopo una scheda piena o una scrittura non riuscita si
+       ripropone alla prossima accensione (revisione della 0.9.102: prima era visto per sempre) */
+    if (err != SE_SPACE && err != SE_WRITE && err != SE_CANCEL) mark_seen(path);
     ui_log("store: %s dalla scheda: %s", b, err ? "non installato" : "installato");
     return err;
+}
+
+/* chiave del messaggio per un esito dello Store, la stessa per lo Store e per i pacchetti copiati
+   sulla scheda (revisione della 0.9.102: per questi ogni altro errore diventava «non corrisponde») */
+const char *store_err_key(int e) {
+    static const char *k[] = { "store.done", "store.err_network", "store.err_signature", "store.err_catalog", "store.err_space",
+                               "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned",
+                               "store.err_system", "store.err_model" };
+    return e >= 0 && e <= SE_MODEL ? k[e] : "store.err_write";
 }
 
 /* ---- immagini della scheda: scaricate una alla volta, a parte dai lavori dello Store ---- */

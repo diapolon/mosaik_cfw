@@ -2,6 +2,8 @@
 # Bluetooth del sistema Arcade (chip XR829, lo stesso del Wi-Fi: HCI su UART ttyS1).
 #   bt-ctl on                  accende il chip, D-Bus, bluetoothd, bluealsa; ricollega l'ultimo dispositivo
 #   bt-ctl off                 salva gli abbinamenti e spegne tutto
+#   bt-ctl auto                on per l'avvio e il risveglio: riprovato se il chip è occupato, salvo
+#                              che l'interruttore nel frattempo dica spento
 #   bt-ctl apply               accende o spegne secondo $BT_WANT (/run/bt-voluto, "on" o "off"),
 #                              scritto dal launcher a ogni pressione dell'interruttore: un apply alla
 #                              volta, e finché lo stato voluto cambia si ricomincia, così vince
@@ -153,15 +155,18 @@ chip_on() {
     [ "${BT_INPUTD:-1}" = 1 ] && [ -e "${BT_I2C:-/dev/i2c-3}" ] && inputd=$(pidof trimui_inputd)
     ok=1
     for t in 1 2 3; do
+        # tasti fermi per tutto il tentativo, spegni e riaccendi del chip compreso, come nella 0.9.91;
+        # e un hciattach senza risposta si ferma prima che ripartano (revisione della 0.9.102)
+        keys_stop
         pid_stop hciattach
         rfkill_bt 0; sleep 1; rfkill_bt 1; sleep 1
-        keys_stop
         start hciattach hciattach -n ttyS1 xradio
-        for i in $(seq 20); do
+        for i in $(seq ${BT_HCI_TRIES:-20}); do
             [ -d "$SYS/bluetooth/hci0" ] && break
             pid_alive hciattach || break
             sleep 0.5
         done
+        [ -d "$SYS/bluetooth/hci0" ] || pid_stop hciattach
         keys_go
         [ -d "$SYS/bluetooth/hci0" ] && { ok=0; break; }
         logs "hciattach, tentativo $t: hci0 non comparso"
@@ -281,10 +286,12 @@ field() { echo "$info" | sed -n "s/^[[:space:]]*$1: //p" | tail -n 1; }
 # Volume delle cuffie a ogni collegamento: con un collegamento nuovo bluealsa riparte dal suo volume
 # di partenza, più alto, e a rimettere quello scelto era solo il launcher; durante un gioco Linux o un
 # emulatore a sé (Deadcast dopo il risveglio) restava alto (console, 20 novembre). "bt-ctl volume"
-# ricorda l'ultimo valore in $RUN/volume; il controllo di bluealsa compare poco dopo il collegamento
+# ricorda l'ultimo valore in $RUN/volume; il controllo di bluealsa compare poco dopo il collegamento.
+# Il valore si rilegge a ogni tentativo: uno scelto nel frattempo non torna quello di prima
+# (revisione della 0.9.102)
 volume_back() {
-    v=$(cat "$RUN/volume" 2> /dev/null); [ -n "$v" ] || return 0
     for i in 1 2 3 4 5 6; do
+        v=$(cat "$RUN/volume" 2> /dev/null); [ -n "$v" ] || return 0
         sh "$0" volume "$v" > /dev/null 2>&1 9>&- && return 0
         sleep ${BT_VOLUME_WAIT:-0.5}
     done
@@ -504,6 +511,19 @@ diag)
     } >> "$D" 2>&1
     sync
     ;;
+auto)
+    # avvio e risveglio: on, riprovato se il chip resta al Wi-Fi o un altro comando tiene il blocco
+    # (uscita 75), finché l'interruttore non dice spento; prima un on rinunciava e il Bluetooth
+    # restava spento con l'impostazione accesa (revisione della 0.9.102)
+    for t in 1 2 3 4 5 6; do
+        [ "$(cat "$WANT" 2> /dev/null)" = off ] && exit 0
+        sh "$0" on; r=$?
+        [ $r = 75 ] || exit $r
+        sleep ${BT_RETRY_WAIT:-5}
+    done
+    logs "Bluetooth non acceso all'avvio o al risveglio: chip sempre occupato"
+    exit 75
+    ;;
 apply)
     exec 7> "$RUN/apply.lock"
     flock 7
@@ -547,13 +567,15 @@ watch)
         [ -n "$gaveup" ] && { flock -u 9; return 1; }
         restarts=$((restarts + 1))
         if [ $restarts -gt ${BT_RESTARTS:-3} ]; then
-            gaveup=1; logs "servizi del Bluetooth fermi più volte: smetto di farli ripartire (spegni e riaccendi il Bluetooth)"
+            gaveup=1; logs "servizi del Bluetooth fermi più volte: smetto di farli ripartire (riaccendi il Bluetooth)"
             flock -u 9
             return 1
         fi
         return 0
     }
-    while [ -d "$SYS/bluetooth/hci0" ] && [ ! -f "$RUN/spegnimento" ]; do
+    # dopo aver rinunciato la guardia esce (l'audio torna all'altoparlante): riaccendendo il
+    # Bluetooth on ne avvia una nuova; prima restava viva e inerte (revisione della 0.9.102)
+    while [ -d "$SYS/bluetooth/hci0" ] && [ ! -f "$RUN/spegnimento" ] && [ -z "$gaveup" ]; do
         if { ! pid_alive dbus || ! pid_alive bluetoothd || ! pid_alive bluealsa; } && revive; then
           if ! pid_alive dbus; then
             logs "D-Bus fermo: riparte"

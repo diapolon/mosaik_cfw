@@ -105,6 +105,7 @@ void store_refresh(void);
 bool store_recover(const char *root);
 /* l'utente sceglie di proseguire: il giornale irrisolto va in store-giornale-guasto.txt */
 bool store_recover_force(const char *root);
+const char *store_err_key(int e);   /* chiave della lingua per un esito (SE_*) */
 bool store_offline_find(const char *root, char *path, int pn, char *name, int nn, char *label, int ln);
 /* SE_NONE se installato; SE_UNSIGNED se il pacchetto non è in un catalogo firmato (quello sulla
    scheda, o store.json e store.sig copiati accanto allo zip); SE_VERIFY se l'impronta non torna */

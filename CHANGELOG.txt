@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.103
+it Brick Pro: tasti fermi per tutta l'accensione del chip Bluetooth, come nella 0.9.91
+en Brick Pro: buttons paused for the whole Bluetooth chip start, as in 0.9.91
+it Bluetooth: all'avvio e al risveglio riprova se il chip è ancora occupato dal Wi-Fi
+en Bluetooth: at start and on wake it retries if Wi-Fi is still using the chip
+it Bluetooth: riacceso dopo un guasto, i servizi tornano a essere sorvegliati
+en Bluetooth: turned back on after a failure, its services are watched again
+it Pacchetto copiato sulla scheda piena: dice «spazio» e si ripropone dopo aver liberato spazio
+en Package copied to a full card: says "space" and is offered again once space is freed
+
 0.9.102
 it Cuffie Bluetooth ricollegate durante un gioco: tornano al volume scelto, non più forti
 en Bluetooth headphones reconnected during a game: back to the chosen volume, not louder
