@@ -136,7 +136,20 @@ keys_go() {
 chip_on() {
     # stesso chip del Wi-Fi: si aspetta che un'accensione del Wi-Fi in corso sia finita
     exec 8> "${BT_WIFI_LOCK:-/run/wifi-ctl.lock}"
-    i=0; until flock -n 8 || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
+    # al massimo 20 s; senza il blocco il chip non si tocca: prima, finita l'attesa, si accendeva lo
+    # stesso mentre il Wi-Fi lo stava usando (audit Codex 0.9.100, A100-01). on esce con 75 e apply
+    # riprova, così vale sempre l'ultima scelta dell'interruttore
+    i=0; got=1
+    until flock -n 8; do
+        i=$((i + 1))
+        [ $i -ge ${BT_WIFI_LOCK_TRIES:-200} ] && { got=0; break; }
+        sleep 0.1
+    done
+    if [ $got = 0 ]; then
+        exec 8>&-
+        logs "chip occupato dal Wi-Fi da più di $((${BT_WIFI_LOCK_TRIES:-200} / 10)) s: non lo accendo"
+        return 2
+    fi
     [ "${BT_INPUTD:-1}" = 1 ] && [ -e "${BT_I2C:-/dev/i2c-3}" ] && inputd=$(pidof trimui_inputd)
     ok=1
     for t in 1 2 3; do
@@ -325,10 +338,14 @@ on)
     : > "$RUN/avvio"; trap 'keys_go; rm -f "$RUN/avvio"' EXIT; trap 'exit 1' INT TERM
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
     if bt_on; then log "già acceso"; exit 0; fi
-    if [ ! -d "$SYS/bluetooth/hci0" ] && ! chip_on; then
-        rfkill_bt 0; pid_stop hciattach
-        logs "Bluetooth NON acceso: il chip non risponde"
-        exit 1
+    if [ ! -d "$SYS/bluetooth/hci0" ]; then
+        chip_on; r=$?
+        [ $r = 2 ] && { logs "Bluetooth NON acceso: chip occupato dal Wi-Fi"; exit 75; }
+        if [ $r != 0 ]; then
+            rfkill_bt 0; pid_stop hciattach
+            logs "Bluetooth NON acceso: il chip non risponde"
+            exit 1
+        fi
     fi
     if ! daemons_on; then
         logs "Bluetooth NON acceso: bluetoothd non parte"

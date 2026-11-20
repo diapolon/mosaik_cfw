@@ -243,6 +243,11 @@ typedef struct {
     long long got;
     EVP_MD_CTX *sha1, *md5;
     bool werr;
+    /* spazio: si scrive al massimo budget byte, e ogni 4 MB si ricontrolla lo spazio libero, che
+       può calare mentre si scarica; expect > 0 è la misura dichiarata (audit Codex 0.9.100, A100-05) */
+    const char *dir;
+    long long budget, next_check, expect;
+    bool nospace, toolong;
 } xfer_t;
 
 static int on_xfer(void *u, curl_off_t dt, curl_off_t dn, curl_off_t ut, curl_off_t un) {
@@ -292,6 +297,8 @@ static size_t to_mem(char *p, size_t s, size_t n, void *u) {
 
 static int net_result(CURLcode rc, xfer_t *x) {
     if (rc == CURLE_OK) return UG_OK;
+    if (x->nospace) return UG_E_SPACE;
+    if (x->toolong) return UG_E_SIZE;
     if (x->cancelled || rc == CURLE_ABORTED_BY_CALLBACK) return UG_E_CANCEL;
     if (x->toobig || rc == CURLE_FILESIZE_EXCEEDED) return UG_E_BIG;
     if (rc == CURLE_UNSUPPORTED_PROTOCOL || rc == CURLE_URL_MALFORMAT) return UG_E_URL;
@@ -317,10 +324,18 @@ int ug_fetch(const char *url, const char *cacert, size_t max, char **out, ug_pro
 
 /* --------------------------------------------------------------- file */
 
+#define UG_RESERVE (16LL << 20)   /* spazio che resta sempre libero sulla scheda */
 static size_t to_file(char *p, size_t s, size_t n, void *u) {
     xfer_t *x = u;
     size_t k = s * n;
     if (x->got + (long long)k > UG_FILE_MAX) { x->toobig = true; return 0; }
+    if (x->expect > 0 && x->got + (long long)k > x->expect) { x->toolong = true; return 0; }   /* più grande del dichiarato */
+    if (x->got + (long long)k > x->budget) { x->nospace = true; return 0; }
+    if (x->got + (long long)k >= x->next_check) {
+        struct statvfs vs;
+        if (statvfs(x->dir, &vs) != 0 || (long long)vs.f_bavail * (long long)vs.f_frsize < (long long)k + UG_RESERVE) { x->nospace = true; return 0; }
+        x->next_check = x->got + (4LL << 20);
+    }
     if (fwrite(p, 1, k, x->f) != k) { x->werr = true; return 0; }
     EVP_DigestUpdate(x->sha1, p, k);
     EVP_DigestUpdate(x->md5, p, k);
@@ -337,14 +352,18 @@ int ug_download(const char *url, const char *dir, const char *name, long long si
     if (!ug_url_ok(url)) return UG_E_URL;
     if (!name || !*name || name[0] == '.' || strchr(name, '/') || strlen(name) > UG_NAME_MAX) return UG_E_IO;
     if (size > UG_FILE_MAX) return UG_E_BIG;
+    /* spazio: se non si può misurare non si scarica; con la misura ignota (size 0) vale il budget, non
+       solo il controllo iniziale, che vedeva 0 byte e lasciava consumare anche la riserva */
     struct statvfs vs;
-    if (statvfs(dir, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < size + (16LL << 20)) return UG_E_SPACE;
+    if (statvfs(dir, &vs) != 0) return UG_E_SPACE;
+    long long avail = (long long)vs.f_bavail * (long long)vs.f_frsize;
+    if (avail < size + UG_RESERVE) return UG_E_SPACE;
     char full[1400], part[1500];
     snprintf(full, sizeof full, "%s/%s", dir, name);
     snprintf(part, sizeof part, "%s/.%s.part", dir, name);
     struct stat sb;
     if (stat(full, &sb) == 0) return UG_E_EXISTS;
-    xfer_t x = { .cb = cb, .ud = ud };
+    xfer_t x = { .cb = cb, .ud = ud, .dir = dir, .budget = avail - UG_RESERVE, .next_check = 4LL << 20, .expect = size };
     x.f = fopen(part, "wb");
     if (!x.f) return UG_E_IO;
     x.sha1 = EVP_MD_CTX_new();

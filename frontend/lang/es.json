@@ -139,6 +139,7 @@
     "ev_fail": "Error: %s",
     "close": "Cerrar",
     "no_port": "Transferencia no disponible",
+    "closing": "Una operación en la tarjeta aún no ha terminado: inténtalo en un momento",
     "backup_of": "Copia del %s",
     "part_files": "%d archivos",
     "part_saves": "Partidas",

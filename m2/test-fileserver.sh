@@ -33,6 +33,9 @@ int main(int argc, char **argv) {
         if (access("si", F_OK) == 0) { unlink("si"); fs_restore_answer(FS_PARTS_ALL); }
         if (access("no", F_OK) == 0) { unlink("no"); fs_restore_answer(0); }
         if (access("salvataggi", F_OK) == 0) { unlink("salvataggi"); fs_restore_answer(1 << FS_PART_SAVES); }
+        /* chiusura e riapertura chieste come dal launcher (A100-06) */
+        if (access("ferma", F_OK) == 0) { unlink("ferma"); fs_stop(); FILE *e = fopen("esito", "w"); if (e) { fputs("fermato\n", e); fclose(e); } }
+        if (access("riparti", F_OK) == 0) { unlink("riparti"); bool ok = fs_start(argv[1]); FILE *e = fopen("esito", "w"); if (e) { fprintf(e, "%d\n", ok); fclose(e); } }
         fs_status_t r;
         fs_get_status(&r);
         FILE *f = fopen("stato.tmp", "w");
@@ -412,6 +415,22 @@ for t in "http://192.168.1.23/#pin=123456" "http://10.0.0.200:8080/#pin=000001" 
     ./qr "$t" q.pgm
     check "QR di ${#t} caratteri" "$t" "$(zbarimg -q --raw q.pgm 2>/dev/null)"
 done
+
+# audit Codex 0.9.100, A100-06: con un lavoro sulla scheda più lungo dell'attesa di chiusura il server
+# si dichiarava chiuso e poteva ripartire subito, azzerando lo stato che quel lavoro usava ancora
+echo "--- chiusura con un lavoro ancora in corso"
+mkdir -p $W/fs2 && cd $W/fs2
+FS_TEST_SLOW_LIST=4 FS_STOP_WAIT=20 ARCADE_FS_PORT=8097 ARCADE_FS_PIN=111111 ARCADE_FS_PIN2=222222 $W/srv $W/sd > srv2.log 2>&1 & PID2=$!
+sleep 1
+curl -s -c $W/cj2 -X POST -d pin=111111 http://127.0.0.1:8097/api/login > /dev/null
+curl -s -b $W/cj2 -o /dev/null "http://127.0.0.1:8097/api/list?path=Roms" & LST=$!
+sleep 0.5
+attendi() { rm -f esito; : > $1; for i in $(seq 60); do [ -s esito ] && break; sleep 0.1; done; cat esito 2>/dev/null; }
+attendi ferma > /dev/null
+check "lavoro ancora in corso: il server non riparte sopra di lui" "0" "$(attendi riparti)"
+wait $LST 2>/dev/null || true; sleep 4   # il lavoro sul server dura 4 s, curl si ferma prima
+check "lavoro finito: il server riparte" "1" "$(attendi riparti)"
+kill $PID2 2>/dev/null; wait $PID2 2>/dev/null || true; cd $W
 if grep -q "runtime error\|Illegal instruction" srv.log; then ko=$((ko+1)); echo "  ERRORE: sanitizer"; cat srv.log; fi
 echo
 if [ $ko -eq 0 ]; then echo "TUTTO OK ($ok prove)"; else echo "$ko PROVE FALLITE"; exit 1; fi

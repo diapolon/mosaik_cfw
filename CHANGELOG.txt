@@ -3,6 +3,16 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.101
+it Bluetooth: non accende più il chip mentre il Wi-Fi lo sta ancora usando
+en Bluetooth: no longer turns the chip on while Wi-Fi is still using it
+it Brick Pro: un controllo vecchio del Wi-Fi non rimette in moto i tasti durante una nuova accensione
+en Brick Pro: an old Wi-Fi check no longer restarts the buttons during a new start
+it Giochi: il suono torna quando l'audio si riapre (cuffie, risveglio), e senza audio il gioco va col suo ritmo
+en Games: sound comes back when the audio reopens (headphones, wake), and without audio the game keeps its pace
+it Trasferimento file: non riparte finché un'operazione sulla scheda non è finita
+en File transfer: does not restart until an operation on the card has finished
+
 0.9.100
 it Brick Pro: tasti che non restano più fermi quando Wi-Fi e Bluetooth si accendono insieme lontano da reti note
 en Brick Pro: buttons no longer stay frozen when Wi-Fi and Bluetooth start together far from known networks

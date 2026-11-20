@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
 
 static int fails, total;
@@ -187,6 +188,21 @@ int main(int argc, char **argv) {
     snprintf(url, sizeof url, "%s/missing", base);
     r = ug_download(url, dest, "gone.zip", 0, "", "", NULL, NULL, NULL);
     CHECK(r == UG_E_NET && !exists(dest, "gone.zip") && !leftovers(dest), "404 nel download: %d", r);
+
+    /* audit Codex 0.9.100, A100-05: con la misura ignota il controllo iniziale vedeva 0 byte e il
+       download poteva consumare anche i 16 MB di riserva della scheda. UG_SMALL_DIR: una scheda
+       piccola (tmpfs, test-urlget.sh con --privileged) con poco più della riserva libera */
+    const char *small = getenv("UG_SMALL_DIR");
+    if (small) {
+        snprintf(url, sizeof url, "%s/download/test-item/Game%%20One.zip", base);
+        r = ug_download(url, small, "riserva.zip", 0, "", "", NULL, NULL, NULL);
+        struct statvfs vs;
+        long long freeb = statvfs(small, &vs) == 0 ? (long long)vs.f_bavail * (long long)vs.f_frsize : -1;
+        CHECK(r == UG_E_SPACE && !exists(small, "riserva.zip") && !leftovers(small) && freeb >= (16LL << 20) - (64 << 10),
+              "misura ignota: la riserva di 16 MB resta libera (%d, %lld byte liberi)", r, freeb);
+        r = ug_download(url, "/nessuna/cartella", "x.zip", 0, "", "", NULL, NULL, NULL);
+        CHECK(r == UG_E_SPACE || r == UG_E_IO, "spazio non misurabile: rifiutato (%d)", r);
+    } else puts("  (riserva della scheda non provata: serve una scheda piccola, UG_SMALL_DIR)");
 
     printf("%d prove, %d non riuscite\n", total, fails);
     return fails ? 1 : 0;

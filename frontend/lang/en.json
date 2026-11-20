@@ -139,6 +139,7 @@
     "ev_fail": "Failed: %s",
     "close": "Close",
     "no_port": "Transfer not available",
+    "closing": "An operation on the card has not finished yet: try again shortly",
     "backup_of": "Backup from %s",
     "part_files": "%d files",
     "part_saves": "Saves",

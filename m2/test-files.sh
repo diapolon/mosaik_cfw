@@ -630,6 +630,40 @@ check "impronta sbagliata: si ferma e non estrae" [ "$r" = 1 -a ! -d $W/dl/src/l
 ( . $W/dl/fetch.sh; fetch file://$W/dl/libx-1.0.tar.gz libx-1.0 $H ) > /dev/null 2>&1 && r=0 || r=1
 check "impronta giusta: estratto" [ "$r" = 0 -a -f $W/dl/src/libx-1.0/x.c ]
 
+# audit Codex 0.9.100, A100-03: dopo un audio fermo (o un'apertura fallita) il runner non mandava più
+# il suono del gioco, anche quando la UI riapriva l'uscita (cambio cuffie, risveglio)
+echo "--- runner: suono del gioco dopo il recupero dell'audio"
+{ cat <<'C'
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include "/trimui/frontend/src/runner/ratectl.h"
+static struct { unsigned audio, audio_gen; bool automation; } UI;
+static void ui_log(const char *f, ...) { (void)f; }
+static ratectl_t rate;
+static bool audio_on;
+C
+  grep -E '^static unsigned audio_gen_seen;' /trimui/frontend/src/runner/runner.c
+  fn /trimui/frontend/src/runner/runner.c '^static void audio_follow'
+  cat <<'C'
+int main(void) {
+    UI.audio = 1; UI.audio_gen = 1; audio_gen_seen = 1; audio_on = true;
+    audio_on = false;                         /* la scheda non consuma: si va avanti senza audio */
+    audio_follow(); int a = audio_on;         /* stessa uscita: resta muto */
+    UI.audio = 2; UI.audio_gen = 2;           /* cuffie: la UI riapre l'uscita */
+    audio_follow(); int b = audio_on;         /* il gioco torna a suonare */
+    UI.audio = 0;                             /* uscita chiusa e riapertura non riuscita */
+    audio_follow(); int c = audio_on;         /* niente audio: il ritmo torna al timer */
+    UI.audio = 3; UI.audio_gen = 3;
+    audio_follow(); int d = audio_on;
+    printf("%d%d%d%d\n", a, b, c, d);
+    return 0;
+}
+C
+} > $W/af.c
+gcc -Wall -o $W/af $W/af.c 2> $W/af.err || cat $W/af.err
+check "muto con la stessa uscita, suona con la nuova, timer senza uscita, suona alla riapertura ($($W/af))" [ "$($W/af)" = 0101 ]
+
 echo "--- controllo delle librerie nella costruzione"
 LC="python3 -I /trimui/toolchain/libclosure.py"
 R2=$W/rootfs; mkdir -p $R2/lib

@@ -347,6 +347,19 @@ sleep 0.3
   WIFI_INPUTD_LOCK=/tmp/inputd-pausa.lock sh /trimui/m2/wifi-ctl resume T1 > /dev/null 2>&1 )
 check "ripresa del Wi-Fi con il blocco del Wi-Fi occupato: tasti di nuovo in moto" '[ "$(state)" != T ] && [ ! -f /tmp/wifi-pausa ]'
 kill $H 2>/dev/null; wait $H 2>/dev/null
+# audit Codex 0.9.100, A100-02: il gettone del timer si confrontava prima del blocco delle pause; un
+# timer vecchio (T1) entrato dopo una nuova accensione (T2) toglieva la pausa nuova e rimetteva in
+# moto i tasti
+kill -STOP $IN; printf 'T1\n%s\n' $IN > /tmp/wifi-pausa
+sh -c "exec 5> /tmp/inputd-pausa.lock; flock 5; exec sleep 2" & H=$!
+sleep 0.3
+( ARCADE_LOG_DIR=$ROOT/Logs WIFI_INPUTD_PAUSE=/tmp/wifi-pausa WIFI_BT_PAUSE=/tmp/bt-pausa WIFI_INPUTD_LOCK=/tmp/inputd-pausa.lock \
+  sh /trimui/m2/wifi-ctl resume T1 > /dev/null 2>&1 ) & R=$!
+sleep 0.5
+printf 'T2\n%s\n' $IN > /tmp/wifi-pausa   # nuova accensione del Wi-Fi mentre il timer vecchio aspetta
+wait $H 2>/dev/null; wait $R 2>/dev/null
+check "timer vecchio: la pausa nuova resta e i tasti restano fermi" '[ "$(state)" = T ] && grep -q "^T2" /tmp/wifi-pausa'
+rm -f /tmp/wifi-pausa
 kill -CONT $IN 2>/dev/null; kill $IN; rm -f $BIN/trimui_inputd /tmp/i2c3
 reset
 
@@ -528,6 +541,20 @@ $CTL on > /dev/null 2>&1; $CTL off > /dev/null 2>&1
 mkdir -p /tmp/runbt; for d in bluetoothd bluealsa dbus hciattach; do : > /tmp/runbt/$d.pid; done
 t0=$(date +%s); $CTL off > /dev/null 2>&1; dt=$(( $(date +%s) - t0 ))
 check "spento in fretta anche con i file PID vuoti ($dt s)" '[ $dt -le 3 ]'
+reset
+
+# audit Codex 0.9.100, A100-01: dopo 20 s d'attesa del blocco del Wi-Fi chip_on andava avanti senza
+# averlo e accendeva il chip mentre il Wi-Fi lo stava ancora usando
+echo "--- blocco del chip tenuto dal Wi-Fi oltre l'attesa"
+reset
+sh -c "exec 8> $BT_WIFI_LOCK; flock 8; exec sleep 6" & H=$!
+sleep 0.3; : > $F/calls
+BT_WIFI_LOCK_TRIES=10 $CTL on > /dev/null 2>&1; r=$?
+check "senza il blocco il chip non si tocca (uscita $r)" '! grep -q "^hciattach" $F/calls && [ "$(cat /tmp/sys/rfkill/rfkill0/state)" = 0 ] && [ $r != 0 ]'
+kill $H 2>/dev/null; wait $H 2>/dev/null
+$CTL on > /dev/null 2>&1
+check "blocco libero: si accende" '[ "$($CTL status)" = acceso ]'
+$CTL off > /dev/null 2>&1
 reset
 
 echo

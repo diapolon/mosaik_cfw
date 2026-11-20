@@ -633,6 +633,10 @@ static int cmp_entry(const void *a, const void *b) {
 
 static void do_list(req_t *r) {
     char rel[1024], full[2048];
+#ifndef TRIMUI_DEVICE
+    /* prove (test-fileserver.sh, A100-06): un'operazione sulla scheda che dura FS_TEST_SLOW_LIST s */
+    if (getenv("FS_TEST_SLOW_LIST")) sleep((unsigned)atoi(getenv("FS_TEST_SLOW_LIST")));
+#endif
     qget(r->query, "path", rel, sizeof rel);
     if (!rel_ok(rel) || secret(rel)) { reply_err(r->fd, 400, "path"); return; }
     full_path(full, sizeof full, rel);
@@ -1871,6 +1875,7 @@ static void build_page(void) {
 
 bool fs_start(const char *dir) {
     if (thr_on) return true;
+    if (fs_busy()) { fprintf(stderr, "trasferimento file: la chiusura di prima non è finita, non riparto\n"); return false; }
     snprintf(root, sizeof root, "%s", dir);
     signal(SIGPIPE, SIG_IGN);
     lsock = socket(AF_INET, SOCK_STREAM, 0);
@@ -1916,13 +1921,28 @@ bool fs_start(const char *dir) {
     return true;
 }
 
-void fs_stop(void) {
-    if (!thr_on) return;
+bool fs_busy(void) {
+    pthread_mutex_lock(&conn_mu);
+    int n = nconn;
+    pthread_mutex_unlock(&conn_mu);
+    return n > 0;
+}
+
+/* Vero se tutte le connessioni hanno finito. Se una resta al lavoro oltre l'attesa (scheda lenta, I/O
+   bloccato) lo stato che usa non si tocca e fs_start non riparte finché non ha finito: prima il server
+   si dichiarava chiuso e una riapertura azzerava sotto di lei contatori e dati della sessione (audit
+   Codex 0.9.100, A100-06) */
+bool fs_stop(void) {
+    if (!thr_on) return !fs_busy();
     atomic_store(&stop_req, true);
     pthread_join(thr, NULL);
     thr_on = false;
     /* le connessioni ancora aperte: chiuse dal nostro lato, poi si aspetta che i loro thread finiscano */
-    for (int w = 0; w < 600; w++) {
+    int waits = 600;   /* 30 s */
+#ifndef TRIMUI_DEVICE
+    if (getenv("FS_STOP_WAIT")) waits = atoi(getenv("FS_STOP_WAIT"));   /* prove: un'attesa più corta */
+#endif
+    for (int w = 0; w < waits; w++) {
         pthread_mutex_lock(&conn_mu);
         int n = nconn;
         for (int i = 0; i < nconn; i++) shutdown(conn_fd[i], SHUT_RDWR);
@@ -1932,9 +1952,12 @@ void fs_stop(void) {
     }
     close(lsock);
     lsock = -1;
-    token[0] = 0;
+    bool done = !fs_busy();
+    if (done) token[0] = 0;   /* con un lavoro ancora in corso la sessione resta com'è */
+    else fprintf(stderr, "trasferimento file: un'operazione sulla scheda è ancora in corso, chiusura da completare\n");
     pthread_mutex_lock(&mu);
     st.running = false;
     st.state = FS_IDLE;
     pthread_mutex_unlock(&mu);
+    return done;
 }

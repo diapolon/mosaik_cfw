@@ -139,6 +139,7 @@
     "ev_fail": "Échec : %s",
     "close": "Fermer",
     "no_port": "Transfert indisponible",
+    "closing": "Une opération sur la carte n'est pas encore terminée : réessayez dans un instant",
     "backup_of": "Sauvegarde du %s",
     "part_files": "%d fichiers",
     "part_saves": "Sauvegardes de jeu",

@@ -49,7 +49,8 @@ typedef struct {
 
 /* avvia il server sulla cartella root; restituisce falso se la porta non si apre */
 bool fs_start(const char *root);
-void fs_stop(void);
+bool fs_stop(void);   /* falso: un'operazione sulla scheda è ancora in corso (si chiude da sola) */
+bool fs_busy(void);   /* connessioni di una sessione ancora al lavoro: non si riapre */
 void fs_get_status(fs_status_t *out);
 const char *fs_pin(void);
 int fs_port(void);

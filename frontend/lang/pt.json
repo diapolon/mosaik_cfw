@@ -139,6 +139,7 @@
     "ev_fail": "Falhou: %s",
     "close": "Fechar",
     "no_port": "Transferência indisponível",
+    "closing": "Uma operação no cartão ainda não terminou: tenta daqui a pouco",
     "backup_of": "Cópia de %s",
     "part_files": "%d ficheiros",
     "part_saves": "Jogos guardados",

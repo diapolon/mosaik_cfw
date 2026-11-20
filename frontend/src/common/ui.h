@@ -71,6 +71,7 @@ typedef struct {
     char root[1024];
     TTF_Font *f_small, *f_normal, *f_title, *f_big;
     SDL_AudioDeviceID audio;
+    unsigned audio_gen;   /* cresce a ogni apertura riuscita dell'uscita audio (il runner la segue) */
     int audio_rate;
     bool automation;
     bool vol_bar;        /* chi disegna una barra del volume sua (runner): niente avviso a schermo */

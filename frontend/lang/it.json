@@ -139,6 +139,7 @@
     "ev_fail": "Non riuscito: %s",
     "close": "Chiudi",
     "no_port": "Trasferimento non disponibile",
+    "closing": "Un'operazione sulla scheda non è ancora finita: riprova fra poco",
     "backup_of": "Backup del %s",
     "part_files": "%d file",
     "part_saves": "Salvataggi",

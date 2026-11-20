@@ -139,6 +139,7 @@
     "ev_fail": "Fehlgeschlagen: %s",
     "close": "Schließen",
     "no_port": "Übertragung nicht verfügbar",
+    "closing": "Ein Vorgang auf der Karte ist noch nicht fertig: gleich noch einmal versuchen",
     "backup_of": "Sicherung vom %s",
     "part_files": "%d Dateien",
     "part_saves": "Spielstände",

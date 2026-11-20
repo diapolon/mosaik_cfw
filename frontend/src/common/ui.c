@@ -237,11 +237,6 @@ void ui_suspend(void) {
     plat_screen_off(true);
     plat_apply(&UI.set);
     plat_suspend();
-    /* durante il sonno bt-ctl spegne il Bluetooth e rimette asound.conf sull'altoparlante: con la
-       configurazione di prima, ancora verso le cuffie, l'audio non si apriva più ("Cannot allocate
-       memory", 20 novembre, audit 0.9.88 BT-03). L'audio qui è chiuso (anche quello della musica):
-       la prossima apertura rilegge la configurazione */
-    ui_alsa_reload();
     /* arcade-suspend ha visto la SD non rispondere: da qui nessun programma scrive sulla scheda
        (il runner esce subito, il launcher mostra il riavvio) */
     if (plat_standalone() && access("/run/sd-guasta", F_OK) == 0) UI.sd_failed = true;
@@ -255,6 +250,13 @@ void ui_suspend(void) {
         had_audio = true;
         ui_log("risveglio: l'uscita audio si è chiusa, si riapre");
     }
+    /* durante il sonno bt-ctl spegne il Bluetooth e rimette asound.conf sull'altoparlante: con la
+       configurazione di prima, ancora verso le cuffie, l'audio non si apriva più ("Cannot allocate
+       memory", 20 novembre, audit 0.9.88 BT-03). La configurazione si rilegge qui, dopo aver visto se
+       la chiusura rimasta appesa prima del sonno è finita: rileggerla prima la saltava anche quando
+       quella chiusura finiva durante il sonno (audit Codex 0.9.100, A100-04). Con la chiusura ancora
+       appesa ui_alsa_reload non fa niente. L'audio qui è chiuso, anche quello della musica */
+    ui_alsa_reload();
     if (had_audio) { audio_open(); SDL_Delay(400); }
     plat_audio_unmute();
     /* tasti premuti prima o durante il sonno: non devono valere dopo il risveglio */
@@ -1071,6 +1073,7 @@ static void audio_open(void) {
     if (UI.audio && fail > 0) { fail--; SDL_CloseAudioDevice(UI.audio); UI.audio = 0; SDL_SetError("prova"); }
 #endif
     if (UI.audio) {
+        UI.audio_gen++;
         SDL_PauseAudioDevice(UI.audio, 0);
         ui_log("audio: driver %s, %d Hz, %d canali, %d campioni", SDL_GetCurrentAudioDriver(), have.freq, have.channels, have.samples);
     } else {

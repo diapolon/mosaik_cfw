@@ -869,6 +869,26 @@ static bool fast_forward;
 static ratectl_t rate;
 static double rate_target;   /* scorta di audio voluta, in byte (due fotogrammi e mezzo) */
 
+/* l'audio del gioco segue l'uscita aperta dalla UI (audit Codex 0.9.100, A100-03) */
+/* Prima audio_on si decideva solo all'avvio e un audio fermo lo spegneva per sempre: con l'uscita
+   riaperta (cuffie, risveglio) il gioco restava muto fino all'uscita. E con l'uscita chiusa e una
+   riapertura non riuscita il ritmo restava sull'audio che non c'era, senza il timer. Si guarda il
+   contatore delle aperture della UI: un'uscita nuova riattiva il suono, nessuna uscita lo spegne. */
+static unsigned audio_gen_seen;
+static void audio_follow(void) {
+    if (UI.automation) return;
+    if (audio_on && !UI.audio) {
+        audio_on = false;
+        ui_log("audio: uscita chiusa, il gioco va col timer");
+    }
+    if (!audio_on && UI.audio && UI.audio_gen != audio_gen_seen) {
+        audio_gen_seen = UI.audio_gen;
+        memset(&rate, 0, sizeof rate);
+        audio_on = true;
+        ui_log("audio: uscita di nuovo aperta, il gioco torna a suonare");
+    }
+}
+
 static size_t audio_batch(const int16_t *data, size_t frames) {
     if (!audio_on || fast_forward) return frames;
     static int16_t *buf;
@@ -2535,6 +2555,7 @@ int main(int argc, char **argv) {
     apply_cpu();
     filter_apply();
     audio_on = UI.audio && !UI.automation;
+    audio_gen_seen = UI.audio_gen;
     /* un profilo scelto per questo gioco resta attivo a lungo: lo si dice all'avvio */
     bool resumed = resume && state_load(true);
     if (resume && !resumed) {
@@ -2654,6 +2675,9 @@ int main(int argc, char **argv) {
 
         /* ritmo: l'audio in coda fa da orologio; senza audio si usa il timer */
         if (UI.automation) continue;
+        bool was_on = audio_on;
+        audio_follow();
+        if (was_on != audio_on) next = SDL_GetPerformanceCounter();
         if (audio_on && !menu_open && !suspend_ask && !fast_forward) {
             /* se la scheda audio non consuma (driver bloccato), dopo 250 ms si continua
                senza audio con il timer: meglio un gioco muto che un gioco fermo */

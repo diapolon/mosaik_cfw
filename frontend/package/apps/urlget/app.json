@@ -2,7 +2,7 @@
  "title": "Download files",
  "description": "Download a file from a web address, or pick files from an archive.org item, into the folder you choose. Addresses go in Apps/urlget/links.txt. HTTPS only, with size and hash checks. Only download what you have the right to have.",
  "author": "Mosaik",
- "version": "1.0",
+ "version": "1.1",
  "min_system": "0.9.56",
  "env": {
   "GAMEWATCH_NOMENU": "1"

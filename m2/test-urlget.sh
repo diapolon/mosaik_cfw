@@ -2,7 +2,7 @@
 # Prove di urlget_core (app dello Store "Scarica file") con un server HTTP locale: indirizzi, nomi,
 # metadati di archive.org, blocco degli indirizzi privati, download con controlli, annullamento,
 # reindirizzamenti:
-#   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-urlget.sh
+#   docker run --rm --privileged --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-urlget.sh
 set -e
 apk add -q build-base curl-dev openssl-dev python3 >/dev/null
 T=$(mktemp -d)
@@ -40,4 +40,8 @@ for i in 1 2 3 4 5 6 7 8 9 10; do [ -s "$T/port" ] && break; sleep 0.3; done
 PORT=$(cat "$T/port")
 F=/trimui/frontend/src
 cc -std=c11 -O2 -g -Wall -Wextra -D_DEFAULT_SOURCE -o "$T/urlget_test" $F/apps/urlget_test.c $F/apps/urlget_core.c $F/common/json.c -lcurl -lcrypto -lm
+# scheda piccola per la riserva di spazio (A100-05): 18 MB, cioè poco più dei 16 MB di riserva
+mkdir -p "$T/small"
+if mount -t tmpfs -o size=18m tmpfs "$T/small" 2>/dev/null; then export UG_SMALL_DIR="$T/small"; fi
 "$T/urlget_test" "http://127.0.0.1:$PORT" "$T/fix" "$T/dest"
+[ -n "$UG_SMALL_DIR" ] && umount "$T/small" || true

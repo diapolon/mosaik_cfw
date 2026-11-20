@@ -5665,7 +5665,7 @@ static double fsrv_ip_t;
 
 static void fsrv_start(void) {
     if (!UI.set.wifi) { ui_toast(T("scrape.no_wifi")); ui_sound(SND_ERROR); return; }
-    if (!fs_start(UI.root)) { ui_toast(T("fileserver.no_port")); ui_sound(SND_ERROR); return; }
+    if (!fs_start(UI.root)) { ui_toast(T(fs_busy() ? "fileserver.closing" : "fileserver.no_port")); ui_sound(SND_ERROR); return; }
     ui_log("trasferimento file: aperto sulla porta %d", fs_port());
     fsrv_open = true;
     fsrv_sel = 0;
@@ -5676,7 +5676,7 @@ static void fsrv_start(void) {
 static void fsrv_close(void) {
     fs_status_t s;
     fs_get_status(&s);
-    fs_stop();
+    if (!fs_stop()) ui_toast(T("fileserver.closing"));
     fsrv_open = false;
     ui_log("trasferimento file: chiuso, %d file ricevuti", s.uploads);
     if (fs_changed()) {   /* ROM, immagini o giochi nuovi: si vedono subito */

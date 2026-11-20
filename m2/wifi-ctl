@@ -55,9 +55,11 @@ inputd_pause() {
 }
 inputd_resume() {   # $1: gettone dell'accensione, vuoto = qualunque
     [ -f $INPUTD_PAUSE ] || return 0
-    [ -n "$1" ] && [ "$1" != "$(sed -n 1p $INPUTD_PAUSE)" ] && return 0
     ( flock 5
       [ -f $INPUTD_PAUSE ] || exit 0
+      # il gettone si guarda qui, sotto il blocco: guardato prima, un timer vecchio entrato dopo una
+      # nuova accensione ne toglieva la pausa (audit Codex 0.9.100, A100-02)
+      [ -n "$1" ] && [ "$1" != "$(sed -n 1p $INPUTD_PAUSE)" ] && exit 0
       # se intanto li tiene fermi il Bluetooth (m2/bt-ctl, accensione del chip), li fa ripartire lui
       [ -f "${WIFI_BT_PAUSE:-/run/bt-inputd-pausa}" ] || kill -CONT $(sed -n 2p $INPUTD_PAUSE) 2> /dev/null
       rm -f $INPUTD_PAUSE ) 5> "$INPUTD_LOCK"
