@@ -31,7 +31,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 **Games**
 - [ ] Faster fast-forward (cores skip the frames that are not shown)
 - [ ] Dreamcast (Deadcast): test on the Smart Pro, then a clean exit when the game is closed from outside
-- [ ] Audit 0.9.88, still open: LAU-11 (contrast of the light Tessera theme: white on `#0FB1D4` is 2.5:1; a darker accent is a design choice to make with the user), LAU-14 rest (a Wi-Fi window aligned left with the buttons on the edge: find which one with a screenshot; no filter to hide clones, the `parent` column is already read); `Emulators/dc.json` is shared by Deadcast and Flycast (only a card where Deadcast was installed on the Smart Pro before 0.9.67), BT-12 (power use with Bluetooth on: measure with `test-consumi`), BT-11 (what to say in the wiki)
+- [ ] Audit 0.9.88, still open: LAU-14 rest (a Wi-Fi window aligned left with the buttons on the edge: find which one with a screenshot; no filter to hide clones, the `parent` column is already read); `Emulators/dc.json` is shared by Deadcast and Flycast (only a card where Deadcast was installed on the Smart Pro before 0.9.67), BT-12 (power use with Bluetooth on: measure with `test-consumi`)
 - [ ] Saves page: restore the `.srm.bak` kept before loading a state (audit 0.9.88, GIO-11; from 0.9.95 one per game session)
 - [ ] PSP: test with real games (Nintendo 64 tried on both consoles from 0.9.77); then PICO-8 and TIC-80
 - [ ] Run-ahead and rewind as per-console or per-game settings, cheats, manuals from the game menu

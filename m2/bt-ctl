@@ -209,6 +209,16 @@ other_audio() {
     timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' -v me="$1" '($2 == "audio" || $2 == "cassa") && $4 == 1 && $1 != me { print $1 }'
 }
 
+# Connessioni in arrivo solo con un abbinamento (audit 0.9.88, BT-11): il kernel 4.9 del firmware ha i
+# difetti Bluetooth del 2020 (BleedingTooth) e con la console connettibile chi è vicino poteva almeno
+# farla cadere. L'abbinamento e il ricollegamento partono dalla console; con un abbinamento resta
+# connettibile, perché molte cuffie si ricollegano da sole quando si accendono
+connectable() {
+    n=$(timeout 5 bluetoothctl paired-devices 2> /dev/null | grep -c '^Device ')
+    v=off; [ "${n:-0}" -gt 0 ] && v=on
+    timeout 5 btmgmt connectable $v > /dev/null 2>&1 || log "connettibile $v: btmgmt non riuscito"
+}
+
 daemons_on() {
     [ -e /var/run ] || ln -s /run /var/run 2> /dev/null
     mkdir -p "$STORE" /run/dbus /run/bluetooth
@@ -238,6 +248,7 @@ CONF
     for i in $(seq 30); do timeout 2 bluetoothctl show 2> /dev/null | grep -q Controller && break; sleep 0.2; done
     pid_alive bluealsa || start bluealsa bluealsa -p a2dp-source
     timeout 5 bluetoothctl power on > /dev/null 2>&1
+    connectable
     pid_alive bluetoothd
 }
 
@@ -370,6 +381,7 @@ pair)
     fi
     timeout 5 bluetoothctl trust "$2" > /dev/null 2>&1
     lock pair; save; flock -u 9
+    connectable
     logs "abbinato $2"
     exec sh "$0" connect "$2"
     ;;
@@ -406,6 +418,7 @@ forget)
     [ "$(cat "$RUN/collegato" 2> /dev/null)" = "$2" ] && rm -f "$RUN/collegato"
     route "$(connected_audio)"
     lock forget; save
+    connectable
     logs "dimenticato $2"
     ;;
 reconnect)
@@ -507,6 +520,7 @@ watch)
             start bluetoothd bluetoothd -n -f /run/bluetooth/main.conf
             for i in $(seq 30); do timeout 2 bluetoothctl show 2> /dev/null | grep -q Controller && break; sleep 0.2; done
             timeout 5 bluetoothctl power on > /dev/null 2>&1
+            connectable
             pid_stop bluealsa; start bluealsa bluealsa -p a2dp-source
             again=${a:-$(cat "$LAST" 2> /dev/null)}
             flock -u 9

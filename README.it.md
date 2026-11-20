@@ -83,6 +83,7 @@ Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stat
 - Brick Pro: l'altoparlante fruscia quando non suona niente ([#4](https://github.com/diapolon/mosaik_cfw/issues/4)).
 - Smart Pro: la levetta sinistra può fermarsi al centro dopo un movimento veloce ([#9](https://github.com/diapolon/mosaik_cfw/issues/9)).
 - Bluetooth: il suono arriva con 150-250 ms di ritardo; giochi Linux, emulatori a parte (Nintendo 64, Dreamcast, PSP), Lettore musicale e Video passano alle cuffie solo quando si riaprono.
+- Bluetooth: il kernel del firmware TrimUI ha i difetti Bluetooth del 2020, che Mosaik non può correggere; spegni il Bluetooth quando non ti serve ([dettagli](https://github.com/diapolon/mosaik_cfw/wiki/Cuffie-Bluetooth#sicurezza)).
 
 Hai provato qualcosa di sperimentale? Scrivi se funziona in una [issue](https://github.com/diapolon/mosaik_cfw/issues): con la tua prova può perdere la fiaschetta.
 

@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.99
+it Tema Tessera chiaro: azzurro più scuro, il testo bianco sopra si legge meglio
+en Light Tessera theme: darker blue, white text on it is easier to read
+it Bluetooth: senza dispositivi abbinati la console non accetta connessioni in arrivo
+en Bluetooth: with no paired device the console does not accept incoming connections
+
 0.9.98
 it Aggiornamento scaricato: «Più tardi» lo tiene, all'accensione dopo si può installare o eliminare
 en Downloaded update: "Later" keeps it, at the next start it can be installed or deleted

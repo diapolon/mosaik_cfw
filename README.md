@@ -83,6 +83,7 @@ Every build is tried by hand on real consoles before it is released. This is whe
 - Brick Pro: the speaker hisses when nothing is playing ([#4](https://github.com/diapolon/mosaik_cfw/issues/4)).
 - Smart Pro: the left stick can stop at the centre after a fast flick ([#9](https://github.com/diapolon/mosaik_cfw/issues/9)).
 - Bluetooth: the sound arrives 150-250 ms late; Linux games, standalone emulators (Nintendo 64, Dreamcast, PSP), Music player and Video move to the headphones only when they are started again.
+- Bluetooth: the kernel of the TrimUI firmware has the Bluetooth flaws of 2020, which Mosaik cannot fix; turn Bluetooth off when you don't use it ([details](https://github.com/diapolon/mosaik_cfw/wiki/Bluetooth#security)).
 
 Tried something marked experimental? Say whether it works in an [issue](https://github.com/diapolon/mosaik_cfw/issues): with your report it can lose the flask.
 

@@ -107,6 +107,13 @@ sset)
     echo "volume $name $3" >> $F/calls ;;
 esac
 X
+# btmgmt: "connectable on|off" scritto in $F/connectable
+cat > $BIN/btmgmt <<'X'
+#!/bin/sh
+echo "btmgmt $*" >> /tmp/fbt/calls
+[ "$1" = connectable ] && echo "$2" > /tmp/fbt/connectable
+exit 0
+X
 chmod +x $BIN/*
 
 reset() {
@@ -453,6 +460,24 @@ check "due audio collegati: resta quello scelto per ultimo" '[ "$(cat /tmp/bt-au
 echo 02:00:00:00:00:01 >> $F/connected
 $CTL disconnect 11:22:33:44:55:66 > /dev/null 2>&1
 check "scollegato il controller: l'audio resta sull'ultimo scelto" '[ "$(cat /tmp/bt-audio)" = 02:00:00:00:00:03 ]'
+$CTL off > /dev/null 2>&1
+reset
+
+# audit 0.9.88, BT-11: il kernel 4.9 del firmware ha i difetti Bluetooth del 2020 (BleedingTooth); con
+# il Bluetooth acceso chi è vicino poteva collegarsi. Senza abbinamenti la console non accetta
+# connessioni in arrivo (l'abbinamento parte sempre dalla console); con un abbinamento sì, perché le
+# cuffie possono ricollegarsi da sole
+echo "--- connessioni in arrivo solo con un abbinamento (BT-11)"
+reset
+$CTL on > /dev/null 2>&1
+check "acceso senza abbinamenti: non connettibile" '[ "$(cat $F/connectable 2>/dev/null)" = off ]'
+$CTL scan 1 > /dev/null
+$CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+check "abbinate le cuffie: connettibile" '[ "$(cat $F/connectable 2>/dev/null)" = on ]'
+reboot; $CTL on > /dev/null 2>&1
+check "riacceso con un abbinamento: connettibile" '[ "$(cat $F/connectable 2>/dev/null)" = on ]'
+$CTL forget 02:00:00:00:00:01 > /dev/null 2>&1
+check "dimenticato l'ultimo: non connettibile" '[ "$(cat $F/connectable 2>/dev/null)" = off ]'
 $CTL off > /dev/null 2>&1
 reset
 

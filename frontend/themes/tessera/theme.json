@@ -41,7 +41,8 @@
       "surface": "#FFFFFF",
       "text": "#2B2B2B",
       "text_dim": "#7D7D7D",
-      "accent": "#0FB1D4",
+      // più scuro di #0FB1D4: il bianco sopra arrivava a 2,5:1, ora 4,5:1 (audit LAU-11)
+      "accent": "#0B819B",
       "accent_text": "#FFFFFF",
       "tile": "#FFFFFF",
       "shadow": "#0000002A",

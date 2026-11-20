@@ -297,5 +297,22 @@ rm -rf $R/Emulators; mkdir -p $R/Emulators; rm -f $R/Logs/Arcade.log
 ./build/launcher --root $R --auto "wait:40,b,wait:20,start,wait:30,down,wait:15,down,wait:15,down,wait:15,right,wait:15,a,wait:30,a,wait:60,a,wait:400,b,wait:30,quit" > /tmp/l.log 2>&1
 check "B a scaricamento finito: lo scaricamento resta" '! grep -q "scaricamento .* tolto" $R/Logs/Arcade.log && grep -q "tenuto per dopo" $R/Logs/Arcade.log'
 
+# audit 0.9.72, LAU-11: nel tema Tessera chiaro il bianco sull'azzurro (righe scelte, pulsante
+# principale) arrivava a 2,5:1; serve almeno 4,5:1 (WCAG AA per il testo normale)
+echo "--- contrasto del tema Tessera chiaro (LAU-11)"
+cat > /tmp/contrasto.py <<'X'
+import json, re, sys
+t = json.loads(re.sub(r"^\s*//.*$", "", open(sys.argv[1]).read(), flags=re.M))
+def lum(h):
+    f = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = [f(int(h[i:i + 2], 16) / 255) for i in (1, 3, 5)]
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+v = t["variants"]["light"]
+a, b = sorted([lum(v["accent"]), lum(v["accent_text"])], reverse=True)
+print("%.2f" % ((a + 0.05) / (b + 0.05)))
+X
+c=$(python3 /tmp/contrasto.py themes/tessera/theme.json)
+check "testo sull'azzurro leggibile ($c:1, almeno 4,5)" 'python3 -c "import sys; sys.exit(0 if float(\"$c\") >= 4.5 else 1)"'
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }
