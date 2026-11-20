@@ -298,6 +298,19 @@ check "dallo stesso indirizzo un catalogo più vecchio resta rifiutato" "2 3 3" 
 kill $SRV2; wait $SRV2 2>/dev/null || true
 echo "http://127.0.0.1:8099" > sd/System/update-url.txt
 mk 2
+# revisione indipendente della 0.9.99, punto 2: se la Release "store" non risponde lo Store usa la copia
+# del canale; con l'indirizzo diverso STO-01 la accettava anche più vecchia, e i pacchetti installati
+# risultavano "da aggiornare" a una versione precedente. La copia del canale è la stessa provenienza
+echo "--- catalogo comune assente: la copia del canale più vecchia resta rifiutata"
+gcc -O1 -D_GNU_SOURCE -DSTORE_TEST -DUPDATE_DEFAULT_URL='"http://127.0.0.1:8097/latest/download"' -Isrc -o t-def src/t.c src/store.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl 2>/dev/null
+rm -rf def sd-def; mkdir -p def/download def/latest sd-def/System sd-def/Emulators sd-def/Cores
+mk 2; cp -r www def/download/store
+python3 -m http.server 8097 --bind 127.0.0.1 --directory $W/def >/dev/null 2>&1 & SRV3=$!; sleep 1
+check "catalogo comune letto" "2 0" "$(./t-def $W/sd-def list 2>/dev/null | cut -d' ' -f1-2)"
+rm -rf def/download/store; BUILT=1000 mk 2; cp -r www def/latest/download
+check "comune assente, copia del canale più vecchia: rifiutata" "2 3" "$(./t-def $W/sd-def list 2>/dev/null | cut -d' ' -f1-2)"
+kill $SRV3; wait $SRV3 2>/dev/null || true
+mk 2
 # catalogo e firma in un file solo (store.cat): la console legge quello, e una firma separata
 # vecchia o rovinata accanto non conta (13 nov: GitHub li ha serviti spaiati per due minuti)
 mk 2

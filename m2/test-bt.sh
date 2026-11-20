@@ -40,7 +40,7 @@ cat > $BIN/dbus-daemon <<'X'
 #!/bin/sh
 exec python3 -c "import socket,time;s=socket.socket(socket.AF_UNIX);s.bind('/run/dbus/system_bus_socket');time.sleep(600)"
 X
-printf '#!/bin/sh\n[ -f /tmp/fbt/btd_fail ] && exit 1\npgrep -f system_bus_socket > /dev/null || exit 1\nexec sleep 600\n' > $BIN/bluetoothd
+printf '#!/bin/sh\n[ -f /tmp/fbt/btd_fail ] && exit 1\npgrep -f system_bus_socket > /dev/null || exit 1\n[ -f /tmp/fbt/btd_slow ] && sleep $(cat /tmp/fbt/btd_slow)\nexec sleep 600\n' > $BIN/bluetoothd
 printf '#!/bin/sh\nexec sleep 600\n' > $BIN/bluealsa
 # bluetoothctl: dispositivi vicini in $F/near (indirizzo|nome|icona), conosciuti in $F/known,
 # abbinati e collegati in $F/paired, $F/connected; gli abbinamenti scritti come bluetoothd
@@ -49,6 +49,7 @@ cat > $BIN/bluetoothctl <<'X'
 F=/tmp/fbt
 while [ $# -gt 0 ]; do case "$1" in --timeout|--agent) shift 2 ;; *) break ;; esac; done
 pgrep -f "sleep 600" > /dev/null || { echo "Waiting to connect to bluetoothd..."; exit 1; }
+[ -f $F/btd_slow ] && { echo "Waiting to connect to bluetoothd..."; exit 1; }   # bluetoothd non ancora pronto
 line() { grep "^$1|" $F/known 2>/dev/null | head -n 1; }
 case "$1" in
 show) echo "Controller $(cat $F/addr 2>/dev/null) (public)" ;;
@@ -334,6 +335,18 @@ kill -STOP $IN; : > /tmp/wifi-pausa   # il Wi-Fi si sta accendendo: tasti fermi
 check "Bluetooth acceso mentre parte il Wi-Fi: i tasti restano fermi per il Wi-Fi" '[ "$(state)" = T ]'
 check "… e la pausa del Bluetooth è tolta" '[ ! -f /tmp/bt-pausa ]'
 $CTL off > /dev/null 2>&1; rm -f /tmp/wifi-pausa
+# revisione indipendente della 0.9.99, punto 1: il timer dei 10 s del Wi-Fi rimette in moto i tasti
+# con "wifi-ctl resume", che aspettava il blocco del Wi-Fi (fino a 20 s) e poi rinunciava; mentre il
+# chip del Bluetooth si accende quel blocco ce l'ha bt-ctl, che a sua volta non li riprende perché
+# vede la pausa del Wi-Fi: tasti fermi per sempre (risveglio lontano da reti note, Brick Pro)
+reset
+kill -STOP $IN; printf 'T1\n%s\n' $IN > /tmp/wifi-pausa
+sh -c "exec 8> $BT_WIFI_LOCK; flock 8; exec sleep 8" & H=$!
+sleep 0.3
+( ARCADE_LOG_DIR=$ROOT/Logs WIFI_LOCK=$BT_WIFI_LOCK WIFI_LOCK_TRIES=30 WIFI_INPUTD_PAUSE=/tmp/wifi-pausa WIFI_BT_PAUSE=/tmp/bt-pausa \
+  WIFI_INPUTD_LOCK=/tmp/inputd-pausa.lock sh /trimui/m2/wifi-ctl resume T1 > /dev/null 2>&1 )
+check "ripresa del Wi-Fi con il blocco del Wi-Fi occupato: tasti di nuovo in moto" '[ "$(state)" != T ] && [ ! -f /tmp/wifi-pausa ]'
+kill $H 2>/dev/null; wait $H 2>/dev/null
 kill -CONT $IN 2>/dev/null; kill $IN; rm -f $BIN/trimui_inputd /tmp/i2c3
 reset
 
@@ -479,6 +492,42 @@ check "riacceso con un abbinamento: connettibile" '[ "$(cat $F/connectable 2>/de
 $CTL forget 02:00:00:00:00:01 > /dev/null 2>&1
 check "dimenticato l'ultimo: non connettibile" '[ "$(cat $F/connectable 2>/dev/null)" = off ]'
 $CTL off > /dev/null 2>&1
+reset
+
+# revisione indipendente della 0.9.99, punto 5: ogni caduta di D-Bus contava due ripartenze (D-Bus e
+# bluetoothd, che watch ferma con lui): alla seconda caduta watch rinunciava dopo aver fermato
+# bluetoothd, e il Bluetooth restava spento
+echo "--- due cadute di D-Bus: il Bluetooth torna tutte e due le volte"
+reset
+$CTL on > /dev/null 2>&1
+for i in $(seq 20); do [ -f /tmp/runbt/watch.pid ] && break; sleep 0.2; done
+for k in 1 2; do
+    pkill -f system_bus_socket
+    for i in $(seq 50); do sleep 0.2; pgrep -f system_bus_socket > /dev/null && kill -0 "$(cat /tmp/runbt/bluetoothd.pid 2>/dev/null)" 2>/dev/null && break; done
+    sleep 1
+done
+check "dopo la seconda caduta di D-Bus bluetoothd è acceso" 'kill -0 "$(cat /tmp/runbt/bluetoothd.pid 2>/dev/null)" 2>/dev/null && ! grep -q smetto $ROOT/Logs/bluetooth.log'
+$CTL off > /dev/null 2>&1
+reset
+
+# punto 7: con bluetoothd lento a partire il conteggio degli abbinamenti non riusciva e la console
+# diventava non connettibile anche con cuffie abbinate (che allora non si ricollegavano da sole)
+echo "--- bluetoothd lento: con un abbinamento resta connettibile"
+reset
+$CTL on > /dev/null 2>&1; $CTL scan 1 > /dev/null; $CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+reboot; echo 8 > $F/btd_slow
+$CTL on > /dev/null 2>&1
+check "conteggio non riuscito: connettibile" '[ "$(cat $F/connectable 2>/dev/null)" = on ]'
+rm -f $F/btd_slow; $CTL off > /dev/null 2>&1
+reset
+
+# punto 9: pid_stop con un file PID vuoto aspettava 2 s per niente (kill -0 "" in BusyBox esce con 0)
+echo "--- spegnimento con file PID vuoti"
+reset
+$CTL on > /dev/null 2>&1; $CTL off > /dev/null 2>&1
+mkdir -p /tmp/runbt; for d in bluetoothd bluealsa dbus hciattach; do : > /tmp/runbt/$d.pid; done
+t0=$(date +%s); $CTL off > /dev/null 2>&1; dt=$(( $(date +%s) - t0 ))
+check "spento in fretta anche con i file PID vuoti ($dt s)" '[ $dt -le 3 ]'
 reset
 
 echo

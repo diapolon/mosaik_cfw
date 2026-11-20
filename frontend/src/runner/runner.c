@@ -195,8 +195,7 @@ static struct {
     size_t len;
     bool keep;             /* file di misura diversa o illeggibile: copia in .orig prima di riscriverlo */
     bool after_load;       /* dopo uno stato caricato: alla prima riscrittura il file di prima va in .bak */
-    bool bak_done;         /* .bak già fatto in questa partita: i caricamenti dopo non lo riscrivono */
-} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0, false, false, false }, { RETRO_MEMORY_RTC, "rtc", NULL, 0, false, false, false } };
+} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0, false, false }, { RETRO_MEMORY_RTC, "rtc", NULL, 0, false, false } };
 enum { NBATT = sizeof batt / sizeof batt[0] };
 
 /* Uno stato caricato rimette in memoria la SRAM che aveva quando è stato fatto (audit 0.9.72, GIO-01):
@@ -249,6 +248,20 @@ static void sram_load(void) {
     }
 }
 
+/* due file con lo stesso contenuto (il secondo può mancare) */
+static bool same_file(const char *a, const char *b) {
+    FILE *x = fopen(a, "rb"), *y = fopen(b, "rb");
+    bool same = x && y;
+    while (same) {
+        int c = fgetc(x), d = fgetc(y);
+        if (c != d) same = false;
+        if (c == EOF || d == EOF) break;
+    }
+    if (x) fclose(x);
+    if (y) fclose(y);
+    return same;
+}
+
 static void sram_save(void) {
     for (int b = 0; b < NBATT; b++) {
         if (!batt[b].len) continue;
@@ -262,14 +275,19 @@ static void sram_save(void) {
             if (access(p, F_OK) == 0 && access(o, F_OK) != 0 && !copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
             batt[b].keep = false;
         }
-        /* il salvataggio di prima del caricamento resta in .bak, una volta per partita: riscritto a
-           ogni caricamento, due caricamenti con una scrittura del gioco in mezzo perdevano proprio
-           quello buono (audit 0.9.88, GIO-11) */
-        if (batt[b].after_load && !batt[b].bak_done) {
-            char o[1300];
+        /* il salvataggio di prima del caricamento resta da parte, in due copie: .bak (prima
+           dell'ultimo caricamento) e .bak.prev (prima di quello precedente). Riscritto a ogni
+           caricamento, due caricamenti con una scrittura in mezzo perdevano la partita di partenza
+           (audit 0.9.88, GIO-11); fatto una volta sola, si perdeva un salvataggio del gioco fra due
+           caricamenti (revisione indipendente della 0.9.99). Se il file è uguale al .bak non si ruota */
+        if (batt[b].after_load && access(p, F_OK) == 0) {
+            char o[1300], prev[1320];
             snprintf(o, sizeof o, "%s.bak", p);
-            if (access(p, F_OK) == 0 && !copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
-            batt[b].bak_done = true;
+            snprintf(prev, sizeof prev, "%s.bak.prev", p);
+            if (!same_file(p, o)) {
+                if (access(o, F_OK) == 0 && rename(o, prev) != 0) ui_log("impossibile tenere da parte %s", o);
+                if (!copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
+            }
         }
         batt[b].after_load = false;
         snprintf(t, sizeof t, "%s.tmp", p);

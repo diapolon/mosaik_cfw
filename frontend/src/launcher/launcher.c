@@ -8753,7 +8753,7 @@ static void game_reset(const game_t *g, bool states) {
            (.bak prima di un caricamento, stato automatico non letto) restavano (audit 0.9.88, GIO-14) */
         static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev", "auto.state.rot",
                                            "auto.state.nonletto", "state.png", "2.state.png", "3.state.png", "auto.state.png",
-                                           "auto.state.prev.png", "srm", "srm.bak", "rtc", "rtc.bak", "flash" };
+                                           "auto.state.prev.png", "srm", "srm.bak", "srm.bak.prev", "rtc", "rtc.bak", "rtc.bak.prev", "flash" };
         for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->key, ext[i]);
     }
     /* FBNeo: memoria interna e punteggi */

@@ -76,7 +76,10 @@ bt_on() { [ -d "$SYS/bluetooth/hci0" ] && pid_alive bluetoothd; }
 pid_alive() { p=$(cat "$RUN/$1.pid" 2> /dev/null); [ -n "$p" ] && kill -0 "$p" 2> /dev/null; }
 pid_stop() {
     [ -f "$RUN/$1.pid" ] || return 0
-    p=$(cat "$RUN/$1.pid"); kill "$p" 2> /dev/null
+    p=$(cat "$RUN/$1.pid")
+    # PID vuoto: kill -0 "" in BusyBox esce con 0 e si aspettavano 2 s per niente (revisione della 0.9.99)
+    [ -n "$p" ] || { rm -f "$RUN/$1.pid"; return 0; }
+    kill "$p" 2> /dev/null
     for i in $(seq 20); do kill -0 "$p" 2> /dev/null || break; sleep 0.1; done
     kill -9 "$p" 2> /dev/null
     rm -f "$RUN/$1.pid"
@@ -117,13 +120,16 @@ address() {
 # per tutti e tre i tentativi, fino a 36 s, senza avviso, e per sempre se bt-ctl moriva)
 INPUTD_PAUSE=${BT_INPUTD_PAUSE:-/run/bt-inputd-pausa}
 inputd=""
-keys_stop() { [ -n "$inputd" ] || return 0; : > "$INPUTD_PAUSE"; kill -STOP $inputd 2> /dev/null; }
+# segno e STOP/CONT sotto il blocco delle pause, lo stesso di m2/wifi-ctl (revisione della 0.9.99)
+INPUTD_LOCK=${BT_INPUTD_LOCK:-/run/inputd-pausa.lock}
+keys_stop() { [ -n "$inputd" ] || return 0; ( flock 5; : > "$INPUTD_PAUSE"; kill -STOP $inputd 2> /dev/null ) 5> "$INPUTD_LOCK"; }
 # i tasti ripartono solo se li aveva fermati il Bluetooth e il Wi-Fi non li tiene fermi per la sua
 # accensione (revisione della 0.9.92: li faceva ripartire nel mezzo della pausa del Wi-Fi, issue #1)
 keys_go() {
     [ -f "$INPUTD_PAUSE" ] || return 0
-    rm -f "$INPUTD_PAUSE"
-    [ -n "$inputd" ] && [ ! -f "${BT_WIFI_PAUSE:-/run/wifi-inputd-pausa}" ] && kill -CONT $inputd 2> /dev/null
+    ( flock 5
+      rm -f "$INPUTD_PAUSE"
+      [ -n "$inputd" ] && [ ! -f "${BT_WIFI_PAUSE:-/run/wifi-inputd-pausa}" ] && kill -CONT $inputd 2> /dev/null ) 5> "$INPUTD_LOCK"
     return 0
 }
 
@@ -214,8 +220,13 @@ other_audio() {
 # farla cadere. L'abbinamento e il ricollegamento partono dalla console; con un abbinamento resta
 # connettibile, perché molte cuffie si ricollegano da sole quando si accendono
 connectable() {
-    n=$(timeout 5 bluetoothctl paired-devices 2> /dev/null | grep -c '^Device ')
-    v=off; [ "${n:-0}" -gt 0 ] && v=on
+    # bluetoothd non ancora pronto: il conteggio non riesce e si resta connettibili, se no le cuffie
+    # abbinate non si ricollegherebbero da sole (revisione indipendente della 0.9.99)
+    if ! timeout 3 bluetoothctl show 2> /dev/null | grep -q Controller; then v=on
+    else
+        n=$(timeout 5 bluetoothctl paired-devices 2> /dev/null | grep -c '^Device ')
+        v=off; [ "${n:-0}" -gt 0 ] && v=on
+    fi
     timeout 5 btmgmt connectable $v > /dev/null 2>&1 || log "connettibile $v: btmgmt non riuscito"
 }
 
@@ -493,27 +504,33 @@ watch)
     diag_done="" restarts=0 gaveup="" again=""
     t0=$(cut -d. -f1 /proc/uptime)
     exec 9> "${BT_LOCK:-/run/bt-ctl.lock}"
+    # una ripartenza per ogni guasto, anche se ripartono D-Bus, bluetoothd e bluealsa insieme (prima
+    # una caduta di D-Bus ne contava due e alla seconda il Bluetooth restava spento); con il blocco
+    # occupato (un on o un off in corso) non si conta niente e si riprova al giro dopo (revisione
+    # indipendente della 0.9.99)
     revive() {
+        flock -n 9 || return 1
         now=$(cut -d. -f1 /proc/uptime)
         [ $((now - t0)) -gt 300 ] && { t0=$now; restarts=0; }
-        [ -n "$gaveup" ] && return 1
+        [ -n "$gaveup" ] && { flock -u 9; return 1; }
         restarts=$((restarts + 1))
         if [ $restarts -gt ${BT_RESTARTS:-3} ]; then
             gaveup=1; logs "servizi del Bluetooth fermi più volte: smetto di farli ripartire (spegni e riaccendi il Bluetooth)"
+            flock -u 9
             return 1
         fi
-        flock -n 9
+        return 0
     }
     while [ -d "$SYS/bluetooth/hci0" ] && [ ! -f "$RUN/spegnimento" ]; do
-        if ! pid_alive dbus && revive; then
+        if { ! pid_alive dbus || ! pid_alive bluetoothd || ! pid_alive bluealsa; } && revive; then
+          if ! pid_alive dbus; then
             logs "D-Bus fermo: riparte"
             rm -f /run/dbus/system_bus_socket
             start dbus dbus-daemon --config-file=/run/dbus/mosaik.conf --nofork
             for i in $(seq 20); do [ -S /run/dbus/system_bus_socket ] && break; sleep 0.1; done
             pid_alive bluetoothd && { pid_stop bluetoothd; pid_stop bluealsa; }   # erano collegati al D-Bus fermo
-            flock -u 9
-        fi
-        if ! pid_alive bluetoothd && revive; then
+          fi
+          if ! pid_alive bluetoothd; then
             logs "bluetoothd fermo: riparte"
             a=$(cat "$AUDIO_FLAG" 2> /dev/null)
             route
@@ -523,16 +540,15 @@ watch)
             connectable
             pid_stop bluealsa; start bluealsa bluealsa -p a2dp-source
             again=${a:-$(cat "$LAST" 2> /dev/null)}
-            flock -u 9
-        fi
-        if ! pid_alive bluealsa && revive; then
+          elif ! pid_alive bluealsa; then
             logs "bluealsa fermo: riparte"
             a=$(cat "$AUDIO_FLAG" 2> /dev/null)
             route
             start bluealsa bluealsa -p a2dp-source
             sleep 1
             again=$a
-            flock -u 9
+          fi
+          flock -u 9
         fi
         if [ -n "$again" ]; then   # cuffie ricollegate al servizio nuovo
             timeout 10 bluetoothctl disconnect "$again" > /dev/null 2>&1; sleep 1

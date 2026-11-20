@@ -64,6 +64,7 @@ fn $R '^static void auto_keep_previous'
 fn $R '^static bool state_save'
 sed -n '/^\/\* -* salvataggi a batteria \*\/$/,/^static void sram_load/p' $R | sed '$d'
 fn $R '^static void sram_load'
+fn $R '^static bool same_file'
 fn $R '^static void sram_save'
 fn $R '^static void write_resume'
 fn $R '^static bool state_load_file'
@@ -169,7 +170,7 @@ int main(void) {
     static int with_rtc;
     size_t fsz(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? sizeof ram : id == RETRO_MEMORY_RTC && with_rtc ? sizeof rtc : 0; }
     void *fdat(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? ram : id == RETRO_MEMORY_RTC && with_rtc ? rtc : NULL; }
-    #define FORGET() for (int b_ = 0; b_ < NBATT; b_++) { free(batt[b_].copy); batt[b_].copy = NULL; batt[b_].len = 0; batt[b_].bak_done = false; }
+    #define FORGET() for (int b_ = 0; b_ < NBATT; b_++) { free(batt[b_].copy); batt[b_].copy = NULL; batt[b_].len = 0; }
     mem_size = fsz; mem_data = fdat;
     game_file(p, sizeof p, "srm");
     sram_load();
@@ -249,7 +250,23 @@ int main(void) {
       same("primo caricamento: la partita di prima in .bak", get(bk), "Orig");
       state_load_file(s2); ram[0] = 'W'; ram[1] = '2'; sram_save();
       unser_ram = NULL;
-      same("secondo caricamento: il .bak tiene ancora la partita di prima", get(bk), "Orig"); }
+      char bp[600]; snprintf(bp, sizeof bp, "%s.bak.prev", p);
+      same("secondo caricamento: la partita di prima c'è ancora (.bak o .bak.prev)", !strcmp(get(bk), "Orig") || !strcmp(get(bp), "Orig") ? "si" : "no", "si"); }
+
+    /* revisione indipendente della 0.9.99, punto 4: con un .bak solo per partita, un salvataggio fatto
+       nel gioco fra due caricamenti (un'ora di gioco, poi si ricarica uno stato vecchio) si perdeva */
+    puts("--- salvataggio nel gioco fra due caricamenti");
+    FORGET(); memset(ram, 0, sizeof ram);
+    { char bk[600], bp[600], s1[600], s2[600];
+      snprintf(bk, sizeof bk, "%s.bak", p); snprintf(bp, sizeof bp, "%s.bak.prev", p); remove(bk); remove(bp);
+      snprintf(s1, sizeof s1, "%s/stato1", dir); snprintf(s2, sizeof s2, "%s/stato2", dir);
+      put(p, "Orig"); sram_load(); unser_ram = ram;
+      state_load_file(s1);                                   /* stato A */
+      ram[0] = 'S'; ram[1] = '1'; ram[2] = 'a'; ram[3] = 'v'; sram_save();   /* un'ora dopo il gioco salva */
+      state_load_file(s2); ram[0] = 'X'; sram_save();        /* stato B, più vecchio, poi il gioco scrive */
+      unser_ram = NULL;
+      same("il salvataggio fatto nel gioco fra i due caricamenti c'è ancora", !strcmp(get(bk), "S1av") || !strcmp(get(bp), "S1av") ? "si" : "no", "si");
+      same("… e anche la partita di partenza", !strcmp(get(bk), "Orig") || !strcmp(get(bp), "Orig") ? "si" : "no", "si"); }
 
     puts("--- tre caricamenti di fila dello stesso slot (audit 0.9.88, GIO-12)");
     FORGET(); thumb = NULL;
@@ -321,7 +338,7 @@ C
 mkdir -p $W/rs/Saves/NES
 # tutti i file di una partita che il runner può scrivere: stati, anteprime, batteria e le loro copie
 for x in state 2.state 3.state auto.state auto.state.prev auto.state.rot auto.state.nonletto state.png 2.state.png 3.state.png \
-         auto.state.png auto.state.prev.png srm srm.bak rtc rtc.bak; do : > "$W/rs/Saves/NES/Gioco.$x"; done
+         auto.state.png auto.state.prev.png srm srm.bak srm.bak.prev rtc rtc.bak rtc.bak.prev; do : > "$W/rs/Saves/NES/Gioco.$x"; done
 gcc -g -O0 -Wall -Wno-unused-function -o $W/rs-prova $W/rs.c 2> $W/rs.err || { cat $W/rs.err; exit 1; }
 if $W/rs-prova; then echo "  ok: reimpostato con gli stati: nessun file della partita resta"; else echo "  ERRORE: reimpostato con gli stati, restano file"; exit 1; fi
 

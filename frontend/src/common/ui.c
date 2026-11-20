@@ -1093,6 +1093,10 @@ void ui_audio_takeover(void (*play)(const Sint16 *stereo, int frames)) {
    configurazione in memoria: la prossima apertura la rilegge. libasound la carica la SDL. */
 void ui_alsa_reload(void) {
 #ifdef TRIMUI_DEVICE
+    /* una chiusura dell'audio appesa (audio_close_timed, o la musica) è ancora dentro alsa-lib: buttare
+       la configurazione sotto di lei è sicuro solo con alsa-lib recenti; meglio non farlo (revisione
+       indipendente della 0.9.99). Con l'audio appeso non si riapre comunque niente */
+    if (audio_stuck) return;
     void *h = dlopen("libasound.so.2", RTLD_NOW | RTLD_NOLOAD);
     if (!h) return;
     int (*f)(void) = (int (*)(void))dlsym(h, "snd_config_update_free_global");

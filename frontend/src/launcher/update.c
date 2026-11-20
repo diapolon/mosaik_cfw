@@ -759,8 +759,24 @@ static void *install_worker(void *arg) {
         ui_log("aggiornamento: impossibile ricordare lo scaricamento in corso");
     st.phase = UPD_DOWNLOAD;
     st.done = 0;
+    /* spazio per la parte che manca: i .nuovo già scaricati (anche da prima di uno spegnimento) non
+       chiedono altro posto. Senza abbastanza spazio i file scaricati si tolgono: tenuti, l'occupavano
+       proprio loro e si restava a «spazio insufficiente» per sempre (revisione della 0.9.99) */
+    long long need = 0;
+    for (int i = 0; i < nitems; i++) {
+        if (!items[i].need) continue;
+        char t[1100];
+        struct stat sb;
+        tmp_name(&items[i], t, sizeof t);
+        need += stat(t, &sb) == 0 && sb.st_size <= items[i].size ? items[i].size - sb.st_size : items[i].size;
+    }
     struct statvfs vs;
-    if (statvfs(root_dir, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < st.total + (1 << 20)) { fail(UPE_SPACE); return NULL; }
+    if (statvfs(root_dir, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < need + (1 << 20)) {
+        ui_log("aggiornamento: spazio insufficiente (servono %lld byte): tolgo i file scaricati", need + (1 << 20));
+        remove_tmps();
+        fail(UPE_SPACE);
+        return NULL;
+    }
     for (int i = 0; i < nitems; i++) {
         item_t *it = &items[i];
         if (!it->need) continue;
@@ -1119,8 +1135,11 @@ static void *resume_worker(void *arg) {
         /* scaricamento a metà: si tengono i suoi .nuovo, il prossimo aggiornamento li riprende (AGG-14) */
         g_text[g_text_len] = 0;
         memcpy(work, g_text, g_text_len + 1);
+        /* niente compare_files: rileggerebbe l'impronta di tutti i file a ogni accensione; per tenere
+           i .nuovo basta l'elenco firmato (il confronto lo rifà l'aggiornamento che li riprende) */
         partial = signature_ok(g_text, g_text_len, g_sig, g_sig_len) && parse_manifest(work)
-                  && strcmp(stamp_of(st.version), stamp_of(update_current())) > 0 && compare_files() && st.files > 0;
+                  && strcmp(stamp_of(st.version), stamp_of(update_current())) > 0 && nitems > 0;
+        for (int i = 0; partial && i < nitems; i++) items[i].need = true;
         if (partial) ui_log("aggiornamento: %s scaricato a metà, si riprende al prossimo aggiornamento", st.version);
         else drop_partial();
     }

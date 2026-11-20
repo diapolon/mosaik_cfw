@@ -35,6 +35,9 @@ typedef struct {
 
 static store_status_t st;
 static char root_dir[1024], base_url[512], fallback_url[512];
+/* provenienza del catalogo: l'indirizzo principale (Release "store" o update-url.txt), anche quando
+   si legge la copia del canale, che è la stessa fonte (revisione indipendente della 0.9.99) */
+static char origin_url[512];
 static entry_t *cat;
 static int ncat;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -77,6 +80,7 @@ static void make_url(int development) {
         trim_url(fallback_url);
     }
     trim_url(base_url);
+    snprintf(origin_url, sizeof origin_url, "%s", base_url);
 }
 
 /* ------------------------------------------------------------------ rete */
@@ -590,8 +594,8 @@ static bool catalog_older(const char *text) {
     size_t ol = 0;
     char *origin = read_file(p, 1024, &ol);
     if (origin) origin[strcspn(origin, "\r\n")] = 0;
-    bool other = origin && origin[0] && strcmp(origin, base_url);
-    if (other) ui_log("store: il catalogo sulla scheda viene da %s, questo da %s: lo accetto", origin, base_url);
+    bool other = origin && origin[0] && strcmp(origin, origin_url);
+    if (other) ui_log("store: il catalogo sulla scheda viene da %s, questo da %s: lo accetto", origin, origin_url);
     free(origin);
     if (other) return false;
     snprintf(p, sizeof p, "%s/System/store.json", root_dir);
@@ -629,7 +633,7 @@ static void *fetch_worker(void *arg) {
         snprintf(p, sizeof p, "%s/System/store.sig", root_dir);
         write_durable(p, s.buf, s.len);
         snprintf(p, sizeof p, "%s/System/store-origine.txt", root_dir);
-        write_durable(p, base_url, strlen(base_url));
+        write_durable(p, origin_url, strlen(origin_url));
         st.online = true;
         st.error = SE_NONE;
         ui_log("store: catalogo con %d pacchetti", n);

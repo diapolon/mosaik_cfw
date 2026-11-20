@@ -3,6 +3,18 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.100
+it Brick Pro: tasti che non restano più fermi quando Wi-Fi e Bluetooth si accendono insieme lontano da reti note
+en Brick Pro: buttons no longer stay frozen when Wi-Fi and Bluetooth start together far from known networks
+it Store: se il catalogo comune non risponde, una copia più vecchia non fa tornare indietro i pacchetti
+en Store: when the common catalogue does not answer, an older copy does not take packages back
+it Aggiornamento ripreso a metà: lo spazio conta solo la parte che manca; senza spazio i file scaricati si tolgono
+en Update resumed halfway: space counts only the missing part; without space the downloaded files are removed
+it Salvataggi a batteria: due copie prima dei caricamenti di stato, anche un salvataggio fatto nel gioco resta
+en Battery saves: two copies before state loads, a save made in the game is kept too
+it Bluetooth: servizi che ripartono meglio, cuffie abbinate che si ricollegano anche con bluetoothd lento
+en Bluetooth: services restart more reliably, paired headphones reconnect even when bluetoothd is slow
+
 0.9.99
 it Tema Tessera chiaro: azzurro più scuro, il testo bianco sopra si legge meglio
 en Light Tessera theme: darker blue, white text on it is easier to read

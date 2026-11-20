@@ -20,16 +20,21 @@ logs() { log "$@"; sync; }
 # un comando alla volta: spegnere e riaccendere in fretta dal menu non deve sovrapporsi
 # (flock: se un comando viene interrotto il blocco si libera da solo, e chi non lo ottiene non
 # prosegue. I demoni avviati qui sotto non devono ereditare il descrittore 9, o lo terrebbero.)
-exec 9> "${WIFI_LOCK:-/run/wifi-ctl.lock}"
-i=0
-until flock -n 9; do
-    i=$((i + 1))
-    if [ $i -ge ${WIFI_LOCK_TRIES:-200} ]; then   # 20 secondi, più di quanto duri un comando
-        log "$1: altro comando Wi-Fi ancora in corso, rinuncio"
-        exit 1
-    fi
-    sleep 0.1
-done
+# "resume" (il timer dei 10 s e wifi-event) no: tocca solo la pausa dei tasti, che ha il suo blocco
+# qui sotto. Aspettando questo, mentre bt-ctl lo tiene per accendere il chip del Bluetooth, dopo 20 s
+# rinunciava e i tasti restavano fermi per sempre (revisione indipendente della 0.9.99)
+if [ "$1" != resume ]; then
+    exec 9> "${WIFI_LOCK:-/run/wifi-ctl.lock}"
+    i=0
+    until flock -n 9; do
+        i=$((i + 1))
+        if [ $i -ge ${WIFI_LOCK_TRIES:-200} ]; then   # 20 secondi, più di quanto duri un comando
+            log "$1: altro comando Wi-Fi ancora in corso, rinuncio"
+            exit 1
+        fi
+        sleep 0.1
+    done
+fi
 
 # trimui_inputd fermo mentre il Wi-Fi si accende. Sulla Brick Pro legge le levette dal bus I2C 3
 # circa 500 volte al secondo; il blocco è un panico del driver I2C del kernel quando una lettura
@@ -38,18 +43,24 @@ done
 # già cominciata finisce prima. Riparte finita la prima ricerca delle reti (il momento del blocco),
 # al collegamento, dopo 10 s o con "wifi-ctl off"; intanto il launcher mostra un avviso.
 INPUTD_PAUSE=${WIFI_INPUTD_PAUSE:-/run/wifi-inputd-pausa}
+# pause del Wi-Fi e del Bluetooth (m2/bt-ctl): segno e STOP/CONT sotto lo stesso blocco, breve, così
+# fra il controllo del segno dell'altro e il SIGCONT nessuno dei due cambia le cose a metà
+INPUTD_LOCK=${WIFI_INPUTD_LOCK:-/run/inputd-pausa.lock}
 inputd_pause() {
     [ "${WIFI_INPUTD:-1}" = 1 ] && [ -e "${WIFI_I2C:-/dev/i2c-3}" ] || return 0
     p=$(pidof trimui_inputd) || return 0
-    printf '%s\n%s\n' "$1" "$p" > $INPUTD_PAUSE
-    kill -STOP $p 2> /dev/null
+    ( flock 5
+      printf '%s\n%s\n' "$1" "$p" > $INPUTD_PAUSE
+      kill -STOP $p 2> /dev/null ) 5> "$INPUTD_LOCK"
 }
 inputd_resume() {   # $1: gettone dell'accensione, vuoto = qualunque
     [ -f $INPUTD_PAUSE ] || return 0
     [ -n "$1" ] && [ "$1" != "$(sed -n 1p $INPUTD_PAUSE)" ] && return 0
-    # se intanto li tiene fermi il Bluetooth (m2/bt-ctl, accensione del chip), li fa ripartire lui
-    [ -f "${WIFI_BT_PAUSE:-/run/bt-inputd-pausa}" ] || kill -CONT $(sed -n 2p $INPUTD_PAUSE) 2> /dev/null
-    rm -f $INPUTD_PAUSE
+    ( flock 5
+      [ -f $INPUTD_PAUSE ] || exit 0
+      # se intanto li tiene fermi il Bluetooth (m2/bt-ctl, accensione del chip), li fa ripartire lui
+      [ -f "${WIFI_BT_PAUSE:-/run/bt-inputd-pausa}" ] || kill -CONT $(sed -n 2p $INPUTD_PAUSE) 2> /dev/null
+      rm -f $INPUTD_PAUSE ) 5> "$INPUTD_LOCK"
 }
 # i tasti tornano appena la prima ricerca delle reti ha dato i risultati, con mezzo secondo di
 # margine: prima del collegamento (che con una rete nota arriva un paio di secondi dopo) e senza

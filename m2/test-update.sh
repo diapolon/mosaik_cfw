@@ -1,6 +1,6 @@
 #!/bin/sh
 # Prova dell'aggiornamento via Wi-Fi in un Linux arm64, con il server vero e il modulo vero:
-#   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-update.sh
+#   docker run --rm --privileged --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-update.sh
 set -e
 apk add -q build-base curl-dev openssl-dev python3 openssl coreutils >/dev/null
 W=/tmp/upd; rm -rf $W; mkdir -p $W/src; cd $W
@@ -402,6 +402,33 @@ expect "$(./t $W/sd install 2>$W/meta2.log)" "10 0 1" "versione nuova installata
 stop
 ! grep -q "grande.so, riprendo da" $W/meta2.log && ok "la parte della versione di prima non viene ripresa" || ko "ripresa una parte di un'altra versione"
 cmp $Z/file-0 $S/Cores/grande.so && ok "file della versione nuova" || ko "file sbagliato"
+
+# revisione indipendente della 0.9.99, punto 3: con lo scaricamento a metà tenuto, il controllo dello
+# spazio chiedeva tutta la misura dei file, senza contare la parte già scaricata, e con UPE_SPACE i
+# file restavano: «spazio insufficiente» per sempre, con lo spazio occupato proprio da loro
+echo "--- scaricamento a metà su una scheda quasi piena"
+small_card() {   # scheda piccola (tmpfs, $1 KB) con la parte già scaricata e il suo elenco
+    umount $W/small 2>/dev/null || true; mkdir -p $W/small
+    mount -t tmpfs -o size=${1}k tmpfs $W/small || return 1
+    mkdir -p $W/small/System $W/small/Cores
+    echo "http://127.0.0.1:8765/" > $W/small/System/update-url.txt
+    head -c 1000000 $Y/file-0 > $W/small/Cores/grande.so.nuovo
+    cp $Y/update.txt $W/small/System/update-partial.txt; cp $Y/update.sig $W/small/System/update-partial.sig
+}
+if small_card 4400; then
+    export ARCADE_VERSION_FILE=$W/old.txt; cut_serve $Y 0
+    out=$(./t $W/small install 2>$W/small.log)
+    check_ok=$([ "$out" = "10 0 1" ] && cmp -s $Y/file-0 $W/small/Cores/grande.so && echo si || echo no)
+    [ "$check_ok" = si ] && ok "c'è posto per la parte che manca: si riprende e si installa" || ko "spazio contato male: $out $(grep -i spazio $W/small.log)"
+    stop
+    small_card 2600; cut_serve $Y 0
+    ./t $W/small install > /dev/null 2>&1 || true
+    stop
+    [ ! -e $W/small/Cores/grande.so.nuovo ] && [ ! -e $W/small/System/update-partial.txt ] && ok "spazio insufficiente: la parte scaricata si toglie, e lo spazio torna" || ko "parte scaricata rimasta: $(ls $W/small/Cores $W/small/System)"
+    umount $W/small
+else
+    echo "  (scheda piccola non provata: serve docker --privileged)"
+fi
 
 echo "--- nessun server"
 rm -f $S/System/update-url.txt
