@@ -4,128 +4,40 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.103
-it Brick Pro: tasti fermi per tutta l'accensione del chip Bluetooth, come nella 0.9.91
-en Brick Pro: buttons paused for the whole Bluetooth chip start, as in 0.9.91
-it Bluetooth: all'avvio e al risveglio riprova se il chip è ancora occupato dal Wi-Fi
-en Bluetooth: at start and on wake it retries if Wi-Fi is still using the chip
-it Bluetooth: riacceso dopo un guasto, i servizi tornano a essere sorvegliati
-en Bluetooth: turned back on after a failure, its services are watched again
-it Pacchetto copiato sulla scheda piena: dice «spazio» e si ripropone dopo aver liberato spazio
-en Package copied to a full card: says "space" and is offered again once space is freed
-
-0.9.102
-it Cuffie Bluetooth ricollegate durante un gioco: tornano al volume scelto, non più forti
-en Bluetooth headphones reconnected during a game: back to the chosen volume, not louder
-
-0.9.101
-it Bluetooth: non accende più il chip mentre il Wi-Fi lo sta ancora usando
-en Bluetooth: no longer turns the chip on while Wi-Fi is still using it
-it Brick Pro: un controllo vecchio del Wi-Fi non rimette in moto i tasti durante una nuova accensione
-en Brick Pro: an old Wi-Fi check no longer restarts the buttons during a new start
-it Giochi: il suono torna quando l'audio si riapre (cuffie, risveglio), e senza audio il gioco va col suo ritmo
-en Games: sound comes back when the audio reopens (headphones, wake), and without audio the game keeps its pace
-it Trasferimento file: non riparte finché un'operazione sulla scheda non è finita
-en File transfer: does not restart until an operation on the card has finished
-
-0.9.100
-it Brick Pro: tasti che non restano più fermi quando Wi-Fi e Bluetooth si accendono insieme lontano da reti note
-en Brick Pro: buttons no longer stay frozen when Wi-Fi and Bluetooth start together far from known networks
-it Store: se il catalogo comune non risponde, una copia più vecchia non fa tornare indietro i pacchetti
-en Store: when the common catalogue does not answer, an older copy does not take packages back
-it Aggiornamento ripreso a metà: lo spazio conta solo la parte che manca; senza spazio i file scaricati si tolgono
-en Update resumed halfway: space counts only the missing part; without space the downloaded files are removed
-it Salvataggi a batteria: due copie prima dei caricamenti di stato, anche un salvataggio fatto nel gioco resta
-en Battery saves: two copies before state loads, a save made in the game is kept too
-it Bluetooth: servizi che ripartono meglio, cuffie abbinate che si ricollegano anche con bluetoothd lento
-en Bluetooth: services restart more reliably, paired headphones reconnect even when bluetoothd is slow
-
-0.9.99
-it Tema Tessera chiaro: azzurro più scuro, il testo bianco sopra si legge meglio
-en Light Tessera theme: darker blue, white text on it is easier to read
+it Bluetooth: dopo la sospensione l'audio torna, sulle cuffie o sull'altoparlante
+en Bluetooth: after sleep the sound comes back, in the headphones or on the speaker
+it Bluetooth: collegando cuffie o cassa l'altro dispositivo audio si scollega; il volume resta anche quando si ricollegano
+en Bluetooth: connecting headphones or a speaker disconnects the other audio device; the volume stays when they reconnect
+it Bluetooth: servizi che ripartono da soli (al massimo 3 volte) e cuffie che si ricollegano; niente melodia di prova
+en Bluetooth: services restart by themselves (at most 3 times) and headphones reconnect; no test melody
 it Bluetooth: senza dispositivi abbinati la console non accetta connessioni in arrivo
 en Bluetooth: with no paired device the console does not accept incoming connections
-
-0.9.98
-it Aggiornamento scaricato: «Più tardi» lo tiene, all'accensione dopo si può installare o eliminare
-en Downloaded update: "Later" keeps it, at the next start it can be installed or deleted
-
-0.9.97
-it Impostazioni: barra di scorrimento nelle pagine con più voci di quelle che si vedono
-en Settings: scroll bar on pages with more items than fit on screen
-it Il numero dei giochi in Informazioni e nella Libreria è quello di «Tutti», senza i doppi
-en The number of games in Information and in the Library is the one of "All", without duplicates
-it Pannello «Ricerca e filtri»: lo stesso nome della barra dei tasti
-en "Search and filters" panel: the same name as in the key bar
-it Store: un pacchetto per l'altro modello già installato si vede, e si può solo togliere
-en Store: a package for the other model that is already installed shows up, and can only be removed
-
-0.9.96
-it Aggiornamento scaricato a metà: dopo uno spegnimento riprende da dove era
-en Update half downloaded: after a power off it resumes where it was
-it Trasferimento file: chi è già entrato ha sempre un posto, anche con altri collegati
-en File transfer: whoever already logged in always gets a place, even with others connected
-it Store: un catalogo di prova non blocca più quello ufficiale
-en Store: a test catalogue no longer blocks the official one
-it Pacchetti copiati sulla scheda: riproposti dopo aver aggiornato il sistema, e «spazio» se la scheda è piena
-en Packages copied to the card: offered again after updating the system, and "space" when the card is full
-it Emulatore senza core: lo dice invece di avviare un gioco che non parte
-en Emulator without its core: it says so instead of starting a game that fails
-it Tastiera: anche ~ e `; la ricerca trova Pokémon scrivendo pokemon
-en Keyboard: also ~ and `; search finds Pokémon when you type pokemon
-it Video 1.6: sottotitoli in Windows-1252 (apostrofi e virgolette) e UTF-16
-en Video 1.6: subtitles in Windows-1252 (apostrophes and quotes) and UTF-16
-
-0.9.95
-it Bluetooth: dopo la sospensione con le cuffie l'audio torna, sulle cuffie o sull'altoparlante
-en Bluetooth: after sleep with headphones the sound comes back, in the headphones or on the speaker
-it Caricando due stati di fila, la copia del salvataggio a batteria resta quella di prima
-en Loading two states in a row, the backup of the battery save stays the earlier one
-it Tre caricamenti dello stesso slot di fila non perdono più la partita di partenza
-en Three loads of the same slot in a row no longer lose the starting game
-it Batteria al 4%: la partita si salva di nuovo dopo una sospensione
-en Battery at 4%: the game is saved again after a sleep
-it Reimposta anche gli stati: tolte anche le copie dei salvataggi
-en Reset also the states: the backup copies of the saves are removed too
-it Giochi a sé: si spegne al 3% solo con due letture di fila della batteria
-en Standalone games: shutdown at 3% only after two battery readings in a row
-it Pagina Comandi del N64: la barra dice che su e giù scorrono
-en N64 Controls page: the bar says that up and down scroll
-it Preferiti e collezioni: avviso giusto se la lista non si salva, lista piena modificabile
-en Favorites and collections: right notice if the list is not saved, a full list can be changed
-it Piattaforme senza emulatori: invito allo Store, A lo apre
-en Platforms without emulators: invitation to the Store, A opens it
-
-0.9.94
-it Bluetooth: collegando cuffie o cassa, l'altro dispositivo audio si scollega e l'audio va a quello scelto
-en Bluetooth: connecting headphones or a speaker disconnects the other audio device, sound goes to the chosen one
-it Bluetooth: volume regolabile anche con una virgola nel nome delle cuffie
-en Bluetooth: volume works even with a comma in the headphones' name
-it Avvisi lunghi su due righe, dentro lo schermo
-en Long notices on two lines, inside the screen
-it Giochi doppi: si preferisce FBNeo anche se il primo emulatore installato è una console
-en Duplicate games: FBNeo is preferred even if the first emulator installed is a console
-it La home mostra la partita da riprendere e i preferiti anche dall'emulatore non preferito
-en The home shows the game to resume and the favorites also from the non-preferred emulator
+it Bluetooth: vale l'ultima pressione dell'interruttore; all'avvio e al risveglio riprova se il chip è occupato dal Wi-Fi
+en Bluetooth: the last press of the switch wins; at start and on wake it retries if Wi-Fi is using the chip
+it Brick Pro: tasti in pausa, con avviso, solo mentre si accende il chip Bluetooth; con Wi-Fi e Bluetooth insieme non restano fermi
+en Brick Pro: buttons paused, with a notice, only while the Bluetooth chip starts; with Wi-Fi and Bluetooth together they no longer freeze
+it Giochi: il suono torna quando l'audio si riapre (cuffie, risveglio)
+en Games: sound comes back when the audio reopens (headphones, wake)
+it Salvataggi più difficili da perdere: copie prima dei caricamenti di stato, salvataggio al 4% dopo la sospensione
+en Saves harder to lose: copies before state loads, a save at 4% battery after sleep
+it Aggiornamenti: uno scaricato a metà riprende dopo uno spegnimento; «Più tardi» tiene quello già scaricato
+en Updates: one downloaded halfway resumes after a power off; "Later" keeps one already downloaded
+it Store: un pacchetto per l'altro modello si può togliere; un catalogo di prova o vecchio non blocca quello ufficiale
+en Store: a package for the other model can be removed; a test or older catalogue no longer blocks the official one
+it Pacchetti copiati sulla scheda: riproposti dopo un aggiornamento del sistema o dopo aver liberato spazio
+en Packages copied to the card: offered again after a system update or once space is freed
+it Emulatore senza core: lo dice invece di avviare il gioco; Piattaforme senza emulatori invita allo Store
+en Emulator without its core: says so instead of starting the game; Platforms without emulators invites to the Store
+it Tastiera con ~ e `; la ricerca trova Pokémon scrivendo pokemon
+en Keyboard with ~ and `; search finds Pokémon when you type pokemon
+it Barra di scorrimento nelle impostazioni, avvisi lunghi su due righe, azzurro più scuro nel tema Tessera chiaro
+en Scroll bar in the settings, long notices on two lines, a darker blue in the light Tessera theme
+it Giochi doppi: si preferisce FBNeo; la home mostra partita e preferiti anche dall'altro emulatore
+en Duplicate games: FBNeo is preferred; the home shows the game to resume and favourites from the other emulator too
+it Trasferimento file: chi è già entrato ha sempre un posto
+en File transfer: whoever already logged in always gets a place
 it Musica del menu: se l'audio non si chiude cambiando uscita, il menu continua senza audio
 en Menu music: if the audio does not close when the output changes, the menu goes on without sound
-
-0.9.93
-it Brick Pro: Wi-Fi e Bluetooth accesi insieme non fanno più ripartire i tasti a metà accensione
-en Brick Pro: Wi-Fi and Bluetooth started together no longer resume the buttons halfway
-it Bluetooth: i servizi fermi ripartono al massimo 3 volte, poi le cuffie si ricollegano
-en Bluetooth: stopped services restart at most 3 times, then the headphones reconnect
-it Bluetooth: spento dall'interruttore anche mentre si sta ancora accendendo
-en Bluetooth: turned off by the switch even while it is still starting
-
-0.9.92
-it Bluetooth: niente melodia di prova alla prima connessione delle cuffie
-en Bluetooth: no test melody when the headphones connect the first time
-it Bluetooth: se il servizio dell'audio si ferma riparte da solo, senza console muta
-en Bluetooth: if the audio service stops it starts again, no silent console
-it Brick Pro: tasti in pausa solo per pochi secondi mentre si accende il Bluetooth, con avviso
-en Brick Pro: buttons paused only a few seconds while Bluetooth starts, with a notice
-it Bluetooth: premendo l'interruttore in fretta vale l'ultima pressione
-en Bluetooth: pressing the switch quickly, the last press wins
 
 0.9.91
 it Un salvataggio fatto nel gioco non si perde più caricando subito dopo uno stato
