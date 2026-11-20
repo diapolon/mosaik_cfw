@@ -428,11 +428,32 @@ static bool rom_problem(const game_t *g) {
 /* ricerca: parole cercate nel titolo o nel nome ROM, senza distinguere maiuscole */
 static char search[48];
 
+/* lettera latina senza accento e minuscola, per U+00C0-U+017F ("." = lasciare com'è) */
+static const char fold_tab[] = "aaaaaaaceeeeiiiidnooooo.ouuuuytsaaaaaaaceeeeiiiidnooooo.ouuuuyty"
+                               "aaaaaaccccccccddddeeeeeeeeeegggggggghhhhiiiiiiiiiiiijjkkklllllll"
+                               "lllnnnnnnnnnoooooooorrrrrrssssssssttttttuuuuuuuuuuuuwwyyyzzzzzzs";
+
+/* testo in minuscolo e senza accenti: «Pokémon» e «POKEMON» diventano «pokemon» (audit 0.9.72, LAU-12;
+   prima si confrontavano i byte) */
+static void fold(const char *in, char *out, size_t n) {
+    size_t o = 0;
+    for (const unsigned char *p = (const unsigned char *)in; *p && o + 4 < n; ) {
+        unsigned c = *p;
+        if (c >= 0xC3 && c <= 0xC5 && (p[1] & 0xC0) == 0x80) {
+            unsigned cp = (c & 0x1F) << 6 | (p[1] & 0x3F);
+            if (cp >= 0xC0 && cp < 0x180 && fold_tab[cp - 0xC0] != '.') { out[o++] = fold_tab[cp - 0xC0]; p += 2; continue; }
+        }
+        out[o++] = (char)(c < 0x80 ? (c >= 'A' && c <= 'Z' ? c + 32 : c) : c);
+        p++;
+    }
+    out[o] = 0;
+}
+
 static bool ci_contains(const char *hay, const char *needle) {
-    size_t n = strlen(needle);
-    for (; *hay; hay++)
-        if (!strncasecmp(hay, needle, n)) return true;
-    return !n;
+    char h[400], nd[200];
+    fold(hay, h, sizeof h);
+    fold(needle, nd, sizeof nd);
+    return strstr(h, nd) != NULL;
 }
 
 static bool matches_search(const game_t *g) {
@@ -728,8 +749,25 @@ static void launch_ex(game_t *g, bool resume) {
     if (xemu && xemu->launch[0]) {
         snprintf(xscript, sizeof xscript, "%s/%s", UI.root, xemu->launch);
         if (access(xscript, R_OK) != 0) {
+            char msg[200];
+            snprintf(msg, sizeof msg, T("common.emu_missing"), xemu->name);
             ui_log("emulatore %s: manca %s", xemu->id, xscript);
-            ui_toast(T("common.launch_error"));
+            ui_toast(msg);
+            ui_sound(SND_ERROR);
+            return;
+        }
+    }
+    /* core libretro dell'emulatore: senza, si scriveva next.txt, il gioco entrava nei recenti e il
+       runner falliva (audit 0.9.72, LAU-13, ripreso da LAU-20 del 0.9.88) */
+    if (!sh && !lcore[0] && !xscript[0] && strcmp(g->core, "app")) {
+        const emulator_t *ce = emulator_find(g->core);
+        char cp[1100];
+        snprintf(cp, sizeof cp, "%s/Cores/%s.%s", UI.root, ce ? ce->core : g->core, CORE_EXT);
+        if (access(cp, R_OK) != 0) {
+            char msg[200];
+            snprintf(msg, sizeof msg, T("common.emu_missing"), ce ? ce->name : g->core);
+            ui_log("gioco %s: manca il core %s", g->title, cp);
+            ui_toast(msg);
             ui_sound(SND_ERROR);
             return;
         }
@@ -9289,10 +9327,12 @@ static void fpanel_draw(void) {
 
 /* tastiera: 5 righe; l'ultima ha spazio, cancella e fatto. Tre disposizioni (X): maiuscole,
    minuscole e simboli, per le password Wi-Fi. */
+/* nei simboli ~ e ` al posto di ' e ., che stanno nelle lettere: senza, una password Wi-Fi che li
+   contiene non si scriveva (audit 0.9.72, LAU-12). Ogni carattere ASCII stampabile c'è (test-ui.sh) */
 static const char *kb_layouts[3][4] = {
     { "1234567890", "QWERTYUIOP", "ASDFGHJKL'", "ZXCVBNM-.&" },
     { "1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm-.&" },
-    { "1234567890", "!@#$%^&*()", "-_=+[]{};:", "'\"\\|,.<>/?" },
+    { "1234567890", "!@#$%^&*()", "-_=+[]{};:", "~\"\\|,`<>/?" },
 };
 #define kb_rows kb_layouts[kb_layout % 3]
 enum { KB_SPACE, KB_DEL, KB_DONE };

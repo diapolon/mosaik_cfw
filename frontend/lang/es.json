@@ -24,6 +24,7 @@
     "restart_charger": "El cargador está conectado: la consola se apaga en lugar de reiniciarse. Vuelve a encenderla con el botón de encendido.",
     "all_games": "Todos los juegos",
     "launch_error": "El juego no se ha iniciado",
+    "emu_missing": "%s no está bien instalado: vuelve a instalarlo desde la Store",
     "quit_menu": "Salir",
     "shutting_down": "Apagando…",
     "loading": "Cargando…",
@@ -748,7 +749,7 @@
     "display": "Brillo de la pantalla, volumen, música de fondo y luces de la consola.",
     "look": "Tema del launcher, su variante, idioma y salvapantallas.",
     "games": "Cómo se ven y se juegan los juegos: proporción, filtros, marcos, duplicados, rendimiento.",
-    "system": "Batería, Wi-Fi, fecha, hora (también automática) y zona horaria, apagado automático.",
+    "system": "Batería, Wi-Fi, Bluetooth, fecha, hora (también automática) y zona horaria, apagado automático.",
     "tools": "Verificar las ROM, descargar imágenes de los juegos y borrar las que ya no sirven.",
     "updates": "Actualización del sistema, canal, aviso, registro de diagnóstico y espacio de la tarjeta.",
     "card": "Transferencia de archivos y copias por Wi-Fi, restablecer los ajustes o toda la tarjeta."

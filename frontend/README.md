@@ -55,9 +55,11 @@ del giocatore. La levetta sinistra vale come croce direzionale.
 
 ### Musica di sottofondo
 
-I file in `Music/` (MP3, OGG, FLAC, WAV, MOD/XM/IT/S3M) suonano in ordine casuale nel
-launcher. **Impostazioni → Musica** regola il volume da 0 (spenta) a 10; **A** sulla stessa
-voce passa al brano successivo. La musica si ferma quando parte un gioco.
+I file in `Music/Menu` (MP3, OGG, FLAC, WAV, MOD/XM/IT/S3M) suonano in ordine casuale nel
+launcher; il resto di `Music/` è del Lettore musicale. La musica è spenta di partenza:
+**Impostazioni → Schermo e suono → Musica** la accende e ne regola il volume; **A**
+sulla stessa voce passa al brano successivo. Si ferma quando parte un gioco, e dopo il Lettore
+musicale resta in silenzio fino allo spegnimento.
 
 In gioco:
 - **Select** inserisce il gettone;
@@ -359,9 +361,10 @@ attendere il gioco.
 python3 tools/scrape.py sdcard
 ```
 
-Oppure dal launcher: **Impostazioni → Strumenti → Scarica immagini**, con barra di
-avanzamento e possibilità di interrompere (`launcher/scraper.c`, in C con libcurl, via Wi-Fi
-sulla console). Lo script Python fa solo gli arcade.
+Oppure dal launcher: **Impostazioni → ROM e immagini → Scarica immagini**, con barra di
+avanzamento e possibilità di interrompere. Serve l'app «Scarica immagini» dello Store
+(`src/apps/scraper.c`, in C con libcurl, via Wi-Fi sulla console), che il launcher avvia con
+`launcher/scrape_client.c`. Lo script Python fa solo gli arcade.
 
 **Arcade.** Lo scraper cerca su **ArcadeDB** (adb.arcadeitalia.net) per nome ROM, e usa le
 **miniature libretro** come riserva per titolo. Scarica schermata di gioco, schermata titolo e
@@ -440,9 +443,11 @@ toolchain/package.sh
 ```
 
 (dalla cartella `trimui`; gli archivi del kit vanno in `deps/trimui-sdk/dl`). Il compilatore
-è x86-64 e sul Mac gira emulato: i core richiedono parecchi minuti. La console ha glibc
-2.23: `make check` mostra la versione più alta richiesta dai programmi (oggi 2.17).
-Dal firmware si usano SDL2 2.26 (con il driver della GPU), OpenSSL e zlib; SDL2_ttf,
+è x86-64 e sul Mac gira emulato: i core richiedono parecchi minuti. Il firmware v1.1.1 ha
+glibc 2.33: `make check` (`toolchain/check-glibc.sh`) mostra la versione più alta richiesta da
+programmi, app e core (oggi 2.17 per i programmi) e fallisce se supera la 2.33. Si compila con
+l'SDL2 2.26 del kit; sulla console gira quella del firmware (2.30.8, con il driver della GPU).
+Dal firmware si usano anche OpenSSL e zlib; SDL2_ttf,
 SDL2_image, SDL2_mixer e libcurl sono compilate a parte e incluse nei programmi, perché
 quelle del firmware sono troppo vecchie.
 

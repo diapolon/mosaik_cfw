@@ -24,6 +24,7 @@
     "restart_charger": "Das Ladegerät ist angeschlossen: Die Konsole schaltet sich aus, statt neu zu starten. Schalte sie mit der Ein-/Aus-Taste wieder ein.",
     "all_games": "Alle Spiele",
     "launch_error": "Das Spiel ist nicht gestartet",
+    "emu_missing": "%s ist nicht richtig installiert: aus dem Store neu installieren",
     "quit_menu": "Beenden",
     "shutting_down": "Wird ausgeschaltet…",
     "loading": "Wird geladen…",
@@ -748,7 +749,7 @@
     "display": "Bildschirmhelligkeit, Lautstärke, Hintergrundmusik und Konsolenlichter.",
     "look": "Launcher-Thema, Variante, Sprache und Bildschirmschoner.",
     "games": "Wie Spiele aussehen und laufen: Seitenverhältnis, Filter, Rahmen, Duplikate, Leistung.",
-    "system": "Akku, WLAN, Datum, Uhrzeit (auch automatisch) und Zeitzone, automatisches Ausschalten.",
+    "system": "Akku, WLAN, Bluetooth, Datum, Uhrzeit (auch automatisch) und Zeitzone, automatisches Ausschalten.",
     "tools": "ROMs prüfen, Spielbilder herunterladen und nicht mehr benötigte entfernen.",
     "updates": "Systemupdates, Kanal, Hinweis, Diagnoseprotokoll und Speicher der Karte.",
     "card": "Dateien und Sicherungen per WLAN übertragen, Einstellungen oder die ganze Karte zurücksetzen."

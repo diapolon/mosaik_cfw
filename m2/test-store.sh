@@ -1,7 +1,7 @@
 #!/bin/sh
 # Prova dello Store (frontend/src/launcher/store.c) con il modulo vero, un server HTTP locale,
 # una chiave di prova e pacchetti fatti da toolchain/make-store.py:
-#   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-store.sh
+#   docker run --rm --privileged --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-store.sh
 set -e
 apk add -q build-base curl-dev openssl-dev zlib-dev python3 openssl >/dev/null
 W=/tmp/store; rm -rf $W; mkdir -p $W/src $W/sd/System $W/sd/Emulators $W/sd/Cores $W/www; cd $W
@@ -55,9 +55,18 @@ int main(int c, char **v) {
     }
     if (!strcmp(cmd, "offline")) {
         char p[1200], n[64], l[32];
+#ifndef STORE_0957   /* lo Store della 0.9.57 (prova in fondo) non ha i modelli */
+        if (c > 3) store_system(v[3]);   /* offline [sistema] [modello] */
+        if (c > 4) store_model(v[4]);
+#endif
         if (!store_offline_find(root, p, sizeof p, n, sizeof n, l, sizeof l)) { puts("niente"); return 0; }
         int r = store_offline_install(root, p);
+#ifndef STORE_0957
+        printf("%s %s\n", n, r == SE_NONE ? "installato" : r == SE_UNSIGNED ? "non verificato" : r == SE_SYSTEM ? "sistema"
+                              : r == SE_MODEL ? "modello" : r == SE_SPACE ? "spazio" : "errore");
+#else
         printf("%s %s\n", n, r == SE_NONE ? "installato" : r == SE_UNSIGNED ? "non verificato" : "errore");
+#endif
         return 0;
     }
     store_lang(getenv("LINGUA") ? getenv("LINGUA") : "en");
@@ -272,6 +281,20 @@ check "firma sbagliata: errore, catalogo di prima" "2 2 3 files:0 fbneo:0 mgba:0
 # catalogo firmato ma più vecchio di quello sulla scheda (un mirror, un indirizzo di prova): rifiutato (AGG-11)
 BUILT=1000 mk 2
 check "catalogo più vecchio: errore, catalogo di prima" "2 3 3 files:0 fbneo:0 mgba:0" "$(./t $R list 2>/dev/null)"
+# audit 0.9.88, STO-01: un catalogo di prova più nuovo, preso dal server del Mac, faceva rifiutare per
+# sempre quello ufficiale (più vecchio): Store bloccato, senza rimedio dalla console. Da un altro
+# indirizzo il catalogo si accetta; dallo stesso resta rifiutato (qui sopra)
+BUILT=4102444800 mk 2
+check "catalogo di prova del 2100, dal server di prova" "2 0 3" "$(./t $R list 2>/dev/null | cut -d' ' -f1-3)"
+mk 2
+python3 -m http.server 8098 --bind 127.0.0.1 --directory $W/www >/dev/null 2>&1 & SRV2=$!; sleep 1
+echo "http://127.0.0.1:8098" > sd/System/update-url.txt
+check "indirizzo cambiato: il catalogo, più vecchio di quello di prova, si accetta" "2 0 3" "$(./t $R list 2>/dev/null | cut -d' ' -f1-3)"
+BUILT=1000 mk 2
+check "dallo stesso indirizzo un catalogo più vecchio resta rifiutato" "2 3 3" "$(./t $R list 2>/dev/null | cut -d' ' -f1-3)"
+kill $SRV2; wait $SRV2 2>/dev/null || true
+echo "http://127.0.0.1:8099" > sd/System/update-url.txt
+mk 2
 # catalogo e firma in un file solo (store.cat): la console legge quello, e una firma separata
 # vecchia o rovinata accanto non conta (13 nov: GitHub li ha serviti spaiati per due minuti)
 mk 2
@@ -313,6 +336,26 @@ check "versione nuova sulla scheda" "indice 3" "$(cat sd/Dats/fbneo.tsv)"
 echo manomesso >> sd/store.json
 rm -f sd/store-*.zip; mk 4; cp www/store-fbneo-*.zip sd/
 check "catalogo accanto manomesso: rifiutato" "FinalBurn Neo non verificato" "$(./t $R offline 2>/dev/null)"
+# audit 0.9.88, STO-02: pacchetti copiati sulla scheda rifiutati per il sistema o per il modello
+echo "--- pacchetti copiati sulla scheda: sistema, modello, spazio (STO-02)"
+rm -f sd/store.json sd/store.sig sd/store-*.zip
+printf '{"models": {"mgba": ["brickpro"]}}' > stato.json
+STORE_STATO=$W/stato.json mk 5; cp www/store-files-*.zip www/store.json www/store.sig sd/
+check "app che chiede il sistema 0.9.40, sistema 0.9.30: rifiutata" "sistema" "$(./t $R offline 0.9.30 2>/dev/null | awk '{print $NF}')"
+check "stesso sistema: non si ripropone a ogni avvio" "niente" "$(./t $R offline 0.9.30 2>/dev/null)"
+check "sistema aggiornato a mano: si ripropone e si installa" "installato" "$(./t $R offline 0.9.50 2>/dev/null | awk '{print $NF}')"
+rm -f sd/store-*.zip sd/System/store.json sd/System/store.sig; cp www/store-mgba-*.zip sd/   # vale il catalogo copiato accanto
+check "pacchetto solo per la Brick Pro, su una Smart Pro: rifiutato" "modello" "$(./t $R offline 0.9.50 smartpro 2>/dev/null | awk '{print $NF}')"
+rm -f sd/store-*.zip; cp www/store-fbneo-*.zip sd/
+mkdir -p $W/piccola; mount -t tmpfs -o size=1200k tmpfs $W/piccola 2>/dev/null && piccola=1 || piccola=0
+if [ $piccola = 1 ]; then
+    cp -r sd/System $W/piccola/; cp sd/store-fbneo-*.zip sd/store.json sd/store.sig $W/piccola/
+    cat /dev/zero > $W/piccola/riempi 2>/dev/null || true   # piena del tutto
+    check "scheda piena: «spazio», non «non corrisponde»" "spazio" "$(./t $W/piccola offline 0.9.50 2>/dev/null | awk '{print $NF}')"
+    umount $W/piccola
+else
+    echo "  (scheda piena non provata: serve docker --privileged per un tmpfs piccolo)"
+fi
 # temi nello Store
 rm -f sd/store.json sd/store.sig sd/store-*.zip
 TEMA=1 mk 4
@@ -358,7 +401,7 @@ check "gioco Linux tolto: partite e file dell'utente restano" "4 0 0 no partita 
 if apk add -q git >/dev/null 2>&1 && git -c safe.directory='*' -C /trimui show v0.9.57:frontend/src/launcher/store.c > src/store-0957.c 2>/dev/null \
    && mkdir -p old0957 && git -c safe.directory='*' -C /trimui show v0.9.57:frontend/src/launcher/store.h > old0957/store.h 2>/dev/null; then
     cp src/store-0957.c old0957/; cp src/t.c old0957/; cp src/zipread.h src/update_pubkey.h old0957/
-    gcc -O1 -D_GNU_SOURCE -DSTORE_TEST -DUPDATE_DEFAULT_URL='""' -Iold0957 -Isrc -o t-0957 old0957/t.c old0957/store-0957.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl 2>/dev/null
+    gcc -O1 -D_GNU_SOURCE -DSTORE_TEST -DSTORE_0957 -DUPDATE_DEFAULT_URL='""' -Iold0957 -Isrc -o t-0957 old0957/t.c old0957/store-0957.c src/zipread.c common/json.c -lcurl -lcrypto -lz -lpthread -ldl 2>/dev/null
     NEW=$(./t $R list 2>/dev/null)
     check "Store della 0.9.57: catalogo valido, gli stessi pacchetti senza il gioco Linux" "$(echo "$NEW" | sed 's/ freedoom:[0-9]//; s/^2 0 [0-9]*/2 0 X/')" "$(./t-0957 $R list 2>/dev/null | sed 's/^2 0 [0-9]*/2 0 X/')"
     check "Store della 0.9.57: il gioco Linux non c'è" "manca" "$(./t-0957 $R title freedoom 2>/dev/null)"

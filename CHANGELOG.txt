@@ -3,6 +3,22 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.96
+it Aggiornamento scaricato a metà: dopo uno spegnimento riprende da dove era
+en Update half downloaded: after a power off it resumes where it was
+it Trasferimento file: chi è già entrato ha sempre un posto, anche con altri collegati
+en File transfer: whoever already logged in always gets a place, even with others connected
+it Store: un catalogo di prova non blocca più quello ufficiale
+en Store: a test catalogue no longer blocks the official one
+it Pacchetti copiati sulla scheda: riproposti dopo aver aggiornato il sistema, e «spazio» se la scheda è piena
+en Packages copied to the card: offered again after updating the system, and "space" when the card is full
+it Emulatore senza core: lo dice invece di avviare un gioco che non parte
+en Emulator without its core: it says so instead of starting a game that fails
+it Tastiera: anche ~ e `; la ricerca trova Pokémon scrivendo pokemon
+en Keyboard: also ~ and `; search finds Pokémon when you type pokemon
+it Video 1.6: sottotitoli in Windows-1252 (apostrofi e virgolette) e UTF-16
+en Video 1.6: subtitles in Windows-1252 (apostrophes and quotes) and UTF-16
+
 0.9.95
 it Bluetooth: dopo la sospensione con le cuffie l'audio torna, sulle cuffie o sull'altoparlante
 en Bluetooth: after sleep with headphones the sound comes back, in the headphones or on the speaker

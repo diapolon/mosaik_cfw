@@ -145,6 +145,8 @@ models | while IFS="|" read -r id fw name file; do
     # configurazione, della Smart Pro con 3 voci diverse e nessuna del Wi-Fi)
     if [ $id = tg4040 ]; then
         for o in brick:tg3040 smartpro:tg5040; do
+            # il firmware della Brick originale è facoltativo (CONTRIBUTING): senza, niente strato di prova
+            [ -d /build/fw/${o#*:}/root/lib/modules/4.9.191 ] || { echo "strato di prova del Wi-Fi ${o%%:*} saltato: manca il firmware ${o#*:}"; continue; }
             mkdir -p $L/modules-${o%%:*}
             cp /build/fw/${o#*:}/root/lib/modules/4.9.191/xradio_*.ko $L/modules-${o%%:*}/
         done

@@ -24,6 +24,7 @@
     "restart_charger": "O carregador está ligado: a consola desliga-se em vez de reiniciar. Volta a ligá-la com o botão de ligar.",
     "all_games": "Todos os jogos",
     "launch_error": "O jogo não arrancou",
+    "emu_missing": "%s não está bem instalado: reinstala-o pela Store",
     "quit_menu": "Sair",
     "shutting_down": "A desligar…",
     "loading": "A carregar…",
@@ -748,7 +749,7 @@
     "display": "Brilho do ecrã, volume, música de fundo e luzes da consola.",
     "look": "Tema do launcher, variante, idioma e proteção de ecrã.",
     "games": "Como os jogos se veem e jogam: proporção, filtros, molduras, duplicados, desempenho.",
-    "system": "Bateria, Wi-Fi, data, hora (também automática) e fuso horário, desligar automático.",
+    "system": "Bateria, Wi-Fi, Bluetooth, data, hora (também automática) e fuso horário, desligar automático.",
     "tools": "Verificar as ROM, descarregar imagens dos jogos e apagar as que já não servem.",
     "updates": "Atualização do sistema, canal, aviso, registo de diagnóstico e espaço do cartão.",
     "card": "Transferência de ficheiros e cópias por Wi-Fi, repor as definições ou todo o cartão."

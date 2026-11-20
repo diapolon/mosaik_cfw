@@ -1,40 +1,62 @@
-Mosaik - sistema su SD per TrimUI Brick Pro (TG4040) e Smart Pro (TG5040) - prova M2
+Mosaik - sistema su microSD per TrimUI Smart Pro (TG5040) e Brick Pro (TG4040)
+Manuale: https://github.com/diapolon/mosaik_cfw/wiki
+(English below)
 
-Questa scheda avvia la console direttamente nel launcher Mosaik, senza il sistema TrimUI.
-La memoria interna della console non viene toccata: togliendo la scheda riparte il
-sistema originale.
+Questa scheda avvia la console direttamente in Mosaik, senza il sistema TrimUI. La memoria
+interna non viene toccata: togliendo la scheda riparte il sistema originale.
+
+Alla prima accensione la partizione MOSAIK si allarga a tutta la microSD (fino a 256 GB).
+
+Primi passi:
+  1. Impostazioni > Sistema > Wi-Fi: accendi e collega una rete (X sulla tastiera cambia
+     maiuscole, minuscole e simboli). Le reti restano in Arcade/System/wifi.conf.
+  2. Store (nella home): installa gli emulatori che ti servono. Senza Wi-Fi si possono copiare
+     sulla scheda i file store-....zip con store.json e store.sig della pagina delle versioni.
+  3. Copia i giochi in Arcade/Roms/<sistema> (le cartelle compaiono dopo aver installato gli
+     emulatori) e i BIOS in Arcade/Bios.
 
 Cartelle:
-  Arcade/Roms/FBNEO       ROM per FinalBurn Neo (anche in sottocartelle: neogeo/, cps2/...)
-  Arcade/Roms/MAME2003P   ROM per MAME 2003-Plus
-  Arcade/Bios             neogeo.zip e altri BIOS
-  Arcade/Music            musica di sottofondo (MP3, OGG)
-  Arcade/Media            immagini dei giochi (si possono copiare dal Mac)
-  Arcade/Logs             rapporti per la diagnosi: avvio.log, sistema.txt, Arcade.log
-  Arcade/System           impostazioni e il sistema (arcade-system.squashfs: non toccare)
+  Arcade/Roms     giochi, una cartella per emulatore
+  Arcade/Bios     BIOS (neogeo.zip e gli altri)
+  Arcade/Saves    salvataggi e stati, una cartella per console
+  Arcade/Music    Music/Menu: musica del menu; il resto è del Lettore musicale
+  Arcade/Media    immagini dei giochi
+  Arcade/Logs     registri per la diagnosi: in caso di problemi manda questa cartella
+  Arcade/System   impostazioni e sistema (arcade-system.squashfs: non toccare)
 
-Alla prima accensione la scheda si allarga da sola: la partizione MOSAIK occupa tutto lo
-spazio della microSD (fino a 256 GB). Data e ora si impostano in Impostazioni.
+Bluetooth: Impostazioni > Sistema > Bluetooth, poi Dispositivi Bluetooth per abbinare cuffie
+e casse. Aggiornamenti: Impostazioni > Aggiornamenti, via Wi-Fi, senza riscrivere la scheda.
 
-Wi-Fi: Impostazioni > Wi-Fi, A mostra le reti; la password si scrive con la tastiera a
-schermo (X cambia tra maiuscole, minuscole e simboli). Le reti restano in
-Arcade/System/wifi.conf.
+Tasto di accensione: premuto brevemente chiede se sospendere (anche durante un gioco);
+tenuto premuto chiede se spegnere (durante un gioco salva la partita). Giochi Linux ed
+emulatori a sé: tasto Menu tenuto 1 secondo apre il menu di Mosaik.
 
-La cartella Arcade è uguale per i due modelli: ROM e salvataggi si possono spostare da una
-scheda all'altra. Cambia solo l'area di avvio, per questo ci sono due immagini.
+Licenze dei componenti inclusi: Arcade/Licenses.
 
-Tasto di accensione: premuto brevemente chiede se sospendere la console (A o una nuova pressione
-conferma; anche durante un gioco, che
-riprende da dove era); premuto di nuovo la risveglia. Tenuto premuto un paio di secondi
-chiede se spegnere (durante un gioco salva la partita e spegne).
+Se lo schermo resta nero: tieni premuto il tasto di accensione 10-20 secondi, togli la scheda
+e manda i file di Arcade/Logs.
 
-Giochi Linux: tasto Menu tenuto premuto 1 secondo = menu (riprendi, volume, luminosità,
-esci dal gioco); B o Menu riprendono il gioco.
+----------------------------------------------------------------------------------------------
 
-Tasti in più della Brick Pro: HOME (laterale) torna al launcher, le due barrette sotto lo
-schermo salvano e caricano la partita, l'interruttore FN attiva le prestazioni massime.
+This card starts the console straight into Mosaik, without the TrimUI system. The internal
+memory is never touched: remove the card and the original system starts again.
 
-Licenze dei componenti inclusi: cartella Arcade/Licenses.
+At the first start the MOSAIK partition grows to the whole microSD (up to 256 GB).
 
-Se lo schermo resta nero o rosso: tieni premuto il tasto di accensione 10-20 secondi,
-togli la scheda e manda i file della cartella Arcade/Logs.
+First steps:
+  1. Settings > System > Wi-Fi: turn it on and connect to a network (X on the keyboard switches
+     uppercase, lowercase and symbols).
+  2. Store (on the home screen): install the emulators you need. Without Wi-Fi, copy to the card
+     the store-....zip files with store.json and store.sig from the releases page.
+  3. Copy games to Arcade/Roms/<system> (the folders appear once the emulators are installed)
+     and BIOS files to Arcade/Bios.
+
+Bluetooth: Settings > System > Bluetooth, then Bluetooth devices to pair headphones and
+speakers. Updates: Settings > Updates, over Wi-Fi, without writing the card again.
+
+Power button: a short press asks whether to sleep (also in a game); held down it asks whether to
+power off (in a game it saves first). Linux games and standalone emulators: hold Menu for one
+second for the Mosaik menu.
+
+If the screen stays black: hold the power button 10-20 seconds, remove the card and send the
+files in Arcade/Logs.

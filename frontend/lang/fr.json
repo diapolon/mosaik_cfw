@@ -24,6 +24,7 @@
     "restart_charger": "Le chargeur est branché : la console s'éteint au lieu de redémarrer. Rallume-la avec le bouton d'alimentation.",
     "all_games": "Tous les jeux",
     "launch_error": "Le jeu n'a pas démarré",
+    "emu_missing": "%s n'est pas bien installé : réinstallez-le depuis le Store",
     "quit_menu": "Quitter",
     "shutting_down": "Extinction…",
     "loading": "Chargement…",
@@ -748,7 +749,7 @@
     "display": "Luminosité de l'écran, volume, musique de fond et lumières de la console.",
     "look": "Thème du launcher, sa variante, langue et écran de veille.",
     "games": "Affichage et jeu : proportions, filtres, cadres, doublons, performances.",
-    "system": "Batterie, Wi-Fi, date, heure (aussi automatique) et fuseau horaire, extinction automatique.",
+    "system": "Batterie, Wi-Fi, Bluetooth, date, heure (aussi automatique) et fuseau horaire, extinction automatique.",
     "tools": "Vérifier les ROM, télécharger les images des jeux et supprimer celles qui ne servent plus.",
     "updates": "Mises à jour, canal, avis, journal de diagnostic et espace de la carte.",
     "card": "Transfert de fichiers et sauvegarde par Wi-Fi, réinitialiser les réglages ou toute la carte."

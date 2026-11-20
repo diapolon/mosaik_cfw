@@ -46,7 +46,7 @@ Avvio:
 Per aggiornare il sistema basta copiare dal Mac un nuovo `arcade-system.squashfs` (e i file
 della cartella `Arcade`) sulla scheda, o usare l'aggiornamento Wi-Fi: non serve riscriverla.
 L'area di avvio invece arriva solo riscrivendo l'immagine: a ogni suo cambio si alza
-`GENERAZIONE` in `m2/area-avvio.conf` (oggi 1, dalla 0.9.17; schede senza file = 0), e con
+`GENERAZIONE` in `m2/area-avvio.conf` (oggi 4, dalla 0.9.74; schede senza file = 0), e con
 `RISCRIVERE_SOTTO` sopra 0 la finestra dell'aggiornamento invita le schede più vecchie a
 riscrivere la SD.
 
@@ -78,9 +78,8 @@ Per aggiungere un modello: estrarne il firmware con `toolchain/analyze-firmware.
 - Il FAT arriva al massimo a 256 GB. Una scheda scritta con un'immagine di prima del 7
   novembre ha il FAT da 1,9 GB non preparato a crescere: la partizione si allarga, il FAT no.
   Per avere tutto lo spazio va riscritta con l'immagine nuova (prima salva ROM e salvataggi).
-- Un'interruzione di corrente mentre l'aggiornamento sostituisce i file può lasciare la
-  cartella `Arcade` a metà: il ritorno automatico copre solo il sistema (issue #3).
-- Niente Bluetooth.
+- Bluetooth solo per l'audio (cuffie e casse, dalla 0.9.88): niente controller. I giochi
+  Linux e gli emulatori a sé non seguono le cuffie collegate o scollegate durante l'uso.
 - Calibrazione di fabbrica delle levette: è nella memoria interna. Si calibra dalle
   Impostazioni, oppure si copia `joypad.config` dal sistema originale in `Arcade/System`.
 - Ogni modello ha la sua immagine, con i suoi pezzi di avvio: per altre console ne servirà una nuova.

@@ -209,10 +209,11 @@ check "mosaik.local risponde con l'indirizzo" "$(ip -4 addr show eth0 | awk '/in
 cat > lento.py <<'P'
 import select, socket, sys, time
 mode, n = sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 1
-if mode == 'ferme':      # n connessioni ferme a metà intestazione
+if mode == 'ferme':      # n connessioni ferme a metà intestazione [da un indirizzo]
     ss = []
+    src = (sys.argv[4], 0) if len(sys.argv) > 4 else None
     for i in range(n):
-        s = socket.create_connection(('127.0.0.1', 8099)); s.sendall(b'GET / HTTP/1.1\r\nHost: x\r\n'); ss.append(s)
+        s = socket.create_connection(('127.0.0.1', 8099), source_address=src); s.sendall(b'GET / HTTP/1.1\r\nHost: x\r\n'); ss.append(s)
     time.sleep(float(sys.argv[3]))
 else:                    # un byte ogni 2 s: quanto resta aperta
     s = socket.create_connection(('127.0.0.1', 8099)); t = time.time()
@@ -233,6 +234,15 @@ sleep 1
 check "quinta connessione dallo stesso indirizzo: 503 subito" "503" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
 wait $LP
 check "liberate: di nuovo 200" "200" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' $U/)"
+# audit 0.9.88, RETE-08: due indirizzi con 4 connessioni ferme ciascuno occupavano tutti gli 8 posti e
+# lasciavano fuori anche chi aveva già il PIN: per chi è già entrato c'è un posto di riserva
+curl -s --interface 127.0.0.9 -c $W/cp -X POST -d pin=123456 $U/api/login > /dev/null
+python3 lento.py ferme 4 6 127.0.0.10 & LP=$!
+python3 lento.py ferme 4 6 127.0.0.11 & LP2=$!
+sleep 1
+check "posti occupati da altri: un terzo indirizzo senza PIN riceve 503" "503" "$(curl -s -m 3 --interface 127.0.0.12 -o /dev/null -w '%{http_code}' $U/)"
+check "posti occupati da altri: chi è già entrato usa la riserva" "200" "$(curl -s -m 3 --interface 127.0.0.9 -b $W/cp -o /dev/null -w '%{http_code}' $U/api/info)"
+wait $LP; wait $LP2
 # senza accesso un PUT riceve 401 subito, senza che si legga il corpo (RETE-01)
 check "PUT senza accesso: 401 senza aspettare il corpo" "401" "$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Length: 100000000' -H 'Expect:' --data-binary @/dev/null "$U/api/put?path=Roms&name=x.zip")"
 # errori del PIN da tanti indirizzi: 20 in un minuto cambiano il PIN sullo schermo (con 4 per indirizzo

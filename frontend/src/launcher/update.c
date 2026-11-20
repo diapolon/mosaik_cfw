@@ -688,9 +688,24 @@ static bool place_item(item_t *it, const char *tmp, const char *dst) {
     return true;
 }
 
+/* Scaricamento a metà (audit 0.9.88, AGG-14): l'elenco firmato si scrive all'inizio dello
+   scaricamento, così dopo uno spegnimento il controllo all'avvio tiene i .nuovo che vi compaiono e
+   fetch_one riprende da dove era arrivato. Prima si toglievano tutti e con un Wi-Fi instabile e la
+   batteria scarica si ripartiva ogni volta da zero. */
+#define PARTIAL_TXT "System/update-partial.txt"
+#define PARTIAL_SIG "System/update-partial.sig"
+static void drop_partial(void) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/" PARTIAL_TXT, root_dir);
+    unlink(p);
+    snprintf(p, sizeof p, "%s/" PARTIAL_SIG, root_dir);
+    unlink(p);
+}
+
 static void remove_tmps(void) {
     char t[1100];
     for (int i = 0; i < nitems; i++) if (items[i].need) { tmp_name(&items[i], t, sizeof t); unlink(t); }
+    drop_partial();   /* senza file scaricati non c'è niente da riprendere */
 }
 
 /* scaricamento finito e controllato: l'elenco firmato resta sulla scheda, così dopo uno
@@ -720,10 +735,28 @@ static void drop_ready(void) {
     unlink(p);
 }
 
+/* versione dello scaricamento a metà tenuto da parte, vuota se non c'è */
+static void partial_version(char *out, size_t n) {
+    char p[1100], line[200];
+    out[0] = 0;
+    snprintf(p, sizeof p, "%s/" PARTIAL_TXT, root_dir);
+    FILE *f = fopen(p, "r");
+    while (f && fgets(line, sizeof line, f))
+        if (!strncmp(line, "version ", 8)) { line[strcspn(line, "\r\n")] = 0; snprintf(out, n, "%s", line + 8); break; }
+    if (f) fclose(f);
+}
+
 static void *install_worker(void *arg) {
     (void)arg;
     if (!compare_files()) { fail(UPE_CANCEL); return NULL; }
     if (!st.files) { st.phase = UPD_CURRENT; return NULL; }   /* versione nuova, file già tutti uguali */
+    /* i .nuovo rimasti da uno scaricamento a metà di un'altra versione hanno un altro contenuto:
+       riprenderli darebbe un file sbagliato da riscaricare. Poi l'elenco di questa (AGG-14) */
+    char old[64];
+    partial_version(old, sizeof old);
+    if (old[0] && strcmp(old, st.version)) { ui_log("aggiornamento: lo scaricamento a metà della %s non serve più", old); remove_tmps(); }
+    if (!write_file(PARTIAL_SIG, g_sig, g_sig_len) || !write_file(PARTIAL_TXT, g_text, g_text_len))
+        ui_log("aggiornamento: impossibile ricordare lo scaricamento in corso");
     st.phase = UPD_DOWNLOAD;
     st.done = 0;
     struct statvfs vs;
@@ -755,6 +788,7 @@ static void *install_worker(void *arg) {
     }
     /* tutti i file sono giusti: si aspetta la conferma, a schermo */
     save_ready();
+    drop_partial();
     st.phase = UPD_READY;
     return NULL;
 }
@@ -1079,12 +1113,22 @@ static void *resume_worker(void *arg) {
         }
         if (!ok) { ui_log("aggiornamento: lo scaricamento tenuto da parte non vale più: lo tolgo"); drop_ready(); }
     }
-    sweep_all(ok);
+    bool partial = false;
+    if (!have && read_all(PARTIAL_TXT, g_text, sizeof g_text, &g_text_len) && read_all(PARTIAL_SIG, g_sig, sizeof g_sig, &g_sig_len)) {
+        /* scaricamento a metà: si tengono i suoi .nuovo, il prossimo aggiornamento li riprende (AGG-14) */
+        g_text[g_text_len] = 0;
+        memcpy(work, g_text, g_text_len + 1);
+        partial = signature_ok(g_text, g_text_len, g_sig, g_sig_len) && parse_manifest(work)
+                  && strcmp(stamp_of(st.version), stamp_of(update_current())) > 0 && compare_files() && st.files > 0;
+        if (partial) ui_log("aggiornamento: %s scaricato a metà, si riprende al prossimo aggiornamento", st.version);
+        else drop_partial();
+    }
+    sweep_all(ok || partial);
     if (ok) {
         resumed = true;
         ui_log("aggiornamento: %s già scaricato, da installare", st.version);
         st.phase = UPD_READY;
-    } else st.phase = UPD_IDLE;
+    } else st.phase = UPD_IDLE;   /* a metà non c'è niente da proporre: lo riprende il prossimo aggiornamento */
     return NULL;
 }
 

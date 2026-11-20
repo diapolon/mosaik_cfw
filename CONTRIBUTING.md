@@ -17,6 +17,7 @@ Most of the comments in the code and the developer notes are in Italian. The dat
 | `trimui-sdk/dl` | TrimUI kit: `aarch64-linux-gnu-7.5.0-linaro.tgz`, `SDK_usr_tg5040_a133p.tgz`, `SDL2-2.26.1.GE8300.tgz` | https://github.com/trimui/toolchain_sdk_smartpro |
 | `firmware/tg5040/dl` | Smart Pro firmware `trimui_tg5040_20251128_v1.1.1.zip` | https://github.com/trimui/firmware_smartpro |
 | `firmware/tg4040/dl` | Brick Pro firmware `trimui_tg4040_20260717_v1.1.1.7z` | https://github.com/trimui/firmware_brickpro |
+| `firmware/tg3040/dl` | Optional: original Brick firmware `TG3040_Brick_firmware_v1.1.1.zip`, only for the Wi-Fi test layer of the Brick Pro image (`m2/prova-wifi`); without it that layer is skipped | TrimUI's firmware downloads for the Brick |
 | `ffmpeg` | `ffmpeg-9.0.2.tar.xz` (Video app) | https://ffmpeg.org/releases |
 | `freedoom` | `freedoom-0.13.0.zip` | https://github.com/freedoom/freedoom/releases |
 | `devilutionx` | `devilutionx-src-fully-vendored-1.5.5.tar.xz` | https://github.com/diasurgical/devilutionX/releases |
@@ -50,7 +51,7 @@ Emulators and games, cloned with git at these commits (`git clone URL folder && 
 | `vice-libretro` | https://github.com/libretro/vice-libretro | 76cde0b2cc4e |
 | `dosbox-pure` | https://codeberg.org/schelling/dosbox-pure | 9cccfa21cb11 |
 | `libretro-uae` | https://github.com/libretro/libretro-uae | d366f77c60e5 |
-| `scummvm` | https://github.com/scummvm/scummvm | 7d2709da5136 |
+| `scummvm` | https://github.com/scummvm/scummvm (with its two submodules `libretro-deps` and `libretro-common`, at the versions in `backends/platform/libretro/dependencies.mk`) | 7d2709da5136 |
 | `ppsspp` | https://github.com/hrydgard/ppsspp (with submodules) | fa50bb197606 |
 | `flycast` | https://github.com/flyinghead/flycast (with submodules) | 72b8e67141d8 |
 | `mupen64plus/mupen64plus-core` | https://github.com/mupen64plus/mupen64plus-core | daae68e2cc87 |
@@ -61,7 +62,7 @@ Emulators and games, cloned with git at these commits (`git clone URL folder && 
 | `mupen64plus/mupen64plus-video-rice` | https://github.com/mupen64plus/mupen64plus-video-rice | 19c72e64aa70 |
 | `mupen64plus/mupen64plus-video-glide64mk2` | https://github.com/mupen64plus/mupen64plus-video-glide64mk2 | 3d323245282e |
 | `crispy-doom` | https://github.com/fabiangreffrath/crispy-doom | fdeabe4c23a8 |
-| `mrboom-libretro` | https://github.com/libretro/mrboom-libretro | 40ac32020b54 |
+| `mrboom-libretro` | https://github.com/libretro/mrboom-libretro (with submodules: `libretro-common`) | 40ac32020b54 |
 
 Mosaik's changes to these projects are in `toolchain/patches/`; the build scripts apply them. `build-info.txt`, attached to each release, lists the exact commits of that build, and the source archives attached to the releases are these clones at those commits.
 
@@ -76,7 +77,9 @@ docker volume create trimui-build
 
 # once per model: extract the firmware (into /build/fw/<model>)
 docker run --rm --platform linux/arm64 -v trimui-build:/build -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/toolchain/analyze-firmware.sh deps/firmware/tg5040/dl/trimui_tg5040_20251128_v1.1.1.zip tg5040
-docker run --rm --platform linux/arm64 -v trimui-build:/build -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/toolchain/analyze-firmware.sh deps/firmware/tg4040/dl/trimui_tg4040_20260717_v1.1.1.7z tg4040
+docker run --rm --platform linux/arm64 -v trimui-build:/build -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/toolchain/analyze-firmware.sh deps/firmware/tg4040/dl/trimui_tg4040_20260717_v1.1.1.7z tg4040b
+# optional, see the table above
+docker run --rm --platform linux/arm64 -v trimui-build:/build -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/toolchain/analyze-firmware.sh deps/firmware/tg3040/dl/TG3040_Brick_firmware_v1.1.1.zip tg3040
 
 # libraries, programs and cores
 docker run --rm --platform linux/amd64 -v trimui-build:/build -v "$PWD":/trimui:ro trimui-tg5040 sh /trimui/toolchain/build-deps.sh
@@ -117,6 +120,8 @@ echo "https://github.com/YOUR-NAME/YOUR-REPO/releases/latest/download" > UPDATE_
 ```
 
 Then rebuild everything. Keep the key safe: consoles installed with your images accept updates only from it.
+
+The consoles derive two more addresses from `UPDATE_URL` (`make_url` in `frontend/src/launcher/store.c`): the Development channel reads the pre-release with tag `testing`, and the Store reads the pre-release with tag `store`. Create both in your repository, then upload `dist/site/update/*` to `testing` for test builds and `dist/site/store/*` to `store` (catalogue last: the zips first, then `store.cat`, `store.json` and `store.sig`). Without them the Development channel and the Store show a network error.
 
 ## Adding an emulator
 

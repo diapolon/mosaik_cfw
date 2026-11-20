@@ -31,6 +31,7 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 **Games**
 - [ ] Faster fast-forward (cores skip the frames that are not shown)
 - [ ] Dreamcast (Deadcast): test on the Smart Pro, then a clean exit when the game is closed from outside
+- [ ] Audit 0.9.88, still open: LAU-11 (contrast of the light Tessera theme: white on `#0FB1D4` is 2.5:1; a darker accent is a design choice to make with the user), LAU-14 (key bar not dimmed during the first setup, Wi-Fi window aligned left, "Search and filters" vs "Filters and sorting", Information counts duplicates, long settings pages without a hint that more rows follow, no filter to hide clones), STO-02 rest (packages of the other model already installed stay invisible and cannot be removed; `Emulators/dc.json` is shared by Deadcast and Flycast), DEV-05 (downloads without a hash in `build-deps.sh`, `build-flycast.sh` and `package.sh`'s `cacert.pem`: needs the archives downloaded once to record their SHA-256), BT-12 (power use with Bluetooth on: measure with `test-consumi`), BT-11 (what to say in the wiki), AGG-13 (B after a finished download deletes it: to decide)
 - [ ] Saves page: restore the `.srm.bak` kept before loading a state (audit 0.9.88, GIO-11; from 0.9.95 one per game session)
 - [ ] PSP: test with real games (Nintendo 64 tried on both consoles from 0.9.77); then PICO-8 and TIC-80
 - [ ] Run-ahead and rewind as per-console or per-game settings, cheats, manuals from the game menu
@@ -43,8 +44,6 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - [ ] Music player: headroom against clipping; later audiobooks (position per book, speed)
 - [x] Video: `.srt` subtitles (1.4, 0.9.79)
 
-**Project**
-- [x] Website on mosaikcfw.org (19 Nov 2026: Home and Download in English and Italian, `make-site.py` → `dist/mosaikcfw.org`, on the Plesk VPS)
 
 
 ## Testing
@@ -144,5 +143,5 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 
 ## Project
 
-- [x] Website on mosaikcfw.org (19 Nov 2026: Home and Download in English and Italian, `make-site.py` → `dist/mosaikcfw.org`, on the Plesk VPS)
+- [x] Website on mosaikcfw.org (19 Nov 2026: Home and Download in English and Italian, `make-site.py` → `dist/mosaikcfw.org`)
 - [ ] English version of the build documentation (`m2/README.md`)

@@ -677,11 +677,10 @@ static void subs_load(int i) {
     size_t len = buf ? fread(buf, 1, (4 << 20) - 1, f) : 0;
     fclose(f);
     if (!buf) return;
-    buf[len] = 0;
     bool latin1 = false;
-    nsubs = srt_parse(buf, &subs, &latin1);
+    nsubs = srt_parse_buf(buf, len, &subs, &latin1);   /* anche UTF-16 (APP-02) */
     free(buf);
-    ui_log("video: %d sottotitoli da %s%s", nsubs, strrchr(p, '/') ? strrchr(p, '/') + 1 : p, latin1 ? " (Latin-1)" : "");
+    ui_log("video: %d sottotitoli da %s%s", nsubs, strrchr(p, '/') ? strrchr(p, '/') + 1 : p, latin1 ? " (righe in Windows-1252)" : "");
 }
 
 /* la battuta da mostrare al tempo t, o -1 */

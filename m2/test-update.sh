@@ -348,6 +348,61 @@ grep -q "a.so, riprendo da 2500000" $W/ripresa.log && ok "file a metà ripreso (
 cmp $A/Cores/a.so $S/Cores/a.so && ok "core giusto dopo la ripresa" || ko "core sbagliato"
 stop
 
+# audit 0.9.88, AGG-14: uno scaricamento a metà (rete caduta) non sopravviveva allo spegnimento: il
+# controllo all'avvio toglieva i .nuovo e con Wi-Fi instabile si ripartiva ogni volta da zero
+echo "--- scaricamento a metà, console spenta, poi ripreso"
+cat > $W/taglia.py <<'PY'
+# server con Range; con TAGLIA=N il file-0 si interrompe dopo N byte (rete che cade)
+import http.server, os, sys
+root, cut = sys.argv[1], int(os.environ.get("TAGLIA", "0"))
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_GET(self):
+        p = os.path.join(root, self.path.lstrip("/"))
+        if not os.path.isfile(p): self.send_error(404); return
+        data = open(p, "rb").read(); start = 0
+        r = self.headers.get("Range")
+        if r and r.startswith("bytes="): start = int(r[6:].split("-")[0])
+        self.send_response(206 if start else 200)
+        self.send_header("Content-Length", str(len(data) - start))
+        if start: self.send_header("Content-Range", "bytes %d-%d/%d" % (start, len(data) - 1, len(data)))
+        self.end_headers()
+        body = data[start:]
+        if cut and os.path.basename(p) == "file-0": body = body[:cut]
+        self.wfile.write(body)
+http.server.HTTPServer(("127.0.0.1", 8765), H).serve_forever()
+PY
+cut_serve() { TAGLIA=$2 python3 $W/taglia.py $1 & SRV=$!; for i in $(seq 50); do nc -z 127.0.0.1 8765 2>/dev/null && break; sleep 0.1; done; }
+Y=$W/meta; rm -rf $Y; mkdir -p $Y; head -c 3000000 /dev/urandom > $Y/file-0; hy=$(sha256sum $Y/file-0 | cut -d' ' -f1)
+printf 'arcade-update 1\nversion 0.9.0 20270101.0000\nfile %s 3000000 Cores/grande.so\n' $hy > $Y/update.txt
+openssl dgst -sha256 -sign key.pem -out $Y/update.sig $Y/update.txt
+card; echo "http://127.0.0.1:8765/" > $S/System/update-url.txt; export ARCADE_VERSION_FILE=$W/old.txt
+cut_serve $Y 1000000
+./t $W/sd download > /dev/null 2>&1 || true
+stop
+[ "$(stat -c %s $S/Cores/grande.so.nuovo 2>/dev/null)" = 1000000 ] && ok "rete caduta: 1000000 byte scaricati" || ko "scaricamento a metà non preparato: $(ls -la $S/Cores)"
+echo "http://127.0.0.1:1/" > $S/System/update-url.txt   # spenta e riaccesa, ancora senza rete
+./t $W/sd resume > /dev/null 2>&1
+[ "$(stat -c %s $S/Cores/grande.so.nuovo 2>/dev/null)" = 1000000 ] && ok "dopo lo spegnimento la parte scaricata resta" || ko "parte scaricata tolta all'avvio"
+echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
+cut_serve $Y 0
+expect "$(./t $W/sd install 2>$W/meta.log)" "10 0 1" "installato"
+stop
+grep -q "grande.so, riprendo da 1000000" $W/meta.log && ok "ripreso da dov'era" || ko "non ripreso: $(grep grande $W/meta.log)"
+cmp $Y/file-0 $S/Cores/grande.so && ok "file giusto dopo la ripresa" || ko "file sbagliato"
+[ ! -e $S/System/update-partial.txt ] && ok "nessun elenco a metà rimasto dopo l'installazione" || ko "elenco a metà rimasto"
+echo "--- a metà di una versione, poi ne esce un'altra: la parte vecchia non si usa"
+card; echo "http://127.0.0.1:8765/" > $S/System/update-url.txt
+cut_serve $Y 1000000; ./t $W/sd download > /dev/null 2>&1 || true; stop
+Z=$W/meta2; rm -rf $Z; mkdir -p $Z; head -c 3000000 /dev/urandom > $Z/file-0; hz=$(sha256sum $Z/file-0 | cut -d' ' -f1)
+printf 'arcade-update 1\nversion 0.9.1 20270201.0000\nfile %s 3000000 Cores/grande.so\n' $hz > $Z/update.txt
+openssl dgst -sha256 -sign key.pem -out $Z/update.sig $Z/update.txt
+cut_serve $Z 0
+expect "$(./t $W/sd install 2>$W/meta2.log)" "10 0 1" "versione nuova installata"
+stop
+! grep -q "grande.so, riprendo da" $W/meta2.log && ok "la parte della versione di prima non viene ripresa" || ko "ripresa una parte di un'altra versione"
+cmp $Z/file-0 $S/Cores/grande.so && ok "file della versione nuova" || ko "file sbagliato"
+
 echo "--- nessun server"
 rm -f $S/System/update-url.txt
 expect "$(./t $W/sd install 2>/dev/null)" "3 0 0" "nessun server"

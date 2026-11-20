@@ -10,6 +10,7 @@ errors=0
 
 cat > t.c <<'C'
 #include "srt.h"
+static size_t blen;
 static char *slurp(const char *p) {
     FILE *f = fopen(p, "rb");
     if (!f) return NULL;
@@ -17,8 +18,15 @@ static char *slurp(const char *p) {
     size_t n = fread(b, 1, (4 << 20) - 1, f);
     fclose(f);
     b[n] = 0;
+    blen = n;
     return b;
 }
+/* con la misura del file (UTF-16 ha byte a zero), se srt.h la sa usare */
+#ifdef SRT_HAS_BUF
+#define PARSE(b, s, l1) srt_parse_buf(b, blen, s, l1)
+#else
+#define PARSE(b, s, l1) srt_parse(b, s, l1)
+#endif
 /* stampa: numero di battute, Latin-1, poi una riga per battuta con inizio, fine e testo (\n come |) */
 int main(int argc, char **argv) {
     if (argc < 2) return 2;
@@ -26,7 +34,7 @@ int main(int argc, char **argv) {
     if (!b) return 2;
     sub_t *s = NULL;
     bool l1 = false;
-    int n = srt_parse(b, &s, &l1);
+    int n = PARSE(b, &s, &l1);
     printf("%d %s\n", n, l1 ? "latin1" : "utf8");
     for (int i = 0; i < n; i++) {
         printf("%.3f %.3f ", s[i].a, s[i].b);
@@ -71,6 +79,30 @@ check "tag tolti, punto al posto della virgola, ordine per tempo" ordine.srt '2 
 5.000 6.000 Dopo'
 printf '1\n00:00:01,000 --> 00:00:02,000\nPerch\351 s\354\n' > latin1.srt
 check "Latin-1 portato in UTF-8" latin1.srt "$(printf '1 latin1\n1.000 2.000 Perch\303\251 s\303\254')"
+# audit 0.9.88, APP-02: i .srt italiani "ANSI" sono Windows-1252: apostrofi e virgolette (0x80-0x9F)
+# sparivano (l'uomo diventava luomo); un solo byte non UTF-8 faceva leggere così tutto il file; UTF-16
+# dava 0 battute
+printf '1\n00:00:01,000 --> 00:00:02,000\nl\222uomo \223strano\224 \226 s\354\n' > cp1252.srt
+check "Windows-1252: apostrofo, virgolette e trattino" cp1252.srt "$(printf '1 latin1\n1.000 2.000 l\342\200\231uomo \342\200\234strano\342\200\235 \342\200\223 s\303\254')"
+printf '1\n00:00:01,000 --> 00:00:02,000\nPerch\303\251 no\n\n2\n00:00:03,000 --> 00:00:04,000\nl\222uomo\n' > misto.srt
+check "file misto: le righe UTF-8 restano, le altre da Windows-1252" misto.srt "$(printf '2 latin1\n1.000 2.000 Perch\303\251 no\n3.000 4.000 l\342\200\231uomo')"
+cat > u16.c <<'U'
+#include <stdio.h>
+int main(int c, char **v) {   /* byte Latin-1 da stdin -> UTF-16 con BOM (le o be) */
+    int be = c > 1 && v[1][0] == 'b', ch;
+    putchar(be ? 0xFE : 0xFF); putchar(be ? 0xFF : 0xFE);
+    while ((ch = getchar()) != EOF) { if (be) { putchar(0); putchar(ch); } else { putchar(ch); putchar(0); } }
+    return 0;
+}
+U
+gcc -o u16 u16.c
+printf '1\r\n00:00:01,000 --> 00:00:02,000\r\nPerch\351 no\r\n\r\n2\r\n00:00:03,000 --> 00:00:04,000\r\nSecondo\r\n' > l1.tmp
+./u16 le < l1.tmp > u16le.srt; ./u16 be < l1.tmp > u16be.srt
+U16='2 utf8
+1.000 2.000 Perch\303\251 no
+3.000 4.000 Secondo'
+check "UTF-16 little endian con BOM" u16le.srt "$(printf "$U16")"
+check "UTF-16 big endian con BOM" u16be.srt "$(printf "$U16")"
 printf '1\n00:00:01,000 --> 00:00:02,000\n\n2\n00:00:03,000 --> 00:00:04,000\nUnica\n' > senzatesto.srt
 check "battuta senza testo saltata" senzatesto.srt '1 utf8
 3.000 4.000 Unica'

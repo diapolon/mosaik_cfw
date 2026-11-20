@@ -177,5 +177,62 @@ rm -f $R/Logs/Arcade.log
 check "apertura fallita all'avvio (prova)" 'grep -q "audio non disponibile" $R/Logs/Arcade.log'
 check "uscita cambiata: l'audio si riapre" 'grep -q "audio: driver" $R/Logs/Arcade.log'
 
+# audit 0.9.72, LAU-13 (lasciato cadere, LAU-20 del 0.9.88): con l'emulatore installato ma senza il suo
+# core il launcher scriveva next.txt, metteva il gioco nei recenti e il runner falliva
+echo "--- emulatore senza il suo core (LAU-13)"
+dup_root; rm -f $R/System/next.txt
+printf '{ "language": "it", "setup_done": true, "duplicates": 0, "duplicates_emu": "" }\n' > $R/System/settings.json
+./build/launcher --root $R --auto "wait:40,a,wait:30,a,wait:30,a,wait:30,a,wait:40,shot:/tmp/nocore.png,quit" > /tmp/l.log 2>&1; rc=$?
+check "non parte: niente next.txt (uscita $rc)" '[ ! -f $R/System/next.txt ] && [ $rc != 10 ]'
+check "non entra fra i recenti" '[ ! -s $R/System/recent.txt ]'
+check "lo dice nel registro" 'grep -q "manca il core" $R/Logs/Arcade.log'
+
+# audit 0.9.72, LAU-12 (ripreso da LAU-20 del 0.9.88): mancavano ~ e ` nella tastiera, e una password
+# Wi-Fi che li contiene non si poteva scrivere. Ogni carattere ASCII stampabile deve esserci
+echo "--- tastiera a schermo: tutti i caratteri (LAU-12)"
+{ echo '#include <stdio.h>'; awk '/^static const char \*kb_layouts/ {on=1} on {print} on && /^};/ {exit}' src/launcher/launcher.c
+  cat <<'C'
+int main(void) {
+    int miss = 0;
+    for (int ch = 0x21; ch < 0x7F; ch++) {
+        int found = 0;
+        for (int l = 0; l < 3; l++) for (int r = 0; r < 4; r++) for (const char *p = kb_layouts[l][r]; *p; p++) found |= *p == ch;
+        if (!found) { printf("%c", ch); miss++; }
+    }
+    printf("|%d\n", miss);
+    return 0;
+}
+C
+} > /tmp/kb.c
+gcc -o /tmp/kb /tmp/kb.c
+k=$(/tmp/kb)
+check "tutti i caratteri stampabili si scrivono (mancano: ${k%|*})" '[ "${k#*|}" = 0 ]'
+
+# LAU-12, seconda parte: la ricerca confrontava i byte, "pokemon" non trovava "Pokémon"
+echo "--- ricerca senza accenti (LAU-12)"
+{ cat <<'C'
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
+typedef struct { char title[160], name[160]; } game_t;
+C
+  awk '/^\/\* ricerca: parole cercate/ {on=1} on {print} on && /^static bool matches_search/ {m=1} m && /^}/ {exit}' src/launcher/launcher.c
+  cat <<'C'
+static int t(const char *q, const char *title) {
+    game_t g; snprintf(g.title, sizeof g.title, "%s", title); snprintf(g.name, sizeof g.name, "x");
+    snprintf(search, sizeof search, "%s", q);
+    return matches_search(&g);
+}
+int main(void) {
+    printf("%d%d%d%d%d%d\n", t("pokemon", "Pokémon Oro"), t("POKÉMON", "Pokemon Gold"), t("citta", "La Città"),
+           t("ZÜRICH", "zurich 2000"), t("zzz", "Pokémon"), t("mon oro", "Pokémon Oro"));
+    return 0;
+}
+C
+} > /tmp/cerca.c
+gcc -Wall -o /tmp/cerca /tmp/cerca.c 2>/tmp/cerca.err || cat /tmp/cerca.err
+check "pokemon trova Pokémon, POKÉMON trova Pokemon, citta trova Città ($(/tmp/cerca))" '[ "$(/tmp/cerca)" = 111101 ]'
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

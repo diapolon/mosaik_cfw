@@ -24,6 +24,7 @@
     "restart_charger": "Il caricatore è collegato: la console si spegne invece di riavviarsi. Riaccendila con il tasto di accensione.",
     "all_games": "Tutti i giochi",
     "launch_error": "Il gioco non si è avviato",
+    "emu_missing": "%s non è installato bene: reinstallalo dallo Store",
     "quit_menu": "Esci",
     "shutting_down": "Spegnimento…",
     "loading": "Caricamento…",
@@ -748,7 +749,7 @@
     "display": "Luminosità dello schermo, volume, musica di sottofondo e luci della console.",
     "look": "Tema del launcher, sua variante, lingua e salvaschermo.",
     "games": "Come si vedono e si giocano i giochi: proporzioni, filtri, cornici, doppioni, prestazioni.",
-    "system": "Batteria, Wi-Fi, data, ora (anche automatica) e fuso orario, spegnimento automatico.",
+    "system": "Batteria, Wi-Fi, Bluetooth, data, ora (anche automatica) e fuso orario, spegnimento automatico.",
     "tools": "Verifica delle ROM, scaricamento delle immagini dei giochi e pulizia di quelle che non servono più.",
     "updates": "Aggiornamento del sistema, canale, avviso, registro diagnostico e spazio sulla scheda.",
     "card": "Trasferimento di file e backup via Wi-Fi, reimpostazione delle impostazioni o di tutta la scheda."

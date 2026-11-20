@@ -24,6 +24,7 @@
     "restart_charger": "The charger is connected: the console powers off instead of restarting. Turn it back on with the power button.",
     "all_games": "All games",
     "launch_error": "The game didn't start",
+    "emu_missing": "%s is not installed properly: reinstall it from the Store",
     "quit_menu": "Exit",
     "shutting_down": "Shutting down…",
     "loading": "Loading…",
@@ -748,7 +749,7 @@
     "display": "Screen brightness, volume, background music and console lights.",
     "look": "Launcher theme, its variant, language and screensaver.",
     "games": "How games look and play: aspect, filters, bezels, duplicates, performance.",
-    "system": "Battery, Wi-Fi, date, time (also automatic) and time zone, automatic power off.",
+    "system": "Battery, Wi-Fi, Bluetooth, date, time (also automatic) and time zone, automatic power off.",
     "tools": "Verify ROMs, download game images and remove the ones no longer needed.",
     "updates": "System updates, channel, notice, diagnostic log and card space.",
     "card": "File transfer and backup over Wi-Fi, reset the settings or the whole card."

@@ -580,8 +580,20 @@ static double catalog_built(const char *text) {
 
 /* catalogo firmato ma più vecchio di quello sulla scheda: un mirror o un indirizzo di prova rimasto
    farebbero "aggiornare" a pacchetti più vecchi, anche se autentici (audit 0.9.72, AGG-11) */
+/* Un catalogo più vecchio di quello sulla scheda si rifiuta (AGG-11: un mirror o una copia vecchia
+   non tornano indietro), ma solo se arriva dallo stesso indirizzo. Un catalogo di prova del server
+   del Mac, più nuovo, faceva rifiutare per sempre quello ufficiale, senza rimedio dalla console
+   (audit 0.9.88, STO-01). L'indirizzo di provenienza sta in System/store-origine.txt. */
 static bool catalog_older(const char *text) {
     char p[1200];
+    snprintf(p, sizeof p, "%s/System/store-origine.txt", root_dir);
+    size_t ol = 0;
+    char *origin = read_file(p, 1024, &ol);
+    if (origin) origin[strcspn(origin, "\r\n")] = 0;
+    bool other = origin && origin[0] && strcmp(origin, base_url);
+    if (other) ui_log("store: il catalogo sulla scheda viene da %s, questo da %s: lo accetto", origin, base_url);
+    free(origin);
+    if (other) return false;
     snprintf(p, sizeof p, "%s/System/store.json", root_dir);
     size_t kl = 0;
     char *kept = read_file(p, 1 << 20, &kl);
@@ -616,6 +628,8 @@ static void *fetch_worker(void *arg) {
         write_durable(p, t.buf, t.len);
         snprintf(p, sizeof p, "%s/System/store.sig", root_dir);
         write_durable(p, s.buf, s.len);
+        snprintf(p, sizeof p, "%s/System/store-origine.txt", root_dir);
+        write_durable(p, base_url, strlen(base_url));
         st.online = true;
         st.error = SE_NONE;
         ui_log("store: catalogo con %d pacchetti", n);
@@ -925,6 +939,13 @@ static int install_zip(const char *zpath, const char *want_id, char *name_out, s
     }
     st.done = 0;
     st.total = total;
+    /* spazio per i file da estrarre, con un margine: con la scheda piena la scrittura falliva a metà e
+       il pacchetto copiato sulla scheda risultava «non corrisponde» invece di «spazio» (STO-02) */
+    struct statvfs vs;
+    if (!err && statvfs(root_dir, &vs) == 0 && (long long)vs.f_bavail * (long long)vs.f_frsize < total + (1 << 20)) {
+        ui_log("store: %s: spazio insufficiente (%lld byte da scrivere)", id, total);
+        err = SE_SPACE;
+    }
     int written = 0;
     for (int k = 0; !err && k < nf && !st.cancel; k++) {
         char full[1300], part[1400];
@@ -1398,13 +1419,17 @@ static bool seen(const char *key) {
     return found;
 }
 
-static void mark_seen(const char *path) {
+/* con for_system il pacchetto è visto solo con questo sistema: aggiornato il sistema (anche a mano,
+   copiando il file) si ripropone; prima restava visto per sempre (audit 0.9.88, STO-02) */
+static void mark_seen_as(const char *path, bool for_system) {
     char p[1200], key[600];
     seen_key(path, key, sizeof key);
+    if (for_system) { size_t l = strlen(key); snprintf(key + l, sizeof key - l, "\tsistema %s", system_version); }
     snprintf(p, sizeof p, "%s/System/store-visti.txt", root_dir);
     FILE *f = fopen(p, "a");
     if (f) { fprintf(f, "%s\n", key); fflush(f); fsync(fileno(f)); fclose(f); }
 }
+static void mark_seen(const char *path) { mark_seen_as(path, false); }
 
 bool store_offline_find(const char *root, char *path, int pn, char *name, int nn, char *label, int ln) {
     snprintf(root_dir, sizeof root_dir, "%s", root);
@@ -1424,6 +1449,8 @@ bool store_offline_find(const char *root, char *path, int pn, char *name, int nn
             snprintf(full, sizeof full, "%s/%s", dirs[d], de->d_name);
             seen_key(full, key, sizeof key);
             if (seen(key)) continue;
+            { size_t l = strlen(key); snprintf(key + l, sizeof key - l, "\tsistema %s", system_version); }
+            if (seen(key)) continue;   /* rifiutato con questo sistema: si ripropone col prossimo */
             FILE *z = fopen(full, "rb");
             zent_t *ze = NULL;
             int n = z ? zip_dir(z, &ze) : -1;
@@ -1496,7 +1523,7 @@ int store_offline_install(const char *root, const char *path) {
        store.json e store.sig all'avvio dopo si propone di nuovo */
     int refuse = SE_NONE;
     if (!signed_sha(path, want, &refuse)) { ui_log("store: %s non è in un catalogo firmato: rifiutato", b); return SE_UNSIGNED; }
-    mark_seen(path);
+    mark_seen_as(path, refuse == SE_SYSTEM);
     if (refuse) { ui_log("store: %s %s: non installato", b, refuse == SE_SYSTEM ? "chiede un sistema più nuovo" : "non è per questo modello"); return refuse; }
     if (!sha256_file(path, sha) || strcmp(sha, want)) { ui_log("store: %s non corrisponde al catalogo: non installato", b); return SE_VERIFY; }
     st.cancel = false;

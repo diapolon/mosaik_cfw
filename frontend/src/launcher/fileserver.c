@@ -84,10 +84,16 @@ static pthread_mutex_t auth_mu = PTHREAD_MUTEX_INITIALIZER;
 #define FS_MAX_CONN 8
 #define FS_MAX_PER_IP 4
 #define FS_HEAD_SECONDS 10
+/* Posti di riserva per gli indirizzi che in questa apertura sono già entrati (PIN o browser
+   ricordato): due indirizzi con 4 connessioni ferme ciascuno occupavano tutti gli 8 posti e
+   lasciavano fuori anche il proprietario (audit 0.9.88, RETE-08). */
+#define FS_RESERVE 2
 static pthread_mutex_t work_mu = PTHREAD_MUTEX_INITIALIZER, conn_mu = PTHREAD_MUTEX_INITIALIZER;
-static int conn_fd[FS_MAX_CONN];
-static uint32_t conn_ip[FS_MAX_CONN];
+static int conn_fd[FS_MAX_CONN + FS_RESERVE];
+static uint32_t conn_ip[FS_MAX_CONN + FS_RESERVE];
 static int nconn;
+static uint32_t good_ip[8];
+static int ngood;
 static int msock = -1;
 static char browsers[MAX_BROWSERS][40];
 static int nbrowsers;
@@ -439,12 +445,27 @@ static bool cookie_is(const req_t *r, const char *name, const char *val) {
     return false;
 }
 
+/* l'indirizzo di questa connessione è entrato: d'ora in poi può usare i posti di riserva */
+static void good_ip_add(int fd) {
+    struct sockaddr_in a;
+    socklen_t l = sizeof a;
+    if (getpeername(fd, (struct sockaddr *)&a, &l) != 0 || l < sizeof a || a.sin_family != AF_INET) return;
+    pthread_mutex_lock(&conn_mu);
+    bool have = false;
+    for (int i = 0; i < ngood && !have; i++) have = good_ip[i] == a.sin_addr.s_addr;
+    if (!have) {
+        if (ngood == (int)(sizeof good_ip / sizeof good_ip[0])) { memmove(good_ip, good_ip + 1, sizeof good_ip - sizeof good_ip[0]); ngood--; }
+        good_ip[ngood++] = a.sin_addr.s_addr;
+    }
+    pthread_mutex_unlock(&conn_mu);
+}
+
 static bool authed(const req_t *r) {
-    if (cookie_is(r, "mosaik", token)) return true;
-    bool ok = false;
+    bool ok = cookie_is(r, "mosaik", token);
     pthread_mutex_lock(&mu);
     for (int i = 0; i < nbrowsers && !ok; i++) ok = cookie_is(r, "mosaikr", browsers[i]);
     pthread_mutex_unlock(&mu);
+    if (ok) good_ip_add(r->fd);
     return ok;
 }
 
@@ -579,6 +600,7 @@ static void do_login(req_t *r) {
         snprintf(hdr + hn, sizeof hdr - (size_t)hn, "Set-Cookie: mosaikr=%s; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict\r\n", tok);
     }
     event(FS_EV_LOGIN, "");
+    good_ip_add(r->fd);
     reply(r->fd, 200, "application/json; charset=utf-8", "{\"ok\":true}", 11, hdr);
 }
 
@@ -1776,8 +1798,10 @@ static void *serve(void *arg) {
 #endif
         pthread_mutex_lock(&conn_mu);
         int same = 0;
+        bool good = false;
         for (int i = 0; i < nconn; i++) same += conn_ip[i] == ip;
-        bool room = nconn < FS_MAX_CONN && same < FS_MAX_PER_IP;
+        for (int i = 0; i < ngood && !good; i++) good = good_ip[i] == ip;
+        bool room = same < FS_MAX_PER_IP && (nconn < FS_MAX_CONN || (good && nconn < FS_MAX_CONN + FS_RESERVE));
         if (room) { conn_fd[nconn] = c; conn_ip[nconn] = ip; nconn++; }
         pthread_mutex_unlock(&conn_mu);
         if (!room) {   /* troppe connessioni: si dice subito, senza aspettare la richiesta */
@@ -1875,6 +1899,7 @@ bool fs_start(const char *dir) {
     pin_all_since = 0;
     pin_all_until = 0;
     nconn = 0;
+    ngood = 0;
     browsers_load();
     restore_remove_zip();   /* un ripristino lasciato a metà non si riprende: si ricarica dalla pagina */
     { char pz[1300]; full_path(pz, sizeof pz, RESTORE_ZIP ".part"); remove(pz); }
