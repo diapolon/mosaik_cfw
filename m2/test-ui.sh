@@ -288,5 +288,14 @@ C
 gcc -Wall -I. -o /tmp/sto /tmp/sto.c 2>/tmp/sto.err || cat /tmp/sto.err
 check "nascosto se non installato; installato: visibile, solo Elimina ($(/tmp/sto))" '[ "$(/tmp/sto)" = "0 1 11 11" ]'
 
+# audit 0.9.88, AGG-13: a scaricamento finito, Annulla o B cancellavano i circa 60 MB scaricati (anche
+# dopo l'avviso della batteria bassa). Ora vuol dire «Più tardi»: lo scaricamento resta, all'avvio dopo
+# la console propone di installarlo (e lì c'è Elimina)
+echo "--- aggiornamento scaricato e B (AGG-13)"
+printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
+rm -rf $R/Emulators; mkdir -p $R/Emulators; rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "wait:40,b,wait:20,start,wait:30,down,wait:15,down,wait:15,down,wait:15,right,wait:15,a,wait:30,a,wait:60,a,wait:400,b,wait:30,quit" > /tmp/l.log 2>&1
+check "B a scaricamento finito: lo scaricamento resta" '! grep -q "scaricamento .* tolto" $R/Logs/Arcade.log && grep -q "tenuto per dopo" $R/Logs/Arcade.log'
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

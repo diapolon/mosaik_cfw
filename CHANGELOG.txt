@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.98
+it Aggiornamento scaricato: «Più tardi» lo tiene, all'accensione dopo si può installare o eliminare
+en Downloaded update: "Later" keeps it, at the next start it can be installed or deleted
+
 0.9.97
 it Impostazioni: barra di scorrimento nelle pagine con più voci di quelle che si vedono
 en Settings: scroll bar on pages with more items than fit on screen

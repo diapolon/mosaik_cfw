@@ -307,8 +307,14 @@ mkdir -p "$DATA/Licenses"
 cp "$TOP/licenses/"* "$DATA/Licenses/"
 [ "$1" = "--media" ] && cp -RL "$FE/sdcard/Media/." "$DATA/Media/"
 
-# certificati per lo scraper (HTTPS), elenco Mozilla distribuito da curl
-[ -f "$TOP/deps/cacert.pem" ] || curl -fsSL https://curl.se/ca/cacert.pem -o "$TOP/deps/cacert.pem"
+# certificati per lo scraper (HTTPS), elenco Mozilla distribuito da curl: una versione fissa, con
+# l'impronta (audit 0.9.88, DEV-05; prima sempre l'ultima, senza controllo). Per aggiornarla: data e
+# SHA-256 nuovi qui, poi togliere deps/cacert.pem
+CACERT_DATE=2026-11-05
+CACERT_SHA=427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285
+sha256_of() { if command -v sha256sum > /dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1; }
+[ -f "$TOP/deps/cacert.pem" ] || curl -fsSL "https://curl.se/ca/cacert-$CACERT_DATE.pem" -o "$TOP/deps/cacert.pem"
+[ "$(sha256_of "$TOP/deps/cacert.pem")" = "$CACERT_SHA" ] || { echo "deps/cacert.pem: SHA-256 diverso da quello del $CACERT_DATE: mi fermo"; exit 1; }
 cp "$TOP/deps/cacert.pem" "$DATA/System/cacert.pem"
 
 cat > "$DATA/Roms/LEGGIMI.txt" <<'EOF'

@@ -1031,6 +1031,7 @@ void update_apply(void) {
 
 void update_discard(void) {
     update_join();
+    ui_log("aggiornamento: scaricamento %s tolto", st.version);
     remove_tmps();
     drop_ready();
     resumed = false;
@@ -1181,7 +1182,7 @@ void update_check(const char *root) {
 }
 void update_install(void) { sim_t0 = now_s(); st.phase = UPD_CHECK; }
 void update_apply(void) { st.phase = UPD_DONE; }
-void update_discard(void) { st.error = UPE_CANCEL; st.phase = UPD_FAILED; }
+void update_discard(void) { ui_log("aggiornamento: scaricamento %s tolto", st.version); st.error = UPE_CANCEL; st.phase = UPD_FAILED; }
 /* ARCADE_TEST_READY: prova della finestra "aggiornamento scaricato" */
 void update_resume_start(const char *root) {
     (void)root;

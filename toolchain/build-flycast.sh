@@ -66,7 +66,12 @@ if [ ! -f "$CURLDIR/lib/libcurl.a" ]; then
         (cd "$CURLSRC" && make distclean > /dev/null 2>&1 || true)
     else
         mkdir -p "$CURLSRC"
-        curl -fsSL https://curl.se/download/curl-8.10.1.tar.gz | tar xz -C "$CURLSRC" --strip-components=1
+        # con l'impronta, come build-deps.sh (audit 0.9.88, DEV-05)
+        curl -fsSL -o "$CURLSRC.tar.gz" https://curl.se/download/curl-8.10.1.tar.gz
+        echo "d15ebab765d793e2e96db090f0e172d127859d78ca6f6391d7eafecfd894bbc0  $CURLSRC.tar.gz" | sha256sum -c - > /dev/null 2>&1 \
+            || { echo "curl-8.10.1.tar.gz: SHA-256 diverso: mi fermo"; rm -f "$CURLSRC.tar.gz"; exit 1; }
+        tar xzf "$CURLSRC.tar.gz" -C "$CURLSRC" --strip-components=1
+        rm -f "$CURLSRC.tar.gz"
     fi
     cd "$CURLSRC"
     CFLAGS="$F -fPIC" ./configure --prefix="$CURLDIR" --disable-shared --enable-static \

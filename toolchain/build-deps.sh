@@ -17,18 +17,25 @@ export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
 HOST=aarch64-linux-gnu
 JOBS=$(nproc)
 
-fetch() {   # url, cartella che l'archivio crea
+# url, cartella che l'archivio crea, SHA-256: un archivio diverso da quello provato non si estrae
+# (audit 0.9.88, DEV-05; prova in test-files)
+fetch() {
     [ -d "$SRC/$2" ] && return
     echo "== scarico $1"
     curl -fsSL "$1" -o "$SRC/archive"
+    if ! echo "$3  $SRC/archive" | sha256sum -c - > /dev/null 2>&1; then
+        echo "$1: SHA-256 diverso da quello atteso ($3): mi fermo"
+        rm -f "$SRC/archive"
+        exit 1
+    fi
     tar xf "$SRC/archive" -C "$SRC"
     rm "$SRC/archive"
 }
 
-fetch https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-2.22.0.tar.gz SDL2_ttf-2.22.0
-fetch https://github.com/libsdl-org/SDL_image/releases/download/release-2.8.2/SDL2_image-2.8.2.tar.gz SDL2_image-2.8.2
-fetch https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.0/SDL2_mixer-2.8.0.tar.gz SDL2_mixer-2.8.0
-fetch https://curl.se/download/curl-8.10.1.tar.gz curl-8.10.1
+fetch https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-2.22.0.tar.gz SDL2_ttf-2.22.0 d48cbd1ce475b9e178206bf3b72d56b66d84d44f64ac05803328396234d67723
+fetch https://github.com/libsdl-org/SDL_image/releases/download/release-2.8.2/SDL2_image-2.8.2.tar.gz SDL2_image-2.8.2 8f486bbfbcf8464dd58c9e5d93394ab0255ce68b51c5a966a918244820a76ddc
+fetch https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.0/SDL2_mixer-2.8.0.tar.gz SDL2_mixer-2.8.0 1cfb34c87b26dbdbc7afd68c4f545c0116ab5f90bbfecc5aebe2a9cb4bb31549
+fetch https://curl.se/download/curl-8.10.1.tar.gz curl-8.10.1 d15ebab765d793e2e96db090f0e172d127859d78ca6f6391d7eafecfd894bbc0
 
 build() {   # cartella, opzioni di configure
     dir=$1; shift

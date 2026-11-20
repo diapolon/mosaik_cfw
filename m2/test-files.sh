@@ -600,6 +600,19 @@ C
 gcc -std=c11 -O0 -o batt batt.c
 check "batteria al 3% letta due volte" ./batt
 
+# audit 0.9.88, DEV-05: build-deps.sh scaricava gli archivi delle librerie senza controllarne
+# l'impronta: un archivio cambiato o rovinato finiva nei programmi
+echo "--- scaricamenti della costruzione con l'impronta"
+mkdir -p $W/dl/src $W/dl/pub/libx-1.0; echo codice > $W/dl/pub/libx-1.0/x.c
+tar -czf $W/dl/libx-1.0.tar.gz -C $W/dl/pub libx-1.0
+H=$(sha256sum $W/dl/libx-1.0.tar.gz | cut -d' ' -f1)
+apk add -q curl > /dev/null 2>&1
+{ echo 'set -e'; echo "SRC=$W/dl/src"; sed -n '/^fetch() {/,/^}/p' /trimui/toolchain/build-deps.sh; } > $W/dl/fetch.sh
+( . $W/dl/fetch.sh; fetch file://$W/dl/libx-1.0.tar.gz libx-1.0 0000000000000000000000000000000000000000000000000000000000000000 ) > /dev/null 2>&1 && r=0 || r=1
+check "impronta sbagliata: si ferma e non estrae" [ "$r" = 1 -a ! -d $W/dl/src/libx-1.0 ]
+( . $W/dl/fetch.sh; fetch file://$W/dl/libx-1.0.tar.gz libx-1.0 $H ) > /dev/null 2>&1 && r=0 || r=1
+check "impronta giusta: estratto" [ "$r" = 0 -a -f $W/dl/src/libx-1.0/x.c ]
+
 echo "--- controllo delle librerie nella costruzione"
 LC="python3 -I /trimui/toolchain/libclosure.py"
 R2=$W/rootfs; mkdir -p $R2/lib

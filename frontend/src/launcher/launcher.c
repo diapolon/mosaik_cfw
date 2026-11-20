@@ -6791,7 +6791,7 @@ static int upd_sel = 1, upd_sel_phase = -1;
 static int upd_buttons(const update_status_t *s, const char **labels) {
     int p = s->phase;
     if (p == UPD_AVAILABLE) { labels[0] = T("common.cancel"); labels[1] = T("update.download"); return 2; }
-    if (p == UPD_READY) { labels[0] = T("common.cancel"); labels[1] = T("update.install"); return 2; }
+    if (p == UPD_READY) { labels[0] = T("update.later"); labels[1] = T("update.install"); return 2; }
     if (p == UPD_DONE) { labels[0] = T("update.restart"); return 1; }
     if (p == UPD_INSTALL) return 0;
     if (upd_busy()) { labels[0] = T("common.cancel"); return 1; }
@@ -6819,7 +6819,15 @@ static void upd_input(void) {
             if (!upd_battery_ok()) { ui_sound(SND_ERROR); return; }
             update_apply(); ui_sound(SND_OK);
         }
-        else { update_discard(); ui_sound(SND_BACK); }
+        else {
+            /* «Più tardi»: lo scaricamento resta (update-ready), al prossimo avvio la console propone di
+               installarlo e lì si può eliminare. Prima Annulla e B cancellavano i circa 60 MB scaricati,
+               anche dopo l'avviso della batteria bassa (audit 0.9.88, AGG-13) */
+            ui_log("aggiornamento: %s scaricato, tenuto per dopo", s->version);
+            update_join();
+            upd_open = false;
+            ui_sound(SND_BACK);
+        }
         return;
     }
     if (s->phase == UPD_DONE) { if (r == 0) { update_join(); upd_reboot(); } return; }   /* solo A riavvia */
