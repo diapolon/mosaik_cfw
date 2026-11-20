@@ -70,6 +70,9 @@ int main(int c, char **v) {
         return 0;
     }
     store_lang(getenv("LINGUA") ? getenv("LINGUA") : "en");
+#ifndef STORE_0957
+    if (getenv("MODELLO")) store_model(getenv("MODELLO"));
+#endif
     store_open(root, 0, strcmp(cmd, "cache") != 0);
     store_join();
     const store_status_t *s = store_status();
@@ -346,6 +349,9 @@ check "stesso sistema: non si ripropone a ogni avvio" "niente" "$(./t $R offline
 check "sistema aggiornato a mano: si ripropone e si installa" "installato" "$(./t $R offline 0.9.50 2>/dev/null | awk '{print $NF}')"
 rm -f sd/store-*.zip sd/System/store.json sd/System/store.sig; cp www/store-mgba-*.zip sd/   # vale il catalogo copiato accanto
 check "pacchetto solo per la Brick Pro, su una Smart Pro: rifiutato" "modello" "$(./t $R offline 0.9.50 smartpro 2>/dev/null | awk '{print $NF}')"
+# STO-02: dallo Store (con la rete) un pacchetto dell'altro modello non si installa né si aggiorna,
+# anche se il launcher ora mostra quelli già installati per poterli togliere
+check "pacchetto solo per la Brick Pro, installato dallo Store su una Smart Pro: rifiutato" "si" "$(MODELLO=smartpro ./t $R install mgba 2>/dev/null | awk '{print ($2 == 11) ? "si" : "no ("$0")"}')"
 rm -f sd/store-*.zip; cp www/store-fbneo-*.zip sd/
 mkdir -p $W/piccola; mount -t tmpfs -o size=1200k tmpfs $W/piccola 2>/dev/null && piccola=1 || piccola=0
 if [ $piccola = 1 ]; then
@@ -356,6 +362,10 @@ if [ $piccola = 1 ]; then
 else
     echo "  (scheda piena non provata: serve docker --privileged per un tmpfs piccolo)"
 fi
+printf '{"models": {"mgba": ["brickpro"], "fbneo": ["brickpro"]}}' > stato2.json
+STORE_STATO=$W/stato2.json mk 5
+MODELLO=brickpro ./t $R install fbneo > /dev/null 2>&1   # come una scheda passata dalla Brick Pro alla Smart Pro
+check "installato su una Brick Pro, poi tolto dalla Smart Pro" "si no" "$([ -e sd/System/pacchetti/fbneo.txt ] && echo si || echo no) $(MODELLO=smartpro ./t $R delete fbneo > /dev/null 2>&1; [ -e sd/System/pacchetti/fbneo.txt ] && echo si || echo no)"
 # temi nello Store
 rm -f sd/store.json sd/store.sig sd/store-*.zip
 TEMA=1 mk 4

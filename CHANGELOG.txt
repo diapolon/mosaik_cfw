@@ -10,6 +10,8 @@ it Il numero dei giochi in Informazioni e nella Libreria è quello di «Tutti»,
 en The number of games in Information and in the Library is the one of "All", without duplicates
 it Pannello «Ricerca e filtri»: lo stesso nome della barra dei tasti
 en "Search and filters" panel: the same name as in the key bar
+it Store: un pacchetto per l'altro modello già installato si vede, e si può solo togliere
+en Store: a package for the other model that is already installed shows up, and can only be removed
 
 0.9.96
 it Aggiornamento scaricato a metà: dopo uno spegnimento riprende da dove era

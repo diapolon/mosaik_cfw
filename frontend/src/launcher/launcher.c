@@ -4631,9 +4631,10 @@ static float sto_scroll;
 static bool sto_online(void) { return wifi_supported() ? wifi_status(false)->state == WIFI_CONNECTED : true; }
 static bool sto_was_offline;   /* aperto senza rete: appena il Wi-Fi si collega si scarica il catalogo */
 
-/* un pacchetto per un altro modello non si mostra mai, neanche se è già sulla scheda (16 novembre:
-   Deadcast installato sulla Smart Pro prima della 0.9.67); il launcher non lo avvia comunque */
-static bool sto_shown(const store_pkg_t *p) { return !p->other_model; }
+/* un pacchetto per un altro modello si mostra solo se è già sulla scheda (Deadcast installato sulla
+   Smart Pro prima della 0.9.67), e solo per toglierlo: prima era invisibile e restava lì per sempre
+   (audit 0.9.88, STO-02; scelta dell'utente del 20 novembre). Il launcher non lo avvia comunque */
+static bool sto_shown(const store_pkg_t *p) { return !p->other_model || p->state != PKG_ABSENT; }
 
 /* modello per lo Store; sul Mac ARCADE_MODEL lo simula nelle prove */
 static const char *sto_model(void) {
@@ -4714,6 +4715,7 @@ static bool sto_no_data(const store_pkg_t *p) { return sto_is_app(p) || sto_is_t
 enum { SB_INSTALL, SB_UPDATE, SB_REDOWNLOAD, SB_DELETE };
 static int sto_buttons(const store_pkg_t *p, int *b) {
     int n = 0;
+    if (p->other_model) { b[n++] = SB_DELETE; return n; }   /* dell'altro modello: solo da togliere */
     if (sto_no_data(p)) {   /* niente da archiviare: app e temi non hanno giochi né salvataggi */
         if (p->state == PKG_ABSENT || p->state == PKG_ARCHIVED) b[n++] = SB_INSTALL;
         else { if (p->state == PKG_UPDATE || p->state == PKG_OLD) b[n++] = SB_UPDATE; b[n++] = SB_DELETE; }
@@ -4764,9 +4766,10 @@ static void sto_input(void) {
         store_join();
         sto_job = false;
         static const char *errk[] = { "", "store.err_network", "store.err_signature", "store.err_catalog", "store.err_space",
-                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned", "store.err_system" };
+                                      "store.err_verify", "store.err_write", "store.err_core", "store.err_cancel", "store.err_unsigned", "store.err_system",
+                                      "store.err_model" };
         if (s->phase == ST_DONE) { ui_toast(T("store.done")); ui_sound(SND_OK); }
-        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_SYSTEM ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
+        else { ui_toast(T(errk[s->error >= 0 && s->error <= SE_MODEL ? s->error : SE_WRITE])); ui_sound(SND_ERROR); }
         if (store_changed()) { reload_games(); sto_themes_refresh(); }
         return;
     }
@@ -5130,7 +5133,7 @@ static void sto_tile(int x, int y, int w, int h, color_t c, const emulator_t *em
    l'etichetta; archiviato: in grigio con l'etichetta (giochi e salvataggi sono ancora lì) */
 static int sto_marks(const store_pkg_t *p) {
     int m = 0;
-    if (p->state == PKG_UPDATE || p->state == PKG_OLD) m |= 1 << SM_UPDATE;
+    if ((p->state == PKG_UPDATE || p->state == PKG_OLD) && !p->other_model) m |= 1 << SM_UPDATE;
     if (p->state == PKG_ARCHIVED) m |= 1 << SM_ARCHIVED;
     if (p->experimental) m |= 1 << SM_EXPERIMENTAL;   /* non ancora provato sulle console */
     if (p->needs_system) m |= 1 << SM_SYSTEM;
@@ -5322,7 +5325,7 @@ static void sto_draw(void) {
                     const store_pkg_t *p = store_pkg(k);
                     if (strcmp(p->category, STO_CATS[ci]) || !sto_shown(p)) continue;
                     cnt++;
-                    upd += p->state == PKG_UPDATE || p->state == PKG_OLD;
+                    upd += (p->state == PKG_UPDATE || p->state == PKG_OLD) && !p->other_model;
                 }
                 sto_cat_art(ci, &c, &em);
                 snprintf(title, sizeof title, "store.cat_%s", STO_CATS[ci]);
@@ -5409,7 +5412,8 @@ static void sto_draw(void) {
         sto_size(p.installed, b2, sizeof b2);
         char compat[200] = "";
         color_t cc = t->text;
-        if (p.needs_system) { snprintf(compat, sizeof compat, T("store.needs_system"), p.min_system); cc = rgba(230, 130, 20, 255); }
+        if (p.other_model) { snprintf(compat, sizeof compat, "%s", T("store.err_model")); cc = rgba(230, 130, 20, 255); }
+        else if (p.needs_system) { snprintf(compat, sizeof compat, T("store.needs_system"), p.min_system); cc = rgba(230, 130, 20, 255); }
         else if (p.experimental) { snprintf(compat, sizeof compat, "%s", T("store.exp_note")); cc = rgba(230, 130, 20, 255); }
         /* niente "Provato su": lo Store mostra solo i pacchetti dei modelli su cui funzionano
            ("models" del catalogo), e un pacchetto non sperimentale è provato (19 novembre) */

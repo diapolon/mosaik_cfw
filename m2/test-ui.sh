@@ -259,5 +259,34 @@ n=$(python3 /tmp/banda.py /tmp/set-su.png /tmp/set-giu.png)
 check "in fondo alla pagina la barra a destra si è spostata ($n pixel)" '[ "$n" -gt 20 ]'
 
 
+# audit 0.9.88, STO-02: un pacchetto dell'altro modello già installato (Deadcast sulla Smart Pro prima
+# della 0.9.67) era invisibile nello Store e non si poteva togliere. Si mostra solo se installato, e
+# la sua scheda offre solo Elimina
+echo "--- Store: pacchetto dell'altro modello già installato (STO-02)"
+{ cat <<'C'
+#include <stdio.h>
+#include <string.h>
+#include "src/launcher/store.h"
+static bool sto_no_data(const store_pkg_t *p) { return !strcmp(p->category, "apps"); }
+C
+  grep -E '^static bool sto_shown' src/launcher/launcher.c
+  awk '/^enum \{ SB_INSTALL/ {on=1} on {print} on && /^}/ {exit}' src/launcher/launcher.c
+  cat <<'C'
+int main(void) {
+    store_pkg_t p; memset(&p, 0, sizeof p);
+    strcpy(p.category, "console"); p.other_model = true; p.state = PKG_ABSENT;
+    int b[4], n;
+    printf("%d", sto_shown(&p));                         /* non installato: nascosto */
+    p.state = PKG_INSTALLED; n = sto_buttons(&p, b);
+    printf(" %d %d%d", sto_shown(&p), n, n ? b[0] == SB_DELETE : 9);   /* installato: si vede, solo Elimina */
+    p.state = PKG_UPDATE; n = sto_buttons(&p, b);
+    printf(" %d%d\n", n, n ? b[0] == SB_DELETE : 9);      /* anche "da aggiornare": niente Aggiorna */
+    return 0;
+}
+C
+} > /tmp/sto.c
+gcc -Wall -I. -o /tmp/sto /tmp/sto.c 2>/tmp/sto.err || cat /tmp/sto.err
+check "nascosto se non installato; installato: visibile, solo Elimina ($(/tmp/sto))" '[ "$(/tmp/sto)" = "0 1 11 11" ]'
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

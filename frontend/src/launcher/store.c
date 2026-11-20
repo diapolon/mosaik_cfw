@@ -1097,6 +1097,7 @@ static int install_job(void) {
     pthread_mutex_unlock(&lock);
     if (!have) return SE_CATALOG;
     if (e.p.needs_system) return SE_SYSTEM;   /* il pacchetto chiede un sistema più nuovo di questo */
+    if (e.p.other_model) return SE_MODEL;     /* dell'altro modello: si può solo togliere (STO-02) */
     snprintf(st.working, sizeof st.working, "%s", e.p.name);
     /* spazio: lo zip più i file installati, con un margine */
     struct statvfs vs;
