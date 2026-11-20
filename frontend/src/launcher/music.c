@@ -177,6 +177,30 @@ static void wd(const char *step) {
     }
 }
 
+/* Mix_CloseAudio in un thread a parte, come audio_close_timed di ui.c: se l'uscita sparisce mentre
+   il plugin ALSA scrive (cuffie Bluetooth che si spengono), la chiusura può non tornare e il
+   launcher restava fermo finché il cane da guardia non lo chiudeva (audit 0.9.88, BT-09). Dopo 3 s
+   si prosegue senza audio fino al prossimo avvio: riaprirlo con la chiusura appesa si bloccherebbe. */
+static bool mixer_stuck;
+static SDL_sem *mix_closed;
+static int mix_close_thread(void *arg) {
+    (void)arg;
+#ifndef TRIMUI_DEVICE
+    if (getenv("ARCADE_MIX_CLOSE_BLOCCA")) for (;;) SDL_Delay(1000);   /* prove: test-ui.sh */
+#endif
+    Mix_CloseAudio();
+    SDL_SemPost(mix_closed);
+    return 0;
+}
+static bool mix_close_timed(void) {
+    if (!mix_closed && !(mix_closed = SDL_CreateSemaphore(0))) { Mix_CloseAudio(); return true; }
+    SDL_Thread *t = SDL_CreateThread(mix_close_thread, "musica-chiude", NULL);
+    if (!t) { Mix_CloseAudio(); return true; }
+    if (SDL_SemWaitTimeout(mix_closed, 3000) == 0) { SDL_WaitThread(t, NULL); return true; }
+    SDL_DetachThread(t);
+    return false;
+}
+
 /* posizione del flusso audio nella scheda (/proc/asound): se tra due letture non cambia, il
    chip non sta consumando e chiudere il flusso si bloccherebbe */
 static long hw_ptr(void) {
@@ -195,7 +219,7 @@ static long hw_ptr(void) {
 
 static bool mixer_open(void) {
     if (mixer_on) return true;
-    if (getenv("ARCADE_NO_AUDIO")) return false;   /* audio non funzionante (system-init): niente mixer */
+    if (getenv("ARCADE_NO_AUDIO") || mixer_stuck) return false;   /* audio non funzionante (system-init): niente mixer */
     wd("Mix_Init");
     Mix_Init(MIX_INIT_MP3 | MIX_INIT_OGG | MIX_INIT_FLAC);   /* quelli della build (toolchain/build-deps.sh) */
     /* All'accensione system-init lascia spente le uscite audio (arcade-suspend mute) finché il
@@ -408,8 +432,11 @@ void music_before_sleep(void) {
     fx = NULL;
     free(fx_buf);
     fx_buf = NULL;
-    Mix_CloseAudio();
     mixer_on = false;
+    if (!mix_close_timed()) {
+        mixer_stuck = true;
+        ui_log("musica: l'audio non si chiude entro 3 s (uscita cambiata o sospensione), si prosegue senza audio");
+    }
     /* l'uscita resta libera fino al risveglio: riaprire qui l'audio dei menu era un'apertura
        senza guardia prima del sonno (seconda verifica di Codex); ui_suspend non ha nulla da chiudere */
     ui_audio_detach();
@@ -434,7 +461,7 @@ void music_after_sleep(void) {
        caricarlo può non tornare più. Nessun audio: si va dritti alla finestra del riavvio. */
     if (UI.sd_failed) { title[0] = 0; return; }
     if (i < 0 || i >= ntracks || UI.set.music_vol <= 0 || !mixer_open()) {
-        if (detached && !mixer_on) {   /* niente musica: torna l'audio dei menu, sotto il cane da guardia */
+        if (detached && !mixer_on && !mixer_stuck) {   /* niente musica: torna l'audio dei menu, sotto il cane da guardia */
             wd("riapertura dell'audio dei menu dopo la sospensione");
             ui_audio_takeover(NULL);
         }

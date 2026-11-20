@@ -477,7 +477,11 @@ girano senza finestra visibile:
 ```
 
 `down:<tasto>` e `up:<tasto>` tengono premuto e rilasciano un tasto, per provare le
-combinazioni (es. `down:menu,up,up,up:menu`).
+combinazioni (es. `down:menu,up,up,up:menu`). `toast:<testo>` mostra un avviso (senza virgole),
+`route` fa come un cambio d'uscita audio (cuffie Bluetooth collegate o scollegate).
+
+`m2/test-ui.sh` compila il launcher in Alpine e lo fa girare col video finto di SDL
+(`SDL_VIDEODRIVER=dummy`): schermate confrontate pixel per pixel, nessun Mac necessario.
 
 ## Limiti noti
 

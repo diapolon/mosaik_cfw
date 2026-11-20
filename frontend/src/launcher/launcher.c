@@ -186,9 +186,17 @@ static void mark_duplicates(void) {
        aggiunge o toglie un emulatore (audit 0.9.72, LAU-03). Una scheda di prima ha solo la posizione:
        vale una volta, poi diventa il nome. Un preferito tolto dallo Store: si mostrano tutti. */
     if (!UI.set.dup_emu[0] && UI.set.dup_mode > 0 && UI.set.dup_mode <= NEMUS) {
-        snprintf(UI.set.dup_emu, sizeof UI.set.dup_emu, "%s", EMUS[UI.set.dup_mode - 1].id);
+        snprintf(UI.set.dup_emu, sizeof UI.set.dup_emu, "%s", EMUS[UI.set.dup_mode - 1].console ? "fbneo" : EMUS[UI.set.dup_mode - 1].id);
         settings_save(&UI.set, UI.root);
     }
+    /* una console non si può scegliere (Impostazioni le salta): era la migrazione sbagliata della
+       0.9.73, che prendeva il primo emulatore installato (audit 0.9.88, LAU-15) */
+    for (int e = 0; e < NEMUS; e++)
+        if (EMUS[e].console && !strcmp(EMUS[e].id, UI.set.dup_emu)) {
+            ui_log("doppi: preferenza %s (una console) riportata a FBNeo", UI.set.dup_emu);
+            strcpy(UI.set.dup_emu, "fbneo");
+            settings_save(&UI.set, UI.root);
+        }
     if (UI.set.dup_emu[0]) {
         UI.set.dup_mode = 0;
         for (int e = 0; e < NEMUS; e++) if (!strcmp(EMUS[e].id, UI.set.dup_emu)) UI.set.dup_mode = e + 1;
@@ -302,17 +310,20 @@ static float app_scroll;
 static int hsel, hrow;                        /* scelta nel carosello o nel menu; riga (Tessera) */
 static int hbtn;                              /* pulsante scelto nella fila (Tessera) */
 
+/* Home, carosello, preferiti e Galleria mostrano anche i doppi nascosti nella libreria: un gioco
+   avviato o messo fra i preferiti dall'emulatore non preferito resta visibile (audit 0.9.88, LAU-16,
+   resto di LAU-04). Contano solo i giochi nascosti dall'utente. */
 static void build_home_rows(void) {
     nhgames = 0;
     int last = -1;
     for (int i = 0; i < ngames && last < 0; i++)
-        if (games[i].recent == 1 && !games[i].hidden && !games[i].missing) last = i;
+        if (games[i].recent == 1 && !games[i].user_hidden && !games[i].missing) last = i;
     if (last >= 0) { hgame[0] = last; hkind[0] = last == resume_idx ? HK_RESUME : HK_LAST; nhgames = 1; }
     for (int i = 0; i < ngames && nhgames < 12; i++)
-        if (games[i].fav && !games[i].hidden && !games[i].missing && i != last) { hgame[nhgames] = i; hkind[nhgames++] = HK_FAV; }
+        if (games[i].fav && !games[i].user_hidden && !games[i].missing && i != last) { hgame[nhgames] = i; hkind[nhgames++] = HK_FAV; }
     for (int r = 2; r <= 20 && nhgames < 6; r++)
         for (int i = 0; i < ngames; i++)
-            if (games[i].recent == r && !games[i].hidden && !games[i].missing && !games[i].fav) { hgame[nhgames] = i; hkind[nhgames++] = HK_RECENT; break; }
+            if (games[i].recent == r && !games[i].user_hidden && !games[i].missing && !games[i].fav) { hgame[nhgames] = i; hkind[nhgames++] = HK_RECENT; break; }
     nhmenu = 0;
     if (last >= 0) hmenu[nhmenu++] = HM_GAME;
     for (int m = HM_LIBRARY; m <= HM_POWER; m++)
@@ -325,9 +336,9 @@ static void build_carousel(void) {
     ncarousel = 0;
     for (int r = 1; r <= 20 && ncarousel < 10; r++)
         for (int i = 0; i < ngames; i++)
-            if (games[i].recent == r && !games[i].hidden && !games[i].missing) { carousel[ncarousel++] = i; break; }
+            if (games[i].recent == r && !games[i].user_hidden && !games[i].missing) { carousel[ncarousel++] = i; break; }
     for (int i = 0; i < ngames && ncarousel < 10; i++)
-        if (games[i].fav && !games[i].recent && !games[i].hidden && !games[i].missing) carousel[ncarousel++] = i;
+        if (games[i].fav && !games[i].recent && !games[i].user_hidden && !games[i].missing) carousel[ncarousel++] = i;
     for (int i = 0; i < ngames && ncarousel < 6; i++) {
         if (games[i].hidden || games[i].missing) continue;
         bool dup = false;
@@ -2090,7 +2101,7 @@ static void home_draw_bar(int y, int bottom) {
     case HM_LIBRARY: title = T("home.btn_library"); snprintf(subbuf, sizeof subbuf, T("info.games"), ngames); sub = subbuf; break;
     case HM_FAV: {
         int nf = 0;
-        for (int i = 0; i < ngames; i++) nf += games[i].fav && !games[i].hidden;
+        for (int i = 0; i < ngames; i++) nf += games[i].fav && !games[i].user_hidden;
         title = T("home.favorites"); snprintf(subbuf, sizeof subbuf, T("home.favs_count"), nf); sub = subbuf; break;
     }
     case HM_SETTINGS: title = T("common.settings"); sub = T("home.settings_desc"); break;
@@ -3220,10 +3231,10 @@ static int gl_games(int tab, int *out, int max) {
     if (tab == GT_RECENT) {
         for (int r = 1; r <= 40 && n < max; r++)
             for (int i = 0; i < ngames; i++)
-                if (games[i].recent == r && !games[i].hidden && !games[i].missing) { out[n++] = i; break; }
+                if (games[i].recent == r && !games[i].user_hidden && !games[i].missing) { out[n++] = i; break; }
     } else
         for (int i = 0; i < ngames && n < max; i++)
-            if (games[i].fav && !games[i].hidden && !games[i].missing) out[n++] = i;
+            if (games[i].fav && !games[i].user_hidden && !games[i].missing) out[n++] = i;
     return n;
 }
 

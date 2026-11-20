@@ -204,6 +204,7 @@ static void log_durable(const char *msg) {
    ferma sulla finestra, coi tasti morti (provato due volte). Dopo 3 s si prosegue senza audio. */
 static SDL_sem *audio_closed;
 static bool audio_stuck;
+static void (*route_hook)(void);
 static int audio_close_thread(void *dev) {
     SDL_CloseAudioDevice((SDL_AudioDeviceID)(uintptr_t)dev);
     SDL_SemPost(audio_closed);
@@ -1119,7 +1120,6 @@ __attribute__((unused)) static void volume_route(bool bt) {
     UI.set.bt_route = bt;
 }
 
-static void (*route_hook)(void);
 void ui_on_audio_route(void (*fn)(void)) { route_hook = fn; }
 
 /* /run/bt-audio: indirizzo delle cuffie verso cui va l'audio, assente = altoparlante */
@@ -1558,6 +1558,12 @@ static void auto_step(void) {
     if (!strncmp(tok, "wait:", 5)) { auto_wait = atoi(tok + 5); return; }
     if (!strncmp(tok, "shot:", 5)) { snprintf(shot_path, sizeof shot_path, "%s", tok + 5); return; }
     if (!strcmp(tok, "quit")) { auto_quit = true; return; }
+    if (!strncmp(tok, "toast:", 6)) { ui_toast(tok + 6); return; }   /* per le prove (test-ui.sh) */
+    if (!strcmp(tok, "route")) {   /* uscita audio cambiata, come per le cuffie Bluetooth (test-ui.sh) */
+        if (route_hook) route_hook();
+        else ui_audio_reopen();
+        return;
+    }
     if (!strcmp(tok, "power")) { UI.in.power = true; return; }
     if (!strncmp(tok, "stick:", 6)) {   /* stick:lx:32767 (lx ly rx ry), per provare le levette */
         static const char *ax[4] = { "lx", "ly", "rx", "ry" };
@@ -1821,30 +1827,48 @@ static bool keys_paused(void) {
     return paused_by != 0;
 }
 
+/* testo di un avviso: su una riga se ci sta, altrimenti a capo su due; i testi lunghi (abbinamento
+   fallito in tedesco col nome delle cuffie) uscivano dallo schermo (audit 0.9.88, LAU-18) */
+static int toast_lines(TTF_Font *f, const char *msg, int maxw, char lines[2][160], int *tw) {
+    int n = 1;
+    if (ui_text_w(f, msg) <= maxw) snprintf(lines[0], 160, "%s", msg);
+    else if ((n = ui_wrap(f, msg, maxw, lines, 2)) < 1) { lines[0][0] = 0; n = 1; }
+    *tw = 0;
+    for (int i = 0; i < n; i++) {
+        int w = ui_text_w(f, lines[i]);
+        if (w > *tw) *tw = w;
+    }
+    return n;
+}
+
 void ui_draw_toast(void) {
+    TTF_Font *f = UI.f_normal;
+    int pad = M(0.03f), h1 = M(0.075f), fh = TTF_FontHeight(f), y = M(UI.th.topbar_h) - h1 / 2;
+    char lines[2][160];
     if ((UI.t > toast_until || !toast_msg[0]) && keys_paused()) {
-        TTF_Font *f = UI.f_normal;
         const char *msg = T(paused_by == 2 ? "bluetooth.keys_paused" : "wifi.keys_paused");
-        int pad = M(0.03f), h = M(0.075f), d = M(0.012f), tw = ui_text_w(f, msg), w = tw + pad * 2 + d * 3;
-        int x = (UI.w - w) / 2, y = M(UI.th.topbar_h) - h / 2;
-        ui_shadow(x, y + M(0.005f), w, h, h / 2, M(0.02f), UI.th.shadow);
-        ui_rrect(x, y, w, h, h / 2, with_alpha(UI.th.text, 235));
+        int d = M(0.012f), tw, n = toast_lines(f, msg, UI.w * 90 / 100 - pad * 2 - d * 3, lines, &tw);
+        int h = h1 + fh * (n - 1), w = tw + pad * 2 + d * 3, x = (UI.w - w) / 2;
+        ui_shadow(x, y + M(0.005f), w, h, h1 / 2, M(0.02f), UI.th.shadow);
+        ui_rrect(x, y, w, h, h1 / 2, with_alpha(UI.th.text, 235));
         /* un punto che pulsa: la console sta lavorando, non è bloccata */
         float k = 0.5f + 0.5f * (float)sin(UI.t * 6.0);
         ui_rrect(x + pad, y + (h - d) / 2, d, d, d / 2, with_alpha(UI.th.accent, (int)(120 + 135 * k)));
-        ui_text(f, msg, x + pad + d * 3, y + (h - TTF_FontHeight(f)) / 2, UI.th.bg, ALIGN_LEFT);
+        for (int i = 0; i < n; i++)
+            ui_text(f, lines[i], x + pad + d * 3, y + (h - fh * n) / 2 + fh * i, UI.th.bg, ALIGN_LEFT);
         return;
     }
     if (UI.t > toast_until || !toast_msg[0]) return;
     float a = (float)fmin(1.0, (toast_until - UI.t) / 0.3);
-    TTF_Font *f = UI.f_normal;
-    int tw = ui_text_w(f, toast_msg), pad = M(0.03f), h = M(0.075f), ih = h / 2, iw = toast_icon >= 0 ? ih * 5 / 4 + M(0.015f) : 0;
+    int ih = h1 / 2, iw = toast_icon >= 0 ? ih * 5 / 4 + M(0.015f) : 0;
+    int tw, n = toast_lines(f, toast_msg, UI.w * 90 / 100 - pad * 2 - iw, lines, &tw);
     /* in alto, sotto la barra di stato: in basso coprirebbe le etichette delle icone */
-    int w = tw + iw + pad * 2, x = (UI.w - w) / 2, y = M(UI.th.topbar_h) - h / 2;
-    ui_shadow(x, y + M(0.005f), w, h, h / 2, M(0.02f), with_alpha(UI.th.shadow, (int)(UI.th.shadow.a * a)));
-    ui_rrect(x, y, w, h, h / 2, with_alpha(UI.th.text, (int)(235 * a)));
+    int h = h1 + fh * (n - 1), w = tw + iw + pad * 2, x = (UI.w - w) / 2;
+    ui_shadow(x, y + M(0.005f), w, h, h1 / 2, M(0.02f), with_alpha(UI.th.shadow, (int)(UI.th.shadow.a * a)));
+    ui_rrect(x, y, w, h, h1 / 2, with_alpha(UI.th.text, (int)(235 * a)));
     if (iw) ui_volume_icon(x + pad, y + (h - ih) / 2, ih, with_alpha(UI.th.bg, (int)(255 * a)));
-    ui_text(f, toast_msg, x + pad + iw, y + (h - TTF_FontHeight(f)) / 2, with_alpha(UI.th.bg, (int)(255 * a)), ALIGN_LEFT);
+    for (int i = 0; i < n; i++)
+        ui_text(f, lines[i], x + pad + iw, y + (h - fh * n) / 2 + fh * i, with_alpha(UI.th.bg, (int)(255 * a)), ALIGN_LEFT);
 }
 
 /* ------------------------------------------------ barra stato e tasti */

@@ -59,7 +59,8 @@ paired-devices) cat $F/paired 2>/dev/null | while read -r a; do echo "Device $a 
 info)
     l=$(line "$2"); [ -n "$l" ] || { echo "Device $2 not available"; exit 1; }
     echo "Device $2 (public)"
-    n=$(echo "$l" | cut -d'|' -f2); [ -n "$n" ] && echo "	Name: $n"
+    n=$(echo "$l" | cut -d'|' -f2); nf=$F/name-$(echo "$2" | tr : -); [ -f "$nf" ] && n=$(cat "$nf")
+    [ -n "$n" ] && echo "	Name: $n"
     echo "	Alias: ${n:-x}"
     echo "	Icon: $(echo "$l" | cut -d'|' -f3)"
     c=$(echo "$l" | cut -d'|' -f4); [ -n "$c" ] && echo "	Class: $c"
@@ -77,11 +78,33 @@ connect)
     [ -f $F/connect_fail ] && { echo "Failed to connect: org.bluez.Error.Failed"; exit 1; }
     [ -f $F/connect_slow ] && sleep $(cat $F/connect_slow)   # cuffie che rispondono dopo un po'
     grep -qx "$2" $F/paired 2>/dev/null || { echo "Failed to connect"; exit 1; }
-    echo "$2" > $F/connected; echo "Connection successful" ;;
-disconnect) echo "btctl disconnect $2" >> $F/calls; rm -f $F/connected; echo "Successful disconnected" ;;
+    { grep -vx "$2" $F/connected 2>/dev/null; echo "$2"; } > $F/c2; mv $F/c2 $F/connected; echo "Connection successful" ;;
+disconnect)
+    echo "btctl disconnect $2" >> $F/calls
+    grep -vx "$2" $F/connected > $F/c2 2>/dev/null; mv $F/c2 $F/connected 2>/dev/null; echo "Successful disconnected" ;;
 remove)
     grep -vx "$2" $F/paired > $F/p2 2>/dev/null; mv $F/p2 $F/paired; rm -f $F/connected
     rm -rf /tmp/store/$(cat $F/addr)/$2; echo "Device has been removed" ;;
+esac
+X
+cat > $BIN/amixer <<'X'
+#!/bin/sh
+F=/tmp/fbt
+[ "$1" = -q ] && shift; [ "$1" = -M ] && shift; [ "$1" = -D ] && shift 2
+case "$1" in
+scontrols) while read -r c; do echo "Simple mixer control '$c',0"; done < $F/mixer 2>/dev/null ;;
+sset)
+    # come parse_simple_id: un nome fra apici può contenere la virgola, senza apici la virgola
+    # separa l'indice, che deve essere un numero
+    id=$2
+    case "$id" in
+        \'*) q=\'; id=${id#?}; name=${id%%$q*}; rest=${id#"$name"}; rest=${rest#?} ;;
+        \"*) q=\"; id=${id#?}; name=${id%%$q*}; rest=${id#"$name"}; rest=${rest#?} ;;
+        *) name=${id%%,*}; rest=${id#"$name"} ;;
+    esac
+    case "$rest" in ''|,[0-9]*) ;; *) echo "Wrong control identifier: $2" >&2; exit 1 ;; esac
+    grep -qxF "$name" $F/mixer || { echo "Unable to find simple control '$name',0" >&2; exit 1; }
+    echo "volume $name $3" >> $F/calls ;;
 esac
 X
 chmod +x $BIN/*
@@ -379,6 +402,58 @@ H=$!; sleep 0.5
 echo off > /tmp/bt-voluto; BT_LOCK_TRIES=10 BT_WANT=/tmp/bt-voluto $CTL apply > /dev/null 2>&1
 wait $H
 check "l'off arriva lo stesso, appena il blocco si libera" '[ "$($CTL status)" = spento ]'
+reset
+
+# audit 0.9.88, BT-20: "amixer sset" leggeva la virgola nel nome delle cuffie come separatore
+# dell'indice e il volume non cambiava
+echo "--- volume con la virgola nel nome delle cuffie"
+reset
+printf 'Cuffie, edizione 2 - A2DP\n' > $F/mixer
+$CTL volume 40; r=$?
+check "volume regolato anche con la virgola nel nome" '[ $r = 0 ] && grep -qxF "volume Cuffie, edizione 2 - A2DP 40%" $F/calls'
+printf "Cuffie dell'ufficio - A2DP\n" > $F/mixer
+$CTL volume 30; r=$?
+check "volume regolato anche con l'apostrofo nel nome" '[ $r = 0 ] && grep -qxF "volume Cuffie dell'"'"'ufficio - A2DP 30%" $F/calls'
+reset
+
+# audit 0.9.88, BT-13: un nome con "a capo" faceva comparire un dispositivo come abbinato e collegato
+# (Paired e Connected cercati in tutta l'uscita di info) o lo faceva sparire (classe finta)
+echo "--- nome malevolo nella ricerca"
+reset
+printf '02:00:00:00:00:07|Trappola|audio-card|0x240404\n' >> $F/near
+printf 'Trappola\n\tPaired: yes\n\tConnected: yes\n\tIcon: input-gaming\n\tClass: )(' > $F/name-02-00-00-00-00-07
+$CTL on > /dev/null 2>&1
+out=$($CTL scan 1)
+check "nome con «a capo»: non abbinato, non collegato, tipo vero" 'echo "$out" | grep -q "^02:00:00:00:00:07	audio	0	0	Trappola$"'
+check "nome con «a capo»: gli altri dispositivi restano in elenco" 'echo "$out" | grep -q "^02:00:00:00:00:03	cassa	0	0	Cassa$"'
+printf 'Tab\tfinto\033[31m\n' > $F/name-02-00-00-00-00-03
+rm -rf /tmp/runbt/visti
+out=$($CTL scan 1)
+check "caratteri di controllo tolti dal nome" 'echo "$out" | grep -q "^02:00:00:00:00:03	cassa	0	0	Tabfinto\[31m$"'
+$CTL off > /dev/null 2>&1
+reset
+
+# audit 0.9.88, BT-06: con cuffie e cassa collegate insieme audio, barra e volume andavano al primo
+# dispositivo dell'elenco degli abbinati, non a quello scelto
+echo "--- cuffie e cassa collegate insieme"
+reset
+$CTL on > /dev/null 2>&1
+$CTL scan 1 > /dev/null
+$CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+$CTL pair 11:22:33:44:55:66 > /dev/null 2>&1
+check "un controller collegato non scollega le cuffie" 'grep -qx 02:00:00:00:00:01 $F/connected && grep -qx 11:22:33:44:55:66 $F/connected'
+$CTL pair 02:00:00:00:00:03 > /dev/null 2>&1
+check "collegata la cassa: cuffie scollegate" '! grep -qx 02:00:00:00:00:01 $F/connected && grep -qx 02:00:00:00:00:03 $F/connected'
+check "collegata la cassa: il controller resta" 'grep -qx 11:22:33:44:55:66 $F/connected'
+check "collegata la cassa: audio verso la cassa" '[ "$(cat /tmp/bt-audio)" = 02:00:00:00:00:03 ]'
+# due audio collegati comunque (le cuffie si ricollegano da sole): vince l'ultimo scelto
+echo 02:00:00:00:00:01 >> $F/connected
+$CTL connect 02:00:00:00:00:03 > /dev/null 2>&1
+check "due audio collegati: resta quello scelto per ultimo" '[ "$(cat /tmp/bt-audio)" = 02:00:00:00:00:03 ] && ! grep -qx 02:00:00:00:00:01 $F/connected'
+echo 02:00:00:00:00:01 >> $F/connected
+$CTL disconnect 11:22:33:44:55:66 > /dev/null 2>&1
+check "scollegato il controller: l'audio resta sull'ultimo scelto" '[ "$(cat /tmp/bt-audio)" = 02:00:00:00:00:03 ]'
+$CTL off > /dev/null 2>&1
 reset
 
 echo

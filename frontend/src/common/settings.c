@@ -68,6 +68,7 @@ void settings_defaults(settings_t *s) {
     strcpy(s->filter, "nitido");
     s->bezel = false;
     s->dup_mode = 1;
+    strcpy(s->dup_emu, "fbneo");   /* doppi: si preferisce FBNeo (audit 0.9.88, LAU-15) */
     s->resume_last = false;
     s->autosave_exit = false;
     s->box_covers = true;
@@ -121,7 +122,14 @@ bool settings_load(settings_t *s, const char *root) {
     else copy(s->filter, sizeof s->filter, json_str(j, "filter", NULL));
     s->bezel = json_bool(j, "bezel", s->bezel);
     s->dup_mode = json_int(j, "duplicates", s->dup_mode);
-    copy(s->dup_emu, sizeof s->dup_emu, json_str(j, "duplicates_emu", NULL));
+    /* Doppi (audit 0.9.88, LAU-15). Un file senza "duplicates_emu" è di prima della 0.9.73: vale la
+       posizione, che il launcher trasforma nel nome. Un nome vuoto con "duplicates" 0 è «mostra tutti»;
+       vuoto con una posizione è la preferenza mai scelta (le impostazioni di partenza salvate): FBNeo,
+       non il primo emulatore installato, che poteva essere una console. */
+    if (json_get(j, "duplicates_emu")) {
+        copy(s->dup_emu, sizeof s->dup_emu, json_str(j, "duplicates_emu", ""));
+        if (!s->dup_emu[0] && s->dup_mode != 0) strcpy(s->dup_emu, "fbneo");
+    } else if (json_get(j, "duplicates")) s->dup_emu[0] = 0;
     s->sort_mode = json_int(j, "sort", s->sort_mode) % 4;
     s->show_missing = json_bool(j, "show_missing", s->show_missing);
     s->resume_last = json_bool(j, "resume_last", s->resume_last);

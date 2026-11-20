@@ -3,6 +3,20 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.94
+it Bluetooth: collegando cuffie o cassa, l'altro dispositivo audio si scollega e l'audio va a quello scelto
+en Bluetooth: connecting headphones or a speaker disconnects the other audio device, sound goes to the chosen one
+it Bluetooth: volume regolabile anche con una virgola nel nome delle cuffie
+en Bluetooth: volume works even with a comma in the headphones' name
+it Avvisi lunghi su due righe, dentro lo schermo
+en Long notices on two lines, inside the screen
+it Giochi doppi: si preferisce FBNeo anche se il primo emulatore installato è una console
+en Duplicate games: FBNeo is preferred even if the first emulator installed is a console
+it La home mostra la partita da riprendere e i preferiti anche dall'emulatore non preferito
+en The home shows the game to resume and the favorites also from the non-preferred emulator
+it Musica del menu: se l'audio non si chiude cambiando uscita, il menu continua senza audio
+en Menu music: if the audio does not close when the output changes, the menu goes on without sound
+
 0.9.93
 it Brick Pro: Wi-Fi e Bluetooth accesi insieme non fanno più ripartire i tasti a metà accensione
 en Brick Pro: Wi-Fi and Bluetooth started together no longer resume the buttons halfway

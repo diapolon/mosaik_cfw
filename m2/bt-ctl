@@ -197,9 +197,16 @@ CONF
     fi
 }
 
-# cuffie o casse abbinate e collegate in questo momento (la prima), vuoto se nessuna
+# cuffie o casse abbinate e collegate in questo momento, vuoto se nessuna; con più di una, quella
+# scelta per ultima (audit 0.9.88, BT-06), altrimenti la prima
 connected_audio() {
-    timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' '($2 == "audio" || $2 == "cassa") && $4 == 1 { print $1; exit }'
+    timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' -v last="$(cat "$LAST" 2> /dev/null)" '
+        ($2 == "audio" || $2 == "cassa") && $4 == 1 { if ($1 == last) { print $1; found = 1; exit } if (first == "") first = $1 }
+        END { if (!found && first != "") print first }'
+}
+# indirizzi degli altri dispositivi audio collegati (tutti tranne $1)
+other_audio() {
+    timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' -v me="$1" '($2 == "audio" || $2 == "cassa") && $4 == 1 && $1 != me { print $1 }'
 }
 
 daemons_on() {
@@ -234,25 +241,31 @@ CONF
     pid_alive bluetoothd
 }
 
+# ultima riga "<campo>: valore" dell'uscita di info
+field() { echo "$info" | sed -n "s/^[[:space:]]*$1: //p" | tail -n 1; }
 # righe "Device INDIRIZZO nome" → righe per il launcher
 describe() {
     while read -r w a name; do
         [ "$w" = Device ] || continue
         echo "$a" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' || continue
         info=$(timeout 3 bluetoothctl info "$a" 2> /dev/null)
-        # senza un nome vero (bluetoothd mostra l'indirizzo con i trattini) non interessa a nessuno
-        n=$(echo "$info" | sed -n 's/^[[:space:]]*Name: //p' | head -n 1)
+        # un nome con "a capo" aggiunge righe finte all'uscita di info (audit 0.9.88, BT-13): il nome
+        # è la prima riga Name, senza caratteri di controllo; gli altri campi vengono dopo Name e
+        # Alias, quindi vale la loro ultima riga
+        n=$(echo "$info" | sed -n 's/^[[:space:]]*Name: //p' | head -n 1 | tr -d '\000-\037\177')
         [ -z "$n" ] && continue
-        case "$(echo "$info" | sed -n 's/^[[:space:]]*Icon: //p')" in
+        case "$(field Icon)" in
             audio*)
                 # casse e cuffie: dalla classe del dispositivo (Bluetooth Assigned Numbers, audio/video:
                 # 5 altoparlante, 7 audio portatile, 8 auto, 10 HiFi; il resto cuffie e auricolari)
-                cls=$(echo "$info" | sed -n 's/^[[:space:]]*Class: //p' | head -n 1)
-                case "$(( (${cls:-0} >> 2) & 63 ))" in 5|7|8|10) k=cassa ;; *) k=audio ;; esac ;;
+                cls=$(field Class)
+                case "$cls" in 0x[0-9a-fA-F]*) ;; *) cls=0 ;; esac
+                case "$cls" in 0x*[!0-9a-fA-F]*) cls=0 ;; esac
+                case "$(( (cls >> 2) & 63 ))" in 5|7|8|10) k=cassa ;; *) k=audio ;; esac ;;
             input*) k=input ;; *) k=altro ;;
         esac
-        p=0; echo "$info" | grep -q 'Paired: yes' && p=1
-        c=0; echo "$info" | grep -q 'Connected: yes' && c=1
+        p=0; [ "$(field Paired)" = yes ] && p=1
+        c=0; [ "$(field Connected)" = yes ] && c=1
         printf '%s\t%s\t%s\t%s\t%s\n' "$a" "$k" "$p" "$c" "$n"
     done
 }
@@ -367,6 +380,13 @@ connect)
     if echo "$out" | grep -q 'Connection successful'; then
         mkdir -p "$DIR"; echo "$2" > "$LAST"; echo "$2" > "$RUN/collegato"
         logs "collegato $2"
+        # un'uscita audio alla volta: collegate cuffie o cassa, le altre si scollegano (BT-06); un
+        # controller non scollega niente
+        if [ -n "$(echo "Device $2" | describe | awk -F'\t' '$2 == "audio" || $2 == "cassa"')" ]; then
+            for o in $(other_audio "$2"); do
+                timeout 10 bluetoothctl disconnect "$o" > /dev/null 2>&1 && log "scollegato $o: ora l'audio va a $2"
+            done
+        fi
         a=$(connected_audio); [ -n "$a" ] && route "$a"
     else
         logs "collegamento con $2 non riuscito: $(echo "$out" | tail -n 1)"; echo "non riuscito" >&2; exit 1
@@ -407,7 +427,9 @@ volume)
     [ "$p" -gt 100 ] && p=100
     c=$(amixer -D bluealsa scontrols 2> /dev/null | sed -n "s/^Simple mixer control '\(.*\)',[0-9]*$/\1/p" | grep -- '- A2DP' | head -n 1)
     [ -n "$c" ] || exit 1
-    amixer -q -M -D bluealsa sset "$c" "$p%" 2> /dev/null
+    # fra apici: senza, amixer legge una virgola nel nome come separatore dell'indice (BT-20)
+    case "$c" in *"'"*) id="\"$c\"" ;; *) id="'$c'" ;; esac
+    amixer -q -M -D bluealsa sset "$id" "$p%" 2> /dev/null
     ;;
 diag)
     D=${ARCADE_LOG_DIR:-$ROOT/Logs}/bluetooth-audio.txt
