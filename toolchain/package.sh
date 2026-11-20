@@ -68,9 +68,10 @@ if [ -f "$DIST/ppsspp/PPSSPPSDL" ]; then
     pkg ppsspp - - psp
     mkdir -p "$PKG/ppsspp/Cores/ppsspp"
     cp "$DIST/ppsspp/PPSSPPSDL" "$PKG/ppsspp/Cores/ppsspp/PPSSPPSDL"
+    cp "$DIST/ppsspp/opaco" "$PKG/ppsspp/Cores/ppsspp/opaco"
     cp -R "$DIST/ppsspp/assets" "$PKG/ppsspp/Cores/ppsspp/assets"
     cp "$FE/package/ppsspp/launch.sh" "$FE/package/ppsspp/ppsspp.ini" "$PKG/ppsspp/Cores/ppsspp/"
-    chmod +x "$PKG/ppsspp/Cores/ppsspp/PPSSPPSDL" "$PKG/ppsspp/Cores/ppsspp/launch.sh"
+    chmod +x "$PKG/ppsspp/Cores/ppsspp/PPSSPPSDL" "$PKG/ppsspp/Cores/ppsspp/opaco" "$PKG/ppsspp/Cores/ppsspp/launch.sh"
 else
     echo "attenzione: manca PPSSPP (toolchain/build-ppsspp.sh): niente pacchetto PSP" >&2
 fi

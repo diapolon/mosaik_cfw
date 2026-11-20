@@ -1,0 +1,131 @@
+diff --git a/Common/GPU/OpenGL/GLFeatures.cpp b/Common/GPU/OpenGL/GLFeatures.cpp
+index 0c4137c..b2ca301 100644
+--- a/Common/GPU/OpenGL/GLFeatures.cpp
++++ b/Common/GPU/OpenGL/GLFeatures.cpp
+@@ -327,7 +327,8 @@ bool CheckGLExtensions() {
+ 	}
+ 
+ 	const char *extString = nullptr;
+-	if (gl_extensions.ver[0] >= 3) {
++	// Mosaik: senza glGetStringi (puntatore nullo) si legge la stringa delle estensioni
++	if (gl_extensions.ver[0] >= 3 && glGetStringi) {
+ 		// Let's use the new way for OpenGL 3.x+, required in the core profile.
+ 		GLint numExtensions = 0;
+ 		glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+diff --git a/Common/GPU/OpenGL/gl3stub.c b/Common/GPU/OpenGL/gl3stub.c
+index 9f47314..cb6a29a 100644
+--- a/Common/GPU/OpenGL/gl3stub.c
++++ b/Common/GPU/OpenGL/gl3stub.c
+@@ -21,9 +21,12 @@
+ #if defined(USING_GLES2)
+ #if !PPSSPP_PLATFORM(IOS)
+ #include "EGL/egl.h"
++#include <SDL2/SDL.h>
+ 
++// Mosaik (TrimUI, PowerVR GE8300): con USING_EGL=OFF il contesto lo crea l'SDL e eglGetProcAddress
++// restituisce NULL per le funzioni GLES3; SDL_GL_GetProcAddress le trova (soluzione di spruceOS)
+ GLboolean gl3stubInit() {
+-    #define FIND_PROC(s) s = (void*)eglGetProcAddress(#s)
++    #define FIND_PROC(s) s = (void*)SDL_GL_GetProcAddress(#s)
+     FIND_PROC(glReadBuffer);
+     FIND_PROC(glDrawRangeElements);
+     FIND_PROC(glTexImage3D);
+diff --git a/Common/GPU/OpenGL/thin3d_gl.cpp b/Common/GPU/OpenGL/thin3d_gl.cpp
+index 046ab99..c2ef854 100644
+--- a/Common/GPU/OpenGL/thin3d_gl.cpp
++++ b/Common/GPU/OpenGL/thin3d_gl.cpp
+@@ -584,7 +584,8 @@ OpenGLContext::OpenGLContext(bool canChangeSwapInterval) : renderManager_(frameT
+ 	caps_.setMaxFrameLatencySupported = true;
+ 	caps_.dualSourceBlend = gl_extensions.ARB_blend_func_extended || gl_extensions.EXT_blend_func_extended;
+ 	caps_.anisoSupported = gl_extensions.EXT_texture_filter_anisotropic;
+-	caps_.framebufferCopySupported = gl_extensions.OES_copy_image || gl_extensions.NV_copy_image || gl_extensions.EXT_copy_image || gl_extensions.ARB_copy_image;
++	// Mosaik: il GE8300 dichiara la copia delle immagini anche senza la funzione
++	caps_.framebufferCopySupported = (gl_extensions.OES_copy_image || gl_extensions.NV_copy_image || gl_extensions.EXT_copy_image || gl_extensions.ARB_copy_image) && glCopyImageSubDataOES != nullptr;
+ 	caps_.framebufferBlitSupported = gl_extensions.NV_framebuffer_blit || gl_extensions.ARB_framebuffer_object || gl_extensions.GLES3;
+ 	caps_.framebufferDepthBlitSupported = caps_.framebufferBlitSupported;
+ 	caps_.framebufferStencilBlitSupported = caps_.framebufferBlitSupported;
+diff --git a/Core/Config.cpp b/Core/Config.cpp
+index e7fd30d..5c94fc7 100644
+--- a/Core/Config.cpp
++++ b/Core/Config.cpp
+@@ -1590,9 +1590,10 @@ void Config::PostLoadCleanup() {
+ 	}
+ 
+ 	// Automatically silence secondary instances. Could be an option I guess, but meh.
++	// Mosaik: niente silenzio. Il contatore delle istanze resta alto dopo un'uscita non pulita e
++	// sulla console c'è sempre un solo PPSSPP
+ 	if (PPSSPP_ID > 1) {
+-		NOTICE_LOG(Log::Audio, "Secondary instance %d - silencing audio", (int)PPSSPP_ID);
+-		g_Config.iGameVolume = 0;
++		NOTICE_LOG(Log::Audio, "Secondary instance %d - audio kept (Mosaik)", (int)PPSSPP_ID);
+ 	}
+ 
+ 	// Automatically switch away from deprecated setting value.
+diff --git a/SDL/SDLJoystick.cpp b/SDL/SDLJoystick.cpp
+index 290cf57..9dbcd80 100644
+--- a/SDL/SDLJoystick.cpp
++++ b/SDL/SDLJoystick.cpp
+@@ -1,3 +1,4 @@
++#include <cstdlib>
+ #include <string>
+ 
+ #include "Common/File/FileUtil.h"
+@@ -175,6 +176,12 @@ InputKeyCode SDLJoystick::getKeycodeForButton(SDL_GameControllerButton button) {
+ void SDLJoystick::ProcessInput(const SDL_Event &event){
+ 	switch (event.type) {
+ 	case SDL_CONTROLLERBUTTONDOWN:
++		// Mosaik: tasto Menu (guide) al rilascio e solo se premuto poco. Tenuto 1 s apre il menu
++		// di Mosaik (gamewatch), che ferma il gioco: senza questo si aprivano tutti e due
++		if (event.cbutton.button == SDL_CONTROLLER_BUTTON_GUIDE && getenv("PPSSPP_MOSAIK_MENU")) {
++			mosaikGuideDown_ = SDL_GetTicks();
++			break;
++		}
+ 		if (event.cbutton.state == SDL_PRESSED) {
+ 			auto code = getKeycodeForButton((SDL_GameControllerButton)event.cbutton.button);
+ 			if (code != NKCODE_UNKNOWN) {
+@@ -187,6 +194,20 @@ void SDLJoystick::ProcessInput(const SDL_Event &event){
+ 		}
+ 		break;
+ 	case SDL_CONTROLLERBUTTONUP:
++		if (event.cbutton.button == SDL_CONTROLLER_BUTTON_GUIDE && getenv("PPSSPP_MOSAIK_MENU")) {
++			Uint32 held = mosaikGuideDown_ ? SDL_GetTicks() - mosaikGuideDown_ : 0;
++			mosaikGuideDown_ = 0;
++			if (held > 0 && held < 700) {
++				KeyInput key;
++				key.keyCode = NKCODE_BACK;   // menu di PPSSPP
++				key.deviceId = DEVICE_ID_PAD_0 + getDeviceIndex(event.cbutton.which);
++				key.flags = KeyInputFlags::DOWN;
++				NativeKey(key);
++				key.flags = KeyInputFlags::UP;
++				NativeKey(key);
++			}
++			break;
++		}
+ 		if (event.cbutton.state == SDL_RELEASED) {
+ 			auto code = getKeycodeForButton((SDL_GameControllerButton)event.cbutton.button);
+ 			if (code != NKCODE_UNKNOWN) {
+diff --git a/SDL/SDLJoystick.h b/SDL/SDLJoystick.h
+index 50cc43c..0c17329 100644
+--- a/SDL/SDLJoystick.h
++++ b/SDL/SDLJoystick.h
+@@ -23,6 +23,7 @@ class SDLJoystick{
+ 	void ProcessInput(const SDL_Event &event);
+ 
+ private:
++	Uint32 mosaikGuideDown_ = 0;   // Mosaik: quando è stato premuto il tasto Menu (guide)
+ 	void setUpController(int deviceIndex);
+ 	void setUpControllers();
+ 	InputKeyCode getKeycodeForButton(SDL_GameControllerButton button);
+diff --git a/SDL/SDLMain.cpp b/SDL/SDLMain.cpp
+index 6853525..40b9984 100644
+--- a/SDL/SDLMain.cpp
++++ b/SDL/SDLMain.cpp
+@@ -1575,6 +1575,8 @@ int main(int argc, char *argv[]) {
+ 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+ 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+ 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
++	// Mosaik: senza alfa, se no il PowerVR mostra il gioco trasparente
++	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
+ 
+ 	// Force fullscreen if the resolution is too low to run windowed.
+ 	if (g_DesktopWidth < 480 * 2 && g_DesktopHeight < 272 * 2) {

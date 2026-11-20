@@ -20,9 +20,20 @@ mkdir -p "$CONF"
 
 # i messaggi del kernel sulla console rallentano il cambio dei fotogrammi: spenti mentre si gioca
 PRINTK="$(cut -f1 /proc/sys/kernel/printk 2>/dev/null)"
-cleanup() { [ -n "$PRINTK" ] && echo "$PRINTK" >/proc/sys/kernel/printk; sync; }
+cleanup() { "$DIR/opaco" off; [ -n "$PRINTK" ] && echo "$PRINTK" >/proc/sys/kernel/printk; sync; }
 trap cleanup EXIT INT TERM HUP QUIT
 echo 1 >/proc/sys/kernel/printk 2>/dev/null
+
+# PPSSPP lascia questo file se la grafica non è partita e la volta dopo passa da solo a Vulkan, che
+# con l'SDL2 di TrimUI non crea la finestra: si riparte sempre da OpenGL
+rm -f "$CONF/FailedGraphicsBackends.txt"
+
+# PowerVR: senza il livello del display opaco il gioco è trasparente (schermo nero con l'audio);
+# all'uscita (cleanup, anche se gamewatch chiude tutto) si rimette l'alfa per pixel, quella di partenza
+"$DIR/opaco" on
+
+# Menu breve (rilasciato entro 0,7 s) apre il menu di PPSSPP, Menu tenuto quello di Mosaik
+export PPSSPP_MOSAIK_MENU=1
 
 cd "$DIR" || exit 1
 "$DIR/PPSSPPSDL" --fullscreen --pause-menu-exit "$ROM"

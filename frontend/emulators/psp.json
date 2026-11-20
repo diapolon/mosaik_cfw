@@ -3,7 +3,6 @@
   "kind": "console",
   "core": "ppsspp",
   "launch": "Cores/ppsspp/launch.sh",
-  "menu": false,
   "roms": "Roms/PSP",
   "extensions": [
     "iso",

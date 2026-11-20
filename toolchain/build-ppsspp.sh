@@ -21,10 +21,20 @@ SRC=/build/src/ppsspp
 B=/build/src/ppsspp-build
 OUT=/build/out/ppsspp
 want=$(git -C /trimui/deps/ppsspp rev-parse HEAD)
-if [ "$(git -C "$SRC" rev-parse HEAD 2>/dev/null)" != "$want" ]; then
+# copia nuova e compilazione da zero anche quando cambiano le patch di Mosaik: cp -a tiene le date
+# dei file, e make non ricompilerebbe un file tornato com'era (resterebbe la patch vecchia)
+stamp="$want $(cat /trimui/toolchain/patches/ppsspp-*.patch 2>/dev/null | sha256sum | cut -c1-16)"
+if [ "$(cat "$SRC/.mosaik-stamp" 2>/dev/null)" != "$stamp" ]; then
     rm -rf "$SRC" "$B"
     cp -a /trimui/deps/ppsspp "$SRC"
+    echo "$stamp" > "$SRC/.mosaik-stamp"
 fi
+# patch di Mosaik (toolchain/patches/ppsspp-*.patch), applicate una volta sola sulla copia
+for P in /trimui/toolchain/patches/ppsspp-*.patch; do
+    [ -f "$P" ] || continue
+    if patch -p1 -R -s -f --dry-run -d "$SRC" < "$P" > /dev/null 2>&1; then echo "patch già applicata: $(basename "$P")"
+    else patch -p1 -s -d "$SRC" < "$P" && echo "patch applicata: $(basename "$P")"; fi
+done
 mkdir -p "$B" "$OUT"
 F="-O2 -mcpu=cortex-a53"
 cmake -S "$SRC" -B "$B" -DCMAKE_BUILD_TYPE=Release \
@@ -37,6 +47,8 @@ cmake -S "$SRC" -B "$B" -DCMAKE_BUILD_TYPE=Release \
 echo "== PPSSPP (ci vuole un po')"
 cmake --build "$B" --target PPSSPPSDL -j"$(nproc)" >> "$OUT/build.log" 2>&1 || { tail -40 "$OUT/build.log"; exit 1; }
 strip -o "$OUT/PPSSPPSDL" "$B/PPSSPPSDL"
+# opaco: livello del display opaco, senza il quale il PowerVR mostra il gioco trasparente
+gcc -O2 -Wall -Wextra -o "$OUT/opaco" /trimui/frontend/package/ppsspp/opaco.c && strip "$OUT/opaco"
 rm -rf "$OUT/assets"
 cp -a "$B/assets" "$OUT/assets" 2>/dev/null || cp -a "$SRC/assets" "$OUT/assets"
 printf 'PPSSPPSDL: %s, glibc fino a %s, GLIBCXX fino a %s\n' "$(du -h "$OUT/PPSSPPSDL" | cut -f1)" \
