@@ -34,7 +34,7 @@ static void test_sync(void) { syncs++; }
 enum { BTN_COUNT = 20, ROT_NONE = 0 };
 static const int default_map[16] = { 0 };
 static int emu_map[16];   /* tasti di partenza dell'emulatore (runner.c): nulli come default_map */
-static struct { struct { int aspect, bezel; char filter[32]; } set; } UI;
+static struct { struct { int aspect, bezel; char filter[32]; } set; double t; } UI;
 static const char *filter_legacy_id(int n) { (void)n; return "nitido"; }
 static void ui_log(const char *f, ...) { (void)f; }
 static void game_file(char *out, size_t n, const char *ext) { snprintf(out, n, "%s/g.%s", dir, ext); }
@@ -67,8 +67,28 @@ fn $R '^static void sram_load'
 fn $R '^static void sram_save'
 fn $R '^static void write_resume'
 fn $R '^static bool state_load_file'
-fn $G '^static void commit_file'
-fn $G '^static void write_list'
+cat <<'C'
+static bool menu_open;
+enum { SND_OK, SND_ERROR };
+static const char *T(const char *k) { return k; }
+static const char *last_toast = "";
+static void ui_toast(const char *m) { last_toast = m; }
+static void ui_sound(int s) { (void)s; }
+static void sv_forget(void) { }
+static void gamecfg_save(void) { }
+C
+grep -E '^static unsigned long played_frames|^static unsigned long load_at' $R || true
+fn $R '^static bool save_exists'
+fn $R '^static void saves_load'
+cat <<'C'
+static int batt_pct = 50; static bool batt_charging;
+static int ui_battery(bool *c) { *c = batt_charging; return batt_pct; }
+C
+grep -E '^static bool batt_saved;' $R
+fn $R '^static void battery_watch'
+fn $R '^static void after_wake'
+fn $G '^static bool commit_file'
+fn $G '^static bool write_list'
 cat <<'C'
 static void put(const char *p, const char *s) { FILE *f = fopen(p, "w"); fputs(s, f); fclose(f); }
 static const char *get(const char *p) { static char b[256]; FILE *f = fopen(p, "r"); if (!f) return "(manca)"; size_t n = fread(b, 1, 255, f); b[n] = 0; fclose(f); return b; }
@@ -149,7 +169,7 @@ int main(void) {
     static int with_rtc;
     size_t fsz(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? sizeof ram : id == RETRO_MEMORY_RTC && with_rtc ? sizeof rtc : 0; }
     void *fdat(unsigned id) { return id == RETRO_MEMORY_SAVE_RAM ? ram : id == RETRO_MEMORY_RTC && with_rtc ? rtc : NULL; }
-    #define FORGET() for (int b_ = 0; b_ < NBATT; b_++) { free(batt[b_].copy); batt[b_].copy = NULL; batt[b_].len = 0; }
+    #define FORGET() for (int b_ = 0; b_ < NBATT; b_++) { free(batt[b_].copy); batt[b_].copy = NULL; batt[b_].len = 0; batt[b_].bak_done = false; }
     mem_size = fsz; mem_data = fdat;
     game_file(p, sizeof p, "srm");
     sram_load();
@@ -219,12 +239,151 @@ int main(void) {
     sram_save();
     { char b[8] = ""; FILE *f = fopen(p, "rb"); if (f) { if (fread(b, 1, 4, f) != 4) b[0] = 0; fclose(f); }
       b[4] = 0; same("… e la SRAM vecchia dello stato non lo copre", b, "Dopo"); }
+    puts("--- due caricamenti con una scrittura in mezzo (audit 0.9.88, GIO-11)");
+    FORGET(); remove(p); memset(ram, 0, sizeof ram);
+    { char bk[600]; snprintf(bk, sizeof bk, "%s.bak", p); remove(bk);
+      put(p, "Orig"); sram_load();
+      char s1[600], s2[600]; snprintf(s1, sizeof s1, "%s/stato1", dir); snprintf(s2, sizeof s2, "%s/stato2", dir);
+      put(s1, "Sta1"); put(s2, "Sta2"); unser_ram = ram;
+      state_load_file(s1); ram[0] = 'W'; ram[1] = '1'; sram_save();
+      same("primo caricamento: la partita di prima in .bak", get(bk), "Orig");
+      state_load_file(s2); ram[0] = 'W'; ram[1] = '2'; sram_save();
+      unser_ram = NULL;
+      same("secondo caricamento: il .bak tiene ancora la partita di prima", get(bk), "Orig"); }
+
+    puts("--- tre caricamenti di fila dello stesso slot (audit 0.9.88, GIO-12)");
+    FORGET(); thumb = NULL;
+    { char sl[600], au[600], pr[600];
+      game_file(sl, sizeof sl, "state"); game_file(au, sizeof au, "auto.state"); game_file(pr, sizeof pr, "auto.state.prev");
+      remove(au); remove(pr); put(sl, "Boss");
+      played_frames = 50000;
+      payload = "Part"; saves_load(0);   /* la partita di partenza va nell'automatico */
+      played_frames += 300;              /* 5 s di gioco, poi di nuovo */
+      payload = "Try2"; saves_load(0);
+      played_frames += 300;
+      payload = "Try3"; saves_load(0);
+      same("dopo tre caricamenti la partita di partenza c'è ancora", !strcmp(get(au), "Part") || !strcmp(get(pr), "Part") ? "si" : "no", "si");
+      played_frames += 5000;             /* giocato a lungo: il caricamento la tiene da parte di nuovo */
+      payload = "Long"; saves_load(0);
+      same("dopo una partita lunga l'automatico è la partita in corso", get(au), "Long");
+      same("… e la partenza resta come copia", get(pr), "Part"); }
+
+    puts("--- batteria al 4%, sospensione e risveglio (audit 0.9.88, GIO-13)");
+    { char rp[600]; snprintf(rp, sizeof rp, "%s/System/resume.txt", root); mkdir("/tmp/fl/System", 0755); remove(rp);
+      payload = "Batt"; batt_charging = false; batt_pct = 4; UI.t = 100;
+      battery_watch();
+      same("al 4%: partita salvata e ripresa scritta", access(rp, F_OK) == 0 ? "si" : "no", "si");
+      after_wake();   /* sospensione chiesta nel gioco e risveglio: la ripresa si toglie */
+      UI.t += 10; battery_watch();
+      same("dopo il risveglio, sempre al 4%: la ripresa c'è di nuovo", access(rp, F_OK) == 0 ? "si" : "no", "si");
+      batt_pct = 50; }
     return errors != 0;
 }
 C
 } > t.c
 gcc -g -O0 -Wall -Wextra -Wno-unused-function -Wno-format-truncation -fsanitize=undefined -fsanitize-undefined-trap-on-error -o t t.c /trimui/frontend/src/runner/gamecfg.c
 ./t
+
+# audit 0.9.88, GIO-14: "Reimposta anche gli stati" lasciava le copie che il runner fa da sé
+echo "--- Reimposta anche gli stati: nessun file della partita resta"
+L=/trimui/frontend/src/launcher/launcher.c
+{
+cat <<'C'
+#include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
+typedef struct { char key[200]; } game_t;
+static struct { char root[64]; } UI = { "/tmp/fl/rs" };
+static const char *T(const char *k) { return k; }
+static void ui_toast(const char *m) { (void)m; }
+static void ui_log(const char *f, ...) { (void)f; }
+static void save_base(const game_t *g, char *base, size_t n, char *core, size_t cn) { (void)g; snprintf(base, n, "/tmp/fl/rs/Saves/NES"); snprintf(core, cn, "nes"); }
+C
+grep -E '^static int reset_failed;' $L
+fn $L '^static void reset_remove'
+grep -E '^static int detail_slots_for' $L
+fn $L '^static void game_reset'
+cat <<'C'
+int main(void) {
+    game_t g = { "Gioco" };
+    game_reset(&g, true);
+    DIR *d = opendir("/tmp/fl/rs/Saves/NES");
+    struct dirent *e;
+    int left = 0;
+    while (d && (e = readdir(d))) if (e->d_name[0] != '.') { printf("  resta: %s\n", e->d_name); left++; }
+    if (d) closedir(d);
+    return left != 0;
+}
+C
+} > $W/rs.c
+mkdir -p $W/rs/Saves/NES
+# tutti i file di una partita che il runner può scrivere: stati, anteprime, batteria e le loro copie
+for x in state 2.state 3.state auto.state auto.state.prev auto.state.rot auto.state.nonletto state.png 2.state.png 3.state.png \
+         auto.state.png auto.state.prev.png srm srm.bak rtc rtc.bak; do : > "$W/rs/Saves/NES/Gioco.$x"; done
+gcc -g -O0 -Wall -Wno-unused-function -o $W/rs-prova $W/rs.c 2> $W/rs.err || { cat $W/rs.err; exit 1; }
+if $W/rs-prova; then echo "  ok: reimpostato con gli stati: nessun file della partita resta"; else echo "  ERRORE: reimpostato con gli stati, restano file"; exit 1; fi
+
+# audit 0.9.88, LAU-17: lista di 8192 righe non più modificabile; scrittura fallita data per riuscita
+echo "--- preferiti: lista piena e scrittura che non riesce"
+{
+cat <<'C'
+#include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+static const char *fail_rename_to;
+static int test_rename(const char *a, const char *b) { if (fail_rename_to && !strcmp(b, fail_rename_to)) { errno = EIO; return -1; } return rename(a, b); }
+#define rename test_rename
+#include "/trimui/frontend/src/common/durable.h"
+#include "/trimui/frontend/src/launcher/games.h"
+static void ui_log(const char *f, ...) { (void)f; }
+static int key_cmp(const void *a, const void *b) { return strcmp(a, b); }
+C
+fn $G '^static bool commit_file'
+fn $G '^static int read_list_ok'
+grep -E '^static int read_list\(' $G
+fn $G '^static bool write_list'
+grep -E '^static void key_of' $G
+grep -E '^enum \{ LIST_MAX' $G
+fn $G '^static bool list_set'
+fn $G '^bool games_toggle_fav'
+cat <<'C'
+static int lines(const char *p) { FILE *f = fopen(p, "r"); int n = 0, c; if (!f) return -1; while ((c = fgetc(f)) != EOF) n += c == '\n'; fclose(f); return n; }
+int main(void) {
+    int fail = 0;
+    const char *p = "/tmp/fl/lst/System/favorites.txt";
+    FILE *f = fopen(p, "w");
+    for (int i = 0; i < LIST_MAX; i++) fprintf(f, "fbneo\tgioco%d\n", i);
+    fclose(f);
+    game_t g; memset(&g, 0, sizeof g);
+    strcpy(g.core, "fbneo"); strcpy(g.name, "gioco5"); g.fav = true;
+    games_toggle_fav("/tmp/fl/lst", &g);
+    if (g.fav || lines(p) != LIST_MAX - 1) { printf("  ERRORE: lista di %d righe: un preferito non si toglie (%d righe)\n", LIST_MAX, lines(p)); fail = 1; }
+    else puts("  ok: lista piena: un preferito si toglie");
+    strcpy(g.name, "nuovo"); g.fav = false;
+    games_toggle_fav("/tmp/fl/lst", &g);
+    if (!g.fav) { puts("  ERRORE: con un posto libero l'aggiunta non riesce"); fail = 1; } else puts("  ok: con un posto libero si aggiunge");
+    strcpy(g.name, "altro"); g.fav = false;
+    games_toggle_fav("/tmp/fl/lst", &g);
+    if (g.fav || lines(p) != LIST_MAX) { printf("  ERRORE: lista piena: aggiunto oltre il massimo (%d righe)\n", lines(p)); fail = 1; }
+    else puts("  ok: lista piena: niente aggiunte oltre il massimo");
+    remove(p);
+    strcpy(g.name, "gioco1"); g.fav = false;
+    fail_rename_to = p;
+    games_toggle_fav("/tmp/fl/lst", &g);
+    fail_rename_to = NULL;
+    if (g.fav) { puts("  ERRORE: scrittura non riuscita: il gioco risulta fra i preferiti"); fail = 1; }
+    else puts("  ok: scrittura non riuscita: il gioco non risulta fra i preferiti");
+    return fail;
+}
+C
+} > $W/lst.c
+mkdir -p $W/lst/System
+gcc -g -O0 -Wall -Wno-unused-function -Wno-format-truncation -o $W/lst-prova $W/lst.c 2> $W/lst.err || { cat $W/lst.err; exit 1; }
+if $W/lst-prova; then :; else echo "  ERRORE: liste"; exit 1; fi
 
 echo "--- blocco del Wi-Fi"
 ok() { echo "  ok: $*"; }
@@ -419,6 +578,27 @@ check "il codice di uscita del gioco resta quello" [ "$rc" = 7 ]
 A=$(cat $W/figlio); B=$(cat $W/figlio-duro)
 if vivo $A; then ko "processo rimasto attivo"; else ok "processo normale chiuso"; fi
 if vivo $B; then ko "processo che ignora la chiusura rimasto attivo"; else ok "processo che ignora la chiusura eliminato"; fi
+
+# audit 0.9.88, GIO-17: una sola lettura del 3% (un attimo, all'avvio) chiudeva il gioco e spegneva
+echo "--- gamewatch: batteria al 3%"
+{ printf '#include <stdbool.h>\n#include <stdio.h>\n'
+  fn /trimui/frontend/src/tools/gamewatch.c '^static bool batt_empty'
+  cat <<'C'
+int main(void) {
+    int fail = 0;
+    bool a = batt_empty(3, false), b = batt_empty(50, false), c = batt_empty(3, false);
+    if (a || c) { puts("  ERRORE: una lettura del 3% fra due normali spegne"); fail = 1; } else puts("  ok: una lettura sola del 3% non spegne");
+    (void)b;
+    a = batt_empty(3, false); b = batt_empty(3, false);
+    if (!b) { puts("  ERRORE: due letture di fila del 3% non spengono"); fail = 1; } else puts("  ok: due letture di fila del 3% spengono");
+    a = batt_empty(2, true); b = batt_empty(2, true);
+    if (a || b) { puts("  ERRORE: col caricatore spegne"); fail = 1; } else puts("  ok: col caricatore non spegne");
+    return fail;
+}
+C
+} > batt.c
+gcc -std=c11 -O0 -o batt batt.c
+check "batteria al 3% letta due volte" ./batt
 
 echo "--- controllo delle librerie nella costruzione"
 LC="python3 -I /trimui/toolchain/libclosure.py"

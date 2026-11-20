@@ -1047,8 +1047,7 @@ static void lib_common_input(int cols) {
     if (in->pressed[BTN_X] && nview) { open_detail(view[lib_sel]); return; }
     if (in->pressed[BTN_Y] && nview) {
         game_t *g = &games[view[lib_sel]];
-        games_toggle_fav(UI.root, g);
-        ui_toast(g->fav ? T("home.fav_added") : T("home.fav_removed"));
+        ui_toast(!games_toggle_fav(UI.root, g) ? T("home.list_failed") : g->fav ? T("home.fav_added") : T("home.fav_removed"));
         if (tabs[tab_sel] == TAB_FAV) build_view();
         build_carousel();
         ui_sound(SND_OK);
@@ -1907,8 +1906,7 @@ static void home_input(void) {
     int g = home_focus_game();
     if (in->pressed[BTN_X] && g >= 0) { open_detail(g); return; }
     if (in->pressed[BTN_Y] && g >= 0) {
-        games_toggle_fav(UI.root, &games[g]);
-        ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
+        ui_toast(!games_toggle_fav(UI.root, &games[g]) ? T("home.list_failed") : games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
         build_tabs();
         /* la carta resta al suo posto finché si è nella home: un secondo Y la rimette com'era,
            invece di agire sul gioco scivolato lì (audit 0.9.72, LAU-09) */
@@ -2943,12 +2941,23 @@ static void plat_open(int sel) {
     go(SCR_PLATFORMS);
 }
 
+/* scheda senza emulatori né giochi: al posto di «Tutti, 0 giochi» l'invito allo Store, come nella
+   libreria vuota, e A lo apre (audit 0.9.88, LAU-19) */
+static bool plat_store_only(void) { return !NEMUS && !have_games(); }
+
 static void plat_draw(void) {
     theme_t *t = &UI.th;
     topbar_label(T("plat.title"));
     if (plat_sel >= nptabs) plat_sel = nptabs ? nptabs - 1 : 0;
     plat_anim = ui_approach(plat_anim, (float)plat_sel);
     int y = M(t->topbar_h) + M(0.03f), bottom = UI.h - ui_keybar_h() - M(0.03f);
+    if (plat_store_only()) {
+        int mx = M(t->margin);
+        empty_panel(mx, y, UI.w - 2 * mx, bottom - y, T("store.ask_title"), T("store.ask_body"), NULL, T("store.open"));
+        const char *hs[] = { "A", T("store.open"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
+        ui_keybar(hs, 9);
+        return;
+    }
     if (nptabs) {
         if (is_list_layout()) plat_draw_showcase(y, bottom);
         else plat_draw_cards(y, bottom);
@@ -3205,8 +3214,7 @@ static void vt_input(void) {
     }
     if (in->pressed[BTN_X] && g >= 0) { open_detail(g); return; }
     if (in->pressed[BTN_Y] && g >= 0) {
-        games_toggle_fav(UI.root, &games[g]);
-        ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
+        ui_toast(!games_toggle_fav(UI.root, &games[g]) ? T("home.list_failed") : games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
         build_tabs();
         /* la carta resta al suo posto finché si è nella home: un secondo Y la rimette com'era,
            invece di agire sul gioco scivolato lì (audit 0.9.72, LAU-09) */
@@ -3388,8 +3396,7 @@ static void gl_input(void) {
         if (in->pressed[BTN_A]) { home_play(g); return; }
         if (in->pressed[BTN_X]) { open_detail(g); return; }
         if (in->pressed[BTN_Y]) {
-            games_toggle_fav(UI.root, &games[g]);
-            ui_toast(games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
+            ui_toast(!games_toggle_fav(UI.root, &games[g]) ? T("home.list_failed") : games[g].fav ? T("home.fav_added") : T("home.fav_removed"));
             build_tabs();
             build_carousel();
             ui_sound(SND_OK);
@@ -3629,7 +3636,8 @@ static void plat_input(void) {
     if ((in->pressed[BTN_LEFT] || in->pressed[BTN_L]) && plat_sel > 0) plat_sel--;
     if ((in->pressed[BTN_RIGHT] || in->pressed[BTN_R]) && plat_sel < nptabs - 1) plat_sel++;
     if (plat_sel != old) ui_sound(SND_MOVE);
-    if (in->pressed[BTN_A] && nptabs && is_plan(ptabs[plat_sel])) ui_sound(SND_ERROR);
+    if (in->pressed[BTN_A] && plat_store_only()) { sto_start(); ui_sound(SND_OK); }
+    else if (in->pressed[BTN_A] && nptabs && is_plan(ptabs[plat_sel])) ui_sound(SND_ERROR);
     else if (in->pressed[BTN_A] && ntabs) {
         tab_sel = plat_sel;
         lib_sel = 0;
@@ -7595,8 +7603,7 @@ static void detail_input(void) {
     if (detail_scroll_target > (ndlines > 4 ? ndlines - 4 : 0)) detail_scroll_target = (float)(ndlines > 4 ? ndlines - 4 : 0);
     if (in->pressed[BTN_A]) launch(g);
     if (in->pressed[BTN_Y]) {
-        games_toggle_fav(UI.root, g);
-        ui_toast(g->fav ? T("home.fav_added") : T("home.fav_removed"));
+        ui_toast(!games_toggle_fav(UI.root, g) ? T("home.list_failed") : g->fav ? T("home.fav_added") : T("home.fav_removed"));
         build_carousel();
         build_tabs();
         ui_sound(SND_OK);
@@ -8675,9 +8682,11 @@ static void game_reset(const game_t *g, bool states) {
     reset_remove(base, g->key, "opt");
     if (states) {
         /* con gli stati anche il salvataggio a batteria delle console (.srm e .rtc, .flash del
-           Neo Geo Pocket fino alla 0.9.17): è la partita */
+           Neo Geo Pocket fino alla 0.9.17): è la partita. Anche le copie che il runner fa da sé
+           (.bak prima di un caricamento, stato automatico non letto) restavano (audit 0.9.88, GIO-14) */
         static const char *const ext[] = { "state", "2.state", "3.state", "auto.state", "auto.state.prev", "auto.state.rot",
-                                           "state.png", "2.state.png", "3.state.png", "auto.state.png", "auto.state.prev.png", "srm", "rtc", "flash" };
+                                           "auto.state.nonletto", "state.png", "2.state.png", "3.state.png", "auto.state.png",
+                                           "auto.state.prev.png", "srm", "srm.bak", "rtc", "rtc.bak", "flash" };
         for (size_t i = 0; i < sizeof ext / sizeof ext[0]; i++) reset_remove(base, g->key, ext[i]);
     }
     /* FBNeo: memoria interna e punteggi */
@@ -8754,9 +8763,10 @@ static void gopt_input(void) {
     }
     if (gopt_sel < NCOLLS) {
         bool in_c = !(g->colls >> gopt_sel & 1u);
-        games_set_coll(UI.root, g, gopt_sel, in_c);
-        snprintf(msg, sizeof msg, T(in_c ? "coll.added" : "coll.removed"), COLLS[gopt_sel]);
-        ui_toast(msg);
+        if (games_set_coll(UI.root, g, gopt_sel, in_c)) {
+            snprintf(msg, sizeof msg, T(in_c ? "coll.added" : "coll.removed"), COLLS[gopt_sel]);
+            ui_toast(msg);
+        } else ui_toast(T("home.list_failed"));
         lists_changed();
         ui_sound(SND_OK);
     } else if (gopt_sel == NCOLLS) {
@@ -8778,8 +8788,8 @@ static void gopt_input(void) {
         reset_sel = 0;
         ui_sound(SND_OK);
     } else if (gopt_sel == NCOLLS + 1) {
-        games_set_hidden(UI.root, g, !g->user_hidden);
-        ui_toast(T(g->user_hidden ? "coll.hidden_toast" : "coll.shown_toast"));
+        if (games_set_hidden(UI.root, g, !g->user_hidden)) ui_toast(T(g->user_hidden ? "coll.hidden_toast" : "coll.shown_toast"));
+        else ui_toast(T("home.list_failed"));
         lists_changed();
         ui_sound(SND_OK);
     }
@@ -9332,10 +9342,11 @@ static void kb_done(void) {
     if (detail_idx < 0) return;
     int ci = games_new_coll(UI.root, coll_name, games, ngames);
     if (ci < 0) { ui_toast(T("coll.failed")); return; }
-    games_set_coll(UI.root, &games[detail_idx], ci, true);
     char msg[160];
-    snprintf(msg, sizeof msg, T("coll.added"), COLLS[ci]);
-    ui_toast(msg);
+    if (games_set_coll(UI.root, &games[detail_idx], ci, true)) {
+        snprintf(msg, sizeof msg, T("coll.added"), COLLS[ci]);
+        ui_toast(msg);
+    } else ui_toast(T("home.list_failed"));
     lists_changed();
     gopt_sel = ci;
 }

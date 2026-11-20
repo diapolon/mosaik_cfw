@@ -84,7 +84,7 @@ int games_scan(const char *root, game_t **out, bool include_missing);
 bool games_scan_partial(void);
 void games_free(game_t *g, int n);
 void games_mark_lists(const char *root, game_t *g, int n);
-void games_toggle_fav(const char *root, game_t *g);
+bool games_toggle_fav(const char *root, game_t *g);   /* falso: lista non cambiata */
 void games_add_recent(const char *root, game_t *g);
 const char *games_core_label(const char *core);
 
@@ -93,13 +93,13 @@ const char *games_core_label(const char *core);
 #define MAX_COLLS 32
 extern char COLLS[MAX_COLLS][48];
 extern int NCOLLS;
-void games_set_hidden(const char *root, game_t *g, bool hidden);
+bool games_set_hidden(const char *root, game_t *g, bool hidden);
 /* Generi modificati dall'utente, in file propri che lo scraper non tocca:
    System/genre-custom.tsv "rom<TAB>genere", System/genre-groups.tsv "genere<TAB>nuovo genere". */
 void games_set_genre(const char *root, const char *rom, const char *genre);   /* NULL: torna automatico */
 void games_group_genre(const char *root, const char *from, const char *to);   /* rinomina o accorpa */
 void games_clear_genre_groups(const char *root);
-void games_set_coll(const char *root, game_t *g, int ci, bool in);
+bool games_set_coll(const char *root, game_t *g, int ci, bool in);
 /* crea la collezione (o trova quella con lo stesso nome); restituisce l'indice, -1 se fallisce */
 int games_new_coll(const char *root, const char *name, game_t *g, int n);
 bool games_rename_coll(const char *root, int ci, const char *name, game_t *g, int n);

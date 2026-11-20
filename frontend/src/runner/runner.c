@@ -195,7 +195,8 @@ static struct {
     size_t len;
     bool keep;             /* file di misura diversa o illeggibile: copia in .orig prima di riscriverlo */
     bool after_load;       /* dopo uno stato caricato: alla prima riscrittura il file di prima va in .bak */
-} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0, false, false }, { RETRO_MEMORY_RTC, "rtc", NULL, 0, false, false } };
+    bool bak_done;         /* .bak già fatto in questa partita: i caricamenti dopo non lo riscrivono */
+} batt[] = { { RETRO_MEMORY_SAVE_RAM, "srm", NULL, 0, false, false, false }, { RETRO_MEMORY_RTC, "rtc", NULL, 0, false, false, false } };
 enum { NBATT = sizeof batt / sizeof batt[0] };
 
 /* Uno stato caricato rimette in memoria la SRAM che aveva quando è stato fatto (audit 0.9.72, GIO-01):
@@ -261,12 +262,16 @@ static void sram_save(void) {
             if (access(p, F_OK) == 0 && access(o, F_OK) != 0 && !copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
             batt[b].keep = false;
         }
-        if (batt[b].after_load) {   /* il salvataggio di prima del caricamento resta in .bak */
+        /* il salvataggio di prima del caricamento resta in .bak, una volta per partita: riscritto a
+           ogni caricamento, due caricamenti con una scrittura del gioco in mezzo perdevano proprio
+           quello buono (audit 0.9.88, GIO-11) */
+        if (batt[b].after_load && !batt[b].bak_done) {
             char o[1300];
             snprintf(o, sizeof o, "%s.bak", p);
             if (access(p, F_OK) == 0 && !copy_whole(p, o)) { ui_log("impossibile tenere da parte %s: non lo riscrivo", p); continue; }
-            batt[b].after_load = false;
+            batt[b].bak_done = true;
         }
+        batt[b].after_load = false;
         snprintf(t, sizeof t, "%s.tmp", p);
         FILE *f = fopen(t, "wb");
         bool ok = f && fwrite(m, 1, batt[b].len, f) == batt[b].len;
@@ -1784,16 +1789,24 @@ static void saves_write(int row) {
     ui_sound(SND_OK);
 }
 
+/* fotogrammi giocati (il menu aperto non conta) e, più uno, quanti ce n'erano all'ultimo
+   caricamento (0: nessun caricamento in questa partita) */
+static unsigned long played_frames;
+static unsigned long load_at;
 static void saves_load(int row) {
     char p[1400];
     if (!save_exists(row, NULL)) { ui_toast(T("game.no_state")); ui_sound(SND_ERROR); return; }
     if (row < NSLOTS) {
         gcfg.slot = row;
         gamecfg_save();
-        state_save(true);   /* la partita in corso resta recuperabile dal salvataggio automatico */
+        /* la partita in corso resta recuperabile dal salvataggio automatico; ma chi riprova un boss
+           caricando lo stesso slot più volte di fila, dopo pochi secondi di gioco, al terzo
+           caricamento perdeva la partita di partenza (audit 0.9.88, GIO-12): sotto i 20 s di gioco
+           dall'ultimo caricamento l'automatico resta quello */
+        if (!load_at || played_frames + 1 - load_at >= 20 * 60) state_save(true);
     }
     game_file(p, sizeof p, save_ext[row]);
-    if (state_load_file(p)) { ui_toast(T("game.state_loaded")); menu_open = false; ui_sound(SND_OK); }
+    if (state_load_file(p)) { load_at = played_frames + 1; ui_toast(T("game.state_loaded")); menu_open = false; ui_sound(SND_OK); }
     else { ui_toast(T("saves.load_failed")); ui_sound(SND_ERROR); }
     sv_forget();
 }
@@ -2319,14 +2332,16 @@ static void sram_tick(void) {
 /* ------------------------------------------------------- batteria */
 /* Sotto il 10% un avviso; sotto il 4% la partita viene salvata (stato automatico e
    ripresa all'accensione), così non si perde nulla se la console si spegne da sola. */
+static bool batt_saved;   /* partita già salvata per la batteria scarica */
 static void battery_watch(void) {
     static double next;
-    static bool warned, saved;
+    static bool warned;
+    bool saved = batt_saved;
     if (UI.t < next) return;
     next = UI.t + 5;
     bool charging;
     int pct = ui_battery(&charging);
-    if (charging) { warned = saved = false; return; }
+    if (charging) { warned = batt_saved = false; return; }
     if (pct < 0) return;   /* livello sconosciuto: niente avvisi né salvataggi per batteria scarica */
     if (pct <= 10 && !warned) {
         char m[96];
@@ -2338,8 +2353,18 @@ static void battery_watch(void) {
     if (pct <= 4 && !saved && state_save(true)) {
         write_resume();
         ui_toast(T("battery.saved"));
-        saved = true;
+        batt_saved = true;
     }
+}
+
+/* risveglio dalla sospensione chiesta nel gioco: la ripresa scritta prima del sonno non serve più.
+   Con la batteria già sotto il 4% però la partita va salvata di nuovo, o se la console si spegne
+   da sola non si riprende (audit 0.9.88, GIO-13): battery_watch la riscrive al prossimo controllo */
+static void after_wake(void) {
+    char rp[1200];
+    snprintf(rp, sizeof rp, "%s/System/resume.txt", root);
+    unlink(rp);
+    batt_saved = false;
 }
 
 static void ask_do(int kind) {
@@ -2543,9 +2568,7 @@ int main(int argc, char **argv) {
                 /* SD guasta al risveglio: niente salvataggi né chiusura (scriverebbero sulla scheda e
                    non tornerebbero); system-init vede il segno e riavvia (audit BUG-006) */
                 if (UI.sd_failed) _exit(0);
-                char rp[1200];
-                snprintf(rp, sizeof rp, "%s/System/resume.txt", root);
-                unlink(rp);
+                after_wake();
                 next = SDL_GetPerformanceCounter();
                 continue;
             }
@@ -2579,7 +2602,7 @@ int main(int argc, char **argv) {
         sram_tick();
         Uint64 pf0 = SDL_GetPerformanceCounter();
         if (!menu_open && !suspend_ask) {
-            for (int k = 0; k < (fast_forward ? 3 : 1); k++) core.run();
+            for (int k = 0; k < (fast_forward ? 3 : 1); k++) { core.run(); played_frames++; }
             played += UI.dt;
             /* diagnosi (sistema su SD): dopo 5 s di gioco si salva ciò che è stato disegnato */
             static bool shot_done;

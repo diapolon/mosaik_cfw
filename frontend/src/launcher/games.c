@@ -713,12 +713,13 @@ static int kv_load(const char *path, kv_t **out) {
 
 /* Il file provvisorio prende il posto di quello vero solo se è arrivato tutto sulla scheda:
    se la scrittura si interrompe, resta l'elenco di prima. */
-static void commit_file(FILE *f, const char *tmp, const char *path) {
+static bool commit_file(FILE *f, const char *tmp, const char *path) {
     bool ok = !ferror(f) && fflush(f) == 0 && fsync(fileno(f)) == 0;
     if (fclose(f) != 0) ok = false;
-    if (ok && durable_replace(tmp, path) == 0) return;
+    if (ok && durable_replace(tmp, path) == 0) return true;
     ui_log("scrittura di %s non riuscita: resta il file di prima", path);
     remove(tmp);
+    return false;
 }
 
 static void kv_save(const char *path, const kv_t *a, int n) {
@@ -891,13 +892,13 @@ static int read_list_ok(const char *path, char keys[][LIST_KEY], int max, bool *
 }
 static int read_list(const char *path, char keys[][LIST_KEY], int max) { return read_list_ok(path, keys, max, NULL); }
 
-static void write_list(const char *path, char keys[][LIST_KEY], int n) {
+static bool write_list(const char *path, char keys[][LIST_KEY], int n) {
     char tmp[1200];
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
     FILE *f = fopen(tmp, "w");
-    if (!f) { ui_log("scrittura di %s non riuscita", path); return; }
+    if (!f) { ui_log("scrittura di %s non riuscita", path); return false; }
     for (int i = 0; i < n; i++) fprintf(f, "%s\n", keys[i]);
-    commit_file(f, tmp, path);
+    return commit_file(f, tmp, path);
 }
 
 static void key_of(const game_t *g, char *k) { snprintf(k, LIST_KEY, "%s\t%s", g->core, g->key[0] ? g->key : g->name); }
@@ -977,34 +978,41 @@ static void mark_from(const char *path, game_t *g, int n, void (*set)(game_t *, 
 static void set_hidden(game_t *g, void *arg) { (void)arg; g->user_hidden = true; }
 static void set_coll(game_t *g, void *arg) { g->colls |= 1u << *(int *)arg; }
 
+/* Falso se la lista resta com'era: non letta tutta, piena (LIST_MAX righe: togliere si può sempre,
+   aggiungere no) o non scritta. Prima una lista piena non si poteva più cambiare, e una scrittura
+   non riuscita risultava fatta (audit 0.9.88, LAU-17). */
 static bool list_set(const char *path, const game_t *g, bool add) {
     char (*keys)[LIST_KEY] = malloc(sizeof *keys * LIST_MAX), k[LIST_KEY];
     if (!keys) return false;
     bool whole;
-    int n = read_list_ok(path, keys, LIST_MAX - 1, &whole), w = 0;
+    int n = read_list_ok(path, keys, LIST_MAX, &whole), w = 0;
     if (!whole) { ui_log("lista %s non letta tutta: non la riscrivo", path); free(keys); return false; }
     key_of(g, k);
     for (int i = 0; i < n; i++)
         if (strcmp(keys[i], k)) memcpy(keys[w++], keys[i], LIST_KEY);
+    if (add && w >= LIST_MAX) { ui_log("lista %s piena (%d righe): non aggiungo", path, w); free(keys); return false; }
     if (add) memcpy(keys[w++], k, LIST_KEY);
-    write_list(path, keys, w);
+    bool ok = write_list(path, keys, w);
     free(keys);
+    return ok;
+}
+
+bool games_set_hidden(const char *root, game_t *g, bool hidden) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/System/hidden.txt", root);
+    if (!list_set(p, g, hidden)) return false;
+    g->user_hidden = hidden;
     return true;
 }
 
-void games_set_hidden(const char *root, game_t *g, bool hidden) {
-    char p[1100];
-    snprintf(p, sizeof p, "%s/System/hidden.txt", root);
-    if (list_set(p, g, hidden)) g->user_hidden = hidden;
-}
-
-void games_set_coll(const char *root, game_t *g, int ci, bool in) {
-    if (ci < 0 || ci >= NCOLLS) return;
+bool games_set_coll(const char *root, game_t *g, int ci, bool in) {
+    if (ci < 0 || ci >= NCOLLS) return false;
     char p[1100];
     snprintf(p, sizeof p, "%s/System/collections/%s.txt", root, COLLS[ci]);
-    if (!list_set(p, g, in)) return;
+    if (!list_set(p, g, in)) return false;
     if (in) g->colls |= 1u << ci;
     else g->colls &= ~(1u << ci);
+    return true;
 }
 
 /* nome utilizzabile come file: niente spazi doppi, barre o nomi nascosti */
@@ -1086,10 +1094,12 @@ void games_mark_lists(const char *root, game_t *g, int n) {
     free(favs);
 }
 
-void games_toggle_fav(const char *root, game_t *g) {
+bool games_toggle_fav(const char *root, game_t *g) {
     char path[1100];
     snprintf(path, sizeof path, "%s/System/favorites.txt", root);
-    if (list_set(path, g, !g->fav)) g->fav = !g->fav;   /* lista intera, fino a LIST_MAX */
+    if (!list_set(path, g, !g->fav)) return false;   /* lista intera, fino a LIST_MAX */
+    g->fav = !g->fav;
+    return true;
 }
 
 void games_add_recent(const char *root, game_t *g) {

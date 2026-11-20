@@ -3,6 +3,24 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.95
+it Caricando due stati di fila, la copia del salvataggio a batteria resta quella di prima
+en Loading two states in a row, the backup of the battery save stays the earlier one
+it Tre caricamenti dello stesso slot di fila non perdono più la partita di partenza
+en Three loads of the same slot in a row no longer lose the starting game
+it Batteria al 4%: la partita si salva di nuovo dopo una sospensione
+en Battery at 4%: the game is saved again after a sleep
+it Reimposta anche gli stati: tolte anche le copie dei salvataggi
+en Reset also the states: the backup copies of the saves are removed too
+it Giochi a sé: si spegne al 3% solo con due letture di fila della batteria
+en Standalone games: shutdown at 3% only after two battery readings in a row
+it Pagina Comandi del N64: la barra dice che su e giù scorrono
+en N64 Controls page: the bar says that up and down scroll
+it Preferiti e collezioni: avviso giusto se la lista non si salva, lista piena modificabile
+en Favorites and collections: right notice if the list is not saved, a full list can be changed
+it Piattaforme senza emulatori: invito allo Store, A lo apre
+en Platforms without emulators: invitation to the Store, A opens it
+
 0.9.94
 it Bluetooth: collegando cuffie o cassa, l'altro dispositivo audio si scollega e l'audio va a quello scelto
 en Bluetooth: connecting headphones or a speaker disconnects the other audio device, sound goes to the chosen one

@@ -58,6 +58,7 @@
     "no_games": "Pas encore de jeux : copiez vos ROM dans Arcade/Roms/FBNEO ou Arcade/Roms/MAME2003P",
     "fav_added": "Ajouté aux favoris",
     "fav_removed": "Retiré des favoris",
+    "list_failed": "Liste inchangée : carte pleine ou non inscriptible",
     "themes": "Thèmes",
     "favorites": "Favoris"
   },

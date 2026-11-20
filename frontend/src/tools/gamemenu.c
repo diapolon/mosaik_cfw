@@ -143,16 +143,19 @@ static void draw_static(const char *title) {
     int note_h = TTF_FontHeight(UI.f_small) + M(0.02f);
     ui_text_fit(UI.f_small, T(ctl_page ? "controls.note" : "game.linux_note"), pw - 2 * pad, buf, sizeof buf);
     ui_text(UI.f_small, buf, px + pad, py + ph - pad / 2 - note_h + M(0.01f), t->text_dim, ALIGN_LEFT);
+    g_px = px; g_py = py; g_pw = pw; g_ph = ph; g_rows_y = y; g_rh = M(t->list_row_h);
+    g_area_h = py + ph - pad / 2 - note_h - y - M(0.01f);
     ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, 255));
     if (ctl_page) {
-        const char *h[] = { "B", T("common.back") };
-        ui_hints(h, 2);
+        /* comandi che non stanno tutti (N64: 8 righe su 10): su e giù scorrono, e la barra lo dice
+           (audit 0.9.88, GIO-16) */
+        const char *h[] = { "^v", T("detail.scroll"), "B", T("common.back") };
+        if (nctl > ctl_visible()) ui_hints(h, 4);
+        else ui_hints(h + 2, 2);
     } else {
         const char *h[] = { "B", T("game.back_to_game"), "<>", T("common.change"), "A", T("common.ok") };
         ui_hints(h, 6);
     }
-    g_px = px; g_py = py; g_pw = pw; g_ph = ph; g_rows_y = y; g_rh = M(t->list_row_h);
-    g_area_h = py + ph - pad / 2 - note_h - y - M(0.01f);
 }
 
 /* righe delle voci: a ogni tasto si ridisegna solo questa zona */

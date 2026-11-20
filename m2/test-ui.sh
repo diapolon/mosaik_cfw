@@ -11,9 +11,10 @@ check() { if eval "$2"; then ok "$1"; else ko "$1"; fi; }
 
 mkdir -p /w && cp -r /trimui/frontend /trimui/VERSION /w/ && cp /trimui/UPDATE_URL /w/ 2> /dev/null
 cd /w/frontend && rm -rf build sdcard
-make build/launcher > /tmp/make.log 2>&1 || { cat /tmp/make.log; echo "launcher non compilato"; exit 1; }
+make build/launcher build/gamemenu > /tmp/make.log 2>&1 || { cat /tmp/make.log; echo "launcher non compilato"; exit 1; }
 # prova /trimui/frontend/src/launcher/launcher.c, /trimui/frontend/src/common/ui.c,
-# /trimui/frontend/src/launcher/music.c e /trimui/frontend/src/common/settings.c
+# /trimui/frontend/src/launcher/music.c, /trimui/frontend/src/common/settings.c e
+# /trimui/frontend/src/tools/gamemenu.c
 
 R=/tmp/sd/Arcade
 mkdir -p $R/System $R/Logs $R/Lang $R/Themes $R/Roms $R/Emulators
@@ -135,6 +136,37 @@ printf 'mame2003p\tgioco\n' > $R/System/favorites.txt
 ./build/launcher --root $R --auto "wait:60,shot:/tmp/h3.png,quit" > /tmp/l.log 2>&1
 n3=$(python3 /tmp/area.py /tmp/h0.png /tmp/h3.png)
 check "preferito da MAME 2003-Plus: la home lo mostra ($n3 pixel cambiati)" '[ "$n3" -gt 500 ]'
+
+# audit 0.9.88, GIO-16: la pagina Comandi del N64 mostra 8 righe su 10; la barra in basso non diceva
+# che su e giù scorrono
+echo "--- pagina Comandi del menu dei giochi (GIO-16)"
+cp emulators/n64.json $R/Emulators/
+printf '{ "name": "Prova", "kind": "console", "controls": [["A", "A"], ["B", "B"]] }\n' > $R/Emulators/corto.json
+SDL_VIDEODRIVER=dummy ARCADE_EMU=n64 ./build/gamemenu --root $R --controls --shot /tmp/c-lungo.png > /tmp/g.log 2>&1
+SDL_VIDEODRIVER=dummy ARCADE_EMU=corto ./build/gamemenu --root $R --controls --shot /tmp/c-corto.png > /tmp/g.log 2>&1
+cat > /tmp/barra.py <<'X'
+import sys
+from PIL import Image
+a, b = Image.open(sys.argv[1]).convert("RGB"), Image.open(sys.argv[2]).convert("RGB")
+w, h = a.size
+print(sum(1 for y in range(h * 92 // 100, h) for x in range(0, w * 80 // 100) if a.getpixel((x, y)) != b.getpixel((x, y))))
+X
+n=$(python3 /tmp/barra.py /tmp/c-lungo.png /tmp/c-corto.png)
+check "10 comandi su 8 righe: la barra dice che si scorre ($n pixel diversi da quella con 2 comandi)" '[ "$n" -gt 50 ]'
+
+# audit 0.9.88, LAU-19: senza emulatori Piattaforme mostrava «Tutti, 0 giochi» senza invitare allo
+# Store; A apriva la libreria vuota. Ora invita, e A apre lo Store
+echo "--- Piattaforme senza emulatori (LAU-19)"
+rm -rf $R/Emulators $R/Roms $R/Music $R/System/recent.txt $R/System/favorites.txt; mkdir -p $R/Emulators $R/Roms
+printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
+echo http://127.0.0.1:9 > $R/System/update-url.txt   # niente rete: lo Store senza catalogo, uguale ogni volta
+# dalla finestra «Nessun emulatore» della home, «Apri lo Store»: la schermata dello Store
+./build/launcher --root $R --auto "wait:40,a,wait:30,shot:/tmp/store.png,quit" > /tmp/l.log 2>&1
+# B chiude la finestra, A apre Piattaforme, A di nuovo
+./build/launcher --root $R --auto "wait:40,b,wait:20,a,wait:30,shot:/tmp/piatt.png,a,wait:30,shot:/tmp/piatt-a.png,quit" > /tmp/l.log 2>&1
+n=$(python3 /tmp/area.py /tmp/store.png /tmp/piatt-a.png)
+check "da Piattaforme senza emulatori A apre lo Store ($n pixel diversi)" '[ "$n" -lt 200 ]'
+rm -f $R/System/update-url.txt
 
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

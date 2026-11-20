@@ -102,6 +102,14 @@ static int sys_int(const char *path) {
     if (f) { if (fscanf(f, "%d", &v) != 1) v = -1; fclose(f); }
     return v;
 }
+
+/* batteria scarica: al 3% senza caricatore in due letture di fila (15 s): una lettura sbagliata per
+   un attimo, magari proprio all'avvio, chiudeva il gioco e spegneva (audit 0.9.88, GIO-17) */
+static bool batt_empty(int pct, bool usb) {
+    static int low;
+    low = pct >= 0 && pct <= 3 && !usb ? low + 1 : 0;
+    return low >= 2;
+}
 #endif
 
 static double now(void) {
@@ -440,7 +448,7 @@ int main(int argc, char **argv) {
         if (standalone && now() >= batt_next) {
             batt_next = now() + 15;
             int pct = sys_int("/sys/class/power_supply/axp2202-battery/capacity");
-            if (pct >= 0 && pct <= 3 && sys_int("/sys/class/power_supply/axp2202-usb/online") != 1) {
+            if (batt_empty(pct, sys_int("/sys/class/power_supply/axp2202-usb/online") == 1)) {
                 fprintf(stderr, "gamewatch: batteria al %d%%, chiudo il gioco e spengo\n", pct);
                 stop_group(pid);
                 if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
