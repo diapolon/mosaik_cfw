@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.102
+it Cuffie Bluetooth ricollegate durante un gioco: tornano al volume scelto, non più forti
+en Bluetooth headphones reconnected during a game: back to the chosen volume, not louder
+
 0.9.101
 it Bluetooth: non accende più il chip mentre il Wi-Fi lo sta ancora usando
 en Bluetooth: no longer turns the chip on while Wi-Fi is still using it

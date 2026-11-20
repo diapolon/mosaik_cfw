@@ -278,6 +278,19 @@ CONF
 
 # ultima riga "<campo>: valore" dell'uscita di info
 field() { echo "$info" | sed -n "s/^[[:space:]]*$1: //p" | tail -n 1; }
+# Volume delle cuffie a ogni collegamento: con un collegamento nuovo bluealsa riparte dal suo volume
+# di partenza, più alto, e a rimettere quello scelto era solo il launcher; durante un gioco Linux o un
+# emulatore a sé (Deadcast dopo il risveglio) restava alto (console, 20 novembre). "bt-ctl volume"
+# ricorda l'ultimo valore in $RUN/volume; il controllo di bluealsa compare poco dopo il collegamento
+volume_back() {
+    v=$(cat "$RUN/volume" 2> /dev/null); [ -n "$v" ] || return 0
+    for i in 1 2 3 4 5 6; do
+        sh "$0" volume "$v" > /dev/null 2>&1 9>&- && return 0
+        sleep ${BT_VOLUME_WAIT:-0.5}
+    done
+    log "volume $v non rimesso: controllo di bluealsa non trovato"
+}
+
 # righe "Device INDIRIZZO nome" → righe per il launcher
 describe() {
     while read -r w a name; do
@@ -420,6 +433,7 @@ connect)
     if echo "$out" | grep -q 'Connection successful'; then
         mkdir -p "$DIR"; echo "$2" > "$LAST"; echo "$2" > "$RUN/collegato"
         logs "collegato $2"
+        volume_back
         # un'uscita audio alla volta: collegate cuffie o cassa, le altre si scollegano (BT-06); un
         # controller non scollega niente
         if [ -n "$(echo "Device $2" | describe | awk -F'\t' '$2 == "audio" || $2 == "cassa"')" ]; then
@@ -457,7 +471,7 @@ reconnect)
     for t in 1 2 3 4 5 6; do
         bt_on || exit 1
         timeout 5 bluetoothctl info "$a" 2> /dev/null | grep -q 'Connected: yes' && { echo "$a" > "$RUN/collegato"; route "$(connected_audio)"; exit 0; }
-        timeout 15 bluetoothctl connect "$a" 2>&1 | grep -q 'Connection successful' && { echo "$a" > "$RUN/collegato"; logs "ricollegato $a"; route "$(connected_audio)"; exit 0; }
+        timeout 15 bluetoothctl connect "$a" 2>&1 | grep -q 'Connection successful' && { echo "$a" > "$RUN/collegato"; logs "ricollegato $a"; route "$(connected_audio)"; volume_back; exit 0; }
         sleep ${BT_RECONNECT_WAIT:-5}
     done
     log "ricollegamento a $a non riuscito"
@@ -466,6 +480,7 @@ reconnect)
 volume)
     p=$2; case "$p" in ''|*[!0-9]*) echo "uso: bt-ctl volume 0..100" >&2; exit 2 ;; esac
     [ "$p" -gt 100 ] && p=100
+    mkdir -p "$RUN"; echo "$p" > "$RUN/volume"   # lo rimette volume_back a ogni collegamento
     c=$(amixer -D bluealsa scontrols 2> /dev/null | sed -n "s/^Simple mixer control '\(.*\)',[0-9]*$/\1/p" | grep -- '- A2DP' | head -n 1)
     [ -n "$c" ] || exit 1
     # fra apici: senza, amixer legge una virgola nel nome come separatore dell'indice (BT-20)
@@ -569,7 +584,7 @@ watch)
         fi
         if [ -n "$again" ]; then   # cuffie ricollegate al servizio nuovo
             timeout 10 bluetoothctl disconnect "$again" > /dev/null 2>&1; sleep 1
-            timeout 15 bluetoothctl connect "$again" > /dev/null 2>&1
+            timeout 15 bluetoothctl connect "$again" > /dev/null 2>&1 && volume_back
             again=""
         fi
         route "$(connected_audio)"

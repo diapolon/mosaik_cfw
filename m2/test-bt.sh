@@ -557,5 +557,22 @@ check "blocco libero: si accende" '[ "$($CTL status)" = acceso ]'
 $CTL off > /dev/null 2>&1
 reset
 
+# console, 20 novembre: cuffie ricollegate durante un gioco Linux o un emulatore a sé (Deadcast dopo
+# il risveglio): il volume delle cuffie tornava quello di partenza, più alto, perché a rimetterlo era
+# solo il launcher. Ora bt-ctl ricorda l'ultimo volume e lo rimette a ogni collegamento
+echo "--- volume delle cuffie rimesso al ricollegamento"
+reset
+printf 'Wireless Earbuds - A2DP\n' > $F/mixer
+$CTL on > /dev/null 2>&1; $CTL scan 1 > /dev/null; $CTL pair 02:00:00:00:00:01 > /dev/null 2>&1
+$CTL volume 35 > /dev/null 2>&1
+rm -f $F/connected; : > $F/calls          # le cuffie si spengono (sospensione), poi si riaccendono
+$CTL reconnect > /dev/null 2>&1
+check "ricollegate da sole: volume 35% rimesso" 'grep -qxF "volume Wireless Earbuds - A2DP 35%" $F/calls'
+$CTL disconnect 02:00:00:00:00:01 > /dev/null 2>&1; : > $F/calls
+$CTL connect 02:00:00:00:00:01 > /dev/null 2>&1
+check "ricollegate dal menu: volume 35% rimesso" 'grep -qxF "volume Wireless Earbuds - A2DP 35%" $F/calls'
+$CTL off > /dev/null 2>&1
+reset
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }
