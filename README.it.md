@@ -36,7 +36,7 @@
 - **NES, Super Nintendo, Mega Drive, Master System, Game Gear, PC Engine, Game Boy, Game Boy Color, Game Boy Advance e Neo Geo Pocket**, con i salvataggi a batteria scritti ogni 10 secondi (anche l'orologio dei Pokémon), salvataggi separati per ogni console e le ROM zippate.
 - **PlayStation** (PCSX ReARMed) con le levette del DualShock: dischi `.chd`, `.cue` e `.pbp`, giochi su più dischi con un file `.m3u` e il cambio disco nel menu di gioco.
 - **Dreamcast** con [Deadcast](https://github.com/tyrannotorus/emulator-dreamcast-deadcast) sulla Brick Pro e con [Flycast](https://github.com/flyinghead/flycast) sulla Smart Pro (sperimentale): lo Store propone a ogni console il suo.
-- **Altre console nello Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 e 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy, Nintendo 64 (Mupen64Plus, con gli stati salvati); sperimentale PSP (PPSSPP).
+- **Altre console nello Store**: Sega CD, PC Engine CD, SG-1000, Atari 2600 e 7800, ColecoVision, Intellivision, Lynx, WonderSwan, Pokémon mini, Virtual Boy, Nintendo 64 (Mupen64Plus, con gli stati salvati), PSP (PPSSPP).
 - **Computer**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS (DOSBox Pure) e Amiga, con la tastiera a schermo dei loro emulatori.
 - **Copertine e informazioni anche per le console**: scatola, titolo, anno, editore, genere e giocatori, trovati dalla ROM stessa.
 - **Giochi Linux**, con menu sopra al gioco e sospensione; dallo Store (0.9.58, sperimentali): Freedoom, Mr.Boom e Diablo (con i file del gioco originale).
@@ -69,10 +69,11 @@ Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stat
 
 **Provato su una console sola**
 - **Dreamcast con Deadcast**: Brick Pro (lo Store non lo propone sulla Smart Pro).
+- **PSP con PPSSPP**: Brick Pro (**Menu** premuto breve per il menu di PPSSPP, tenuto per quello di Mosaik).
 - **Test della SD**: Brick Pro.
 
 **Sperimentale: si possono installare, non sono ancora stati provati**
-- **Console**: NES, Game Boy e Game Boy Color, Game Boy Advance, PC Engine, PlayStation, PSP, Atari 2600, 7800 e Lynx, ColecoVision, Intellivision, Neo Geo Pocket, WonderSwan, Virtual Boy, Pokémon mini, Dreamcast con Flycast (solo Smart Pro).
+- **Console**: NES, Game Boy e Game Boy Color, Game Boy Advance, PC Engine, PlayStation, Atari 2600, 7800 e Lynx, ColecoVision, Intellivision, Neo Geo Pocket, WonderSwan, Virtual Boy, Pokémon mini, Dreamcast con Flycast (solo Smart Pro).
 - **Arcade**: MAME 2010.
 - **Computer**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS, Amiga.
 - **Giochi Linux**: Freedoom, Mr.Boom, Diablo (DevilutionX).
