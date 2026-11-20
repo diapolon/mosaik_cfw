@@ -166,6 +166,7 @@ int ui_volume_icon(int x, int y, int h, color_t c);
 void ui_speaker_icon(int x, int y, int h, color_t c);
 void ui_toast_volume(const char *msg);   /* come ui_toast, con l'icona dell'uscita */
 void ui_alsa_reload(void);   /* con l'audio chiuso: la prossima apertura rilegge /etc/asound.conf */
+void ui_audio_mark_stuck(void);   /* una chiusura dell'audio è rimasta appesa: niente più aperture */
 void ui_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c);
 void ui_gear(int cx, int cy, int rad, color_t c);
 

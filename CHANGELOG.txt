@@ -4,6 +4,8 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.95
+it Bluetooth: dopo la sospensione con le cuffie l'audio torna, sulle cuffie o sull'altoparlante
+en Bluetooth: after sleep with headphones the sound comes back, in the headphones or on the speaker
 it Caricando due stati di fila, la copia del salvataggio a batteria resta quella di prima
 en Loading two states in a row, the backup of the battery save stays the earlier one
 it Tre caricamenti dello stesso slot di fila non perdono più la partita di partenza

@@ -435,6 +435,7 @@ void music_before_sleep(void) {
     mixer_on = false;
     if (!mix_close_timed()) {
         mixer_stuck = true;
+        ui_audio_mark_stuck();   /* nemmeno l'audio dei menu: aprirlo si bloccherebbe sulla chiusura appesa */
         ui_log("musica: l'audio non si chiude entro 3 s (uscita cambiata o sospensione), si prosegue senza audio");
     }
     /* l'uscita resta libera fino al risveglio: riaprire qui l'audio dei menu era un'apertura

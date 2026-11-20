@@ -168,5 +168,14 @@ n=$(python3 /tmp/area.py /tmp/store.png /tmp/piatt-a.png)
 check "da Piattaforme senza emulatori A apre lo Store ($n pixel diversi)" '[ "$n" -lt 200 ]'
 rm -f $R/System/update-url.txt
 
+# audit 0.9.88, BT-03 (console, 20 novembre): al risveglio con le cuffie l'audio non si apriva
+# ("Cannot allocate memory") e poi nessun cambio d'uscita lo riapriva: muto fino al riavvio
+echo "--- audio che non si apre, poi uscita cambiata (BT-03)"
+printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
+rm -f $R/Logs/Arcade.log
+(unset ARCADE_NO_AUDIO; ARCADE_AUDIO_FAIL=1 ./build/launcher --root $R --auto "wait:40,route,wait:20,quit" > /tmp/l.log 2>&1)
+check "apertura fallita all'avvio (prova)" 'grep -q "audio non disponibile" $R/Logs/Arcade.log'
+check "uscita cambiata: l'audio si riapre" 'grep -q "audio: driver" $R/Logs/Arcade.log'
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

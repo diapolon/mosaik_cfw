@@ -237,6 +237,11 @@ void ui_suspend(void) {
     plat_screen_off(true);
     plat_apply(&UI.set);
     plat_suspend();
+    /* durante il sonno bt-ctl spegne il Bluetooth e rimette asound.conf sull'altoparlante: con la
+       configurazione di prima, ancora verso le cuffie, l'audio non si apriva più ("Cannot allocate
+       memory", 20 novembre, audit 0.9.88 BT-03). L'audio qui è chiuso (anche quello della musica):
+       la prossima apertura rilegge la configurazione */
+    ui_alsa_reload();
     /* arcade-suspend ha visto la SD non rispondere: da qui nessun programma scrive sulla scheda
        (il runner esce subito, il launcher mostra il riavvio) */
     if (plat_standalone() && access("/run/sd-guasta", F_OK) == 0) UI.sd_failed = true;
@@ -1059,10 +1064,15 @@ static void audio_open(void) {
     if (getenv("ARCADE_NO_AUDIO")) { ui_log("audio disattivato (ARCADE_NO_AUDIO)"); UI.audio = 0; return; }
     SDL_AudioSpec want = { .freq = UI.audio_rate, .format = AUDIO_S16SYS, .channels = 2, .samples = 512 }, have;
     UI.audio = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+#ifndef TRIMUI_DEVICE
+    /* prove (test-ui.sh): le prime N aperture non riescono, come al risveglio con le cuffie (BT-03) */
+    static int fail = -1;
+    if (fail < 0) { const char *e = getenv("ARCADE_AUDIO_FAIL"); fail = e ? atoi(e) : 0; }
+    if (UI.audio && fail > 0) { fail--; SDL_CloseAudioDevice(UI.audio); UI.audio = 0; SDL_SetError("prova"); }
+#endif
     if (UI.audio) {
         SDL_PauseAudioDevice(UI.audio, 0);
-        if (plat_is_device())
-            ui_log("audio: driver %s, %d Hz, %d canali, %d campioni", SDL_GetCurrentAudioDriver(), have.freq, have.channels, have.samples);
+        ui_log("audio: driver %s, %d Hz, %d canali, %d campioni", SDL_GetCurrentAudioDriver(), have.freq, have.channels, have.samples);
     } else {
         ui_log("audio non disponibile: %s", SDL_GetError());
     }
@@ -1092,13 +1102,20 @@ void ui_alsa_reload(void) {
 }
 
 void ui_audio_reopen(void) {
-    if (!UI.audio || audio_stuck) return;   /* l'uscita è del mixer, o non c'è */
-    SDL_AudioDeviceID dev = UI.audio;
-    UI.audio = 0;
-    if (!audio_close_timed(dev)) { audio_stuck = true; ui_log("audio: l'uscita non si chiude entro 3 s, si prosegue senza audio"); return; }
+    if (audio_stuck || pcm_hook) return;   /* una chiusura appesa, o l'uscita è del mixer */
+    /* anche se l'apertura di prima non era riuscita: al risveglio con le cuffie restava muto finché
+       non si riavviava il launcher, qualunque uscita si scegliesse dopo (BT-03) */
+    if (UI.audio) {
+        SDL_AudioDeviceID dev = UI.audio;
+        UI.audio = 0;
+        if (!audio_close_timed(dev)) { audio_stuck = true; ui_log("audio: l'uscita non si chiude entro 3 s, si prosegue senza audio"); return; }
+    }
     ui_alsa_reload();
     audio_open();
 }
+
+/* la musica non ha chiuso il suo audio (BT-09): niente più aperture fino al prossimo avvio */
+void ui_audio_mark_stuck(void) { audio_stuck = true; }
 
 int ui_volume_out(void) {
     if (UI.set.bt_route) return bt_status()->kind == BT_SPEAKER ? VOUT_BT_SPEAKER : VOUT_HEADPHONES;
