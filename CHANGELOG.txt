@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.105
+it Guida degli emulatori: SELECT in Piattaforme e nella scheda dello Store (PSP, Nintendo 64, Dreamcast)
+en Emulator guide: SELECT in Platforms and on the Store package page (PSP, Nintendo 64, Dreamcast)
+it Al primo gioco di PSP, Nintendo 64 e Dreamcast la guida compare da sola: come si apre il menu e come si esce
+en The first game on PSP, Nintendo 64 and Dreamcast shows the guide by itself: how to open the menu and how to exit
+
 0.9.104
 it Giochi Linux: possono chiedere la frequenza della CPU (cpu in game.json), anche il menu di Mosaik la tiene
 en Linux games: they can ask for a CPU frequency ("cpu" in game.json), and the Mosaik menu keeps it

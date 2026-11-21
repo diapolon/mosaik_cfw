@@ -45,6 +45,7 @@ typedef struct {
     char icon[72], icon_sha[65]; /* icona di un'app per il riquadro (dalla 0.9.70), "" se non c'è */
     int nimg;                    /* immagini della scheda (dalla 0.9.67): file accanto agli zip */
     char img[4][72], img_sha[4][65];
+    char guide[1024];            /* guida dell'emulatore nella lingua della console, righe separate da \n (dalla 0.9.105) */
 } store_pkg_t;
 
 typedef struct {

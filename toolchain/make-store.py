@@ -301,6 +301,12 @@ for pid in sorted(os.listdir(args.src)):
         "file": os.path.basename(zpath), "size": os.path.getsize(zpath), "installed": installed,
         "sha256": sha256(zpath), "files": files,
     }
+    # guida dell'emulatore (il primo del pacchetto che ne ha una): la scheda dello Store la mostra
+    # prima dell'installazione (dal sistema 0.9.105; i sistemi prima ignorano il campo)
+    for em in ems:
+        if isinstance(em.get("guide"), dict) and em["guide"]:
+            entry["guide"] = em["guide"]
+            break
     if pid in stato.get("experimental", []):
         entry["status"] = "experimental"
     if stato.get("tested", {}).get(pid):

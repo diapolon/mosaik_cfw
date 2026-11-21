@@ -65,6 +65,8 @@ int emulators_load(const char *root) {
         m->cpu = json_int(j, "cpu", 0);
         if (m->cpu < 0 || m->cpu > 4) m->cpu = 0;
         m->folders = json_bool(j, "folders", false);
+        jval *gd = json_get(j, "guide");
+        m->has_guide = gd && gd->t == J_OBJ && gd->child;
         m->planned = planned;
         /* produttore e anno (layout galleria): dal JSON, altrimenti dalla tabella qui sotto, così
            gli emulatori già pubblicati non cambiano pacchetto solo per questo */

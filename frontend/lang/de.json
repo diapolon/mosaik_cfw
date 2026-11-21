@@ -1195,5 +1195,9 @@
     "emu_menu": "Flycast-Menü",
     "pad": "TrimUI",
     "note": "Standardsteuerung. B, um zum Menü zurückzukehren."
+  },
+  "guide": {
+    "title": "Anleitung",
+    "close": "Schließen"
   }
 }

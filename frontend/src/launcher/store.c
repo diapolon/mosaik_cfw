@@ -307,6 +307,16 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
         x->p.console = cv && cv->t == J_BOOL && cv->n != 0;
         x->p.installed = (long long)json_num(v, "installed", 0);
         x->p.experimental = !strcmp(json_str(v, "status", ""), "experimental");
+        {   /* guida dell'emulatore ("guide": {"it": [righe], "en": [...]}): lingua della console, poi inglese */
+            jval *gd = json_get(v, "guide"), *gl = NULL;
+            for (jval *c = gd && gd->t == J_OBJ ? gd->child : NULL; c; c = c->next)
+                if (c->t == J_ARR && (!strcmp(c->key, lang_code) || (!gl && !strcmp(c->key, "en")))) gl = c;
+            for (jval *ln = gl ? gl->child : NULL; ln; ln = ln->next)
+                if (ln->t == J_STR) {
+                    size_t l = strlen(x->p.guide);
+                    snprintf(x->p.guide + l, sizeof x->p.guide - l, "%s%s", l ? "\n" : "", ln->s);
+                }
+        }
         snprintf(x->p.min_system, sizeof x->p.min_system, "%s", json_str(v, "min_system", ""));
         x->p.needs_system = x->p.min_system[0] && system_version[0] && version_cmp(system_version, x->p.min_system) < 0;
         {

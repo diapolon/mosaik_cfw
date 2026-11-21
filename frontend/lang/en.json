@@ -1195,5 +1195,9 @@
     "emu_menu": "Flycast menu",
     "pad": "TrimUI",
     "note": "Default controls. B to go back to the menu."
+  },
+  "guide": {
+    "title": "Guide",
+    "close": "Close"
   }
 }

@@ -682,6 +682,135 @@ static bool have_games(void) {
 
 static void sw_write_list(const game_t *g);
 
+/* ------------------------------------------------------- guida degli emulatori (0.9.105) */
+/* "guide" nel JSON dell'emulatore: {"it": ["riga", ...], "en": [...]}, poche righe con le cose da
+   sapere (come si apre il suo menu, come si esce, BIOS). Si apre con SELECT in Piattaforme e dalla
+   scheda del pacchetto nello Store; per gli emulatori a sé (con "launch": PSP, N64, Dreamcast) compare
+   anche da sola al primo avvio, una volta (System/guide-viste.txt). Lingua della console, poi inglese. */
+#define GUIDE_LINES 16
+static bool guide_open, guide_first, guide_skip;
+static int guide_sel, guide_scroll, guide_n;
+static char guide_title[96], guide_lines[GUIDE_LINES][320];
+static game_t *guide_game;   /* primo avvio: il gioco che parte dopo A */
+static bool guide_resume;
+
+static int guide_from_json(jval *gd, char *used, size_t un) {
+    jval *gl = NULL;
+    for (jval *c = gd && gd->t == J_OBJ ? gd->child : NULL; c; c = c->next)
+        if (c->t == J_ARR && (!strcmp(c->key, UI.set.lang) || (!gl && !strcmp(c->key, "en")))) gl = c;
+    guide_n = 0;
+    snprintf(used, un, "%s", gl ? gl->key : "-");
+    for (jval *l = gl ? gl->child : NULL; l && guide_n < GUIDE_LINES; l = l->next)
+        if (l->t == J_STR && l->s[0]) snprintf(guide_lines[guide_n++], sizeof guide_lines[0], "%s", l->s);
+    return guide_n;
+}
+
+/* guida di un emulatore installato: false se non ne ha */
+static bool guide_load_emu(const emulator_t *e) {
+    char p[1100], used[16];
+    snprintf(p, sizeof p, "%s/Emulators/%s.json", UI.root, e->id);
+    jval *j = json_load(p);
+    int n = guide_from_json(json_get(j, "guide"), used, sizeof used);
+    json_free(j);
+    snprintf(guide_title, sizeof guide_title, "%s", e->name);
+    if (n) ui_log("guida di %s: %d righe (%s)", e->id, n, used);
+    return n > 0;
+}
+
+/* guida dal catalogo dello Store (righe separate da \n, già nella lingua giusta) */
+static bool guide_load_text(const char *title, const char *text) {
+    guide_n = 0;
+    for (const char *c = text; *c && guide_n < GUIDE_LINES;) {
+        const char *e = strchr(c, '\n');
+        size_t l = e ? (size_t)(e - c) : strlen(c);
+        if (l) snprintf(guide_lines[guide_n++], sizeof guide_lines[0], "%.*s", (int)l, c);
+        c += l + (e ? 1 : 0);
+    }
+    snprintf(guide_title, sizeof guide_title, "%s", title);
+    return guide_n > 0;
+}
+
+static bool guide_seen(const char *id) {
+    char p[1100], line[64];
+    snprintf(p, sizeof p, "%s/System/guide-viste.txt", UI.root);
+    FILE *f = fopen(p, "r");
+    bool found = false;
+    while (f && !found && fgets(line, sizeof line, f)) { line[strcspn(line, "\r\n")] = 0; found = !strcmp(line, id); }
+    if (f) fclose(f);
+    return found;
+}
+
+static void guide_mark(const char *id) {
+    char p[1100];
+    snprintf(p, sizeof p, "%s/System/guide-viste.txt", UI.root);
+    FILE *f = fopen(p, "a");
+    if (f) { fprintf(f, "%s\n", id); fflush(f); fsync(fileno(f)); fclose(f); }
+}
+
+static void guide_show(bool first) {
+    guide_open = true;
+    guide_first = first;
+    guide_sel = guide_scroll = 0;
+}
+
+static void launch_ex(game_t *g, bool resume);
+static void guide_input(void) {
+    input_t *in = &UI.in;
+    if (in->pressed[BTN_UP] && guide_scroll > 0) { guide_scroll--; ui_sound(SND_MOVE); }
+    if (in->pressed[BTN_DOWN]) { guide_scroll++; ui_sound(SND_MOVE); }   /* il disegno lo ferma all'ultima riga */
+    int r = ui_popup_input(&guide_sel, guide_first ? 2 : 1);
+    if (r == -1 && !(in->pressed[BTN_SELECT] && !guide_first)) return;
+    guide_open = false;
+    if (guide_first && r == 0 && guide_game) {   /* Gioca: vista, e il gioco parte */
+        const emulator_t *e = emulator_find(guide_game->core);
+        if (e) guide_mark(e->id);
+        ui_sound(SND_OK);
+        guide_skip = true;
+        launch_ex(guide_game, guide_resume);
+        guide_skip = false;
+        return;
+    }
+    ui_sound(SND_BACK);
+}
+
+static void guide_draw(void) {
+    theme_t *t = &UI.th;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
+    TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
+    int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
+    int w = UI.w - 2 * M(0.06f), pad = M(0.04f), tw = w - 2 * pad - M(0.03f);
+    /* righe con il pallino, a capo dentro la finestra */
+    static char wrapped[GUIDE_LINES * 4][160];
+    static bool cont[GUIDE_LINES * 4];
+    int nw = 0;
+    for (int k = 0; k < guide_n && nw < GUIDE_LINES * 4; k++) {
+        char tmp[8][160];
+        int n = ui_wrap(fn, guide_lines[k], tw, tmp, 8);
+        for (int q = 0; q < n && nw < GUIDE_LINES * 4; q++) { snprintf(wrapped[nw], sizeof wrapped[0], "%s", tmp[q]); cont[nw++] = q > 0; }
+    }
+    /* alta quanto il testo, al massimo lo schermo; se non ci sta, su e giù scorrono */
+    int hmax = UI.h - 2 * M(0.05f), h = pad + fth + M(0.02f) + nw * fnh + M(0.02f) + ui_popup_buttons_h();
+    if (h > hmax) h = hmax;
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2, lx = x + pad;
+    ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
+    ui_rrect(x, y, w, h, r, t->popup);
+    char title[160], fit[160];
+    snprintf(title, sizeof title, "%s · %s", T("guide.title"), guide_title);
+    ui_text_fit(ft, title, w - 2 * pad, fit, sizeof fit);
+    ui_text(ft, fit, lx, y + pad, t->text, ALIGN_LEFT);
+    int top = y + pad + fth + M(0.02f), bot = y + h - ui_popup_buttons_h();
+    int fit_rows = (bot - top) / fnh, maxs = nw > fit_rows ? nw - fit_rows : 0;
+    if (guide_scroll > maxs) guide_scroll = maxs;
+    for (int k = guide_scroll, cy = top; k < nw && cy + fnh <= bot; k++, cy += fnh) {
+        if (!cont[k]) ui_text(fn, "•", lx, cy, t->accent, ALIGN_LEFT);
+        ui_text(fn, wrapped[k], lx + M(0.03f), cy, t->text, ALIGN_LEFT);
+    }
+    if (maxs) ui_text(fs, guide_scroll < maxs ? "▼" : "▲", x + w - pad, bot - fsh, t->text_dim, ALIGN_RIGHT);
+    const char *one[1] = { T("guide.close") }, *two[2] = { T("common.play"), T("common.back") };
+    if (guide_first) ui_popup_buttons(x, y, w, h, two, 2, guide_sel, -1);
+    else ui_popup_buttons(x, y, w, h, one, 1, 0, -1);
+}
+
 static void launch_ex(game_t *g, bool resume) {
     char path[1100], core[1100];
     if (g->key_unsaved) {   /* la sua chiave non è nel registro: partirebbe con salvataggi non suoi (R39-01) */
@@ -754,6 +883,13 @@ static void launch_ex(game_t *g, bool resume) {
     }
     /* emulatore a sé (non libretro): parte come un gioco Linux, il suo script riceve il gioco */
     const emulator_t *xemu = sh || lcore[0] ? NULL : emulator_find(g->core);
+    /* primo avvio di un emulatore a sé con una guida: prima le cose da sapere, una volta sola */
+    if (xemu && xemu->launch[0] && !guide_skip && !guide_seen(xemu->id) && guide_load_emu(xemu)) {
+        guide_game = g;
+        guide_resume = resume;
+        guide_show(true);
+        return;
+    }
     char xscript[1100] = "";
     if (xemu && xemu->launch[0]) {
         snprintf(xscript, sizeof xscript, "%s/%s", UI.root, xemu->launch);
@@ -3014,13 +3150,13 @@ static void plat_draw(void) {
     /* console in arrivo: niente da aprire */
     bool plan = nptabs && is_plan(ptabs[plat_sel]);
     bool emu = nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL;
+    bool cfg = emu && ccfg_possible(ptabs[plat_sel] - TAB_EMU), gd = emu && EMUS[ptabs[plat_sel] - TAB_EMU].has_guide;
     const char *h[] = { "A", T("plat.open"), NULL, "X", T("scrape.pick_hint"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL,
-                        "Y", T("plat.console_settings"), NULL };
-    bool cfg = emu && ccfg_possible(ptabs[plat_sel] - TAB_EMU);
+                        cfg ? "Y" : "SELECT", cfg ? T("plat.console_settings") : T("guide.title"), NULL, "SELECT", T("guide.title"), NULL };
     const char *hp[] = { "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
     const char *ho[] = { "A", T("plat.open"), NULL, "B", T("common.back"), NULL, "START", T("common.settings"), NULL };
     if (plan) ui_keybar(hp, 6);
-    else if (emu) ui_keybar(h, cfg ? 15 : 12);
+    else if (emu) ui_keybar(h, 12 + (cfg ? 3 : 0) + (gd ? 3 : 0));
     else ui_keybar(ho, 9);
 }
 
@@ -3697,6 +3833,10 @@ static void plat_input(void) {
     } else if (in->pressed[BTN_B]) { go(SCR_HOME); ui_sound(SND_BACK); }
     else if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
     else if (in->pressed[BTN_X] && nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL) spk_show(ptabs[plat_sel] - TAB_EMU);
+    else if (in->pressed[BTN_SELECT] && nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL) {
+        if (guide_load_emu(&EMUS[ptabs[plat_sel] - TAB_EMU])) { guide_show(false); ui_sound(SND_OK); }
+        else ui_sound(SND_ERROR);
+    }
     else if (in->pressed[BTN_Y] && nptabs && ptabs[plat_sel] >= TAB_EMU && ptabs[plat_sel] < TAB_COLL) {
         if (ccfg_possible(ptabs[plat_sel] - TAB_EMU)) ccfg_show(ptabs[plat_sel] - TAB_EMU);
         else ui_sound(SND_ERROR);
@@ -4831,6 +4971,10 @@ static void sto_input(void) {
     }
     if (sto_detail && idx >= 0) {
         const store_pkg_t *p = store_pkg(idx);
+        if (in->pressed[BTN_SELECT] && p->guide[0]) {   /* guida dell'emulatore, prima di installarlo */
+            if (guide_load_text(p->name, p->guide)) { guide_show(false); ui_sound(SND_OK); }
+            return;
+        }
         if (p->nimg && (in->pressed[BTN_L] || in->pressed[BTN_R])) {   /* immagini: L e R */
             sto_img = (sto_img + (in->pressed[BTN_R] ? 1 : p->nimg)) % (p->nimg + 1);
             ui_sound(SND_MOVE);
@@ -5448,8 +5592,9 @@ static void sto_draw(void) {
         for (int k = 0; k < nb; k++) { labels[k] = T(bk[bl[k]]); if (bl[k] == SB_DELETE) danger = k; }
         if (sto_dsel >= nb) sto_dsel = nb - 1;
         ui_popup_buttons(px, top, pw, ph, labels, nb, sto_dsel, danger);
-        const char *hk[] = { "B", T("common.back"), NULL, "A", T("common.ok"), NULL, "L/R", T("store.images"), NULL };
-        ui_keybar(hk, p.nimg ? 9 : 6);
+        const char *hk[] = { "B", T("common.back"), NULL, "A", T("common.ok"), NULL, p.nimg ? "L/R" : "SELECT", p.nimg ? T("store.images") : T("guide.title"), NULL,
+                             "SELECT", T("guide.title"), NULL };
+        ui_keybar(hk, 6 + (p.nimg ? 3 : 0) + (p.guide[0] ? 3 : 0));
     }
     if (sto_ask == SA_DELETE2 && idx >= 0) {   /* ultima conferma: A tenuto premuto 3 secondi */
         double held = sto_hold > 0 ? UI.t - sto_hold : 0;
@@ -10097,7 +10242,7 @@ int main(int argc, char **argv) {
             reset_step = 0;
             cfm_kind = CFM_NONE;
             cp_open = false;
-            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = batt_open = chtest_open = support_open = wpanel_open = btp_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
+            diag_open = kb_open = fpanel_open = dlg_open = gopt_open = ccfg_open = clock_open = sdinfo_open = batt_open = chtest_open = support_open = guide_open = wpanel_open = btp_open = clean_open = gp_open = rcq_open = spk_open = tzp_open = false;
             if (screen == SCR_STORE) { store_join(); if (store_changed()) reload_games(); sto_detail = false; sto_ask = SA_NONE; }
             if (fsrv_open) fsrv_close();
             go(SCR_HOME);
@@ -10157,6 +10302,7 @@ int main(int argc, char **argv) {
         else if (batt_open) batt_input();
         else if (chtest_open) chtest_input();
         else if (support_open) support_input();
+        else if (guide_open) guide_input();
         else if (fsrv_open) fsrv_input();
         else if (qp_open) qp_input();
         else if (UI.in.pressed[BTN_MENU] && !setup_step && !kb_open) qp_show();   /* pannello rapido, da ogni schermata */
@@ -10225,6 +10371,7 @@ int main(int argc, char **argv) {
         if (batt_open) batt_draw();
         if (chtest_open) chtest_draw();
         if (support_open) support_draw();
+        if (guide_open) guide_draw();
         if (fsrv_open) fsrv_draw();
         if (fpanel_open) fpanel_draw();
         if (sw_open) sw_draw();

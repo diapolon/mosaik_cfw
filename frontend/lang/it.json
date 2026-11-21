@@ -1195,5 +1195,9 @@
     "emu_menu": "Menu di Flycast",
     "pad": "TrimUI",
     "note": "Comandi di partenza. B per tornare al menu."
+  },
+  "guide": {
+    "title": "Guida",
+    "close": "Chiudi"
   }
 }

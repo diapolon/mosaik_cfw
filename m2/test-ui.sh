@@ -211,6 +211,38 @@ linux_game '{ "title": "Gioco", "min_system": "0.9.58" }'
 check "senza cpu: niente (profilo generale)" '! grep -q ARCADE_CPU_KHZ $R/System/next.env 2>/dev/null'
 rm -rf $R/Linux $R/System/avvio-gioco.txt $R/System/next.txt $R/System/next.env
 
+# 21 novembre: guida degli emulatori ("guide" nel loro JSON): SELECT in Piattaforme e, per gli
+# emulatori a sé (PSP, N64, Dreamcast), un riquadro al primo avvio con le cose da sapere
+echo "--- guida degli emulatori"
+guide_root() {
+    rm -rf $R/Emulators $R/Roms $R/Linux $R/Cores/finto $R/System/next.txt $R/System/guide-viste.txt $R/System/recent.txt /tmp/mosaik-avvio-launcher
+    mkdir -p $R/Emulators $R/Roms/FINTO $R/Cores/finto
+    printf '#!/bin/sh\nexit 0\n' > $R/Cores/finto/launch.sh
+    echo x > $R/Roms/FINTO/gioco.iso
+    cat > $R/Emulators/finto.json <<'J'
+{ "name": "Finto", "kind": "console", "launch": "Cores/finto/launch.sh", "roms": "Roms/FINTO", "extensions": ["iso"],
+  "guide": { "it": ["Menu breve: menu dell'emulatore", "Menu tenuto: menu di Mosaik"],
+             "en": ["Short Menu: emulator menu", "Held Menu: Mosaik menu"] } }
+J
+    printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
+}
+guide_root; printf 'finto\tgioco\n' > $R/System/avvio-gioco.txt; rm -f $R/Logs/Arcade.log
+ARCADE_TEST_AUTOBOOT=1 ./build/launcher --root $R --auto "wait:40,shot:/tmp/guida1.png,quit" > /tmp/l.log 2>&1
+check "primo avvio: prima la guida, il gioco non parte" '[ ! -f $R/System/next.txt ] && grep -q "guida di finto: 2 righe" $R/Logs/Arcade.log'
+rm -f /tmp/mosaik-avvio-launcher
+ARCADE_TEST_AUTOBOOT=1 ./build/launcher --root $R --auto "wait:40,a,wait:20,quit" > /tmp/l.log 2>&1
+check "A: il gioco parte e la guida resta vista" '[ -s $R/System/next.txt ] && grep -qx finto $R/System/guide-viste.txt'
+rm -f /tmp/mosaik-avvio-launcher $R/System/next.txt
+ARCADE_TEST_AUTOBOOT=1 ./build/launcher --root $R --auto "wait:40,quit" > /tmp/l.log 2>&1
+check "la volta dopo parte subito" '[ -s $R/System/next.txt ]'
+guide_root; rm -f $R/System/avvio-gioco.txt; rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "wait:40,b,wait:20,a,wait:30,right,wait:10,right,wait:20,select,wait:20,shot:/tmp/guida2.png,quit" > /tmp/l.log 2>&1
+check "SELECT in Piattaforme apre la guida" 'grep -q "guida di finto: 2 righe" $R/Logs/Arcade.log'
+printf '{ "language": "fr", "setup_done": true }\n' > $R/System/settings.json; rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "wait:40,b,wait:20,a,wait:30,right,wait:10,right,wait:20,select,wait:20,quit" > /tmp/l.log 2>&1
+check "lingua senza testi: l'inglese" 'grep -q "guida di finto: 2 righe (en)" $R/Logs/Arcade.log'
+rm -rf $R/Emulators/finto.json $R/Roms/FINTO $R/Cores/finto $R/System/avvio-gioco.txt $R/System/next.txt $R/System/guide-viste.txt
+
 # audit 0.9.72, LAU-12 (ripreso da LAU-20 del 0.9.88): mancavano ~ e ` nella tastiera, e una password
 # Wi-Fi che li contiene non si poteva scrivere. Ogni carattere ASCII stampabile deve esserci
 echo "--- tastiera a schermo: tutti i caratteri (LAU-12)"

@@ -14,5 +14,49 @@
   "short": "PSP",
   "thumbnails": "Sony - PlayStation Portable",
   "order": 72,
-  "cpu": 4
+  "cpu": 4,
+  "guide": {
+    "it": [
+      "Menu breve: menu di PPSSPP (impostazioni, stati, trucchi). B lo chiude, Esci torna a Mosaik",
+      "Menu tenuto: menu di Mosaik (Riprendi, Volume, Luminosità, Esci)",
+      "Giochi in Roms/PSP: .iso, .cso, .chd, .pbp. Non serve il BIOS",
+      "Salvataggi, stati e impostazioni in Saves/psp/ppsspp",
+      "Trucchi: si attivano nelle impostazioni di PPSSPP (Sistema); i file vanno in Saves/psp/ppsspp/PSP/Cheats"
+    ],
+    "en": [
+      "Short press of Menu: PPSSPP menu (settings, states, cheats). B closes it, Exit goes back to Mosaik",
+      "Menu held: Mosaik menu (Resume, Volume, Brightness, Exit)",
+      "Games in Roms/PSP: .iso, .cso, .chd, .pbp. No BIOS needed",
+      "Saves, states and settings in Saves/psp/ppsspp",
+      "Cheats: turn them on in PPSSPP's settings (System); files go in Saves/psp/ppsspp/PSP/Cheats"
+    ],
+    "es": [
+      "Pulsación corta de Menu: menú de PPSSPP (ajustes, estados, trucos). B lo cierra, Salir vuelve a Mosaik",
+      "Manteniendo pulsado Menu: menú de Mosaik (Continuar, Volumen, Brillo, Salir)",
+      "Juegos en Roms/PSP: .iso, .cso, .chd, .pbp. No hace falta BIOS",
+      "Partidas, estados y ajustes en Saves/psp/ppsspp",
+      "Trucos: se activan en los ajustes de PPSSPP (Sistema); los archivos van en Saves/psp/ppsspp/PSP/Cheats"
+    ],
+    "fr": [
+      "Appui court sur Menu : menu de PPSSPP (réglages, états, codes). B le ferme, Quitter revient à Mosaik",
+      "Menu maintenu : menu de Mosaik (Reprendre, Volume, Luminosité, Quitter)",
+      "Jeux dans Roms/PSP : .iso, .cso, .chd, .pbp. Pas besoin de BIOS",
+      "Sauvegardes, états et réglages dans Saves/psp/ppsspp",
+      "Codes de triche : à activer dans les réglages de PPSSPP (Système) ; fichiers dans Saves/psp/ppsspp/PSP/Cheats"
+    ],
+    "de": [
+      "Menu kurz drücken: PPSSPP-Menü (Einstellungen, Zustände, Cheats). B schließt es, Beenden kehrt zu Mosaik zurück",
+      "Menu gedrückt halten: Mosaik-Menü (Fortsetzen, Lautstärke, Helligkeit, Beenden)",
+      "Spiele in Roms/PSP: .iso, .cso, .chd, .pbp. Kein BIOS nötig",
+      "Spielstände, Zustände und Einstellungen in Saves/psp/ppsspp",
+      "Cheats: in den PPSSPP-Einstellungen einschalten (System); Dateien in Saves/psp/ppsspp/PSP/Cheats"
+    ],
+    "pt": [
+      "Toque curto em Menu: menu do PPSSPP (definições, estados, batotas). B fecha-o, Sair volta ao Mosaik",
+      "Menu premido: menu do Mosaik (Continuar, Volume, Brilho, Sair)",
+      "Jogos em Roms/PSP: .iso, .cso, .chd, .pbp. Não é preciso BIOS",
+      "Gravações, estados e definições em Saves/psp/ppsspp",
+      "Batotas: ativam-se nas definições do PPSSPP (Sistema); os ficheiros vão em Saves/psp/ppsspp/PSP/Cheats"
+    ]
+  }
 }
