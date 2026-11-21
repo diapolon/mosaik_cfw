@@ -125,7 +125,7 @@ con 0 per tornare al menu e con 20 per spegnere. Sulla console lo stesso ciclo l
 | `Saves/<console>` | Per le console l'id dell'emulatore (`md`, `gb`, `ps`…), per gli arcade quello del core (`fbneo`): stati salvati, NVRAM, impostazioni del gioco e salvataggi a batteria (`<rom>.srm`, `<rom>.rtc` per l'orologio della cartuccia; Beetle NeoPop scrive il suo `<rom>.flash` all'uscita) |
 | `Media/<tipo>/<rom>.png` | Immagini scaricate dallo scraper: `snap`, `title`, `marquee`, `flyer`, `box` (scatole, solo console). Si possono mettere anche a mano in `Media/<core>/<rom>.png`; senza immagini il launcher genera una copertina |
 | `Dats` | Indici dei titoli: `<id>.tsv` arcade (con `<id>.roms`) dai DAT; `<id>.tsv` delle console, `arcadedb.tsv` (genere, giocatori), `history/` e `libretro/` scritti dallo scraper sulla console |
-| `Linux/<gioco>/launch.sh` | Giochi Linux: `game.json` (titolo, anno, autore, `env`, `keys`) e `cover.png` facoltativi |
+| `Linux/<gioco>/launch.sh` | Giochi Linux: `game.json` (titolo, anno, autore, `env`, `keys`, `cpu`) e `cover.png` facoltativi |
 | `Music/` | `Music/Menu`: musica del menu (spenta di partenza); il resto è del Lettore musicale |
 | `Filters/<id>/filter.json` | Filtri video (vedi sotto) |
 | `Bezels/` | Cornici: `<core>/<rom>.png`, `<rom>.png`, `_default.png`, `_default_vertical.png` |
@@ -175,6 +175,7 @@ Una console ha qualche campo in più:
 | `art` | Disegno in Piattaforme: `handheld`, `handheld-wide`, `disc`, `disc-white`, `nes`, `snes`, `md`, `sms`, `pce`; altrimenti una console da casa generica |
 | `maker`, `year` | Produttore e anno della console, sulle schede del layout galleria |
 | `bios` | Nomi dei BIOS in `Bios/`, ne basta uno (Sega CD: uno per regione): se mancano tutti, la diagnosi del gioco che non parte lo dice |
+| `cpu` | Frequenza della CPU mentre si gioca: 1 = 816, 2 = 1200, 3 = 1608, 4 = 2000 MHz (il massimo); senza, quella del profilo scelto nelle impostazioni. Sulla Smart Pro l'interruttore FN (prestazioni massime) vale di più; la Brick Pro non ce l'ha |
 | `planned` | `true`: console non ancora supportata, solo in grigio in Piattaforme («In arrivo»), senza core né cartella (oggi `dc`) |
 
 Giochi su più dischi: un `.m3u` (estensione dell'emulatore) elenca i dischi, uno per riga,
@@ -328,7 +329,8 @@ lo schermo 16:9 della Smart Pro; sul 4:3 della Brick Pro conviene lasciarle spen
 Ogni gioco è una cartella `Linux/<gioco>/` con:
 - `launch.sh`;
 - `game.json`, facoltativo: `title`, `year`, `author`, `env` (variabili d'ambiente, per
-  esempio `SDL_GAMECONTROLLERCONFIG`) e `keys` (vedi sotto);
+  esempio `SDL_GAMECONTROLLERCONFIG`), `keys` (vedi sotto) e `cpu` (frequenza, vedi sotto;
+  dal sistema 0.9.104, quelli prima la ignorano);
 - `cover.png`, facoltativa.
 
 Per i giochi che usano solo la tastiera, `keys` dice quale tasto premere per ogni tasto
@@ -354,6 +356,28 @@ avvia `launch.sh` tramite `gamewatch`. `gamewatch` mette il gioco in un proprio 
 processi e, sulla console, lo chiude con tutti i suoi figli se si tiene premuto Menu per
 1,5 secondi (`--hold`, `--key` per cambiare tempo e tasti). Sul Mac si limita ad avviare e
 attendere il gioco.
+
+### Frequenza della CPU
+
+`"cpu"` in `game.json` vale come per gli emulatori: 1 = 816, 2 = 1200, 3 = 1608, 4 = 2000 MHz.
+Il launcher la imposta prima di avviare il gioco e la passa come `ARCADE_CPU_KHZ`, così anche il
+menu di Mosaik sopra il gioco la tiene; tornando al launcher si torna al profilo delle
+impostazioni.
+
+Un gioco che vuole cambiarla da sé, per esempio da una sua voce «Prestazioni», scrive le due
+voci di cpufreq (il gioco gira come root; frequenze accettate in `scaling_available_frequencies`:
+816000, 1200000, 1608000, 2000000) e la stessa frequenza in kHz in `/run/cpu-gioco`:
+
+```sh
+echo userspace > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+echo 2000000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed
+echo 2000000 > /run/cpu-gioco
+```
+
+Senza `/run/cpu-gioco` il menu e la barra del volume di Mosaik, quando si aprono, rimettono
+`"cpu"` o il profilo. Il file vale solo per il gioco in corso: il sistema lo toglie prima e dopo
+ogni gioco. Sulla Smart Pro l'interruttore FN (prestazioni massime) vale sempre di più; la Brick
+Pro non ce l'ha. Dal sistema 0.9.104.
 
 ## Immagini dei giochi
 

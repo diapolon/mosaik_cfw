@@ -671,6 +671,45 @@ C
 gcc -Wall -o $W/af $W/af.c 2> $W/af.err || cat $W/af.err
 check "muto con la stessa uscita, suona con la nuova, timer senza uscita, suona alla riapertura, timer dopo un blocco ($($W/af))" [ "$($W/af)" = 01010 ]
 
+# 21 novembre: un gioco Linux che sceglie da sé la frequenza (sue impostazioni) la perdeva appena si
+# apriva il menu o la barra del volume di Mosaik, che rimettevano "cpu" o il profilo. Ora la scrive in
+# /run/cpu-gioco e il menu la tiene; FN (prestazioni massime) vale sempre di più
+echo "--- frequenza scelta dal gioco (/run/cpu-gioco)"
+{ cat <<'C'
+#include <stdio.h>
+#include <stdlib.h>
+#define CPU_GAME_FILE "/tmp/cpu-gioco"
+enum { CPU_SAVE, CPU_BALANCED, CPU_PERF };
+typedef struct { int cpu_profile; } settings_t;
+static int fn_state = -1;
+C
+  grep -E '^static int game_file_khz' -A6 /trimui/frontend/src/common/platform.c | awk '{print} /^}/ {exit}'
+  fn /trimui/frontend/src/common/platform.c '^static int profile_khz'
+  cat <<'C'
+int main(int c, char **v) {
+    settings_t s = { CPU_BALANCED };
+    if (c > 1) fn_state = atoi(v[1]);
+    printf("%d\n", profile_khz(&s));
+    return 0;
+}
+C
+} > $W/cg.c
+gcc -Wall -o $W/cg $W/cg.c 2> $W/cg.err || cat $W/cg.err
+rm -f /tmp/cpu-gioco
+check "senza file: il profilo ($($W/cg 2>&1))" [ "$($W/cg 2>&1)" = 1608000 ]
+echo 2000000 > /tmp/cpu-gioco
+check "il gioco chiede il massimo: il menu lo tiene ($($W/cg 2>&1))" [ "$($W/cg 2>&1)" = 2000000 ]
+check "anche con \"cpu\" dell'emulatore ($(ARCADE_CPU_KHZ=1200000 $W/cg 2>&1))" [ "$(ARCADE_CPU_KHZ=1200000 $W/cg 2>&1)" = 2000000 ]
+echo 816000 > /tmp/cpu-gioco
+check "il gioco chiede il minimo ($($W/cg 2>&1))" [ "$($W/cg 2>&1)" = 816000 ]
+check "FN acceso: prestazioni massime comunque ($($W/cg 1 2>&1))" [ "$($W/cg 1 2>&1)" = 2000000 ]
+echo sciocchezze > /tmp/cpu-gioco
+check "file rovinato: il profilo ($($W/cg 2>&1))" [ "$($W/cg 2>&1)" = 1608000 ]
+echo 99 > /tmp/cpu-gioco
+check "valore assurdo: il profilo ($($W/cg 2>&1))" [ "$($W/cg 2>&1)" = 1608000 ]
+rm -f /tmp/cpu-gioco
+check "system-init toglie il file prima e dopo ogni gioco Linux" [ "$(grep -c 'rm -f /run/cpu-gioco' /trimui/m2/system-init)" -ge 2 ]
+
 echo "--- controllo delle librerie nella costruzione"
 LC="python3 -I /trimui/toolchain/libclosure.py"
 R2=$W/rootfs; mkdir -p $R2/lib

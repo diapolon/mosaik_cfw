@@ -681,6 +681,8 @@ while :; do
     if [ "$kind" = "linux" ]; then
         (
             cd "$(dirname "$rom")" || exit 1
+            # frequenza scelta da un gioco precedente: non vale per questo (frontend/README.md)
+            rm -f /run/cpu-gioco
             [ -f "$ROOT/System/linux-env.sh" ] && . "$ROOT/System/linux-env.sh"
             [ -f "$ROOT/System/next.env" ] && . "$ROOT/System/next.env"
             # titolo per il menu sopra il gioco (gamemenu)
@@ -691,6 +693,7 @@ while :; do
         sd_check
         zombie_note "gioco linux"
         rm -f "$ROOT/System/next.env"
+        rm -f /run/cpu-gioco   # la frequenza scelta dal gioco finisce con lui
         # 120: tasto di accensione tenuto premuto durante il gioco, o Spegni (gamewatch); 121: Riavvia
         [ $grc -eq 120 ] && finish
         [ $grc -eq 121 ] && finish reboot

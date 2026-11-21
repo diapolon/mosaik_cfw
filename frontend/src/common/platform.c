@@ -270,8 +270,23 @@ static void apply_leds(const settings_t *s, int status) {
     led_set(rgb, effect[s->led_mode & 3], duration[s->led_mode & 3], s->led_bright * 4);
 }
 
+/* gioco Linux che sceglie da sé la frequenza (sue impostazioni): la scrive in kHz in /run/cpu-gioco,
+   e il menu e la barra del volume di Mosaik sopra il gioco la tengono invece di "cpu" e del profilo
+   (prima la rimettevano). system-init toglie il file prima e dopo ogni gioco. Letto una volta: menu e
+   barra sono programmi nuovi a ogni apertura (21 novembre) */
+#ifndef CPU_GAME_FILE
+#define CPU_GAME_FILE "/run/cpu-gioco"
+#endif
+static int game_file_khz(void) {
+    static int v = -1;
+    FILE *f = v < 0 ? fopen(CPU_GAME_FILE, "r") : NULL;
+    if (v < 0) { v = 0; if (f) { if (fscanf(f, "%d", &v) != 1 || v < 400000 || v > 3000000) v = 0; fclose(f); } }
+    return v;
+}
+
 static int profile_khz(const settings_t *s) {
     static const int khz[3] = { 1200000, 1608000, 2000000 };
+    if (fn_state != 1 && game_file_khz() > 0) return game_file_khz();
     /* dentro un emulatore con "cpu" (ARCADE_CPU_KHZ, dal launcher): anche il menu e la barra del
        volume sopra il gioco (gamemenu) tengono quella frequenza, e chiudendosi la lasciano */
     static int env = -1;

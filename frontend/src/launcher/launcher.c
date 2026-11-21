@@ -596,14 +596,22 @@ static void reload_games(void) {
 /* Giochi Linux: le variabili "env" di game.json vanno in System/next.env, che lo
    script di avvio legge prima di lanciare launch.sh (es. SDL_GAMECONTROLLERCONFIG).
    La voce "keys" ({"A": "SPACE", "START": "ENTER"}) diventa GAMEWATCH_KEYS: gamewatch
-   preme quei tasti su una tastiera virtuale per i giochi che non leggono i controller. */
+   preme quei tasti su una tastiera virtuale per i giochi che non leggono i controller.
+   "cpu" (1-4, come per gli emulatori: 816, 1200, 1608, 2000 MHz) diventa ARCADE_CPU_KHZ, che tiene
+   anche il menu di Mosaik sopra il gioco, e la frequenza si imposta prima di uscire (21 novembre:
+   prima valeva solo per gli emulatori). */
+static int linux_cpu_khz;   /* frequenza chiesta dal game.json del gioco da avviare, 0 = profilo */
 static void write_linux_env(const game_t *g) {
     char meta[1200], envp[1100];
     snprintf(envp, sizeof envp, "%s/System/next.env", UI.root);
     snprintf(meta, sizeof meta, "%.*s/%s", (int)(strrchr(g->path, '/') - g->path), g->path, !strcmp(g->core, "app") ? "app.json" : "game.json");
     jval *j = json_load(meta), *env = json_get(j, "env"), *keys = json_get(j, "keys");
     bool has_env = env && env->t == J_OBJ, has_keys = keys && keys->t == J_OBJ;
-    FILE *f = has_env || has_keys ? fopen(envp, "w") : NULL;
+    static const int khz[5] = { 0, 816000, 1200000, 1608000, 2000000 };
+    int cpu = json_int(j, "cpu", 0);
+    linux_cpu_khz = cpu >= 1 && cpu <= 4 ? khz[cpu] : 0;
+    FILE *f = has_env || has_keys || linux_cpu_khz ? fopen(envp, "w") : NULL;
+    if (f && linux_cpu_khz) fprintf(f, "export ARCADE_CPU_KHZ=%d\n", linux_cpu_khz);
     if (f && has_keys) {
         /* solo lettere, cifre e _: il valore va nello script senza bisogno di apici */
         fputs("export GAMEWATCH_KEYS='", f);
@@ -840,6 +848,8 @@ static void launch_ex(game_t *g, bool resume) {
     if (xscript[0] && xemu && xemu->cpu) {
         static const int khz[5] = { 0, 816000, 1200000, 1608000, 2000000 };
         plat_cpu_now(khz[xemu->cpu]);
+    } else if (linux_cpu_khz) {
+        plat_cpu_now(linux_cpu_khz);   /* gioco Linux con "cpu" in game.json */
     }
     exit(EXIT_LAUNCH);
 }

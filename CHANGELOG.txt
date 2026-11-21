@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.104
+it Giochi Linux: possono chiedere la frequenza della CPU (cpu in game.json), anche il menu di Mosaik la tiene
+en Linux games: they can ask for a CPU frequency ("cpu" in game.json), and the Mosaik menu keeps it
+it Giochi Linux che cambiano la CPU dalle loro impostazioni: il menu di Mosaik non la rimette più com'era
+en Linux games that change the CPU from their own settings: the Mosaik menu no longer sets it back
+
 0.9.103
 it Bluetooth: dopo la sospensione l'audio torna, sulle cuffie o sull'altoparlante
 en Bluetooth: after sleep the sound comes back, in the headphones or on the speaker

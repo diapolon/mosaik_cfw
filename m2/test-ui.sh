@@ -187,6 +187,30 @@ check "non parte: niente next.txt (uscita $rc)" '[ ! -f $R/System/next.txt ] && 
 check "non entra fra i recenti" '[ ! -s $R/System/recent.txt ]'
 check "lo dice nel registro" 'grep -q "manca il core" $R/Logs/Arcade.log'
 
+# 21 novembre: "cpu" (1-4) valeva solo per gli emulatori; un gioco Linux pesante girava al profilo
+# generale, e anche impostandola nel suo launch.sh il menu di Mosaik la rimetteva al profilo.
+# Ora anche game.json ha "cpu": il launcher la passa in next.env (ARCADE_CPU_KHZ, letta dal menu)
+echo "--- gioco Linux con \"cpu\" in game.json"
+linux_game() {   # $1 = contenuto di game.json
+    rm -rf $R/Linux $R/System/next.txt $R/System/next.env /tmp/mosaik-avvio-launcher
+    mkdir -p $R/Linux/Gioco
+    printf '#!/bin/sh\nexit 0\n' > $R/Linux/Gioco/launch.sh; chmod +x $R/Linux/Gioco/launch.sh
+    printf '%s\n' "$1" > $R/Linux/Gioco/game.json
+    printf 'linux\tGioco\n' > $R/System/avvio-gioco.txt
+    printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
+    ARCADE_TEST_AUTOBOOT=1 ./build/launcher --root $R --auto "wait:40,quit" > /tmp/l.log 2>&1
+}
+linux_game '{ "title": "Gioco", "min_system": "0.9.58", "cpu": 4 }'; rc=$?
+check "parte (uscita $rc, next.txt)" '[ -s $R/System/next.txt ] && grep -q "Gioco" $R/System/next.txt'
+check "next.env con la CPU al massimo ($(cat $R/System/next.env 2>/dev/null | tr '\n' ' '))" 'grep -qx "export ARCADE_CPU_KHZ=2000000" $R/System/next.env'
+linux_game '{ "title": "Gioco", "min_system": "0.9.58", "cpu": 2, "env": { "PROVA": "1" } }'
+check "con env: tutte e due le righe" 'grep -qx "export ARCADE_CPU_KHZ=1200000" $R/System/next.env && grep -qx "export PROVA='"'"'1'"'"'" $R/System/next.env'
+linux_game '{ "title": "Gioco", "min_system": "0.9.58", "cpu": 9 }'
+check "valore fuori da 1-4: ignorato" '! grep -q ARCADE_CPU_KHZ $R/System/next.env 2>/dev/null'
+linux_game '{ "title": "Gioco", "min_system": "0.9.58" }'
+check "senza cpu: niente (profilo generale)" '! grep -q ARCADE_CPU_KHZ $R/System/next.env 2>/dev/null'
+rm -rf $R/Linux $R/System/avvio-gioco.txt $R/System/next.txt $R/System/next.env
+
 # audit 0.9.72, LAU-12 (ripreso da LAU-20 del 0.9.88): mancavano ~ e ` nella tastiera, e una password
 # Wi-Fi che li contiene non si poteva scrivere. Ogni carattere ASCII stampabile deve esserci
 echo "--- tastiera a schermo: tutti i caratteri (LAU-12)"
