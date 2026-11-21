@@ -95,6 +95,11 @@ int main(int c, char **v) {
         puts("");
         return 0;
     }
+    if (!strcmp(cmd, "tasti")) {   /* tasti del disegno: etichetta>tasti, righe separate da | */
+        for (const char *c = store_pkg(i)->guide_pad; *c; c++) putchar(*c == '\n' ? '|' : *c == '\t' ? '>' : *c);
+        puts("");
+        return 0;
+    }
 #endif
     if (!strcmp(cmd, "usage")) {
         store_usage_t u;
@@ -116,7 +121,7 @@ gcc -O1 -g -Wall -Wextra -Wno-unused-parameter -D_GNU_SOURCE -DSTORE_TEST -DUPDA
 mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     rm -rf pkgsrc; mkdir -p pkgsrc/fbneo/Cores pkgsrc/fbneo/Emulators pkgsrc/fbneo/Dats pkgsrc/mgba/Cores pkgsrc/mgba/Emulators
     if [ -n "$BADCORE" ]; then cp bad_libretro.so pkgsrc/fbneo/Cores/fbneo_libretro.so; else cp good_libretro.so pkgsrc/fbneo/Cores/fbneo_libretro.so; fi
-    echo '{"name":"FinalBurn Neo","guide":{"it":["Riga uno","Riga due"],"en":["Line one","Line two"]}}' > pkgsrc/fbneo/Emulators/fbneo.json
+    echo '{"name":"FinalBurn Neo","guide":{"it":["Riga uno","Riga due"],"en":["Line one","Line two"]},"guide_pad":[[{"it":"Fuoco","en":"Fire"},"A"],["@dpad","@dpad"]]}' > pkgsrc/fbneo/Emulators/fbneo.json
     echo "indice $1" > pkgsrc/fbneo/Dats/fbneo.tsv
     [ "$1" = 1 ] && echo vecchio > pkgsrc/fbneo/Dats/solo-v1.roms
     # v2: anche una libreria non libretro in una sottocartella di Cores, come i plugin di mupen64plus:
@@ -161,6 +166,8 @@ check "catalogo: tre pacchetti assenti" "2 0 3 files:0 fbneo:0 mgba:0" "$(./t $R
 check "guida dell'emulatore nel catalogo, in italiano" "Riga uno|Riga due" "$(LINGUA=it ./t $R guida fbneo 2>/dev/null)"
 check "lingua senza testi: l'inglese" "Line one|Line two" "$(LINGUA=fr ./t $R guida fbneo 2>/dev/null)"
 check "pacchetto senza guida: vuota" "" "$(LINGUA=it ./t $R guida mgba 2>/dev/null)"
+check "tasti del disegno nel catalogo, etichette in italiano" "Fuoco>A|@dpad>@dpad" "$(LINGUA=it ./t $R tasti fbneo 2>/dev/null)"
+check "tasti: lingua senza etichetta, l'inglese" "Fire>A|@dpad>@dpad" "$(LINGUA=fr ./t $R tasti fbneo 2>/dev/null)"
 check "app: nome e descrizione nella lingua" "Esplora file|Sfoglia la scheda|apps" "$(LINGUA=it ./t $R title files 2>/dev/null)"
 check "app: lingua mancante, inglese" "Files|Browse the card|apps" "$(LINGUA=de ./t $R title files 2>/dev/null)"
 check "app installata" "4 0 1" "$(./t $R install files 2>/dev/null)"

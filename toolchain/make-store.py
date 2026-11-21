@@ -306,6 +306,10 @@ for pid in sorted(os.listdir(args.src)):
     for em in ems:
         if isinstance(em.get("guide"), dict) and em["guide"]:
             entry["guide"] = em["guide"]
+            # tasti del disegno (dal sistema 0.9.106): "guide_pad", altrimenti "controls"
+            pad = em.get("guide_pad") or em.get("controls")
+            if isinstance(pad, list) and pad:
+                entry["guide_pad"] = pad
             break
     if pid in stato.get("experimental", []):
         entry["status"] = "experimental"

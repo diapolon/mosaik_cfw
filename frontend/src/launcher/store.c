@@ -316,6 +316,18 @@ static bool parse_catalog(const char *text, entry_t **out, int *nout) {
                     size_t l = strlen(x->p.guide);
                     snprintf(x->p.guide + l, sizeof x->p.guide - l, "%s%s", l ? "\n" : "", ln->s);
                 }
+            /* tasti del disegno: [etichetta (testo, "@chiave" o per lingua), tasti] */
+            jval *pd = json_get(v, "guide_pad");
+            for (jval *r = pd && pd->t == J_ARR ? pd->child : NULL; r; r = r->next) {
+                jval *lab = r->t == J_ARR ? r->child : NULL, *keys = lab ? lab->next : NULL;
+                if (!lab || !keys || keys->t != J_STR) continue;
+                const char *ls = lab->t == J_STR ? lab->s : NULL;
+                for (jval *c = lab->t == J_OBJ ? lab->child : NULL; c; c = c->next) if (c->t == J_STR && !strcmp(c->key, lang_code)) ls = c->s;
+                for (jval *c = lab->t == J_OBJ ? lab->child : NULL; c && !ls; c = c->next) if (c->t == J_STR && !strcmp(c->key, "en")) ls = c->s;
+                if (!ls || strchr(ls, '\t') || strchr(ls, '\n') || strchr(keys->s, '\t') || strchr(keys->s, '\n')) continue;
+                size_t l = strlen(x->p.guide_pad);
+                snprintf(x->p.guide_pad + l, sizeof x->p.guide_pad - l, "%s%s\t%s", l ? "\n" : "", ls, keys->s);
+            }
         }
         snprintf(x->p.min_system, sizeof x->p.min_system, "%s", json_str(v, "min_system", ""));
         x->p.needs_system = x->p.min_system[0] && system_version[0] && version_cmp(system_version, x->p.min_system) < 0;

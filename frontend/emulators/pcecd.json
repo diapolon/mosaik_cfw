@@ -15,5 +15,51 @@
   "bios": [
     "syscard3.pce"
   ],
-  "order": 46
+  "order": 46,
+  "guide": {
+    "it": [
+      "Dischi in Roms/PCECD: .chd, .cue, .ccd; più dischi con un .m3u",
+      "BIOS obbligatorio: syscard3.pce in Bios",
+      "Arriva con il pacchetto Beetle PCE Fast dello Store",
+      "Menu: menu di Mosaik (stati, opzioni, comandi, cambio disco)"
+    ],
+    "en": [
+      "Discs in Roms/PCECD: .chd, .cue, .ccd; several discs with an .m3u",
+      "BIOS required: syscard3.pce in Bios",
+      "Comes with the Beetle PCE Fast package in the Store",
+      "Menu: Mosaik menu (states, options, controls, disc change)"
+    ],
+    "es": [
+      "Discos en Roms/PCECD: .chd, .cue, .ccd; varios discos con un .m3u",
+      "BIOS obligatoria: syscard3.pce en Bios",
+      "Viene con el paquete Beetle PCE Fast de la Store",
+      "Menu: menú de Mosaik (estados, opciones, controles, cambio de disco)"
+    ],
+    "fr": [
+      "Disques dans Roms/PCECD : .chd, .cue, .ccd ; plusieurs disques avec un .m3u",
+      "BIOS obligatoire : syscard3.pce dans Bios",
+      "Fourni avec le paquet Beetle PCE Fast du Store",
+      "Menu : menu de Mosaik (états, options, commandes, changement de disque)"
+    ],
+    "de": [
+      "Discs in Roms/PCECD: .chd, .cue, .ccd; mehrere Discs mit einer .m3u",
+      "BIOS nötig: syscard3.pce in Bios",
+      "Kommt mit dem Paket Beetle PCE Fast aus dem Store",
+      "Menu: Mosaik-Menü (Zustände, Optionen, Steuerung, Disc-Wechsel)"
+    ],
+    "pt": [
+      "Discos em Roms/PCECD: .chd, .cue, .ccd; vários discos com um .m3u",
+      "BIOS obrigatória: syscard3.pce em Bios",
+      "Vem com o pacote Beetle PCE Fast da Store",
+      "Menu: menu do Mosaik (estados, opções, controlos, troca de disco)"
+    ]
+  },
+  "guide_pad": [
+    ["I", "A"],
+    ["II", "B"],
+    ["@dpad", "@dpad"],
+    ["Select", "SELECT"],
+    ["Run", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

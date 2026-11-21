@@ -177,6 +177,7 @@ Una console ha qualche campo in più:
 | `bios` | Nomi dei BIOS in `Bios/`, ne basta uno (Sega CD: uno per regione): se mancano tutti, la diagnosi del gioco che non parte lo dice |
 | `cpu` | Frequenza della CPU mentre si gioca: 1 = 816, 2 = 1200, 3 = 1608, 4 = 2000 MHz (il massimo); senza, quella del profilo scelto nelle impostazioni. Sulla Smart Pro l'interruttore FN (prestazioni massime) vale di più; la Brick Pro non ce l'ha |
 | `guide` | Guida, dal sistema 0.9.105: `{"it": ["riga", ...], "en": [...]}`, poche righe con le cose da sapere (come si apre il menu dell'emulatore, come si esce, BIOS, cartelle). SELECT in Piattaforme e nella scheda dello Store (make-store.py la copia nel catalogo); per gli emulatori con `launch` compare anche da sola al primo avvio, una volta (`System/guide-viste.txt`). Lingua della console, poi inglese |
+| `guide_pad` | Disegno dei comandi nella guida, dal sistema 0.9.106: `[[etichetta, tasti], ...]`; l'etichetta è un testo, `"@chiave"` della sezione `controls` delle lingue o `{"it": ..., "en": ...}`; i tasti sono `A B X Y L1 R1 L2 R2 SELECT START MENU @dpad @lstick @rstick`, più d'uno separati da ` · `. Senza, la guida disegna i `controls` (N64, Flycast); le levette non si disegnano sulla Brick Pro |
 | `planned` | `true`: console non ancora supportata, solo in grigio in Piattaforme («In arrivo»), senza core né cartella (oggi `dc`) |
 
 Giochi su più dischi: un `.m3u` (estensione dell'emulatore) elenca i dischi, uno per riga,

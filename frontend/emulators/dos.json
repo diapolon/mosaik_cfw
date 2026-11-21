@@ -29,5 +29,43 @@
   },
   "options": {
     "dosbox_pure_on_screen_keyboard": "keyboard"
+  },
+  "guide": {
+    "it": [
+      "Giochi in Roms/DOS, meglio uno zip per gioco (.zip, .dosz); anche .exe, .iso, .chd, .img",
+      "All'avvio DOSBox Pure mostra un menu per scegliere il programma del gioco da lanciare",
+      "SELECT: tastiera a schermo, per i giochi che chiedono un tasto",
+      "Menu: menu di Mosaik (stati, opzioni del core, comandi)"
+    ],
+    "en": [
+      "Games in Roms/DOS, best one zip per game (.zip, .dosz); also .exe, .iso, .chd, .img",
+      "At start DOSBox Pure shows a menu to choose which program of the game to run",
+      "SELECT: on-screen keyboard, for games that ask for a key",
+      "Menu: Mosaik menu (states, core options, controls)"
+    ],
+    "es": [
+      "Juegos en Roms/DOS, mejor un zip por juego (.zip, .dosz); también .exe, .iso, .chd, .img",
+      "Al iniciar, DOSBox Pure muestra un menú para elegir qué programa del juego lanzar",
+      "SELECT: teclado en pantalla, para los juegos que piden una tecla",
+      "Menu: menú de Mosaik (estados, opciones del núcleo, controles)"
+    ],
+    "fr": [
+      "Jeux dans Roms/DOS, de préférence un zip par jeu (.zip, .dosz) ; aussi .exe, .iso, .chd, .img",
+      "Au lancement, DOSBox Pure affiche un menu pour choisir le programme du jeu à lancer",
+      "SELECT : clavier à l'écran, pour les jeux qui demandent une touche",
+      "Menu : menu de Mosaik (états, options du cœur, commandes)"
+    ],
+    "de": [
+      "Spiele in Roms/DOS, am besten ein Zip pro Spiel (.zip, .dosz); auch .exe, .iso, .chd, .img",
+      "Beim Start zeigt DOSBox Pure ein Menü, um das Programm des Spiels zu wählen",
+      "SELECT: Bildschirmtastatur, für Spiele, die eine Taste verlangen",
+      "Menu: Mosaik-Menü (Zustände, Core-Optionen, Steuerung)"
+    ],
+    "pt": [
+      "Jogos em Roms/DOS, de preferência um zip por jogo (.zip, .dosz); também .exe, .iso, .chd, .img",
+      "Ao arrancar, o DOSBox Pure mostra um menu para escolher o programa do jogo a lançar",
+      "SELECT: teclado no ecrã, para os jogos que pedem uma tecla",
+      "Menu: menu do Mosaik (estados, opções do núcleo, controlos)"
+    ]
   }
 }

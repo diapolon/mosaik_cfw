@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.106
+it Guida degli emulatori con il disegno dei comandi: cosa fa ogni tasto della console
+en Emulator guide with a drawing of the controls: what each button of the console does
+it Guide anche per PlayStation, Sega CD, PC Engine CD, DOS, Amiga e ScummVM
+en Guides also for PlayStation, Sega CD, PC Engine CD, DOS, Amiga and ScummVM
+
 0.9.105
 it Guida degli emulatori: SELECT in Piattaforme e nella scheda dello Store (PSP, Nintendo 64, Dreamcast)
 en Emulator guide: SELECT in Platforms and on the Store package page (PSP, Nintendo 64, Dreamcast)
