@@ -13,5 +13,6 @@
   "art": "handheld-wide",
   "short": "PSP",
   "thumbnails": "Sony - PlayStation Portable",
-  "order": 72
+  "order": 72,
+  "cpu": 4
 }
