@@ -55,7 +55,7 @@
 - **Signed updates** over Wi-Fi, all or nothing: if one is interrupted or the new version fails to start, the console goes back to all the previous files.
 - **Settings for a whole console or for one game** (Platforms, Y; **Change for** in the game menu), CPU profile for each game, and a notice on the home screen when an update is available.
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
-- **A guide for every emulator** (from 0.9.105): **Select** in Platforms shows your console, Smart Pro or Brick Pro, with what each button does, and the folder for the games; the first game of an emulator with its own menu (PSP, Nintendo 64, Dreamcast) shows it by itself. The Music player and Video will have one with their next versions in the Store.
+- **A guide for every emulator** (from 0.9.105): **Select** in Platforms shows your console, Smart Pro or Brick Pro, with what each button does, and the folder for the games; the first game of an emulator with its own menu (PSP, Nintendo 64, Dreamcast) shows it by itself. The Music player (from 1.12) and Video (from 1.7) have one too.
 - **Three save slots per game** with preview and date, plus an automatic save with a previous copy.
 
 ## What works

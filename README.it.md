@@ -55,7 +55,7 @@
 - **Aggiornamenti firmati** via Wi-Fi, tutto o niente: se uno si interrompe o la versione nuova non parte, la console torna a tutti i file di prima.
 - **Impostazioni per una console intera o per un gioco** (Piattaforme, Y; **Cambia per** nel menu di gioco), profilo CPU per ogni gioco e avviso nella home quando c'è un aggiornamento.
 - **Diagnosi dei giochi**: quando un gioco non parte, ti dice cosa manca e dove copiarlo.
-- **Una guida per ogni emulatore** (dalla 0.9.105): **Select** in Piattaforme mostra la tua console, Smart Pro o Brick Pro, con cosa fa ogni tasto, e la cartella dei giochi; il primo gioco di un emulatore con un menu suo (PSP, Nintendo 64, Dreamcast) la mostra da solo. Il Lettore musicale e Video l'avranno con le loro prossime versioni nello Store.
+- **Una guida per ogni emulatore** (dalla 0.9.105): **Select** in Piattaforme mostra la tua console, Smart Pro o Brick Pro, con cosa fa ogni tasto, e la cartella dei giochi; il primo gioco di un emulatore con un menu suo (PSP, Nintendo 64, Dreamcast) la mostra da solo. Ce l'hanno anche il Lettore musicale (dalla 1.12) e Video (dalla 1.7).
 - **Tre slot di salvataggio per gioco** con anteprima e data, più un salvataggio automatico con copia precedente.
 
 ## Cosa funziona
