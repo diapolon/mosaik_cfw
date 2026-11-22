@@ -304,7 +304,7 @@ static int hmenu[8], nhmenu;                  /* menu: la prima voce è il gioco
 /* App: programmi che non sono giochi, in Arcade/Apps/<app>/launch.sh (app.json e icon.png
    facoltativi). Partono come i giochi Linux, ma non vanno in libreria, negli ultimi giochi né
    nel tempo di gioco; la voce "App" nella schermata iniziale c'è solo se ne esiste almeno una. */
-typedef struct { char name[64], title[96], desc[240], author[64], path[1100], icon[1100]; } app_t;
+typedef struct { char name[64], title[96], desc[240], author[64], path[1100], icon[1100]; bool has_guide; } app_t;
 static app_t *apps;
 static int napps, app_sel;
 static float app_scroll;
@@ -549,6 +549,8 @@ static void apps_scan(void) {
         snprintf(k, sizeof k, "texts.%s.description", UI.set.lang);
         snprintf(a->desc, sizeof a->desc, "%s", json_str(j, k, json_str(j, "texts.en.description", json_str(j, "description", ""))));
         snprintf(a->author, sizeof a->author, "%s", json_str(j, "author", ""));
+        jval *gd = json_get(j, "guide");   /* guida dei tasti (22 novembre): SELECT e primo avvio */
+        a->has_guide = gd && gd->t == J_OBJ && gd->child;
         json_free(j);
         snprintf(a->icon, sizeof a->icon, "%s/%s/icon.png", dir, e->d_name);
         if (stat(a->icon, &sb) != 0) a->icon[0] = 0;
@@ -704,6 +706,7 @@ static int guide_line_icon(char *line) {   /* toglie "@icona " dall'inizio e dic
 }
 static int guide_icons(void) { int n = 0; for (int k = 0; k < guide_n; k++) n += guide_icon[k] != GI_NONE; return n; }
 static game_t *guide_game;   /* primo avvio: il gioco che parte dopo A */
+static char guide_id[80];    /* primo avvio: cosa segnare in guide-viste.txt (emulatore, o "app:<cartella>") */
 /* disegno dei comandi: "guide_pad" (o "controls") del JSON, [etichetta, tasti della console];
    l'etichetta è un testo, "@chiave" della sezione controls delle lingue, o {"it": ..., "en": ...} */
 #define GUIDE_PAD 16
@@ -803,6 +806,21 @@ static bool guide_load_text(const char *title, const char *text, const char *pad
     return guide_n > 0;
 }
 
+/* guida di un'app (22 novembre): "guide" e "guide_pad" nel suo app.json, come gli emulatori.
+   Serve alle app con tanti tasti (Lettore musicale, Video) */
+static bool guide_load_app(const char *name, const char *title, const char *path) {
+    char meta[1200], used[8];
+    snprintf(meta, sizeof meta, "%.*s/app.json", (int)(strrchr(path, '/') - path), path);
+    jval *j = json_load(meta);
+    int n = guide_from_json(json_get(j, "guide"), used, sizeof used);
+    if (n) guide_pad_from_json(j);
+    else guide_npad = 0;
+    json_free(j);
+    snprintf(guide_title, sizeof guide_title, "%s", title);
+    if (n) ui_log("guida di app:%s: %d righe, %d tasti, %d icone (%s)", name, n, guide_npad, guide_icons(), used);
+    return n > 0;
+}
+
 static bool guide_seen(const char *id) {
     char p[1100], line[64];
     snprintf(p, sizeof p, "%s/System/guide-viste.txt", UI.root);
@@ -835,8 +853,7 @@ static void guide_input(void) {
     if (r == -1 && !(in->pressed[BTN_SELECT] && !guide_first)) return;
     guide_open = false;
     if (guide_first && r == 0 && guide_game) {   /* Gioca: vista, e il gioco parte */
-        const emulator_t *e = emulator_find(guide_game->core);
-        if (e) guide_mark(e->id);
+        if (guide_id[0]) guide_mark(guide_id);
         ui_sound(SND_OK);
         guide_skip = true;
         launch_ex(guide_game, guide_resume);
@@ -1128,7 +1145,8 @@ static void guide_draw(void) {
         if (guide_scroll < maxs) ui_triangle(tx - 2 * ts, ty - ts / 2, tx, ty - ts / 2, tx - ts, ty + ts / 2, t->text_dim);
         else ui_triangle(tx - 2 * ts, ty + ts / 2, tx, ty + ts / 2, tx - ts, ty - ts / 2, t->text_dim);
     }
-    const char *one[1] = { T("guide.close") }, *two[2] = { T("common.play"), T("common.back") };
+    bool app = guide_game && !strcmp(guide_game->core, "app");
+    const char *one[1] = { T("guide.close") }, *two[2] = { T(app ? "common.open" : "common.play"), T("common.back") };
     if (guide_first) ui_popup_buttons(x, y, w, h, two, 2, guide_sel, -1);
     else ui_popup_buttons(x, y, w, h, one, 1, 0, -1);
 }
@@ -1209,6 +1227,7 @@ static void launch_ex(game_t *g, bool resume) {
     if (xemu && xemu->launch[0] && !guide_skip && !guide_seen(xemu->id) && guide_load_emu(xemu)) {
         guide_game = g;
         guide_resume = resume;
+        snprintf(guide_id, sizeof guide_id, "%s", xemu->id);
         guide_show(true);
         return;
     }
@@ -9574,12 +9593,25 @@ static void detail_draw(void) {
 /* ------------------------------------------------------------ app */
 
 static void apps_launch(const app_t *a) {
-    game_t g;
+    /* primo avvio di un'app con la guida: prima i tasti, una volta sola; il gioco da avviare dopo A
+       resta qui, perché la guida lo usa più tardi */
+    static game_t g;
+    static char path[1100];
     memset(&g, 0, sizeof g);
     snprintf(g.name, sizeof g.name, "%s", a->name);
     snprintf(g.title, sizeof g.title, "%s", a->title);
     snprintf(g.core, sizeof g.core, "app");
-    g.path = (char *)a->path;
+    snprintf(path, sizeof path, "%s", a->path);
+    g.path = path;
+    char id[80];
+    snprintf(id, sizeof id, "app:%s", a->name);
+    if (a->has_guide && !guide_seen(id) && guide_load_app(a->name, a->title, a->path)) {
+        guide_game = &g;
+        guide_resume = false;
+        snprintf(guide_id, sizeof guide_id, "%s", id);
+        guide_show(true);
+        return;
+    }
     launch(&g);
 }
 
@@ -9590,6 +9622,11 @@ static void apps_input(void) {
     if (in->pressed[BTN_DOWN] && app_sel < napps - 1) app_sel++;
     if (app_sel != old) ui_sound(SND_MOVE);
     if (in->pressed[BTN_A] && napps) { apps_launch(&apps[app_sel]); return; }
+    if (in->pressed[BTN_SELECT] && napps && apps[app_sel].has_guide) {
+        const app_t *a = &apps[app_sel];
+        if (guide_load_app(a->name, a->title, a->path)) { guide_game = NULL; guide_show(false); ui_sound(SND_OK); }
+        return;
+    }
     if (in->pressed[BTN_B]) { go(SCR_HOME); ui_sound(SND_BACK); return; }
     if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
 }
@@ -9634,8 +9671,9 @@ static void apps_draw(void) {
         }
         ui_clip_pop();
     }
-    const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL };
-    ui_keybar(h, napps ? 6 : 3);
+    bool gd = napps && apps[app_sel].has_guide;
+    const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL, "SELECT", T("guide.title"), NULL };
+    ui_keybar(h, !napps ? 3 : gd ? 9 : 6);
 }
 
 /* ------------------------------------------------------ verifica ROM */

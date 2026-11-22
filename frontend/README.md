@@ -126,6 +126,7 @@ con 0 per tornare al menu e con 20 per spegnere. Sulla console lo stesso ciclo l
 | `Media/<tipo>/<rom>.png` | Immagini scaricate dallo scraper: `snap`, `title`, `marquee`, `flyer`, `box` (scatole, solo console). Si possono mettere anche a mano in `Media/<core>/<rom>.png`; senza immagini il launcher genera una copertina |
 | `Dats` | Indici dei titoli: `<id>.tsv` arcade (con `<id>.roms`) dai DAT; `<id>.tsv` delle console, `arcadedb.tsv` (genere, giocatori), `history/` e `libretro/` scritti dallo scraper sulla console |
 | `Linux/<gioco>/launch.sh` | Giochi Linux: `game.json` (titolo, anno, autore, `env`, `keys`, `cpu`) e `cover.png` facoltativi |
+| `Apps/<app>/launch.sh` | App (cartella App della home, pacchetti dello Store): `app.json` con `title`, `description`, `texts` per lingua, `version`, `min_system` (obbligatorio), `env`, `cpu`; dal sistema 0.9.109 anche `guide` e `guide_pad`, come negli emulatori (vedi sotto): la guida compare al primo avvio dell'app, con SELECT nella schermata App e nella scheda dello Store. Ce l'hanno il Lettore musicale e Video |
 | `Music/` | `Music/Menu`: musica del menu (spenta di partenza); il resto è del Lettore musicale |
 | `Filters/<id>/filter.json` | Filtri video (vedi sotto) |
 | `Bezels/` | Cornici: `<core>/<rom>.png`, `<rom>.png`, `_default.png`, `_default_vertical.png` |

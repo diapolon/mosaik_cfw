@@ -2,11 +2,124 @@
  "title": "Video",
  "description": "Watch the Video folder: MP4, MKV, WEBM, AVI, MOV up to 1080p, resumes where you left off.",
  "author": "Mosaik",
- "version": "1.6",
+ "version": "1.7",
  "min_system": "0.9.57",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },
+ "guide": {
+  "it": [
+   "@folder Video (.mp4 .mkv .webm .avi .mov, fino a 1080p)",
+   "Sottotitoli: un .srt con lo stesso nome del video"
+  ],
+  "en": [
+   "@folder Video (.mp4 .mkv .webm .avi .mov, up to 1080p)",
+   "Subtitles: an .srt with the same name as the video"
+  ],
+  "de": [
+   "@folder Video (.mp4 .mkv .webm .avi .mov, bis 1080p)",
+   "Untertitel: eine .srt mit demselben Namen wie das Video"
+  ],
+  "es": [
+   "@folder Video (.mp4 .mkv .webm .avi .mov, hasta 1080p)",
+   "Subtítulos: un .srt con el mismo nombre que el vídeo"
+  ],
+  "fr": [
+   "@folder Video (.mp4 .mkv .webm .avi .mov, jusqu'en 1080p)",
+   "Sous-titres : un .srt avec le même nom que la vidéo"
+  ],
+  "pt": [
+   "@folder Video (.mp4 .mkv .webm .avi .mov, até 1080p)",
+   "Legendas: um .srt com o mesmo nome do vídeo"
+  ]
+ },
+ "guide_pad": [
+  [
+   {
+    "it": "Play/pausa",
+    "en": "Play/pause",
+    "de": "Play/Pause",
+    "es": "Play/pausa",
+    "fr": "Lecture/pause",
+    "pt": "Play/pausa"
+   },
+   "A"
+  ],
+  [
+   {
+    "it": "Indietro",
+    "en": "Back",
+    "de": "Zurück",
+    "es": "Atrás",
+    "fr": "Retour",
+    "pt": "Voltar"
+   },
+   "B"
+  ],
+  [
+   {
+    "it": "Video prima",
+    "en": "Previous video",
+    "de": "Vorheriges Video",
+    "es": "Vídeo anterior",
+    "fr": "Vidéo précédente",
+    "pt": "Vídeo anterior"
+   },
+   "L"
+  ],
+  [
+   {
+    "it": "Video dopo",
+    "en": "Next video",
+    "de": "Nächstes Video",
+    "es": "Vídeo siguiente",
+    "fr": "Vidéo suivante",
+    "pt": "Vídeo seguinte"
+   },
+   "R"
+  ],
+  [
+   "-1 min",
+   "L2"
+  ],
+  [
+   "+1 min",
+   "R2"
+  ],
+  [
+   {
+    "it": "Scegli · ±10 s",
+    "en": "Choose · ±10 s",
+    "de": "Wählen · ±10 s",
+    "es": "Elegir · ±10 s",
+    "fr": "Choisir · ±10 s",
+    "pt": "Escolher · ±10 s"
+   },
+   "@dpad"
+  ],
+  [
+   {
+    "it": "Sottotitoli",
+    "en": "Subtitles",
+    "de": "Untertitel",
+    "es": "Subtítulos",
+    "fr": "Sous-titres",
+    "pt": "Legendas"
+   },
+   "Y"
+  ],
+  [
+   {
+    "it": "Barra",
+    "en": "Bar",
+    "de": "Leiste",
+    "es": "Barra",
+    "fr": "Barre",
+    "pt": "Barra"
+   },
+   "SELECT"
+  ]
+ ],
  "texts": {
   "it": {
    "title": "Video",

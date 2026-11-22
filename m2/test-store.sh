@@ -133,7 +133,7 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
     cp good_libretro.so pkgsrc/files/Apps/files/files
     printf '#!/bin/sh\nexec ./files\n' > pkgsrc/files/Apps/files/launch.sh
     [ -n "$APPX" ] && echo ricompilata > pkgsrc/files/Apps/files/extra.txt
-    echo '{"title":"Files","version":"'"${APPV:-1.0}"'","min_system":"0.9.40","texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
+    echo '{"title":"Files","version":"'"${APPV:-1.0}"'","min_system":"0.9.40","guide":{"it":["Copia e incolla"],"en":["Copy and paste"]},"guide_pad":[[{"it":"Copia","en":"Copy"},"X"]],"texts":{"it":{"title":"Esplora file","description":"Sfoglia la scheda"},"en":{"title":"Files","description":"Browse the card"}}}' > pkgsrc/files/Apps/files/app.json
     # percorsi lunghi (audit BUG-002): il registro deve elencarli interi
     L1=Apps/files/$(printf 'cartella-con-un-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18)a.bin
     L2=Apps/files/$(printf 'altra-cartella-dal-nome-lungo/%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16)b.bin
@@ -168,6 +168,9 @@ check "lingua senza testi: l'inglese" "Line one|Line two" "$(LINGUA=fr ./t $R gu
 check "pacchetto senza guida: vuota" "" "$(LINGUA=it ./t $R guida mgba 2>/dev/null)"
 check "tasti del disegno nel catalogo, etichette in italiano" "Fuoco>A|@dpad>@dpad" "$(LINGUA=it ./t $R tasti fbneo 2>/dev/null)"
 check "tasti: lingua senza etichetta, l'inglese" "Fire>A|@dpad>@dpad" "$(LINGUA=fr ./t $R tasti fbneo 2>/dev/null)"
+# 22 novembre: anche le app hanno la guida dei tasti, nel loro app.json
+check "guida di un'app nel catalogo" "Copia e incolla" "$(LINGUA=it ./t $R guida files 2>/dev/null)"
+check "tasti di un'app nel catalogo" "Copia>X" "$(LINGUA=it ./t $R tasti files 2>/dev/null)"
 check "app: nome e descrizione nella lingua" "Esplora file|Sfoglia la scheda|apps" "$(LINGUA=it ./t $R title files 2>/dev/null)"
 check "app: lingua mancante, inglese" "Files|Browse the card|apps" "$(LINGUA=de ./t $R title files 2>/dev/null)"
 check "app installata" "4 0 1" "$(./t $R install files 2>/dev/null)"

@@ -10,6 +10,7 @@
   "continue": "Play",
   "quit": "Quit",
   "bar": "Bar",
+  "prev_next": "Prev/next",
   "list": "List",
   "resume_at": "You stopped at %s.",
   "restart": "Start over",

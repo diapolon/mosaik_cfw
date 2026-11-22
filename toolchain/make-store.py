@@ -303,7 +303,8 @@ for pid in sorted(os.listdir(args.src)):
     }
     # guida dell'emulatore (il primo del pacchetto che ne ha una): la scheda dello Store la mostra
     # prima dell'installazione (dal sistema 0.9.105; i sistemi prima ignorano il campo)
-    for em in ems:
+    # le app con tanti tasti (Lettore musicale, Video) hanno la guida nel loro app.json (22 novembre)
+    for em in ems + ([aj] if category == "apps" and os.path.exists(appj) else []):
         if isinstance(em.get("guide"), dict) and em["guide"]:
             entry["guide"] = em["guide"]
             # tasti del disegno (dal sistema 0.9.106): "guide_pad", altrimenti "controls"

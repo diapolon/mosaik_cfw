@@ -2,11 +2,149 @@
  "title": "Music player",
  "description": "Listen to the Music folder: covers, spectrum and selectable looks, repeat, shuffle, even with the screen off.",
  "author": "Mosaik",
- "version": "1.11",
+ "version": "1.12",
  "min_system": "0.9.45",
  "env": {
   "GAMEWATCH_NOMENU": "1"
  },
+ "guide": {
+  "it": [
+   "@folder Music (.mp3 .ogg .flac .wav, un album per cartella)",
+   "Schermo spento: un tasto qualsiasi lo riaccende"
+  ],
+  "en": [
+   "@folder Music (.mp3 .ogg .flac .wav, one album per folder)",
+   "Screen off: any button turns it back on"
+  ],
+  "de": [
+   "@folder Music (.mp3 .ogg .flac .wav, ein Album pro Ordner)",
+   "Bildschirm aus: jede Taste schaltet ihn wieder ein"
+  ],
+  "es": [
+   "@folder Music (.mp3 .ogg .flac .wav, un álbum por carpeta)",
+   "Pantalla apagada: cualquier botón la enciende"
+  ],
+  "fr": [
+   "@folder Music (.mp3 .ogg .flac .wav, un album par dossier)",
+   "Écran éteint : n'importe quelle touche le rallume"
+  ],
+  "pt": [
+   "@folder Music (.mp3 .ogg .flac .wav, um álbum por pasta)",
+   "Ecrã desligado: qualquer botão volta a ligá-lo"
+  ]
+ },
+ "guide_pad": [
+  [
+   {
+    "it": "Play/pausa",
+    "en": "Play/pause",
+    "de": "Play/Pause",
+    "es": "Play/pausa",
+    "fr": "Lecture/pause",
+    "pt": "Play/pausa"
+   },
+   "A"
+  ],
+  [
+   {
+    "it": "Indietro",
+    "en": "Back",
+    "de": "Zurück",
+    "es": "Atrás",
+    "fr": "Retour",
+    "pt": "Voltar"
+   },
+   "B"
+  ],
+  [
+   {
+    "it": "Brano prima",
+    "en": "Previous track",
+    "de": "Vorheriger Titel",
+    "es": "Pista anterior",
+    "fr": "Piste précédente",
+    "pt": "Faixa anterior"
+   },
+   "L"
+  ],
+  [
+   {
+    "it": "Brano dopo",
+    "en": "Next track",
+    "de": "Nächster Titel",
+    "es": "Pista siguiente",
+    "fr": "Piste suivante",
+    "pt": "Faixa seguinte"
+   },
+   "R"
+  ],
+  [
+   {
+    "it": "Scegli · ±10 s",
+    "en": "Choose · ±10 s",
+    "de": "Wählen · ±10 s",
+    "es": "Elegir · ±10 s",
+    "fr": "Choisir · ±10 s",
+    "pt": "Escolher · ±10 s"
+   },
+   "@dpad"
+  ],
+  [
+   {
+    "it": "Ripeti",
+    "en": "Repeat",
+    "de": "Wiederholen",
+    "es": "Repetir",
+    "fr": "Répéter",
+    "pt": "Repetir"
+   },
+   "X"
+  ],
+  [
+   {
+    "it": "Casuale",
+    "en": "Shuffle",
+    "de": "Zufall",
+    "es": "Aleatorio",
+    "fr": "Aléatoire",
+    "pt": "Aleatório"
+   },
+   "Y"
+  ],
+  [
+   {
+    "it": "Spegni schermo",
+    "en": "Screen off",
+    "de": "Bildschirm aus",
+    "es": "Apagar pantalla",
+    "fr": "Éteindre l'écran",
+    "pt": "Desligar ecrã"
+   },
+   "SELECT"
+  ],
+  [
+   {
+    "it": "Aspetto",
+    "en": "Look",
+    "de": "Aussehen",
+    "es": "Aspecto",
+    "fr": "Apparence",
+    "pt": "Aspeto"
+   },
+   "START"
+  ],
+  [
+   {
+    "it": "Esci",
+    "en": "Exit",
+    "de": "Beenden",
+    "es": "Salir",
+    "fr": "Quitter",
+    "pt": "Sair"
+   },
+   "MENU"
+  ]
+ ],
  "texts": {
   "it": {
    "title": "Lettore musicale",

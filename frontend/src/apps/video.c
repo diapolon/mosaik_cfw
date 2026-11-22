@@ -3,7 +3,7 @@
    I video della cartella Video (creata se manca, anche nelle sottocartelle): MP4, MKV, WEBM, AVI,
    MOV, M4V, in ordine naturale, con durata e risoluzione lette in sottofondo. Nell'elenco A apre
    il video (se era rimasto a metà chiede se riprendere o ricominciare), B o MENU escono.
-   Nel video: A pausa, sinistra/destra -10/+10 s (tenuti, ancora ogni 0,4 s), L/R -1/+1 minuto,
+   Nel video: A pausa, sinistra/destra -10/+10 s (tenuti, ancora ogni 0,4 s), L/R video prima e dopo, L2/R2 -1/+1 minuto,
    SELECT mostra o toglie la barra con titolo e tempi (compare anche a ogni comando e sparisce dopo
    3 s), B o MENU tornano all'elenco. Il volume è quello della console (tasti laterali).
    Sottotitoli (dalla 1.4): un file .srt accanto al video, con lo stesso nome (prima
@@ -1195,11 +1195,15 @@ static void info_draw(void) {
     theme_t keep = *t;
     t->text = rgba(235, 235, 235, 255);
     t->bg = rgba(0, 0, 0, 255);
-    const char *k[] = { "A", FT(paused ? "video.continue" : "video.pause"), "<>", "10 s", "L", "-1 min", "R", "+1 min", "SELECT", FT("video.bar"),
+    const char *k[] = { "A", FT(paused ? "video.continue" : "video.pause"), "<>", "10 s", "L R", FT("video.prev_next"), "L2 R2", "1 min", "SELECT", FT("video.bar"),
                         "B", FT("video.list"), "Y", FT("video.subs") };
     int g = fsh, gap = M(0.035f), total = 0, n = (int)(sizeof k / sizeof k[0]) / 2 - (nsubs ? 0 : 1);   /* Y solo con i sottotitoli */
     #define GW(b) (!strcmp(b, "<>") ? g * 3 / 2 : strlen(b) == 1 ? g : ui_text_w(fs, b) + g / 2)
-    for (int i = 0; i < n; i++) total += (i ? gap : 0) + GW(k[2 * i]) + M(0.01f) + ui_text_w(fs, k[2 * i + 1]);
+    #define KW(i) (GW(k[2 * (i)]) + M(0.01f) + ui_text_w(fs, k[2 * (i) + 1]))
+    for (int i = 0; i < n; i++) total += (i ? gap : 0) + KW(i);
+    /* schermo stretto (Brick Pro, 4:3) o testi lunghi: via gli ultimi tasti, non tutta la barra */
+    while (n > 1 && total > UI.w - 2 * mx) { n--; total -= gap + KW(n); }
+    #undef KW
     int x = (UI.w - total) / 2, ky = py + ph + M(0.012f) + fsh / 2;
     if (total <= UI.w - 2 * mx)
         for (int i = 0; i < n; i++) {
@@ -1382,8 +1386,20 @@ static void player_input(void) {
     if (in->pressed[BTN_A]) { set_pause(!paused); bar_show(); }
     if (in->pressed[BTN_SELECT]) { bar_pinned = !bar_pinned; if (!bar_pinned) bar_until = 0; }
     if (in->pressed[BTN_Y] && nsubs) { subs_on = !subs_on; ui_toast(FT(subs_on ? "video.subs_on" : "video.subs_off")); }
-    if (in->pressed[BTN_R]) seek_rel(60);
-    if (in->pressed[BTN_L]) seek_rel(-60);
+    /* L e R: video prima e dopo nell'elenco, come i brani nel Lettore musicale (22 novembre; prima
+       saltavano di un minuto, ora lo fanno L2 e R2). Il video lasciato si ricorda, quello nuovo
+       riprende dal punto ricordato */
+    if ((in->pressed[BTN_R] || in->pressed[BTN_L]) && cur >= 0) {
+        int to = cur + (in->pressed[BTN_R] ? 1 : -1);
+        if (to < 0 || to >= nvids) { ui_sound(SND_ERROR); bar_show(); return; }
+        stop_playing(false);
+        sel = to;
+        mark_t *m = mark_find(vids[to].rel);
+        start(to, m && m->pos >= 5 ? m->pos : 0);
+        return;
+    }
+    if (in->pressed[BTN_R2]) seek_rel(60);
+    if (in->pressed[BTN_L2]) seek_rel(-60);
     /* sinistra/destra: un salto di 10 s, poi ancora ogni 0,4 s se tenuti */
     int d = in->down[BTN_RIGHT] ? 1 : in->down[BTN_LEFT] ? -1 : 0;
     bool jump = false;

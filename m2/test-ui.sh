@@ -259,6 +259,41 @@ n=$(python3 /tmp/area.py /tmp/guida3.png /tmp/guida4.png)
 check "Brick Pro: un altro disegno ($n pixel diversi dalla Smart Pro)" '[ "$n" -gt 3000 ]'
 rm -rf $R/Emulators/finto.json $R/Roms/FINTO $R/Cores/finto $R/System/avvio-gioco.txt $R/System/next.txt $R/System/guide-viste.txt
 
+# 22 novembre: guida anche nelle app con tanti tasti (Lettore musicale, Video): "guide" e "guide_pad"
+# nel loro app.json, riquadro al primo avvio e SELECT nella schermata App
+echo "--- guida delle app"
+app_root() {
+    rm -rf $R/Emulators $R/Roms $R/Apps $R/System/next.txt $R/System/guide-viste.txt /tmp/mosaik-avvio-launcher
+    mkdir -p $R/Emulators $R/Roms $R/Apps/finta $R/Apps/senza
+    for a in finta senza; do printf '#!/bin/sh\nexit 0\n' > $R/Apps/$a/launch.sh; done
+    cat > $R/Apps/finta/app.json <<'J'
+{ "title": "Finta", "min_system": "0.9.1",
+  "guide": { "it": ["@folder Music", "Tasti anche a schermo spento"], "en": ["@folder Music", "Keys work with the screen off"] },
+  "guide_pad": [[{"it": "Brano dopo", "en": "Next track"}, "R"], [{"it": "Brano prima", "en": "Previous track"}, "L"], ["Play", "A"]] }
+J
+    printf '{ "title": "Senza", "min_system": "0.9.1" }\n' > $R/Apps/senza/app.json
+    printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
+}
+# home senza emulatori: B chiude l'invito allo Store, la terza icona è App; le app in ordine di nome
+TO_APPS="wait:40,b,wait:10,right,wait:5,right,wait:5,a,wait:20"
+app_root; rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "$TO_APPS,a,wait:20,shot:/tmp/appguida1.png,quit" > /tmp/l.log 2>&1
+check "app, primo avvio: prima la guida, l'app non parte" '[ ! -f $R/System/next.txt ] && grep -q "guida di app:finta: 2 righe, 3 tasti" $R/Logs/Arcade.log'
+./build/launcher --root $R --auto "$TO_APPS,a,wait:20,a,wait:20,quit" > /tmp/l.log 2>&1
+check "app, A sulla guida: l'app parte e la guida resta vista" '[ -s $R/System/next.txt ] && grep -qx "app:finta" $R/System/guide-viste.txt'
+rm -f $R/System/next.txt
+./build/launcher --root $R --auto "$TO_APPS,a,wait:20,quit" > /tmp/l.log 2>&1
+check "app, la volta dopo parte subito" '[ -s $R/System/next.txt ]'
+app_root; rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "$TO_APPS,select,wait:20,shot:/tmp/appguida2.png,quit" > /tmp/l.log 2>&1
+check "SELECT nella schermata App apre la guida senza avviare l'app" '[ ! -f $R/System/next.txt ] && grep -q "guida di app:finta" $R/Logs/Arcade.log'
+n=$(python3 /tmp/area.py /tmp/appguida2.png /tmp/appguida1.png)
+check "stessa guida dal SELECT e dal primo avvio (al massimo i pulsanti diversi: $n pixel)" '[ "$n" -lt 20000 ]'
+app_root; rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "$TO_APPS,down,wait:5,a,wait:20,quit" > /tmp/l.log 2>&1
+check "app senza guida: parte subito" '[ -s $R/System/next.txt ] && ! grep -q "guida di app:senza" $R/Logs/Arcade.log'
+rm -rf $R/Apps $R/System/next.txt $R/System/guide-viste.txt
+
 # audit 0.9.72, LAU-12 (ripreso da LAU-20 del 0.9.88): mancavano ~ e ` nella tastiera, e una password
 # Wi-Fi che li contiene non si poteva scrivere. Ogni carattere ASCII stampabile deve esserci
 echo "--- tastiera a schermo: tutti i caratteri (LAU-12)"
@@ -383,6 +418,28 @@ v = t["variants"]["light"]
 a, b = sorted([lum(v["accent"]), lum(v["accent_text"])], reverse=True)
 print("%.2f" % ((a + 0.05) / (b + 0.05)))
 X
+# 22 novembre: nel Video L e R passano al video prima e dopo (come i brani nel Lettore musicale), L2 e
+# R2 saltano di un minuto. Prova /trimui/frontend/src/apps/video.c; due video finti fatti qui con ffmpeg.
+echo "--- Video: L e R cambiano video, L2 e R2 un minuto"
+if apk add -q ffmpeg ffmpeg-dev > /dev/null 2>&1 && make build/video > /tmp/make-video.log 2>&1; then
+    rm -rf $R/Video $R/System/video-posizioni.txt && mkdir -p $R/Video
+    for v in 1 2 3; do
+        ffmpeg -loglevel error -f lavfi -i "testsrc=size=160x120:rate=5" -t 120 -c:v mpeg4 -pix_fmt yuv420p $R/Video/$v.mp4 < /dev/null
+    done
+    rm -f $R/Logs/video.log
+    # dal secondo video: R va al terzo, L torna al secondo e poi al primo, L al primo non fa niente
+    ./build/video --root $R --app package/apps/video --auto "wait:30,down,wait:5,a,wait:40,r,wait:40,l,wait:40,l,wait:40,l,wait:40,quit" > /tmp/v.log 2>&1
+    aperti=$(grep -o "video: [0-9]\.mp4, mpeg4" $R/Logs/video.log | cut -c8 | tr -d '\n')
+    check "R e L: aperti 2, 3, 2, 1 e al primo L non apre altro (aperti: $aperti)" '[ "$aperti" = 2321 ]'
+    rm -f $R/System/video-posizioni.txt $R/Logs/video.log
+    ./build/video --root $R --app package/apps/video --auto "wait:30,a,wait:40,r2,wait:60,quit" > /tmp/v.log 2>&1
+    pos=$(awk -F '\t' '$3 == "1.mp4" { print int($1) }' $R/System/video-posizioni.txt 2> /dev/null)
+    check "R2: un minuto avanti (posizione ricordata: ${pos:-nessuna} s)" '[ -n "$pos" ] && [ "$pos" -ge 58 ] && [ "$pos" -le 75 ]'
+    rm -rf $R/Video $R/System/video-posizioni.txt
+else
+    tail -20 /tmp/make-video.log; ko "app Video non compilata"
+fi
+
 c=$(python3 /tmp/contrasto.py themes/tessera/theme.json)
 check "testo sull'azzurro leggibile ($c:1, almeno 4,5)" 'python3 -c "import sys; sys.exit(0 if float(\"$c\") >= 4.5 else 1)"'
 
