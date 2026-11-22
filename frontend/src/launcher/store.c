@@ -428,33 +428,54 @@ static bool archived(const char *id) {
     return a;
 }
 
+/* un altro pacchetto del catalogo, installato (con la versione nel registro; con archived anche
+   quelli archiviati), mette lo stesso emulatore: Deadcast e Flycast hanno tutti e due dc */
+static bool emu_shared(const entry_t *e, int n, int i, bool with_archived) {
+    for (int o = 0; o < n; o++) {
+        if (o == i) continue;
+        char ov[64];
+        installed_version(e[o].p.id, ov, sizeof ov, NULL, 0);
+        if (!ov[0] && !(with_archived && archived(e[o].p.id))) continue;
+        for (int k = 0; k < e[i].nemus; k++)
+            for (int m = 0; m < e[o].nemus; m++)
+                if (!strcmp(e[i].emus[k], e[o].emus[m])) return true;
+    }
+    return false;
+}
+
 static void compute_states(entry_t *e, int n) {
     for (int i = 0; i < n; i++) {
         char v[64];
         e[i].p.inst_label[0] = 0;
-        if (archived(e[i].p.id)) { e[i].p.state = PKG_ARCHIVED; continue; }
+        /* archiviato, ma il suo emulatore ora è di un altro pacchetto installato: giochi e salvataggi
+           sono dell'altro, e qui non c'è più niente da togliere (Flycast archiviato sulla Brick Pro
+           con Deadcast installato: segnalato dall'utente il 22 novembre sulla 0.9.109) */
+        if (archived(e[i].p.id)) { e[i].p.state = emu_shared(e, n, i, false) ? PKG_ABSENT : PKG_ARCHIVED; continue; }
         char lab[32];
         installed_version(e[i].p.id, v, sizeof v, lab, sizeof lab);
         snprintf(e[i].p.inst_label, sizeof e[i].p.inst_label, "%s", lab[0] ? lab : v);
         /* app e temi: conta il loro numero di versione (app.json, theme.json), non l'impronta dei
            file, che cambia anche solo ricompilando con la libreria comune aggiornata */
         bool by_label = (!strcmp(e[i].p.category, "apps") || !strcmp(e[i].p.category, "themes") || !strcmp(e[i].p.category, "bezels") || !strcmp(e[i].p.category, "filters")) && lab[0] && e[i].p.label[0];
-        if (v[0]) { e[i].p.state = (by_label ? strcmp(lab, e[i].p.label) : strcmp(v, e[i].p.version)) ? PKG_UPDATE : PKG_INSTALLED; continue; }
+        if (v[0]) {
+            e[i].p.state = (by_label ? strcmp(lab, e[i].p.label) : strcmp(v, e[i].p.version)) ? PKG_UPDATE : PKG_INSTALLED;
+            /* installato ma senza il JSON di un suo emulatore (tolto da un altro pacchetto, o a mano):
+               «da aggiornare», così Aggiorna lo rimette (Deadcast senza Emulators/dc.json dopo aver
+               tolto Flycast con la 0.9.108: il Dreamcast spariva da Giochi; 22 novembre) */
+            for (int k = 0; e[i].p.state == PKG_INSTALLED && k < e[i].nemus; k++) {
+                char p[1200];
+                struct stat sb;
+                snprintf(p, sizeof p, "%s/Emulators/%s.json", root_dir, e[i].emus[k]);
+                if (stat(p, &sb) != 0) e[i].p.state = PKG_UPDATE;
+            }
+            continue;
+        }
         /* arrivato con il sistema, prima dello Store: ci sono tutti i suoi emulatori. Non vale per un
            pacchetto dell'altro modello, né quando lo stesso emulatore l'ha messo un altro pacchetto
            installato: Deadcast e Flycast hanno tutti e due Emulators/dc.json, e con Deadcast sulla
            Brick Pro Flycast si vedeva, con Elimina che toglieva giochi e salvataggi di Deadcast
            (segnalato dall'utente il 22 novembre) */
-        bool all = e[i].nemus > 0 && !e[i].p.other_model;
-        for (int o = 0; all && o < n; o++) {
-            if (o == i) continue;
-            char ov[64];
-            installed_version(e[o].p.id, ov, sizeof ov, NULL, 0);
-            if (!ov[0] && !archived(e[o].p.id)) continue;
-            for (int k = 0; all && k < e[i].nemus; k++)
-                for (int m = 0; all && m < e[o].nemus; m++)
-                    if (!strcmp(e[i].emus[k], e[o].emus[m])) all = false;
-        }
+        bool all = e[i].nemus > 0 && !e[i].p.other_model && !emu_shared(e, n, i, true);
         for (int k = 0; all && k < e[i].nemus; k++) {
             char p[1200];
             struct stat sb;
@@ -1388,8 +1409,31 @@ static void *remove_worker(void *arg) {
         st.phase = ST_FAILED;
         return NULL;
     }
-    if (parts & (STORE_RM_GAMES | STORE_RM_SAVES))
-        for (int k = 0; k < e.nemus; k++) remove_emu_data(e.emus[k], parts);
+    /* emulatori e file che usa anche un altro pacchetto installato non si toccano: sono suoi
+       (togliendo Flycast «arrivato con il sistema» se ne andava Emulators/dc.json di Deadcast, e con
+       i giochi e i salvataggi quelli di Deadcast; 22 novembre) */
+    char **others = NULL;
+    int nothers = 0;
+    bool shared_emu[16] = { false };
+    pthread_mutex_lock(&lock);
+    for (int o = 0; o < ncat; o++) {
+        if (!strcmp(cat[o].p.id, e.p.id)) continue;
+        char ov[64];
+        installed_version(cat[o].p.id, ov, sizeof ov, NULL, 0);
+        if (!ov[0]) continue;
+        for (int k = 0; k < e.nemus && k < 16; k++)
+            for (int m = 0; m < cat[o].nemus; m++)
+                if (!strcmp(e.emus[k], cat[o].emus[m])) shared_emu[k] = true;
+        char **na = realloc(others, sizeof(char *) * (size_t)(nothers + 1));
+        if (na) { others = na; others[nothers++] = strdup(cat[o].p.id); }
+    }
+    pthread_mutex_unlock(&lock);
+    if (parts & (STORE_RM_GAMES | STORE_RM_SAVES)) {
+        for (int k = 0; k < e.nemus; k++) {
+            if (k >= 16 || !shared_emu[k]) remove_emu_data(e.emus[k], parts);
+            else ui_log("store: dati di %s lasciati: li usa un altro pacchetto installato", e.emus[k]);
+        }
+    }
     char rp[1200];
     record_path(e.p.id, rp, sizeof rp);
     bool was_archived = archived(e.p.id);
@@ -1398,6 +1442,15 @@ static void *remove_worker(void *arg) {
         char **list = n ? files : e.files;
         int ln = n ? n : e.nfiles;
         for (int i = 0; i < ln; i++) {
+            bool theirs = false;   /* lo elenca il registro di un altro pacchetto installato */
+            for (int o = 0; o < nothers && !theirs; o++) {
+                int on = 0;
+                bool ofail = false;
+                char **of = others[o] ? record_files(others[o], &on, &ofail) : NULL;
+                for (int q = 0; q < on && !theirs; q++) theirs = !strcmp(of[q], list[i]);
+                free_list(of, on);
+            }
+            if (theirs) { ui_log("store: %s lasciato: è di un altro pacchetto installato", list[i]); continue; }
             char full[1300];
             snprintf(full, sizeof full, "%s/%s", root_dir, list[i]);
             if (unlink(full) == 0 || errno == ENOENT) prune_dirs(list[i]);
@@ -1418,6 +1471,8 @@ static void *remove_worker(void *arg) {
     }
     sync();
     free_list(files, n);
+    for (int o = 0; o < nothers; o++) free(others[o]);
+    free(others);
     ui_log("store: %s tolto (parti %d)", e.p.id, parts);
     atomic_store(&changed, true);
     store_refresh();

@@ -117,7 +117,6 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 - Minor findings of the independent review of 0.9.109 (22 Nov 2026), not fixed yet:
   - With the guide open, holding power opens the power dialog, which takes the buttons but is drawn under the guide (`dialog_draw` comes before `guide_draw` in the main loop; older panels share the pattern). Draw the dialog last, or close the guide.
   - `linux_cpu_khz` stays set if writing `next.txt` fails after `write_linux_env`; the next launch from the same launcher reuses that frequency. Reset it at the top of `launch_ex`.
-  - PPSSPP `opaco off` runs only in the `launch.sh` trap: after a SIGKILL the display layer stays opaque. Console test: force-quit PPSSPP, then open another emulator's game menu and check transparency.
   - `compute_states` reads every other package record for each absent package (about 1500 file opens on FAT): build the installed list once.
   - Guide scrolling ignores the gap between notes (can scroll a little past the end) and Down plays the move sound with nothing to scroll.
 
