@@ -72,9 +72,12 @@ def fill(text, extra):
 
 
 def build_pages():
-    """Sito di www.mosaikcfw.org in dist/mosaikcfw.org (solo i file da caricare in httpdocs): Home e Scarica in inglese (radice) e italiano
-    (it/), le schermate di docs/images, i link di scaricamento alla Release vX.Y.Z su GitHub. Le
-    guide restano nella wiki. Da caricare sull'hosting solo per le versioni stabili."""
+    """Sito di www.mosaikcfw.org in dist/mosaikcfw.org (e lo zip da caricare in httpdocs): Home e
+    Scarica, le guide dalla wiki con la colonna delle sezioni, Sistemi dai JSON degli emulatori, i
+    dispositivi (toolchain/site_docs.py). I link di scaricamento sono quelli dell'ultima STABILE su
+    GitHub, non della build locale: il sito si carica solo per le stabili."""
+    sys.path.insert(0, os.path.join(top, "toolchain"))
+    import site_docs
     web = os.path.join(dist, "mosaikcfw.org")
     shutil.rmtree(web, ignore_errors=True)
     shutil.copytree(os.path.join(src, "assets"), os.path.join(web, "assets"))
@@ -84,34 +87,27 @@ def build_pages():
         if n.endswith(".png"):
             shutil.copy(os.path.join(shots, n), os.path.join(web, "assets", "shots", "en", n))
     shutil.copytree(os.path.join(shots, "it"), os.path.join(web, "assets", "shots", "it"))
+    for n in os.listdir(shots):   # le schermate che non hanno la versione italiana: quella inglese
+        if n.endswith(".png") and not os.path.exists(os.path.join(web, "assets", "shots", "it", n)):
+            shutil.copy(os.path.join(shots, n), os.path.join(web, "assets", "shots", "it", n))
     conf = json.load(open(os.path.join(src, "site.json"), encoding="utf-8"))
     layout = open(os.path.join(src, "layout.html"), encoding="utf-8").read()
-    rel = f"https://github.com/diapolon/mosaik_cfw/releases/download/v{version}/"
+    local = {**values, "SMART_URL": "", "BRICK_URL": ""}
+    stable = site_docs.stable_release(top, local)
+    def fill_stable(text, extra):
+        for k, v in {**stable, **extra}.items():
+            text = text.replace("{{" + k + "}}", v)
+        return text
     for lang, c in conf.items():
-        up = "../" if c["prefix"] else ""
         oc = conf[c["other"]]
-        shot_lang = lang if os.path.isdir(os.path.join(shots, lang)) else "en"
-        for slug in c["pages"]:
+        for slug in c["pages"]:   # Home e Scarica: pagine intere scritte a mano
             body = open(os.path.join(src, lang, slug + ".html"), encoding="utf-8").read()
-            links = ""
-            for k, v in c["nav"].items():
-                href = k[1:] if k.startswith("@") else k + ".html"
-                links += f'<a href="{href}"' + (' aria-current="page"' if k == slug else "") + f">{v}</a>"
-            other_href = ("../" if c["prefix"] else oc["prefix"]) + slug + ".html"
-            links += f'<a class="lang" href="{other_href}" lang="{c["other"]}" hreflang="{c["other"]}">{c["other_label"]}</a>'
-            page_path = c["prefix"] + ("" if slug == "index" else slug + ".html")
-            other_path = oc["prefix"] + ("" if slug == "index" else slug + ".html")
-            extra = {"LANG": lang, "OTHER_LANG": c["other"], "ASSETS": up + "assets/", "SHOTS": up + f"assets/shots/{shot_lang}/",
-                     "HOME": "index.html", "SELF": page_path, "OTHER": other_path, "DESCRIPTION": c["description"],
-                     "SMART_URL": rel + values["SMART_FILE"], "BRICK_URL": rel + values["BRICK_FILE"],
-                     "PAGE_TITLE": c["site"] if slug == "index" else f'{c["titles"][slug]} · Mosaik'}
-            page = layout.replace("{{BODY}}", body).replace("{{FOOTER}}", c["footer"]).replace("{{TOPLINKS}}", links)
-            page = fill(page, extra)
-            assert "{{" not in page, f"segnaposto non sostituito in {lang}/{slug}"
-            path = os.path.join(web, c["prefix"], slug + ".html")
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            open(path, "w", encoding="utf-8").write(page)
-    print("sito web in", web)
+            site_docs.write_page(web, c, oc, lang, slug, body, c["titles"][slug], layout, stable, fill_stable, conf)
+    site_docs.build_docs(top, src, web, conf, layout, stable, fill_stable)
+    zp = os.path.join(dist, "mosaikcfw.org.zip")
+    if os.path.exists(zp): os.remove(zp)
+    subprocess.run(["zip", "-q", "-r", "-X", zp, ".", "-x", "*.DS_Store"], cwd=web, check=True)
+    print("sito web in", web, "· versione stabile", stable["VERSION"], "· zip", zp)
 
 
 if have_site:
