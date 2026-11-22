@@ -246,7 +246,7 @@
     "info": "À propos",
     "power": "Éteindre la console",
     "duplicates": "Jeux en double",
-    "scrape": "Télécharger les images",
+    "scrape": "Télécharger jaquettes et infos",
     "clean_media": "Nettoyer les images",
     "update": "Mettre à jour",
     "channel": "Canal de mise à jour",
@@ -308,7 +308,7 @@
     "info": "Espace sur la carte SD et ce qui l'occupe : jeux par émulateur, images, sauvegardes, musique, vidéos.",
     "power": "Enregistre et éteint.",
     "duplicates": "Jeu présent dans plusieurs émulateurs arcade (FinalBurn Neo, MAME 2003+, MAME 2010) : afficher tous ou un seul.",
-    "scrape": "Avec l'app « Télécharger les images » de la Boutique : captures, écrans titres et marquees ; pour les consoles aussi la boîte, l'année, l'éditeur, le genre et les joueurs. Wi-Fi connecté nécessaire.",
+    "scrape": "Avec l'app « Jaquettes et infos » de la Boutique : captures, écrans titres et marquees ; pour les consoles aussi la boîte, l'année, l'éditeur, le genre et les joueurs. Wi-Fi connecté nécessaire.",
     "clean_media": "Supprime les images téléchargées des jeux qui ne sont plus sur la carte.",
     "update": "Télécharge et installe la nouvelle version en Wi-Fi. Vos ROM, sauvegardes et réglages restent tels quels.",
     "channel": "Stable : versions publiées. Développement : versions de test. Le retour à Stable s'applique à la prochaine version stable.",
@@ -461,7 +461,7 @@
     "open_settings": "Appuyez sur A pour ouvrir les réglages"
   },
   "scrape": {
-    "title": "Téléchargement des images",
+    "title": "Jaquettes et infos",
     "info": "Recherche des informations des jeux…",
     "images": "Téléchargement des images…",
     "done": "Terminé.",
@@ -470,11 +470,11 @@
     "progress": "%d sur %d jeux · %d images, %d introuvables",
     "stop": "Arrêter",
     "no_wifi": "Connectez-vous au Wi-Fi pour télécharger les images",
-    "no_app": "Installez « Télécharger les images » depuis la Boutique",
+    "no_app": "Installez « Jaquettes et infos » depuis la Boutique",
     "pick_all": "Tous les émulateurs",
     "pick_go": "Télécharger",
     "pick_none": "Choisis au moins un émulateur",
-    "pick_hint": "Images"
+    "pick_hint": "Jaquettes"
   },
   "filters": {
     "title": "Filtres et tri",
@@ -517,7 +517,7 @@
     "never": "Jamais joué",
     "hours": "%d h %d min",
     "minutes": "%d min",
-    "no_history": "Aucune description : utilisez « Télécharger les images ».",
+    "no_history": "Aucune description : utilisez « Jaquettes et infos ».",
     "states": "États sauvegardés : emplacement %s",
     "stats1": "%d partie · %s · dernière le %s"
   },

@@ -387,8 +387,8 @@ Pro non ce l'ha. Dal sistema 0.9.104.
 python3 tools/scrape.py sdcard
 ```
 
-Oppure dal launcher: **Impostazioni → ROM e immagini → Scarica immagini**, con barra di
-avanzamento e possibilità di interrompere. Serve l'app «Scarica immagini» dello Store
+Oppure dal launcher: **Impostazioni → ROM e immagini → Scarica copertine e info**, con barra di
+avanzamento e possibilità di interrompere. Serve l'app «Copertine e info» dello Store
 (`src/apps/scraper.c`, in C con libcurl, via Wi-Fi sulla console), che il launcher avvia con
 `launcher/scrape_client.c`. Lo script Python fa solo gli arcade.
 

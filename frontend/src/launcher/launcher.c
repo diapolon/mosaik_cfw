@@ -3263,14 +3263,19 @@ static void draw_laptop(int x, int y, int w, int h) {
     int bx = lx + lw * 8 / 100, by = y + lh * 10 / 100, bw = lw * 84 / 100, bh = lh * 76 / 100;
     ui_rrect(bx, by, bw, bh, r, hexc(0x3A3646));
     ui_rrect(bx + bw / 30 + 1, by + bh / 25 + 1, bw - 2 * (bw / 30 + 1), bh - 2 * (bh / 25 + 1), r / 2 + 1, scr);
-    int fh = bh * 26 / 100;
-    TTF_Font *f = TTF_FontHeight(UI.f_title) <= fh ? UI.f_title : TTF_FontHeight(UI.f_normal) <= fh ? UI.f_normal : UI.f_small;
-    ui_text(f, "LINUX", bx + bw / 10, by + bh * 16 / 100, hexc(0xD0C8E8), ALIGN_LEFT);
-    if (TTF_FontHeight(UI.f_small) < bh * 42 / 100) {
-        char fit[64];
-        ui_text_fit(UI.f_small, T("plat.native"), bw * 8 / 10, fit, sizeof fit);
-        ui_text(UI.f_small, fit, bx + bw / 10, by + bh * 16 / 100 + TTF_FontHeight(f) + bh / 20, hexc(0x9AE6A0), ALIGN_LEFT);
-    }
+    /* nello schermo un pad da gioco: sono giochi, non app (22 novembre); "LINUX" piccolo in alto */
+    color_t green = hexc(0x9AE6A0);
+    if (TTF_FontHeight(UI.f_small) < bh * 30 / 100) ui_text(UI.f_small, "LINUX", bx + bw / 12, by + bh / 14, hexc(0xD0C8E8), ALIGN_LEFT);
+    int pw = bw * 56 / 100, ph = pw * 42 / 100, px = bx + (bw - pw) / 2, py = by + bh * 58 / 100 - ph / 2;
+    if (TTF_FontHeight(UI.f_small) >= bh * 30 / 100) py = by + (bh - ph) / 2;
+    ui_circle(px + ph * 45 / 100, py + ph * 70 / 100, ph * 45 / 100, green);           /* impugnature */
+    ui_circle(px + pw - ph * 45 / 100, py + ph * 70 / 100, ph * 45 / 100, green);
+    ui_rrect(px, py, pw, ph * 80 / 100, ph * 38 / 100, green);                         /* corpo */
+    int u = ph / 7 > 0 ? ph / 7 : 1, dx = px + pw * 27 / 100, dy = py + ph * 40 / 100;
+    ui_rect(dx - u * 3 / 2, dy - u / 2, u * 3, u, scr);                                 /* croce */
+    ui_rect(dx - u / 2, dy - u * 3 / 2, u, u * 3, scr);
+    ui_circle(px + pw * 70 / 100, dy + u * 3 / 4, u * 3 / 4, scr);                      /* due tasti */
+    ui_circle(px + pw * 80 / 100, dy - u * 3 / 4, u * 3 / 4, scr);
     int ky = y + lh, kh = h * 24 / 100;
     plat_quad(lx - w * 2 / 100, ky, lx + lw + w * 2 / 100, ky, x + w, ky + kh, x, ky + kh, shell);
     for (int row = 0; row < 3; row++) {

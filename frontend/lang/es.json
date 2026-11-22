@@ -246,7 +246,7 @@
     "info": "Información",
     "power": "Apagar la consola",
     "duplicates": "Juegos duplicados",
-    "scrape": "Descargar imágenes",
+    "scrape": "Descargar carátulas e info",
     "clean_media": "Limpiar imágenes",
     "update": "Actualizar sistema",
     "channel": "Canal de actualización",
@@ -308,7 +308,7 @@
     "info": "Espacio en la tarjeta SD y qué lo ocupa: juegos por emulador, imágenes, partidas, música, vídeos.",
     "power": "Guarda y apaga.",
     "duplicates": "Juego presente en más de un emulador arcade (FinalBurn Neo, MAME 2003+, MAME 2010): mostrar todos o solo uno.",
-    "scrape": "Con la app «Descargar imágenes» de la Tienda: capturas, títulos y marquesinas; para las consolas también la caja, el año, el editor, el género y los jugadores. Necesita el Wi-Fi conectado.",
+    "scrape": "Con la app «Carátulas e info» de la Tienda: capturas, títulos y marquesinas; para las consolas también la caja, el año, el editor, el género y los jugadores. Necesita el Wi-Fi conectado.",
     "clean_media": "Borra las imágenes descargadas de juegos que ya no están en la tarjeta.",
     "update": "Descarga e instala la versión nueva por Wi-Fi. Tus ROM, partidas y ajustes se quedan como están.",
     "channel": "Estable: versiones publicadas. Desarrollo: versiones de prueba. Volver a Estable se aplica desde la próxima versión estable.",
@@ -461,7 +461,7 @@
     "open_settings": "Pulsa A para abrir los ajustes"
   },
   "scrape": {
-    "title": "Descargando imágenes",
+    "title": "Carátulas e info",
     "info": "Buscando la información de los juegos…",
     "images": "Descargando imágenes…",
     "done": "Completado.",
@@ -470,11 +470,11 @@
     "progress": "%d de %d juegos · %d imágenes, %d no encontradas",
     "stop": "Detener",
     "no_wifi": "Conéctate al Wi-Fi para descargar las imágenes",
-    "no_app": "Instala «Descargar imágenes» desde la Tienda",
+    "no_app": "Instala «Carátulas e info» desde la Tienda",
     "pick_all": "Todos los emuladores",
     "pick_go": "Descargar",
     "pick_none": "Elige al menos un emulador",
-    "pick_hint": "Imágenes"
+    "pick_hint": "Carátulas"
   },
   "filters": {
     "title": "Filtros y orden",
@@ -517,7 +517,7 @@
     "never": "Nunca jugado",
     "hours": "%d h %d min",
     "minutes": "%d min",
-    "no_history": "Sin descripción: usa «Descargar imágenes».",
+    "no_history": "Sin descripción: usa «Carátulas e info».",
     "states": "Estados guardados: ranura %s",
     "stats1": "%d partida · %s · última el %s"
   },

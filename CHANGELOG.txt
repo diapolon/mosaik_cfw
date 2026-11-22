@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.108
+it Giochi Linux: nell'icona un pad da gioco, per non confonderli con le app
+en Linux games: a gamepad in their icon, so they are not mistaken for apps
+it L'app per copertine e informazioni dei giochi si chiama «Copertine e info» (non più «Scarica immagini»)
+en The app for game covers and information is now called "Covers & info" (no longer "Download images")
+
 0.9.107
 it Guida degli emulatori: il disegno è quello della tua console, Smart Pro o Brick Pro, e c'è per tutti gli emulatori
 en Emulator guide: the drawing is your console, Smart Pro or Brick Pro, and every emulator has one

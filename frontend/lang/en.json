@@ -246,7 +246,7 @@
     "info": "About",
     "power": "Power off the console",
     "duplicates": "Duplicate games",
-    "scrape": "Download images",
+    "scrape": "Download covers & info",
     "clean_media": "Clean up images",
     "update": "Update system",
     "channel": "Update channel",
@@ -308,7 +308,7 @@
     "info": "Space on the SD card and what uses it: games per emulator, images, saves, music, videos.",
     "power": "Saves and powers off.",
     "duplicates": "Game present in more than one arcade emulator (FinalBurn Neo, MAME 2003+, MAME 2010): show all or only one.",
-    "scrape": "With the “Download images” app from the Store: screenshots, titles and marquees; for consoles also the box, year, publisher, genre and players. Needs Wi-Fi connected.",
+    "scrape": "With the “Covers & info” app from the Store: screenshots, titles and marquees; for consoles also the box, year, publisher, genre and players. Needs Wi-Fi connected.",
     "clean_media": "Deletes downloaded images of games that are no longer on the card.",
     "update": "Downloads and installs the new version over Wi-Fi. Your ROMs, saves and settings stay as they are.",
     "channel": "Stable: released versions. Development: test builds. Going back to Stable applies from the next stable version.",
@@ -461,7 +461,7 @@
     "open_settings": "Press A to open the settings"
   },
   "scrape": {
-    "title": "Downloading images",
+    "title": "Covers & info",
     "info": "Looking up game information…",
     "images": "Downloading images…",
     "done": "Done.",
@@ -470,11 +470,11 @@
     "progress": "%d of %d games · %d images, %d not found",
     "stop": "Stop",
     "no_wifi": "Connect to Wi-Fi to download images",
-    "no_app": "Install “Download images” from the Store",
+    "no_app": "Install “Covers & info” from the Store",
     "pick_all": "All emulators",
     "pick_go": "Download",
     "pick_none": "Choose at least one emulator",
-    "pick_hint": "Images"
+    "pick_hint": "Covers"
   },
   "filters": {
     "title": "Filters and sorting",
@@ -517,7 +517,7 @@
     "never": "Never played",
     "hours": "%d h %d min",
     "minutes": "%d min",
-    "no_history": "No description: use “Download images” to get it.",
+    "no_history": "No description: use “Covers & info” to get it.",
     "states": "Saved states: slot %s",
     "stats1": "%d play · %s · last on %s"
   },

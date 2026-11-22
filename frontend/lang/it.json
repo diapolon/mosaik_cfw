@@ -246,7 +246,7 @@
     "info": "Informazioni",
     "power": "Spegni la console",
     "duplicates": "Giochi doppi",
-    "scrape": "Scarica immagini",
+    "scrape": "Scarica copertine e info",
     "clean_media": "Pulisci immagini",
     "update": "Aggiorna sistema",
     "channel": "Canale aggiornamenti",
@@ -308,7 +308,7 @@
     "info": "Spazio sulla scheda SD e cosa lo occupa: giochi per emulatore, immagini, salvataggi, musica, video.",
     "power": "Salva e spegne.",
     "duplicates": "Gioco presente in più emulatori arcade (FinalBurn Neo, MAME 2003+, MAME 2010): mostra tutti o solo uno.",
-    "scrape": "Con l'app «Scarica immagini» dello Store: schermate, titoli e marquee dei giochi; per le console anche scatola, anno, editore, genere e giocatori. Serve il Wi-Fi collegato.",
+    "scrape": "Con l'app «Copertine e info» dello Store: schermate, titoli e marquee dei giochi; per le console anche scatola, anno, editore, genere e giocatori. Serve il Wi-Fi collegato.",
     "clean_media": "Elimina le immagini scaricate di giochi che non sono più sulla scheda.",
     "update": "Scarica e installa la versione nuova via Wi-Fi. ROM, salvataggi e impostazioni restano come sono.",
     "channel": "Stabile: le versioni pubblicate. Sviluppo: versioni di prova. Tornando a Stabile si resta così fino alla prossima versione stabile.",
@@ -461,7 +461,7 @@
     "open_settings": "Premi A per aprire le impostazioni"
   },
   "scrape": {
-    "title": "Scaricamento immagini",
+    "title": "Copertine e info",
     "info": "Cerco le informazioni dei giochi…",
     "images": "Scarico le immagini…",
     "done": "Completato.",
@@ -470,11 +470,11 @@
     "progress": "%d di %d giochi · %d immagini, %d non trovate",
     "stop": "Interrompi",
     "no_wifi": "Collegati al Wi-Fi per scaricare le immagini",
-    "no_app": "Installa «Scarica immagini» dallo Store",
+    "no_app": "Installa «Copertine e info» dallo Store",
     "pick_all": "Tutti gli emulatori",
     "pick_go": "Scarica",
     "pick_none": "Scegli almeno un emulatore",
-    "pick_hint": "Immagini"
+    "pick_hint": "Copertine"
   },
   "filters": {
     "title": "Filtri e ordinamento",
@@ -517,7 +517,7 @@
     "never": "Mai giocato",
     "hours": "%d h %d min",
     "minutes": "%d min",
-    "no_history": "Nessuna descrizione: usa «Scarica immagini» per ottenerla.",
+    "no_history": "Nessuna descrizione: usa «Copertine e info» per ottenerla.",
     "states": "Stati salvati: slot %s",
     "stats1": "%d partita · %s · ultima il %s"
   },

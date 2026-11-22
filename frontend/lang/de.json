@@ -246,7 +246,7 @@
     "info": "Info",
     "power": "Konsole ausschalten",
     "duplicates": "Doppelte Spiele",
-    "scrape": "Bilder herunterladen",
+    "scrape": "Cover & Infos laden",
     "clean_media": "Bilder aufräumen",
     "update": "System aktualisieren",
     "channel": "Update-Kanal",
@@ -308,7 +308,7 @@
     "info": "Speicherplatz auf der SD-Karte und was ihn belegt: Spiele pro Emulator, Bilder, Spielstände, Musik, Videos.",
     "power": "Speichert und schaltet aus.",
     "duplicates": "Spiel in mehreren Arcade-Emulatoren (FinalBurn Neo, MAME 2003+, MAME 2010): alle oder nur eines anzeigen.",
-    "scrape": "Mit der App „Bilder herunterladen“ aus dem Store: Screenshots, Titelbilder und Marquees; bei Konsolen auch Verpackung, Jahr, Publisher, Genre und Spielerzahl. Braucht verbundenes WLAN.",
+    "scrape": "Mit der App „Cover & Infos“ aus dem Store: Screenshots, Titelbilder und Marquees; bei Konsolen auch Verpackung, Jahr, Publisher, Genre und Spielerzahl. Braucht verbundenes WLAN.",
     "clean_media": "Löscht heruntergeladene Bilder von Spielen, die nicht mehr auf der Karte sind.",
     "update": "Lädt die neue Version über WLAN und installiert sie. ROMs, Spielstände und Einstellungen bleiben, wie sie sind.",
     "channel": "Stabil: veröffentlichte Versionen. Entwicklung: Testversionen. Zurück zu Stabil gilt ab der nächsten stabilen Version.",
@@ -461,7 +461,7 @@
     "open_settings": "A drücken, um die Einstellungen zu öffnen"
   },
   "scrape": {
-    "title": "Bilder werden geladen",
+    "title": "Cover & Infos",
     "info": "Spielinformationen werden gesucht…",
     "images": "Bilder werden heruntergeladen…",
     "done": "Fertig.",
@@ -470,11 +470,11 @@
     "progress": "%d von %d Spielen · %d Bilder, %d nicht gefunden",
     "stop": "Stoppen",
     "no_wifi": "Verbinde dich mit dem WLAN, um Bilder zu laden",
-    "no_app": "Installiere „Bilder herunterladen“ aus dem Store",
+    "no_app": "Installiere „Cover & Infos“ aus dem Store",
     "pick_all": "Alle Emulatoren",
     "pick_go": "Laden",
     "pick_none": "Wähle mindestens einen Emulator",
-    "pick_hint": "Bilder"
+    "pick_hint": "Cover"
   },
   "filters": {
     "title": "Filter und Sortierung",
@@ -517,7 +517,7 @@
     "never": "Noch nie gespielt",
     "hours": "%d Std. %d Min.",
     "minutes": "%d Min.",
-    "no_history": "Keine Beschreibung: „Bilder herunterladen“ verwenden.",
+    "no_history": "Keine Beschreibung: „Cover & Infos“ verwenden.",
     "states": "Gespeicherte Spielstände: Slot %s",
     "stats1": "%d Spiel · %s · zuletzt am %s"
   },

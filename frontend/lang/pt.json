@@ -246,7 +246,7 @@
     "info": "Sobre",
     "power": "Desligar a consola",
     "duplicates": "Jogos duplicados",
-    "scrape": "Transferir imagens",
+    "scrape": "Transferir capas e info",
     "clean_media": "Limpar imagens",
     "update": "Atualizar sistema",
     "channel": "Canal de atualização",
@@ -308,7 +308,7 @@
     "info": "Espaço no cartão SD e o que o ocupa: jogos por emulador, imagens, gravações, música, vídeos.",
     "power": "Guarda e desliga.",
     "duplicates": "Jogo presente em mais de um emulador arcade (FinalBurn Neo, MAME 2003+, MAME 2010): mostrar todos ou só um.",
-    "scrape": "Com a app «Transferir imagens» da Loja: capturas, títulos e marquees; nas consolas também a caixa, o ano, a editora, o género e os jogadores. Precisa do Wi-Fi ligado.",
+    "scrape": "Com a app «Capas e info» da Loja: capturas, títulos e marquees; nas consolas também a caixa, o ano, a editora, o género e os jogadores. Precisa do Wi-Fi ligado.",
     "clean_media": "Apaga as imagens transferidas de jogos que já não estão no cartão.",
     "update": "Transfere e instala a versão nova por Wi-Fi. As tuas ROM, gravações e definições ficam como estão.",
     "channel": "Estável: versões publicadas. Desenvolvimento: versões de teste. Voltar a Estável aplica-se a partir da próxima versão estável.",
@@ -461,7 +461,7 @@
     "open_settings": "Prima A para abrir as definições"
   },
   "scrape": {
-    "title": "A transferir imagens",
+    "title": "Capas e info",
     "info": "A procurar a informação dos jogos…",
     "images": "A transferir imagens…",
     "done": "Concluído.",
@@ -470,11 +470,11 @@
     "progress": "%d de %d jogos · %d imagens, %d não encontradas",
     "stop": "Parar",
     "no_wifi": "Liga-te ao Wi-Fi para transferir as imagens",
-    "no_app": "Instala «Transferir imagens» a partir da Loja",
+    "no_app": "Instala «Capas e info» a partir da Loja",
     "pick_all": "Todos os emuladores",
     "pick_go": "Descarregar",
     "pick_none": "Escolhe pelo menos um emulador",
-    "pick_hint": "Imagens"
+    "pick_hint": "Capas"
   },
   "filters": {
     "title": "Filtros e ordenação",
@@ -517,7 +517,7 @@
     "never": "Nunca jogado",
     "hours": "%d h %d min",
     "minutes": "%d min",
-    "no_history": "Sem descrição: use «Transferir imagens».",
+    "no_history": "Sem descrição: use «Capas e info».",
     "states": "Estados guardados: espaço %s",
     "stats1": "%d jogo · %s · último a %s"
   },
