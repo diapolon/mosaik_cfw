@@ -2293,9 +2293,17 @@ static bool consume_switch(void) {
 static void draw_icon_glyph(int kind, int cx, int cy, int s, color_t c, color_t bg) {
     int q = s / 6;
     switch (kind) {
-    case IC_ALL:
-        for (int i = 0; i < 4; i++) ui_rrect(cx - q - q / 4 + (i % 2) * (q + q / 2), cy - q - q / 4 + (i / 2) * (q + q / 2), q, q, q / 4, c);
+    case IC_ALL: {   /* Giochi: un pad, come la sezione Giochi delle Impostazioni (22 novembre: prima
+                        quattro quadrati, troppo simili ai nove puntini delle App) */
+        int w = s * 54 / 100, h = s * 30 / 100, x = cx - w / 2, y = cy - h / 2;
+        ui_rrect(x, y, w, h, h / 2, c);
+        int dx = x + w * 7 / 25, u = h / 8 + 1, bx = x + w * 7 / 10;
+        ui_rect(dx - 2 * u, cy - u / 2, 4 * u, u, bg);
+        ui_rect(dx - u / 2, cy - 2 * u, u, 4 * u, bg);
+        ui_circle(bx - u * 3 / 2, cy + u, u * 3 / 4 + 1, bg);
+        ui_circle(bx + u * 3 / 2, cy - u, u * 3 / 4 + 1, bg);
         break;
+    }
     case IC_FAV: ui_star(cx, cy, s / 4, c); break;
     case IC_SETTINGS: ui_gear(cx, cy, s * 27 / 100, c); break;
     case IC_STORE: {   /* borsa della spesa con la freccia di scaricamento */

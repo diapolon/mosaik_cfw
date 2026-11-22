@@ -5,7 +5,6 @@
     "fuse",
     "bluemsx",
     "vice",
-    "scummvm",
     "mame2010",
     "stella2014",
     "prosystem",
@@ -15,7 +14,6 @@
     "pce_fast",
     "gambatte",
     "mgba",
-    "ngp",
     "handy",
     "wswan",
     "pokemini",
@@ -26,13 +24,15 @@
     "sdgrow",
     "diag",
     "freedoom",
-    "mrboom",
     "devilutionx",
     "video",
     "urlget",
     "flycast"
   ],
   "tested": {
+    "scummvm": ["brickpro"],
+    "mrboom": ["brickpro"],
+    "ngp": ["brickpro"],
     "mupen64plus": ["smartpro", "brickpro"],
     "fbneo": [
       "smartpro",

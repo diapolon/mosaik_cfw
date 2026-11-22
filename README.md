@@ -55,6 +55,7 @@
 - **Signed updates** over Wi-Fi, all or nothing: if one is interrupted or the new version fails to start, the console goes back to all the previous files.
 - **Settings for a whole console or for one game** (Platforms, Y; **Change for** in the game menu), CPU profile for each game, and a notice on the home screen when an update is available.
 - **Game diagnosis**: when a game can't start, it tells you what's missing and where to copy it.
+- **A guide for every emulator** (from 0.9.105): **Select** in Platforms shows your console, Smart Pro or Brick Pro, with what each button does, and the folder for the games; the first game of an emulator with its own menu (PSP, Nintendo 64, Dreamcast) shows it by itself. The Music player and Video have one too.
 - **Three save slots per game** with preview and date, plus an automatic save with a previous copy.
 
 ## What works
@@ -71,12 +72,13 @@ Every build is tried by hand on real consoles before it is released. This is whe
 - **Dreamcast with Deadcast**: Brick Pro (the Store does not offer it on the Smart Pro).
 - **PSP with PPSSPP**: Brick Pro (short press of **Menu** for the PPSSPP menu, held for the Mosaik menu).
 - **SD card test**: Brick Pro.
+- **Neo Geo Pocket, ScummVM and Mr.Boom**: Brick Pro.
 
 **Experimental: you can install them, they have not been tried yet**
-- **Consoles**: NES, Game Boy and Game Boy Color, Game Boy Advance, PC Engine, PlayStation, Atari 2600, 7800 and Lynx, ColecoVision, Intellivision, Neo Geo Pocket, WonderSwan, Virtual Boy, Pokémon mini, Dreamcast with Flycast (Smart Pro only).
+- **Consoles**: NES, Game Boy and Game Boy Color, Game Boy Advance, PC Engine, PlayStation, Atari 2600, 7800 and Lynx, ColecoVision, Intellivision, WonderSwan, Virtual Boy, Pokémon mini, Dreamcast with Flycast (Smart Pro only).
 - **Arcade**: MAME 2010.
-- **Computers**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS, Amiga.
-- **Linux games**: Freedoom, Mr.Boom, Diablo (DevilutionX).
+- **Computers**: ZX Spectrum, MSX, Commodore 64, DOS, Amiga.
+- **Linux games**: Freedoom, Diablo (DevilutionX).
 - **Apps**: Music player, Video, Download files, SD card space, Diagnostics.
 - **Bluetooth controllers**: they can be paired, nobody has tried one yet.
 
@@ -93,11 +95,11 @@ Tried something marked experimental? Say whether it works in an [issue](https://
 <table>
   <tr>
     <td><img src="docs/images/platforms.png" alt="Platforms"></td>
-    <td><img src="docs/images/library.png" alt="Library"></td>
+    <td><img src="docs/images/library.png" alt="Games"></td>
   </tr>
   <tr>
     <td align="center">Platforms, to pick a category before the games</td>
-    <td align="center">The library, as a grid of pictures in Tessera</td>
+    <td align="center">Games, as a grid of pictures in Tessera</td>
   </tr>
   <tr>
     <td><img src="docs/images/switch-game.png" alt="Switch game"></td>
@@ -116,6 +118,14 @@ Tried something marked experimental? Say whether it works in an [issue](https://
     <td align="center">Search, genres, collections and sorting</td>
   </tr>
   <tr>
+    <td><img src="docs/images/guide.png" alt="Emulator guide"></td>
+    <td><img src="docs/images/ingame-menu.png" alt="Game menu"></td>
+  </tr>
+  <tr>
+    <td align="center">The guide of each emulator (Select in Platforms): your console with what each button does</td>
+    <td align="center">The game menu (Menu): save states, settings for this game or the whole console</td>
+  </tr>
+  <tr>
     <td><img src="docs/images/settings.png" alt="Settings"></td>
     <td><img src="docs/images/appearance.png" alt="Appearance settings"></td>
   </tr>
@@ -129,7 +139,7 @@ Tried something marked experimental? Say whether it works in an [issue](https://
   </tr>
   <tr>
     <td align="center">Cabinet theme (from the Store): the numbered arcade menu</td>
-    <td align="center">Wave theme (from the Store): the library as a vertical list</td>
+    <td align="center">Wave theme (from the Store): the games as a vertical list</td>
   </tr>
   <tr>
     <td><img src="docs/images/transfer.png" alt="Transfer files window"></td>
@@ -153,7 +163,7 @@ Tried something marked experimental? Say whether it works in an [issue](https://
   </tr>
   <tr>
     <td align="center">Every package has its page, with pictures (L/R)</td>
-    <td align="center">Before deleting, what is removed and what is kept</td>
+    <td align="center">Delete: you choose what goes, the emulator, its saves or its games</td>
   </tr>
   <tr>
     <td><img src="docs/images/theme-copertina.png" alt="Cover theme"></td>
@@ -226,11 +236,12 @@ Arcade/Linux/MyGame/
   "year": "2024",
   "author": "Author",
   "env": { "VARIABLE_NAME": "value" },
-  "keys": { "A": "SPACE", "START": "ENTER" }
+  "keys": { "A": "SPACE", "START": "ENTER" },
+  "cpu": 3
 }
 ```
 
-`env` sets environment variables before the game starts. `keys` is for games that don't read controllers: each console button presses the given keyboard key.
+`env` sets environment variables before the game starts. `keys` is for games that don't read controllers: each console button presses the given keyboard key. `cpu` (from 0.9.104) sets the processor speed while the game runs: 1 = 816, 2 = 1200, 3 = 1608, 4 = 2000 MHz; without it, the profile chosen in the settings.
 
 ## Controls
 
@@ -243,9 +254,9 @@ Arcade/Linux/MyGame/
 | X | Game details |
 | Y | Add to favorites |
 | Start | Settings |
-| Select | Filters and sorting (in the library); Switch game (on the home screen) |
+| Select | Filters and sorting (in Games); Switch game (on the home screen); the emulator guide (in Platforms) |
 | Menu (in the Mosaik menu) | Quick panel: battery, Wi-Fi, brightness, volume, LED, music, screenshot, power off |
-| L / R | Switch tabs in the library |
+| L / R | Switch tabs in Games |
 | Menu (arcade and console games) | Game menu: switch game, save and load state, aspect ratio, filter, controls, exit |
 | Menu held 1 s (Linux games, Nintendo 64, Flycast) | Menu over the paused game; for the Nintendo 64 also save and load state, and for both emulators a **Controls** page with the original buttons and the TrimUI ones |
 

@@ -55,6 +55,7 @@
 - **Aggiornamenti firmati** via Wi-Fi, tutto o niente: se uno si interrompe o la versione nuova non parte, la console torna a tutti i file di prima.
 - **Impostazioni per una console intera o per un gioco** (Piattaforme, Y; **Cambia per** nel menu di gioco), profilo CPU per ogni gioco e avviso nella home quando c'è un aggiornamento.
 - **Diagnosi dei giochi**: quando un gioco non parte, ti dice cosa manca e dove copiarlo.
+- **Una guida per ogni emulatore** (dalla 0.9.105): **Select** in Piattaforme mostra la tua console, Smart Pro o Brick Pro, con cosa fa ogni tasto, e la cartella dei giochi; il primo gioco di un emulatore con un menu suo (PSP, Nintendo 64, Dreamcast) la mostra da solo. Ce l'hanno anche il Lettore musicale e Video.
 - **Tre slot di salvataggio per gioco** con anteprima e data, più un salvataggio automatico con copia precedente.
 
 ## Cosa funziona
@@ -71,12 +72,13 @@ Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stat
 - **Dreamcast con Deadcast**: Brick Pro (lo Store non lo propone sulla Smart Pro).
 - **PSP con PPSSPP**: Brick Pro (**Menu** premuto breve per il menu di PPSSPP, tenuto per quello di Mosaik).
 - **Test della SD**: Brick Pro.
+- **Neo Geo Pocket, ScummVM e Mr.Boom**: Brick Pro.
 
 **Sperimentale: si possono installare, non sono ancora stati provati**
-- **Console**: NES, Game Boy e Game Boy Color, Game Boy Advance, PC Engine, PlayStation, Atari 2600, 7800 e Lynx, ColecoVision, Intellivision, Neo Geo Pocket, WonderSwan, Virtual Boy, Pokémon mini, Dreamcast con Flycast (solo Smart Pro).
+- **Console**: NES, Game Boy e Game Boy Color, Game Boy Advance, PC Engine, PlayStation, Atari 2600, 7800 e Lynx, ColecoVision, Intellivision, WonderSwan, Virtual Boy, Pokémon mini, Dreamcast con Flycast (solo Smart Pro).
 - **Arcade**: MAME 2010.
-- **Computer**: ScummVM, ZX Spectrum, MSX, Commodore 64, DOS, Amiga.
-- **Giochi Linux**: Freedoom, Mr.Boom, Diablo (DevilutionX).
+- **Computer**: ZX Spectrum, MSX, Commodore 64, DOS, Amiga.
+- **Giochi Linux**: Freedoom, Diablo (DevilutionX).
 - **App**: Lettore musicale, Video, Scarica file, Spazio della SD, Diagnostica.
 - **Controller Bluetooth**: si possono abbinare, nessuno ne ha ancora provato uno.
 
@@ -93,11 +95,11 @@ Hai provato qualcosa di sperimentale? Scrivi se funziona in una [issue](https://
 <table>
   <tr>
     <td><img src="docs/images/it/platforms.png" alt="Piattaforme"></td>
-    <td><img src="docs/images/it/library.png" alt="Libreria"></td>
+    <td><img src="docs/images/it/library.png" alt="Giochi"></td>
   </tr>
   <tr>
     <td align="center">Le piattaforme, per scegliere la categoria prima dei giochi</td>
-    <td align="center">La libreria, a griglia di immagini in Tessera</td>
+    <td align="center">Giochi, a griglia di immagini in Tessera</td>
   </tr>
   <tr>
     <td><img src="docs/images/it/switch-game.png" alt="Cambia gioco"></td>
@@ -116,6 +118,14 @@ Hai provato qualcosa di sperimentale? Scrivi se funziona in una [issue](https://
     <td align="center">Ricerca, generi, collezioni e ordinamento</td>
   </tr>
   <tr>
+    <td><img src="docs/images/it/guide.png" alt="Guida dell'emulatore"></td>
+    <td><img src="docs/images/it/ingame-menu.png" alt="Menu di gioco"></td>
+  </tr>
+  <tr>
+    <td align="center">La guida di ogni emulatore (Select in Piattaforme): la tua console con cosa fa ogni tasto</td>
+    <td align="center">Il menu di gioco (Menu): salvataggi di stato, impostazioni per questo gioco o per tutta la console</td>
+  </tr>
+  <tr>
     <td><img src="docs/images/it/settings.png" alt="Impostazioni"></td>
     <td><img src="docs/images/it/appearance.png" alt="Impostazioni di aspetto"></td>
   </tr>
@@ -129,7 +139,7 @@ Hai provato qualcosa di sperimentale? Scrivi se funziona in una [issue](https://
   </tr>
   <tr>
     <td align="center">Tema Cabinato (dallo Store): il menu numerato da sala giochi</td>
-    <td align="center">Tema Onda (dallo Store): la libreria come elenco verticale</td>
+    <td align="center">Tema Onda (dallo Store): i giochi come elenco verticale</td>
   </tr>
   <tr>
     <td><img src="docs/images/it/transfer.png" alt="Finestra Trasferisci file"></td>
@@ -153,7 +163,7 @@ Hai provato qualcosa di sperimentale? Scrivi se funziona in una [issue](https://
   </tr>
   <tr>
     <td align="center">Ogni pacchetto ha la sua pagina, con le immagini (L/R)</td>
-    <td align="center">Prima di eliminare, cosa si toglie e cosa resta</td>
+    <td align="center">Elimina: scegli tu cosa togliere, l'emulatore, i suoi salvataggi o i suoi giochi</td>
   </tr>
   <tr>
     <td><img src="docs/images/it/theme-copertina.png" alt="Tema Copertina"></td>
@@ -226,11 +236,12 @@ Arcade/Linux/MioGioco/
   "year": "2024",
   "author": "Autore",
   "env": { "NOME_VARIABILE": "valore" },
-  "keys": { "A": "SPACE", "START": "ENTER" }
+  "keys": { "A": "SPACE", "START": "ENTER" },
+  "cpu": 3
 }
 ```
 
-`env` imposta variabili d'ambiente prima di avviare il gioco. `keys` serve ai giochi che non leggono i controller: ogni tasto della console preme il tasto della tastiera indicato.
+`env` imposta variabili d'ambiente prima di avviare il gioco. `keys` serve ai giochi che non leggono i controller: ogni tasto della console preme il tasto della tastiera indicato. `cpu` (dalla 0.9.104) sceglie la velocità del processore mentre il gioco gira: 1 = 816, 2 = 1200, 3 = 1608, 4 = 2000 MHz; senza, il profilo scelto nelle impostazioni.
 
 ## Comandi
 
@@ -243,9 +254,9 @@ Arcade/Linux/MioGioco/
 | X | Scheda del gioco |
 | Y | Aggiunge ai preferiti |
 | Start | Impostazioni |
-| Select | Filtri e ordinamento (in libreria); Cambia gioco (nella schermata principale) |
+| Select | Filtri e ordinamento (in Giochi); Cambia gioco (nella schermata principale); la guida dell'emulatore (in Piattaforme) |
 | Menu (nel menu di Mosaik) | Pannello rapido: batteria, Wi-Fi, luminosità, volume, LED, musica, cattura, spegni |
-| L / R | Cambiano scheda in libreria |
+| L / R | Cambiano scheda in Giochi |
 | Menu (giochi arcade e console) | Menu del gioco: Cambia gioco, salva e carica stato, proporzioni, filtro, comandi, esci |
 | Menu tenuto 1 s (giochi Linux, Nintendo 64, Flycast) | Menu sopra al gioco fermo; per il Nintendo 64 anche salva e carica stato, e per i due emulatori una pagina **Comandi** con i tasti originali e quelli della TrimUI |
 

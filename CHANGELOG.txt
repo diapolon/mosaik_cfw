@@ -14,6 +14,8 @@ it Store: sulla Brick Pro non compare più Flycast (e sulla Smart Pro Deadcast) 
 en Store: the Brick Pro no longer shows Flycast (nor the Smart Pro Deadcast) with the other one's games and saves
 it Icona dei cabinati arcade vista di fronte, come le altre
 en The arcade cabinet icon is seen from the front, like the others
+it «Libreria» si chiama ora «Giochi», con un pad come icona nella home (non si confonde più con le App)
+en "Library" is now called "Games", with a gamepad icon on the home screen (no longer mistaken for Apps)
 
 0.9.108
 it Giochi Linux: nell'icona un pad da gioco, per non confonderli con le app
