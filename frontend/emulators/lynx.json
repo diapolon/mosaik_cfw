@@ -48,6 +48,6 @@
     ["Option 2", "R1"],
     ["@dpad", "@dpad"],
     [{"it": "Pausa", "en": "Pause", "es": "Pausa", "fr": "Pause", "de": "Pause", "pt": "Pausa"}, "START"],
-    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+    ["Menu", "MENU"]
   ]
 }

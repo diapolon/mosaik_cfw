@@ -74,6 +74,6 @@
     ["@stick", "@lstick"],
     ["@dpad", "@dpad"],
     ["@emu_menu", "Select"],
-    [{"it": "Breve: Flycast · tenuto: Mosaik", "en": "Short: Flycast · held: Mosaik", "es": "Corta: Flycast · mantenida: Mosaik", "fr": "Court : Flycast · maintenu : Mosaik", "de": "Kurz: Flycast · gehalten: Mosaik", "pt": "Curto: Flycast · premido: Mosaik"}, "MENU"]
+    [{"it": "Flycast (breve) · Menu (tenuto)", "en": "Flycast (short) · Menu (held)", "es": "Flycast (corta) · Menu (mantenido)", "fr": "Flycast (court) · Menu (maintenu)", "de": "Flycast (kurz) · Menu (gehalten)", "pt": "Flycast (curto) · Menu (premido)"}, "MENU"]
   ]
 }

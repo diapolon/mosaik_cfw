@@ -32,6 +32,6 @@
     ]
   },
   "guide_pad": [
-    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+    ["Menu", "MENU"]
   ]
 }

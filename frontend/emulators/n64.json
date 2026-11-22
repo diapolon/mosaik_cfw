@@ -63,6 +63,6 @@
     ["@dpad", "@dpad"],
     ["@c_buttons", "@rstick"],
     ["@c_left_up", "Y · X"],
-    [{"it": "Tenuto: menu di Mosaik", "en": "Held: Mosaik menu", "es": "Mantenido: menú de Mosaik", "fr": "Maintenu : menu de Mosaik", "de": "Gehalten: Mosaik-Menü", "pt": "Premido: menu do Mosaik"}, "MENU"]
+    [{"it": "Menu (tenuto)", "en": "Menu (held)", "es": "Menu (mantenido)", "fr": "Menu (maintenu)", "de": "Menu (gehalten)", "pt": "Menu (premido)"}, "MENU"]
   ]
 }

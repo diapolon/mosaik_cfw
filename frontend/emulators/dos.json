@@ -52,6 +52,6 @@
   },
   "guide_pad": [
     [{"it": "Tastiera a schermo", "en": "On-screen keyboard", "es": "Teclado en pantalla", "fr": "Clavier à l'écran", "de": "Bildschirmtastatur", "pt": "Teclado no ecrã"}, "SELECT"],
-    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+    ["Menu", "MENU"]
   ]
 }

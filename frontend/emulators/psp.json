@@ -42,13 +42,13 @@
     ]
   },
   "guide_pad": [
-    [{"it": "Croce", "en": "Cross", "es": "Cruz", "fr": "Croix", "de": "Kreuz", "pt": "Cruz"}, "B"],
-    [{"it": "Cerchio", "en": "Circle", "es": "Círculo", "fr": "Rond", "de": "Kreis", "pt": "Círculo"}, "A"],
-    [{"it": "Quadrato", "en": "Square", "es": "Cuadrado", "fr": "Carré", "de": "Quadrat", "pt": "Quadrado"}, "Y"],
-    [{"it": "Triangolo", "en": "Triangle", "es": "Triángulo", "fr": "Triangle", "de": "Dreieck", "pt": "Triângulo"}, "X"],
+    ["#cross", "B"],
+    ["#circle", "A"],
+    ["#square", "Y"],
+    ["#triangle", "X"],
     ["@dpad", "@dpad"],
     ["Select", "SELECT"],
     ["Start", "START"],
-    [{"it": "Breve: PPSSPP · tenuto: Mosaik", "en": "Short: PPSSPP · held: Mosaik", "es": "Corta: PPSSPP · mantenida: Mosaik", "fr": "Court : PPSSPP · maintenu : Mosaik", "de": "Kurz: PPSSPP · gehalten: Mosaik", "pt": "Curto: PPSSPP · premido: Mosaik"}, "MENU"]
+    [{"it": "PPSSPP (breve) · Menu (tenuto)", "en": "PPSSPP (short) · Menu (held)", "es": "PPSSPP (corta) · Menu (mantenido)", "fr": "PPSSPP (court) · Menu (maintenu)", "de": "PPSSPP (kurz) · Menu (gehalten)", "pt": "PPSSPP (curto) · Menu (premido)"}, "MENU"]
   ]
 }
