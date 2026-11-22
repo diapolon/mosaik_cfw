@@ -4,52 +4,24 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.110
-it Store: togliere un emulatore non cancella più file, giochi e salvataggi di un altro emulatore installato (Flycast e Deadcast)
-en Store: removing an emulator no longer deletes files, games and saves of another installed emulator (Flycast and Deadcast)
-it Store: se a un emulatore installato manca il suo file, risulta da aggiornare: Aggiorna lo ripara (Dreamcast sparito da Giochi)
-en Store: an installed emulator missing its file shows as needing an update: Update repairs it (Dreamcast gone from Games)
-
-0.9.109
-it Le app possono avere la loro guida dei tasti: arriva con le prossime versioni di Lettore musicale e Video nello Store
-en Apps can have their own button guide: it comes with the next Music player and Video versions in the Store
-it Guida: il disegno a sinistra e le note a destra, con la cartella in evidenza e la spiegazione sotto
-en Guide: the drawing on the left and the notes on the right, the folder first and the explanation below
-it Store: sulla Brick Pro non compare più Flycast (e sulla Smart Pro Deadcast) con i giochi e i salvataggi dell'altro
-en Store: the Brick Pro no longer shows Flycast (nor the Smart Pro Deadcast) with the other one's games and saves
-it Icona dei cabinati arcade vista di fronte, come le altre
-en The arcade cabinet icon is seen from the front, like the others
-it «Libreria» si chiama ora «Giochi», con un pad come icona nella home (non si confonde più con le App)
-en "Library" is now called "Games", with a gamepad icon on the home screen (no longer mistaken for Apps)
-
-0.9.108
-it Giochi Linux: nell'icona un pad da gioco, per non confonderli con le app
-en Linux games: a gamepad in their icon, so they are not mistaken for apps
-it L'app per copertine e informazioni dei giochi si chiama «Copertine e info» (non più «Scarica immagini»)
-en The app for game covers and information is now called "Covers & info" (no longer "Download images")
-
-0.9.107
-it Guida degli emulatori: il disegno è quello della tua console, Smart Pro o Brick Pro, e c'è per tutti gli emulatori
-en Emulator guide: the drawing is your console, Smart Pro or Brick Pro, and every emulator has one
-it Guida più grafica: icone per cartelle, BIOS e salvataggi, il tasto Menu nel disegno, meno testo
-en A more graphic guide: icons for folders, BIOS and saves, the Menu key in the drawing, less text
-
-0.9.106
-it Guida degli emulatori con il disegno dei comandi: cosa fa ogni tasto della console
-en Emulator guide with a drawing of the controls: what each button of the console does
-it Guide anche per PlayStation, Sega CD, PC Engine CD, DOS, Amiga e ScummVM
-en Guides also for PlayStation, Sega CD, PC Engine CD, DOS, Amiga and ScummVM
-
-0.9.105
-it Guida degli emulatori: SELECT in Piattaforme e nella scheda dello Store (PSP, Nintendo 64, Dreamcast)
-en Emulator guide: SELECT in Platforms and on the Store package page (PSP, Nintendo 64, Dreamcast)
+it Guida degli emulatori: SELECT in Piattaforme e nella scheda dello Store, con il disegno della tua console e cosa fa ogni tasto
+en Emulator guide: SELECT in Platforms and on the Store package page, with a drawing of your console and what each button does
+it Accanto al disegno la cartella dei giochi e i BIOS; aggiorna gli emulatori dallo Store per avere le loro guide
+en Next to the drawing, the games folder and the BIOS files; update the emulators in the Store to get their guides
 it Al primo gioco di PSP, Nintendo 64 e Dreamcast la guida compare da sola: come si apre il menu e come si esce
 en The first game on PSP, Nintendo 64 and Dreamcast shows the guide by itself: how to open the menu and how to exit
-
-0.9.104
-it Giochi Linux: possono chiedere la frequenza della CPU (cpu in game.json), anche il menu di Mosaik la tiene
-en Linux games: they can ask for a CPU frequency ("cpu" in game.json), and the Mosaik menu keeps it
-it Giochi Linux che cambiano la CPU dalle loro impostazioni: il menu di Mosaik non la rimette più com'era
-en Linux games that change the CPU from their own settings: the Mosaik menu no longer sets it back
+it «Libreria» si chiama ora «Giochi», con un pad come icona nella home (non si confonde più con le App)
+en "Library" is now called "Games", with a gamepad icon on the home screen (no longer mistaken for Apps)
+it Store: Flycast sulla Brick Pro (e Deadcast sulla Smart Pro) non si vede più e non tocca giochi e salvataggi dell'altro
+en Store: Flycast on the Brick Pro (and Deadcast on the Smart Pro) no longer shows up or touches the other one's games and saves
+it Store: se a un emulatore installato manca il suo file, risulta da aggiornare: Aggiorna lo ripara (Dreamcast sparito da Giochi)
+en Store: an installed emulator missing its file shows as needing an update: Update repairs it (Dreamcast gone from Games)
+it Guida anche in Lettore musicale 1.12 e Video 1.7 (aggiornali nello Store); nel Video L e R cambiano video
+en A guide also in Music player 1.12 and Video 1.7 (update them in the Store); in Video, L and R change video
+it «Copertine e info» al posto di «Scarica immagini»; icone nuove per giochi Linux e cabinati
+en "Covers & info" instead of "Download images"; new icons for Linux games and arcade cabinets
+it Giochi Linux: possono chiedere la frequenza della CPU (cpu in game.json) e cambiarla da sé, il menu di Mosaik la tiene
+en Linux games: they can ask for a CPU frequency ("cpu" in game.json) and change it themselves; the Mosaik menu keeps it
 
 0.9.103
 it Bluetooth: dopo la sospensione l'audio torna, sulle cuffie o sull'altoparlante

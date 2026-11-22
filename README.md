@@ -60,7 +60,7 @@
 
 ## What works
 
-Every build is tried by hand on real consoles before it is released. This is where things stand (0.9.103). In the Store, packages not tried yet carry the **Experimental** flask.
+Every build is tried by hand on real consoles before it is released. This is where things stand (0.9.110). In the Store, packages not tried yet carry the **Experimental** flask.
 
 **Tried on both consoles (Smart Pro and Brick Pro)**
 - **System**: start from the card in about 5 seconds, sleep and resume, signed Wi-Fi updates (all or nothing, with the way back), file transfer over Wi-Fi, backup and restore, Store, themes, bezels, filters, settings for a console or a single game, six languages.

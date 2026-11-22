@@ -60,7 +60,7 @@
 
 ## Cosa funziona
 
-Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stato attuale (0.9.103). Nello Store i pacchetti non ancora provati hanno la fiaschetta **Sperimentale**.
+Ogni versione viene provata a mano su console vere prima di uscire. Ecco lo stato attuale (0.9.110). Nello Store i pacchetti non ancora provati hanno la fiaschetta **Sperimentale**.
 
 **Provato su tutte e due le console (Smart Pro e Brick Pro)**
 - **Sistema**: avvio dalla scheda in circa 5 secondi, sospensione e ripresa, aggiornamenti firmati via Wi-Fi (tutto o niente, con il ritorno indietro), trasferimento file via Wi-Fi, backup e ripristino, Store, temi, cornici, filtri, impostazioni per una console o per un solo gioco, sei lingue.
