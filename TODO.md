@@ -114,6 +114,13 @@ What Mosaik plans to do next, in order. The detailed working notes are in the se
 
 ## Launcher
 
+- Minor findings of the independent review of 0.9.109 (22 Nov 2026), not fixed yet:
+  - With the guide open, holding power opens the power dialog, which takes the buttons but is drawn under the guide (`dialog_draw` comes before `guide_draw` in the main loop; older panels share the pattern). Draw the dialog last, or close the guide.
+  - `linux_cpu_khz` stays set if writing `next.txt` fails after `write_linux_env`; the next launch from the same launcher reuses that frequency. Reset it at the top of `launch_ex`.
+  - PPSSPP `opaco off` runs only in the `launch.sh` trap: after a SIGKILL the display layer stays opaque. Console test: force-quit PPSSPP, then open another emulator's game menu and check transparency.
+  - `compute_states` reads every other package record for each absent package (about 1500 file opens on FAT): build the installed list once.
+  - Guide scrolling ignores the gap between notes (can scroll a little past the end) and Down plays the move sound with nothing to scroll.
+
 - [ ] File transfer, from an external code review (15 Nov): the server handles one connection at a time with a 20 s read timeout, so a device on the same network sending data very slowly can hold up real transfers while the window is open; and `Apps` is writable, so a stolen session could upload an app that then runs as root when started. Ideas: a shorter timeout or a second worker; ask on the console before running an app added over Wi-Fi for the first time
 - [ ] One Store catalogue for both system channels (0.9.45, user's decision of 13 Nov after a local analysis): Release `store` on GitHub, fallback on the channel's Release; package status in `frontend/package/store-stato.json` (experimental: N64, PSP, Images and comics, Music player, SD card test; `tested` per model is empty: fill it when the user confirms a test; `min_system`); Experimental label on the tile and in the details, "Update the system first" for a newer `min_system`. Published 13 Nov (Release `store`, copy in Latest and `testing`). **To fix:** after replacing `store.json` and `store.sig` GitHub served the old catalogue with the new signature for about two minutes (13 Nov, 10:07-10:08): a console opening the Store then gets "invalid signature" and keeps its saved catalogue, or shows none on a new card. Fixed for 0.9.46: `store.cat` (signature and catalogue in one file, written by `make-store.py`, read first by `fetch_pair` in store.c; the two old files stay for systems up to 0.9.45 and for packages copied to the card). When publishing only a status change, build `store.cat` from the same `store.json` and `store.sig` instead of signing again
 

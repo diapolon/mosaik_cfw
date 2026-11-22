@@ -822,7 +822,7 @@ static bool guide_load_app(const char *name, const char *title, const char *path
 }
 
 static bool guide_seen(const char *id) {
-    char p[1100], line[64];
+    char p[1100], line[160];   /* «app:<cartella>» arriva a 67 caratteri: con 64 la riga si spezzava (revisione 0.9.109) */
     snprintf(p, sizeof p, "%s/System/guide-viste.txt", UI.root);
     FILE *f = fopen(p, "r");
     bool found = false;

@@ -292,6 +292,14 @@ check "stessa guida dal SELECT e dal primo avvio (al massimo i pulsanti diversi:
 app_root; rm -f $R/Logs/Arcade.log
 ./build/launcher --root $R --auto "$TO_APPS,down,wait:5,a,wait:20,quit" > /tmp/l.log 2>&1
 check "app senza guida: parte subito" '[ -s $R/System/next.txt ] && ! grep -q "guida di app:senza" $R/Logs/Arcade.log'
+# revisione indipendente della 0.9.109, rilievo 3: guide-viste.txt si leggeva a righe di 64 byte e
+# l'id «app:<cartella>» di una cartella lunga non si riconosceva: la guida tornava a ogni avvio
+LUNGA=app-con-un-nome-di-cartella-davvero-molto-lungo-per-la-prova-xyz
+app_root; mv $R/Apps/finta $R/Apps/$LUNGA; rm -f $R/Logs/Arcade.log
+./build/launcher --root $R --auto "$TO_APPS,a,wait:20,a,wait:20,quit" > /tmp/l.log 2>&1
+rm -f $R/System/next.txt
+./build/launcher --root $R --auto "$TO_APPS,a,wait:20,quit" > /tmp/l.log 2>&1
+check "app con un nome di cartella lungo: vista una volta, la volta dopo parte subito" '[ -s $R/System/next.txt ]'
 rm -rf $R/Apps $R/System/next.txt $R/System/guide-viste.txt
 
 # audit 0.9.72, LAU-12 (ripreso da LAU-20 del 0.9.88): mancavano ~ e ` nella tastiera, e una password

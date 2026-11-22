@@ -4,10 +4,8 @@
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
 0.9.109
-it Guida dei tasti anche nelle app: Lettore musicale e Video (SELECT nella schermata App, e da sola al primo avvio)
-en Button guide in apps too: Music player and Video (SELECT on the Apps screen, and by itself the first time)
-it Video 1.7: L e R passano al video prima e dopo, L2 e R2 saltano di un minuto
-en Video 1.7: L and R go to the previous and next video, L2 and R2 skip one minute
+it Le app possono avere la loro guida dei tasti: arriva con le prossime versioni di Lettore musicale e Video nello Store
+en Apps can have their own button guide: it comes with the next Music player and Video versions in the Store
 it Guida: il disegno a sinistra e le note a destra, con la cartella in evidenza e la spiegazione sotto
 en Guide: the drawing on the left and the notes on the right, the folder first and the explanation below
 it Store: sulla Brick Pro non compare più Flycast (e sulla Smart Pro Deadcast) con i giochi e i salvataggi dell'altro
