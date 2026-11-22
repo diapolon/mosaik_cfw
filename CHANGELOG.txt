@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.110
+it Store: togliere un emulatore non cancella più file, giochi e salvataggi di un altro emulatore installato (Flycast e Deadcast)
+en Store: removing an emulator no longer deletes files, games and saves of another installed emulator (Flycast and Deadcast)
+it Store: se a un emulatore installato manca il suo file, risulta da aggiornare: Aggiorna lo ripara (Dreamcast sparito da Giochi)
+en Store: an installed emulator missing its file shows as needing an update: Update repairs it (Dreamcast gone from Games)
+
 0.9.109
 it Le app possono avere la loro guida dei tasti: arriva con le prossime versioni di Lettore musicale e Video nello Store
 en Apps can have their own button guide: it comes with the next Music player and Video versions in the Store
