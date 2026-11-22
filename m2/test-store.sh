@@ -153,6 +153,13 @@ mk() {   # mk VERSIONE: prepara pkgsrc e pubblica in www
         mkdir -p pkgsrc/cornici-tv/Bezels/nes
         echo tv > pkgsrc/cornici-tv/Bezels/nes/_mosaik.png
     fi
+    if [ -n "$DUEDC" ]; then   # due emulatori a sé dello stesso sistema, uno per modello (come Deadcast e Flycast; id conosciuti da make-store.py che non leggono deps/)
+        for x in ppsspp pcsx; do
+            mkdir -p pkgsrc/$x/Cores/$x pkgsrc/$x/Emulators
+            printf '#!/bin/sh\n' > pkgsrc/$x/Cores/$x/launch.sh
+            echo '{"name":"Dreamcast","kind":"console","launch":"Cores/'$x'/launch.sh","roms":"Roms/DC"}' > pkgsrc/$x/Emulators/dc.json
+        done
+    fi
     printf 'fbneo d15071a\nmgba 7a12d6d\n' > labels.txt
     rm -rf www; python3 /trimui/toolchain/make-store.py --src pkgsrc --out www --key ${2:-key.pem} --labels labels.txt ${BUILT:+--built $BUILT} > /dev/null
 }
@@ -410,6 +417,20 @@ printf '{"models": {"mgba": ["brickpro"], "fbneo": ["brickpro"]}}' > stato2.json
 STORE_STATO=$W/stato2.json mk 5
 MODELLO=brickpro ./t $R install fbneo > /dev/null 2>&1   # come una scheda passata dalla Brick Pro alla Smart Pro
 check "installato su una Brick Pro, poi tolto dalla Smart Pro" "si no" "$([ -e sd/System/pacchetti/fbneo.txt ] && echo si || echo no) $(MODELLO=smartpro ./t $R delete fbneo > /dev/null 2>&1; [ -e sd/System/pacchetti/fbneo.txt ] && echo si || echo no)"
+# 22 novembre: Deadcast (solo Brick Pro) e Flycast (solo Smart Pro) mettono tutti e due Emulators/dc.json.
+# Con Deadcast installato, Flycast risultava «arrivato con il sistema» (PKG_OLD): sulla Brick Pro si
+# vedeva, con Elimina che avrebbe tolto giochi e salvataggi del Dreamcast, cioè quelli di Deadcast
+printf '{"models": {"ppsspp": ["brickpro"], "pcsx": ["smartpro"]}}' > stato3.json
+DUEDC=1 STORE_STATO=$W/stato3.json mk 5
+MODELLO=brickpro ./t $R install ppsspp > /dev/null 2>&1
+check "Brick Pro con il suo emulatore del Dreamcast: quello della Smart Pro risulta assente" "pcsx:0 ppsspp:1" "$(MODELLO=brickpro ./t $R list 2>/dev/null | grep -oE '(ppsspp|pcsx):[0-9]' | sort | tr '\n' ' ' | sed 's/ $//')"
+MODELLO=brickpro ./t $R delete ppsspp > /dev/null 2>&1
+MODELLO=smartpro ./t $R install pcsx > /dev/null 2>&1
+check "e al contrario sulla Smart Pro" "pcsx:1 ppsspp:0" "$(MODELLO=smartpro ./t $R list 2>/dev/null | grep -oE '(ppsspp|pcsx):[0-9]' | sort | tr '\n' ' ' | sed 's/ $//')"
+MODELLO=smartpro ./t $R delete pcsx > /dev/null 2>&1
+mkdir -p sd/Emulators && echo '{"name":"Dreamcast"}' > sd/Emulators/dc.json   # arrivato con il sistema, senza registro
+check "emulatore arrivato prima dello Store: resta «da aggiornare» per il pacchetto del modello giusto" "pcsx:0 ppsspp:3" "$(MODELLO=brickpro ./t $R list 2>/dev/null | grep -oE '(ppsspp|pcsx):[0-9]' | sort | tr '\n' ' ' | sed 's/ $//')"
+rm -f sd/Emulators/dc.json
 # temi nello Store
 rm -f sd/store.json sd/store.sig sd/store-*.zip
 TEMA=1 mk 4

@@ -440,8 +440,21 @@ static void compute_states(entry_t *e, int n) {
            file, che cambia anche solo ricompilando con la libreria comune aggiornata */
         bool by_label = (!strcmp(e[i].p.category, "apps") || !strcmp(e[i].p.category, "themes") || !strcmp(e[i].p.category, "bezels") || !strcmp(e[i].p.category, "filters")) && lab[0] && e[i].p.label[0];
         if (v[0]) { e[i].p.state = (by_label ? strcmp(lab, e[i].p.label) : strcmp(v, e[i].p.version)) ? PKG_UPDATE : PKG_INSTALLED; continue; }
-        /* arrivato con il sistema, prima dello Store: ci sono tutti i suoi emulatori */
-        bool all = e[i].nemus > 0;
+        /* arrivato con il sistema, prima dello Store: ci sono tutti i suoi emulatori. Non vale per un
+           pacchetto dell'altro modello, né quando lo stesso emulatore l'ha messo un altro pacchetto
+           installato: Deadcast e Flycast hanno tutti e due Emulators/dc.json, e con Deadcast sulla
+           Brick Pro Flycast si vedeva, con Elimina che toglieva giochi e salvataggi di Deadcast
+           (segnalato dall'utente il 22 novembre) */
+        bool all = e[i].nemus > 0 && !e[i].p.other_model;
+        for (int o = 0; all && o < n; o++) {
+            if (o == i) continue;
+            char ov[64];
+            installed_version(e[o].p.id, ov, sizeof ov, NULL, 0);
+            if (!ov[0] && !archived(e[o].p.id)) continue;
+            for (int k = 0; all && k < e[i].nemus; k++)
+                for (int m = 0; all && m < e[o].nemus; m++)
+                    if (!strcmp(e[i].emus[k], e[o].emus[m])) all = false;
+        }
         for (int k = 0; all && k < e[i].nemus; k++) {
             char p[1200];
             struct stat sb;

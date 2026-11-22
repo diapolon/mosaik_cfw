@@ -8,6 +8,12 @@ it Guida dei tasti anche nelle app: Lettore musicale e Video (SELECT nella scher
 en Button guide in apps too: Music player and Video (SELECT on the Apps screen, and by itself the first time)
 it Video 1.7: L e R passano al video prima e dopo, L2 e R2 saltano di un minuto
 en Video 1.7: L and R go to the previous and next video, L2 and R2 skip one minute
+it Guida: il disegno a sinistra e le note a destra, con la cartella in evidenza e la spiegazione sotto
+en Guide: the drawing on the left and the notes on the right, the folder first and the explanation below
+it Store: sulla Brick Pro non compare più Flycast (e sulla Smart Pro Deadcast) con i giochi e i salvataggi dell'altro
+en Store: the Brick Pro no longer shows Flycast (nor the Smart Pro Deadcast) with the other one's games and saves
+it Icona dei cabinati arcade vista di fronte, come le altre
+en The arcade cabinet icon is seen from the front, like the others
 
 0.9.108
 it Giochi Linux: nell'icona un pad da gioco, per non confonderli con le app

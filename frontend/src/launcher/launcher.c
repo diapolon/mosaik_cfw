@@ -987,9 +987,19 @@ static void pad_draw(int x, int y, int w, int h) {
     const pad_layout_t *L = pad_layout();
     bool brick = L == &PAD_BRICK;
     /* corpo al centro, alto quanto si può lasciando spazio ai dorsali; le etichette ai lati */
+    /* largo quanto lasciano le etichette più lunghe ai due lati (22 novembre: con il disegno accanto
+       alle note il riquadro è più stretto, e il 46% fisso rimpiccioliva la Smart Pro) */
+    int lw = fsh * 2;
+    for (int i = 0; i < guide_npad; i++) {
+        int tw = pad_symbol(guide_pad_label[i], 0, 0, 0, false) ? fsh * 2 : ui_text_w(fs, guide_pad_label[i]);
+        if (tw > lw) lw = tw;
+    }
+    int room = w - 2 * (lw + M(0.05f));
+    if (room < w * 40 / 100) room = w * 40 / 100;
+    if (room > w * 72 / 100) room = w * 72 / 100;
     int bh = h * 86 / 100, bw = (int)((float)bh * L->aspect);
-    if (bw > w * 46 / 100) { bw = w * 46 / 100; bh = (int)((float)bw / L->aspect); }
-    int bx = x + (w - bw) / 2, by = y + h - bh - (h - bh) / 4;
+    if (bw > room) { bw = room; bh = (int)((float)bw / L->aspect); }
+    int bx = x + (w - bw) / 2, by = y + (h - bh) * 3 / 5;   /* un po' sotto il centro: sopra ci sono i dorsali */
     color_t body = mix(t->popup, t->text, 0.10f), dark = mix(t->popup, t->text, 0.75f), line = with_alpha(t->text_dim, 200);
     int ax, ay, unit = (brick ? bw : bh) * (brick ? 9 : 16) / 100;   /* misura dei tasti */
     /* dorsali, dietro il corpo: L2 e R2 più in alto */
@@ -1101,44 +1111,74 @@ static void guide_draw(void) {
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 120));
     TTF_Font *ft = UI.f_title, *fn = UI.f_normal, *fs = UI.f_small;
     int fth = TTF_FontHeight(ft), fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs);
-    int w = UI.w - 2 * M(0.06f), pad = M(0.04f), tw = w - 2 * pad - M(0.03f);
-    /* righe con il pallino, a capo dentro la finestra */
-    static char wrapped[GUIDE_LINES * 4][160];
-    static bool cont[GUIDE_LINES * 4];
-    static int wicon[GUIDE_LINES * 4];
-    int nw = 0;
-    for (int k = 0; k < guide_n && nw < GUIDE_LINES * 4; k++) {
-        char tmp[8][160];
-        int n = ui_wrap(fn, guide_lines[k], guide_icon[k] ? tw - M(0.02f) : tw, tmp, 8);
-        for (int q = 0; q < n && nw < GUIDE_LINES * 4; q++) {
-            snprintf(wrapped[nw], sizeof wrapped[0], "%s", tmp[q]);
-            wicon[nw] = guide_icon[k];
-            cont[nw++] = q > 0;
+    int w = UI.w - 2 * M(0.06f), pad = M(0.04f), inner = w - 2 * pad;
+    /* con il disegno (22 novembre, richiesta dell'utente): disegno a sinistra, note a destra; la
+       Smart Pro è orizzontale e prende più spazio della Brick Pro, che è verticale */
+    int padw = !guide_npad ? 0 : inner * (pad_layout() == &PAD_BRICK ? 52 : 64) / 100, gap = guide_npad ? M(0.03f) : 0;
+    int tw = inner - padw - gap - M(0.03f);
+    /* righe con il pallino, a capo dentro la colonna del testo. «@folder Roms/X (spiegazione)»: il
+       nome su una riga e la spiegazione sotto, più piccola e grigia (22 novembre, per distinguerli) */
+    static char wrapped[GUIDE_LINES * 8][160];
+    static bool cont[GUIDE_LINES * 8], small[GUIDE_LINES * 8];
+    static int wicon[GUIDE_LINES * 8];
+    int nw = 0, texth = 0;
+    for (int k = 0; k < guide_n && nw < GUIDE_LINES * 8; k++) {
+        char head[320], detail[320] = "";
+        snprintf(head, sizeof head, "%s", guide_lines[k]);
+        char *par = guide_icon[k] ? strstr(head, " (") : NULL;
+        size_t hl = strlen(head);
+        if (par && hl && head[hl - 1] == ')') {
+            head[hl - 1] = 0;
+            snprintf(detail, sizeof detail, "%s", par + 2);
+            *par = 0;
         }
+        int iw = guide_icon[k] ? tw - M(0.02f) : tw;
+        for (int part = 0; part < 2; part++) {
+            const char *src = part ? detail : head;
+            if (!src[0]) continue;
+            char tmp[8][160];
+            int n = ui_wrap(part ? fs : fn, src, iw, tmp, 8);
+            for (int q = 0; q < n && nw < GUIDE_LINES * 8; q++) {
+                snprintf(wrapped[nw], sizeof wrapped[0], "%s", tmp[q]);
+                wicon[nw] = guide_icon[k];
+                small[nw] = part == 1;
+                cont[nw] = part || q > 0;
+                texth += part ? fsh : fnh;
+                nw++;
+            }
+        }
+        if (k + 1 < guide_n) texth += fsh / 3;   /* un po' d'aria fra una nota e l'altra */
     }
-    /* alta quanto il testo, al massimo lo schermo; se non ci sta, su e giù scorrono */
-    /* disegno alto il 40% dello schermo, meno se le note non ci starebbero (non meno del 28%) */
-    int hmax = UI.h - 2 * M(0.05f), rest = pad + fth + M(0.03f) + nw * fnh + M(0.02f) + ui_popup_buttons_h();
-    int pmax = UI.h * (pad_layout() == &PAD_BRICK ? 56 : 40) / 100;   /* la Brick Pro è verticale: più alta */
-    int padh = !guide_npad ? 0 : hmax - rest < UI.h * 28 / 100 ? UI.h * 28 / 100 : hmax - rest > pmax ? pmax : hmax - rest;
-    int h = pad + fth + M(0.02f) + padh + nw * fnh + M(0.02f) + ui_popup_buttons_h();
+    /* senza disegno alta quanto il testo; con il disegno quasi tutto lo schermo. Se il testo non ci
+       sta, su e giù scorrono */
+    int hmax = UI.h - 2 * M(0.05f), head = pad + fth + M(0.02f);
+    int h = guide_npad ? hmax : head + texth + M(0.02f) + ui_popup_buttons_h();
     if (h > hmax) h = hmax;
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2, lx = x + pad;
     ui_shadow(x, y + M(0.01f), w, h, r, M(0.04f), rgba(0, 0, 0, 90));
     ui_rrect(x, y, w, h, r, t->popup);
     char title[160], fit[160];
     snprintf(title, sizeof title, "%s · %s", T("guide.title"), guide_title);
-    ui_text_fit(ft, title, w - 2 * pad, fit, sizeof fit);
+    ui_text_fit(ft, title, inner, fit, sizeof fit);
     ui_text(ft, fit, lx, y + pad, t->text, ALIGN_LEFT);
-    int top = y + pad + fth + M(0.02f), bot = y + h - ui_popup_buttons_h();
-    if (guide_npad) { pad_draw(lx, top, w - 2 * pad, padh); top += padh + M(0.01f); }
-    int fit_rows = (bot - top) / fnh, maxs = nw > fit_rows ? nw - fit_rows : 0;
+    int top = y + head, bot = y + h - ui_popup_buttons_h() - M(0.01f);
+    if (guide_npad) pad_draw(lx, top, padw, bot - top);
+    int tx = lx + padw + gap;
+    /* righe da saltare perché il resto stia nella finestra (le righe piccole sono più basse) */
+    int maxs = 0;
+    for (int rest = texth; maxs < nw && rest > bot - top; maxs++) rest -= small[maxs] ? fsh : fnh;
     if (guide_scroll > maxs) guide_scroll = maxs;
-    for (int k = guide_scroll, cy = top; k < nw && cy + fnh <= bot; k++, cy += fnh) {
+    /* accanto al disegno le note stanno al centro della colonna, se ci stanno */
+    int ty0 = top + (guide_npad && !maxs ? ((bot - top) - texth) / 2 : 0);
+    for (int k = guide_scroll, cy = ty0; k < nw; k++) {
+        int rh = small[k] ? fsh : fnh;
+        if (k > guide_scroll && !cont[k]) cy += fsh / 3;
+        if (cy + rh > bot) break;
         int ind = wicon[k] ? M(0.05f) : M(0.03f), isz = fnh * 7 / 10;
-        if (!cont[k] && wicon[k]) guide_draw_icon(wicon[k], lx, cy + (fnh - isz) / 2, isz, t->accent, t->popup);
-        else if (!cont[k]) ui_text(fn, "•", lx, cy, t->accent, ALIGN_LEFT);
-        ui_text(fn, wrapped[k], lx + ind, cy, t->text, ALIGN_LEFT);
+        if (!cont[k] && wicon[k]) guide_draw_icon(wicon[k], tx, cy + (fnh - isz) / 2, isz, t->accent, t->popup);
+        else if (!cont[k]) ui_text(fn, "•", tx, cy, t->accent, ALIGN_LEFT);
+        ui_text(small[k] ? fs : fn, wrapped[k], tx + ind, cy, small[k] ? t->text_dim : t->text, ALIGN_LEFT);
+        cy += rh;
     }
     if (maxs) {   /* c'è altro sotto (o sopra): un triangolino disegnato, il font non ha le frecce */
         int tx = x + w - pad, ty = bot - fsh / 2, ts = fsh / 3;
@@ -2748,16 +2788,12 @@ static void plat_text(const char *s, int cx, int y, int maxw, int maxh, color_t 
     ui_text(f, fit, cx, y + (maxh - TTF_FontHeight(f)) / 2, rgba(0xF6, 0xEC, 0xE2, 255), ALIGN_CENTER);
 }
 
-/* cabinato da sala giochi: fianco a righe, insegna col nome, schermo con un tramonto, comandi */
+/* cabinato da sala giochi visto di fronte, come le altre illustrazioni (22 novembre: prima aveva il
+   fianco in prospettiva): insegna col nome, schermo con un tramonto, comandi, porta delle monete */
 static void draw_cabinet(int x, int y, int w, int h, color_t c, const char *name) {
     color_t dark = hexc(0x161A24), side = mix(c, rgba(0, 0, 0, 255), 0.3f), gold = hexc(0xF2C05C);
     int bw = w * 80 / 100, st = h / 70 + 1, r = w / 28 + 1;
-    int sx0 = x + bw - st, sx1 = x + w;
-    plat_quad(sx0, y + h * 3 / 100, sx1, y + h * 8 / 100, sx1, y + h * 96 / 100, sx0, y + h, side);
-    for (int k = 0; k < 10; k++) {
-        int ly = y + h * 13 / 100 + k * h * 8 / 100;
-        plat_line(sx0 + (sx1 - sx0) / 4, ly, sx1 - (sx1 - sx0) / 6, ly + h / 45, 1, with_alpha(gold, 180));
-    }
+    x += (w - bw) / 2;   /* stesso spazio di prima, il cabinato al centro */
     ui_rrect(x, y, bw, h, r, c);
     ui_rrect(x + st, y + st, bw - 2 * st, h - 2 * st, r, dark);
     /* insegna */
