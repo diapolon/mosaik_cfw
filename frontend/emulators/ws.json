@@ -9,5 +9,28 @@
   "art": "handheld-wide",
   "short": "WS",
   "thumbnails": "Bandai - WonderSwan",
-  "order": 55
+  "order": 55,
+  "guide": {
+    "it": [
+      "@folder Roms/WS (.ws)"
+    ],
+    "en": [
+      "@folder Roms/WS (.ws)"
+    ],
+    "es": [
+      "@folder Roms/WS (.ws)"
+    ],
+    "fr": [
+      "@folder Roms/WS (.ws)"
+    ],
+    "de": [
+      "@folder Roms/WS (.ws)"
+    ],
+    "pt": [
+      "@folder Roms/WS (.ws)"
+    ]
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

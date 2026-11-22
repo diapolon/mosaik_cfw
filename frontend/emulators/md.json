@@ -13,5 +13,37 @@
   "art": "md",
   "short": "Sega MD",
   "thumbnails": "Sega - Mega Drive - Genesis",
-  "order": 40
+  "order": 40,
+  "guide": {
+    "it": [
+      "@folder Roms/MD (.md .gen .smd .bin .zip)"
+    ],
+    "en": [
+      "@folder Roms/MD (.md .gen .smd .bin .zip)"
+    ],
+    "es": [
+      "@folder Roms/MD (.md .gen .smd .bin .zip)"
+    ],
+    "fr": [
+      "@folder Roms/MD (.md .gen .smd .bin .zip)"
+    ],
+    "de": [
+      "@folder Roms/MD (.md .gen .smd .bin .zip)"
+    ],
+    "pt": [
+      "@folder Roms/MD (.md .gen .smd .bin .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["A", "Y"],
+    ["B", "B"],
+    ["C", "A"],
+    ["X", "L1"],
+    ["Y", "X"],
+    ["Z", "R1"],
+    ["@dpad", "@dpad"],
+    ["Mode", "SELECT"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

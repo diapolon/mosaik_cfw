@@ -33,46 +33,47 @@
   ],
   "guide": {
     "it": [
-      "Menu breve: menu di Flycast, con Esci per tornare a Mosaik",
-      "Menu tenuto: menu di Mosaik (Riprendi, Comandi, Esci)",
-      "BIOS: dc_boot.bin in Bios/dc è consigliato; senza, Flycast usa il suo BIOS ricostruito",
-      "Dischi in Roms/DC: .chd, .gdi, .cue, .cdi; più dischi con un .m3u",
-      "VMU, stati e impostazioni in Saves/dc/flycast"
+      "@chip Bios/dc (dc_boot.bin, facoltativo)",
+      "@folder Roms/DC (.chd .gdi .cue .cdi, .m3u per più dischi)",
+      "@save Saves/dc/flycast"
     ],
     "en": [
-      "Short press of Menu: Flycast menu, with Exit to go back to Mosaik",
-      "Menu held: Mosaik menu (Resume, Controls, Exit)",
-      "BIOS: dc_boot.bin in Bios/dc is recommended; without it Flycast uses its own rebuilt BIOS",
-      "Discs in Roms/DC: .chd, .gdi, .cue, .cdi; several discs with an .m3u",
-      "VMU, states and settings in Saves/dc/flycast"
+      "@chip Bios/dc (dc_boot.bin, optional)",
+      "@folder Roms/DC (.chd .gdi .cue .cdi, .m3u for several discs)",
+      "@save Saves/dc/flycast"
     ],
     "es": [
-      "Pulsación corta de Menu: menú de Flycast, con Salir para volver a Mosaik",
-      "Manteniendo pulsado Menu: menú de Mosaik (Continuar, Controles, Salir)",
-      "BIOS: se recomienda dc_boot.bin en Bios/dc; sin él Flycast usa su propia BIOS reconstruida",
-      "Discos en Roms/DC: .chd, .gdi, .cue, .cdi; varios discos con un .m3u",
-      "VMU, estados y ajustes en Saves/dc/flycast"
+      "@chip Bios/dc (dc_boot.bin, opcional)",
+      "@folder Roms/DC (.chd .gdi .cue .cdi, .m3u para varios discos)",
+      "@save Saves/dc/flycast"
     ],
     "fr": [
-      "Appui court sur Menu : menu de Flycast, avec Quitter pour revenir à Mosaik",
-      "Menu maintenu : menu de Mosaik (Reprendre, Commandes, Quitter)",
-      "BIOS : dc_boot.bin dans Bios/dc est conseillé ; sans lui, Flycast utilise son propre BIOS reconstruit",
-      "Disques dans Roms/DC : .chd, .gdi, .cue, .cdi ; plusieurs disques avec un .m3u",
-      "VMU, états et réglages dans Saves/dc/flycast"
+      "@chip Bios/dc (dc_boot.bin, facultatif)",
+      "@folder Roms/DC (.chd .gdi .cue .cdi, .m3u pour plusieurs disques)",
+      "@save Saves/dc/flycast"
     ],
     "de": [
-      "Menu kurz drücken: Flycast-Menü, mit Beenden zurück zu Mosaik",
-      "Menu gedrückt halten: Mosaik-Menü (Fortsetzen, Steuerung, Beenden)",
-      "BIOS: dc_boot.bin in Bios/dc wird empfohlen; ohne nutzt Flycast sein eigenes nachgebautes BIOS",
-      "Discs in Roms/DC: .chd, .gdi, .cue, .cdi; mehrere Discs mit einer .m3u",
-      "VMU, Zustände und Einstellungen in Saves/dc/flycast"
+      "@chip Bios/dc (dc_boot.bin, optional)",
+      "@folder Roms/DC (.chd .gdi .cue .cdi, .m3u für mehrere Discs)",
+      "@save Saves/dc/flycast"
     ],
     "pt": [
-      "Toque curto em Menu: menu do Flycast, com Sair para voltar ao Mosaik",
-      "Menu premido: menu do Mosaik (Continuar, Controlos, Sair)",
-      "BIOS: recomenda-se dc_boot.bin em Bios/dc; sem ele o Flycast usa a sua BIOS reconstruída",
-      "Discos em Roms/DC: .chd, .gdi, .cue, .cdi; vários discos com um .m3u",
-      "VMU, estados e definições em Saves/dc/flycast"
+      "@chip Bios/dc (dc_boot.bin, opcional)",
+      "@folder Roms/DC (.chd .gdi .cue .cdi, .m3u para vários discos)",
+      "@save Saves/dc/flycast"
     ]
-  }
+  },
+  "guide_pad": [
+    ["A", "A"],
+    ["B", "B"],
+    ["X", "X"],
+    ["Y", "Y"],
+    ["L", "L1 · L2"],
+    ["R", "R1 · R2"],
+    ["Start", "Start"],
+    ["@stick", "@lstick"],
+    ["@dpad", "@dpad"],
+    ["@emu_menu", "Select"],
+    [{"it": "Breve: Flycast · tenuto: Mosaik", "en": "Short: Flycast · held: Mosaik", "es": "Corta: Flycast · mantenida: Mosaik", "fr": "Court : Flycast · maintenu : Mosaik", "de": "Kurz: Flycast · gehalten: Mosaik", "pt": "Curto: Flycast · premido: Mosaik"}, "MENU"]
+  ]
 }

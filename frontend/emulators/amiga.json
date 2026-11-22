@@ -20,34 +20,31 @@
   "order": 80,
   "guide": {
     "it": [
-      "Giochi in Roms/AMIGA: .adf, .adz, .dms, .ipf, .hdf, .lha, .zip; più dischetti con un .m3u",
-      "Kickstart consigliato in Bios (kick34005.A500, kick40068.A1200); senza, si usa AROS, meno compatibile",
-      "Menu: menu di Mosaik (stati, opzioni del core, comandi, cambio dischetto)"
+      "@folder Roms/AMIGA (.adf .hdf .lha .zip, .m3u per più dischetti)",
+      "@chip Bios (kick34005.A500, kick40068.A1200, facoltativo, senza si usa AROS)"
     ],
     "en": [
-      "Games in Roms/AMIGA: .adf, .adz, .dms, .ipf, .hdf, .lha, .zip; several floppies with an .m3u",
-      "Recommended Kickstart in Bios (kick34005.A500, kick40068.A1200); without it AROS is used, less compatible",
-      "Menu: Mosaik menu (states, core options, controls, disk change)"
+      "@folder Roms/AMIGA (.adf .hdf .lha .zip, .m3u for several floppies)",
+      "@chip Bios (kick34005.A500, kick40068.A1200, optional, without it AROS is used)"
     ],
     "es": [
-      "Juegos en Roms/AMIGA: .adf, .adz, .dms, .ipf, .hdf, .lha, .zip; varios disquetes con un .m3u",
-      "Kickstart recomendado en Bios (kick34005.A500, kick40068.A1200); sin él se usa AROS, menos compatible",
-      "Menu: menú de Mosaik (estados, opciones del núcleo, controles, cambio de disquete)"
+      "@folder Roms/AMIGA (.adf .hdf .lha .zip, .m3u para varios disquetes)",
+      "@chip Bios (kick34005.A500, kick40068.A1200, opcional, sin él se usa AROS)"
     ],
     "fr": [
-      "Jeux dans Roms/AMIGA : .adf, .adz, .dms, .ipf, .hdf, .lha, .zip ; plusieurs disquettes avec un .m3u",
-      "Kickstart conseillé dans Bios (kick34005.A500, kick40068.A1200) ; sans lui, AROS est utilisé, moins compatible",
-      "Menu : menu de Mosaik (états, options du cœur, commandes, changement de disquette)"
+      "@folder Roms/AMIGA (.adf .hdf .lha .zip, .m3u pour plusieurs disquettes)",
+      "@chip Bios (kick34005.A500, kick40068.A1200, facultatif, sans lui AROS est utilisé)"
     ],
     "de": [
-      "Spiele in Roms/AMIGA: .adf, .adz, .dms, .ipf, .hdf, .lha, .zip; mehrere Disketten mit einer .m3u",
-      "Empfohlenes Kickstart in Bios (kick34005.A500, kick40068.A1200); ohne wird AROS genutzt, weniger kompatibel",
-      "Menu: Mosaik-Menü (Zustände, Core-Optionen, Steuerung, Diskettenwechsel)"
+      "@folder Roms/AMIGA (.adf .hdf .lha .zip, .m3u für mehrere Disketten)",
+      "@chip Bios (kick34005.A500, kick40068.A1200, optional, ohne wird AROS genutzt)"
     ],
     "pt": [
-      "Jogos em Roms/AMIGA: .adf, .adz, .dms, .ipf, .hdf, .lha, .zip; várias disquetes com um .m3u",
-      "Kickstart recomendado em Bios (kick34005.A500, kick40068.A1200); sem ele usa-se o AROS, menos compatível",
-      "Menu: menu do Mosaik (estados, opções do núcleo, controlos, troca de disquete)"
+      "@folder Roms/AMIGA (.adf .hdf .lha .zip, .m3u para várias disquetes)",
+      "@chip Bios (kick34005.A500, kick40068.A1200, opcional, sem ele usa-se o AROS)"
     ]
-  }
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

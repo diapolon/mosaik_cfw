@@ -14,5 +14,34 @@
     "exec.bin",
     "grom.bin"
   ],
-  "order": 29
+  "order": 29,
+  "guide": {
+    "it": [
+      "@folder Roms/INTV (.int .bin .rom)",
+      "@chip Bios (exec.bin, grom.bin, obbligatorio)"
+    ],
+    "en": [
+      "@folder Roms/INTV (.int .bin .rom)",
+      "@chip Bios (exec.bin, grom.bin, required)"
+    ],
+    "es": [
+      "@folder Roms/INTV (.int .bin .rom)",
+      "@chip Bios (exec.bin, grom.bin, obligatoria)"
+    ],
+    "fr": [
+      "@folder Roms/INTV (.int .bin .rom)",
+      "@chip Bios (exec.bin, grom.bin, obligatoire)"
+    ],
+    "de": [
+      "@folder Roms/INTV (.int .bin .rom)",
+      "@chip Bios (exec.bin, grom.bin, nötig)"
+    ],
+    "pt": [
+      "@folder Roms/INTV (.int .bin .rom)",
+      "@chip Bios (exec.bin, grom.bin, obrigatória)"
+    ]
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

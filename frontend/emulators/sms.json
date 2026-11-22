@@ -11,5 +11,32 @@
   "art": "sms",
   "short": "SMS",
   "thumbnails": "Sega - Master System - Mark III",
-  "order": 41
+  "order": 41,
+  "guide": {
+    "it": [
+      "@folder Roms/SMS (.sms .zip)"
+    ],
+    "en": [
+      "@folder Roms/SMS (.sms .zip)"
+    ],
+    "es": [
+      "@folder Roms/SMS (.sms .zip)"
+    ],
+    "fr": [
+      "@folder Roms/SMS (.sms .zip)"
+    ],
+    "de": [
+      "@folder Roms/SMS (.sms .zip)"
+    ],
+    "pt": [
+      "@folder Roms/SMS (.sms .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["1", "B"],
+    ["2", "A"],
+    ["@dpad", "@dpad"],
+    [{"it": "Pausa", "en": "Pause", "es": "Pausa", "fr": "Pause", "de": "Pause", "pt": "Pausa"}, "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

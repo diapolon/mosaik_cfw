@@ -10,5 +10,33 @@
   "art": "pce",
   "short": "PCE",
   "thumbnails": "NEC - PC Engine - TurboGrafx 16",
-  "order": 45
+  "order": 45,
+  "guide": {
+    "it": [
+      "@folder Roms/PCE (.pce .zip)"
+    ],
+    "en": [
+      "@folder Roms/PCE (.pce .zip)"
+    ],
+    "es": [
+      "@folder Roms/PCE (.pce .zip)"
+    ],
+    "fr": [
+      "@folder Roms/PCE (.pce .zip)"
+    ],
+    "de": [
+      "@folder Roms/PCE (.pce .zip)"
+    ],
+    "pt": [
+      "@folder Roms/PCE (.pce .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["I", "A"],
+    ["II", "B"],
+    ["@dpad", "@dpad"],
+    ["Select", "SELECT"],
+    ["Run", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

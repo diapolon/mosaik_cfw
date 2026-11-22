@@ -20,40 +20,28 @@
   "order": 42,
   "guide": {
     "it": [
-      "Dischi in Roms/SEGACD: .chd, .cue, .iso; più dischi con un .m3u",
-      "BIOS obbligatorio in Bios, uno per regione: bios_CD_U.bin (USA), bios_CD_E.bin (Europa), bios_CD_J.bin (Giappone)",
-      "Arriva con il pacchetto Genesis Plus GX dello Store",
-      "Menu: menu di Mosaik (stati, opzioni, comandi, cambio disco)"
+      "@folder Roms/SEGACD (.chd .cue .iso, .m3u per più dischi)",
+      "@chip Bios (bios_CD_U.bin, bios_CD_E.bin, bios_CD_J.bin, obbligatorio)"
     ],
     "en": [
-      "Discs in Roms/SEGACD: .chd, .cue, .iso; several discs with an .m3u",
-      "BIOS required in Bios, one per region: bios_CD_U.bin (USA), bios_CD_E.bin (Europe), bios_CD_J.bin (Japan)",
-      "Comes with the Genesis Plus GX package in the Store",
-      "Menu: Mosaik menu (states, options, controls, disc change)"
+      "@folder Roms/SEGACD (.chd .cue .iso, .m3u for several discs)",
+      "@chip Bios (bios_CD_U.bin, bios_CD_E.bin, bios_CD_J.bin, required)"
     ],
     "es": [
-      "Discos en Roms/SEGACD: .chd, .cue, .iso; varios discos con un .m3u",
-      "BIOS obligatoria en Bios, una por región: bios_CD_U.bin (EE. UU.), bios_CD_E.bin (Europa), bios_CD_J.bin (Japón)",
-      "Viene con el paquete Genesis Plus GX de la Store",
-      "Menu: menú de Mosaik (estados, opciones, controles, cambio de disco)"
+      "@folder Roms/SEGACD (.chd .cue .iso, .m3u para varios discos)",
+      "@chip Bios (bios_CD_U.bin, bios_CD_E.bin, bios_CD_J.bin, obligatoria)"
     ],
     "fr": [
-      "Disques dans Roms/SEGACD : .chd, .cue, .iso ; plusieurs disques avec un .m3u",
-      "BIOS obligatoire dans Bios, un par région : bios_CD_U.bin (USA), bios_CD_E.bin (Europe), bios_CD_J.bin (Japon)",
-      "Fourni avec le paquet Genesis Plus GX du Store",
-      "Menu : menu de Mosaik (états, options, commandes, changement de disque)"
+      "@folder Roms/SEGACD (.chd .cue .iso, .m3u pour plusieurs disques)",
+      "@chip Bios (bios_CD_U.bin, bios_CD_E.bin, bios_CD_J.bin, obligatoire)"
     ],
     "de": [
-      "Discs in Roms/SEGACD: .chd, .cue, .iso; mehrere Discs mit einer .m3u",
-      "BIOS nötig in Bios, eins pro Region: bios_CD_U.bin (USA), bios_CD_E.bin (Europa), bios_CD_J.bin (Japan)",
-      "Kommt mit dem Paket Genesis Plus GX aus dem Store",
-      "Menu: Mosaik-Menü (Zustände, Optionen, Steuerung, Disc-Wechsel)"
+      "@folder Roms/SEGACD (.chd .cue .iso, .m3u für mehrere Discs)",
+      "@chip Bios (bios_CD_U.bin, bios_CD_E.bin, bios_CD_J.bin, nötig)"
     ],
     "pt": [
-      "Discos em Roms/SEGACD: .chd, .cue, .iso; vários discos com um .m3u",
-      "BIOS obrigatória em Bios, uma por região: bios_CD_U.bin (EUA), bios_CD_E.bin (Europa), bios_CD_J.bin (Japão)",
-      "Vem com o pacote Genesis Plus GX da Store",
-      "Menu: menu do Mosaik (estados, opções, controlos, troca de disco)"
+      "@folder Roms/SEGACD (.chd .cue .iso, .m3u para vários discos)",
+      "@chip Bios (bios_CD_U.bin, bios_CD_E.bin, bios_CD_J.bin, obrigatória)"
     ]
   },
   "guide_pad": [

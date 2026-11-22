@@ -18,40 +18,28 @@
   "order": 46,
   "guide": {
     "it": [
-      "Dischi in Roms/PCECD: .chd, .cue, .ccd; più dischi con un .m3u",
-      "BIOS obbligatorio: syscard3.pce in Bios",
-      "Arriva con il pacchetto Beetle PCE Fast dello Store",
-      "Menu: menu di Mosaik (stati, opzioni, comandi, cambio disco)"
+      "@folder Roms/PCECD (.chd .cue .ccd, .m3u per più dischi)",
+      "@chip Bios (syscard3.pce, obbligatorio)"
     ],
     "en": [
-      "Discs in Roms/PCECD: .chd, .cue, .ccd; several discs with an .m3u",
-      "BIOS required: syscard3.pce in Bios",
-      "Comes with the Beetle PCE Fast package in the Store",
-      "Menu: Mosaik menu (states, options, controls, disc change)"
+      "@folder Roms/PCECD (.chd .cue .ccd, .m3u for several discs)",
+      "@chip Bios (syscard3.pce, required)"
     ],
     "es": [
-      "Discos en Roms/PCECD: .chd, .cue, .ccd; varios discos con un .m3u",
-      "BIOS obligatoria: syscard3.pce en Bios",
-      "Viene con el paquete Beetle PCE Fast de la Store",
-      "Menu: menú de Mosaik (estados, opciones, controles, cambio de disco)"
+      "@folder Roms/PCECD (.chd .cue .ccd, .m3u para varios discos)",
+      "@chip Bios (syscard3.pce, obligatoria)"
     ],
     "fr": [
-      "Disques dans Roms/PCECD : .chd, .cue, .ccd ; plusieurs disques avec un .m3u",
-      "BIOS obligatoire : syscard3.pce dans Bios",
-      "Fourni avec le paquet Beetle PCE Fast du Store",
-      "Menu : menu de Mosaik (états, options, commandes, changement de disque)"
+      "@folder Roms/PCECD (.chd .cue .ccd, .m3u pour plusieurs disques)",
+      "@chip Bios (syscard3.pce, obligatoire)"
     ],
     "de": [
-      "Discs in Roms/PCECD: .chd, .cue, .ccd; mehrere Discs mit einer .m3u",
-      "BIOS nötig: syscard3.pce in Bios",
-      "Kommt mit dem Paket Beetle PCE Fast aus dem Store",
-      "Menu: Mosaik-Menü (Zustände, Optionen, Steuerung, Disc-Wechsel)"
+      "@folder Roms/PCECD (.chd .cue .ccd, .m3u für mehrere Discs)",
+      "@chip Bios (syscard3.pce, nötig)"
     ],
     "pt": [
-      "Discos em Roms/PCECD: .chd, .cue, .ccd; vários discos com um .m3u",
-      "BIOS obrigatória: syscard3.pce em Bios",
-      "Vem com o pacote Beetle PCE Fast da Store",
-      "Menu: menu do Mosaik (estados, opções, controlos, troca de disco)"
+      "@folder Roms/PCECD (.chd .cue .ccd, .m3u para vários discos)",
+      "@chip Bios (syscard3.pce, obrigatória)"
     ]
   },
   "guide_pad": [

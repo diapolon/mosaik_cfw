@@ -4,5 +4,43 @@
   "roms": "Roms/MAME2003P",
   "extensions": ["zip"],
   "index": "Dats/mame2003p.tsv",
-  "order": 20
+  "order": 20,
+  "guide": {
+    "it": [
+      "@folder Roms/MAME2003P (.zip, set MAME 0.78)",
+      "@chip Roms/MAME2003P (neogeo.zip, per i giochi Neo Geo)"
+    ],
+    "en": [
+      "@folder Roms/MAME2003P (.zip, set MAME 0.78)",
+      "@chip Roms/MAME2003P (neogeo.zip, for Neo Geo games)"
+    ],
+    "es": [
+      "@folder Roms/MAME2003P (.zip, set MAME 0.78)",
+      "@chip Roms/MAME2003P (neogeo.zip, para los juegos Neo Geo)"
+    ],
+    "fr": [
+      "@folder Roms/MAME2003P (.zip, set MAME 0.78)",
+      "@chip Roms/MAME2003P (neogeo.zip, pour les jeux Neo Geo)"
+    ],
+    "de": [
+      "@folder Roms/MAME2003P (.zip, set MAME 0.78)",
+      "@chip Roms/MAME2003P (neogeo.zip, für Neo-Geo-Spiele)"
+    ],
+    "pt": [
+      "@folder Roms/MAME2003P (.zip, set MAME 0.78)",
+      "@chip Roms/MAME2003P (neogeo.zip, para os jogos Neo Geo)"
+    ]
+  },
+  "guide_pad": [
+    ["1", "B"],
+    ["2", "A"],
+    ["3", "Y"],
+    ["4", "X"],
+    ["5", "L1"],
+    ["6", "R1"],
+    ["@dpad", "@dpad"],
+    [{"it": "Gettone", "en": "Coin", "es": "Moneda", "fr": "Pièce", "de": "Münze", "pt": "Moeda"}, "SELECT"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

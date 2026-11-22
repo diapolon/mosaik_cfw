@@ -9,5 +9,34 @@
   "art": "handheld",
   "short": "Mini",
   "thumbnails": "Nintendo - Pokemon Mini",
-  "order": 57
+  "order": 57,
+  "guide": {
+    "it": [
+      "@folder Roms/POKEMINI (.min)",
+      "@chip Bios (bios.min, facoltativo)"
+    ],
+    "en": [
+      "@folder Roms/POKEMINI (.min)",
+      "@chip Bios (bios.min, optional)"
+    ],
+    "es": [
+      "@folder Roms/POKEMINI (.min)",
+      "@chip Bios (bios.min, opcional)"
+    ],
+    "fr": [
+      "@folder Roms/POKEMINI (.min)",
+      "@chip Bios (bios.min, facultatif)"
+    ],
+    "de": [
+      "@folder Roms/POKEMINI (.min)",
+      "@chip Bios (bios.min, optional)"
+    ],
+    "pt": [
+      "@folder Roms/POKEMINI (.min)",
+      "@chip Bios (bios.min, opcional)"
+    ]
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

@@ -7,5 +7,33 @@
   "art": "handheld",
   "short": "Game Boy",
   "thumbnails": "Nintendo - Game Boy",
-  "order": 50
+  "order": 50,
+  "guide": {
+    "it": [
+      "@folder Roms/GB (.gb .zip)"
+    ],
+    "en": [
+      "@folder Roms/GB (.gb .zip)"
+    ],
+    "es": [
+      "@folder Roms/GB (.gb .zip)"
+    ],
+    "fr": [
+      "@folder Roms/GB (.gb .zip)"
+    ],
+    "de": [
+      "@folder Roms/GB (.gb .zip)"
+    ],
+    "pt": [
+      "@folder Roms/GB (.gb .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["A", "A"],
+    ["B", "B"],
+    ["@dpad", "@dpad"],
+    ["Select", "SELECT"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

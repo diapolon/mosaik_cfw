@@ -15,34 +15,28 @@
   "order": 70,
   "guide": {
     "it": [
-      "Giochi in Roms/PS: .chd, .cue, .pbp; più dischi con un .m3u (in elenco solo il .m3u, il disco si cambia dal menu)",
-      "BIOS consigliato: scph5501.bin (o scph1001.bin) in Bios; senza, il core usa il suo BIOS ricostruito",
-      "Menu: menu di Mosaik (stati, opzioni, comandi, cambio disco)"
+      "@folder Roms/PS (.chd .cue .pbp, .m3u per più dischi)",
+      "@chip Bios (scph5501.bin, facoltativo)"
     ],
     "en": [
-      "Games in Roms/PS: .chd, .cue, .pbp; several discs with an .m3u (only the .m3u is listed, change disc from the menu)",
-      "Recommended BIOS: scph5501.bin (or scph1001.bin) in Bios; without it the core uses its own rebuilt BIOS",
-      "Menu: Mosaik menu (states, options, controls, disc change)"
+      "@folder Roms/PS (.chd .cue .pbp, .m3u for several discs)",
+      "@chip Bios (scph5501.bin, optional)"
     ],
     "es": [
-      "Juegos en Roms/PS: .chd, .cue, .pbp; varios discos con un .m3u (solo se lista el .m3u, el disco se cambia desde el menú)",
-      "BIOS recomendada: scph5501.bin (o scph1001.bin) en Bios; sin ella el núcleo usa su propia BIOS reconstruida",
-      "Menu: menú de Mosaik (estados, opciones, controles, cambio de disco)"
+      "@folder Roms/PS (.chd .cue .pbp, .m3u para varios discos)",
+      "@chip Bios (scph5501.bin, opcional)"
     ],
     "fr": [
-      "Jeux dans Roms/PS : .chd, .cue, .pbp ; plusieurs disques avec un .m3u (seul le .m3u est listé, le disque se change depuis le menu)",
-      "BIOS conseillé : scph5501.bin (ou scph1001.bin) dans Bios ; sans lui, le cœur utilise son propre BIOS reconstruit",
-      "Menu : menu de Mosaik (états, options, commandes, changement de disque)"
+      "@folder Roms/PS (.chd .cue .pbp, .m3u pour plusieurs disques)",
+      "@chip Bios (scph5501.bin, facultatif)"
     ],
     "de": [
-      "Spiele in Roms/PS: .chd, .cue, .pbp; mehrere Discs mit einer .m3u (nur die .m3u wird gelistet, Disc-Wechsel im Menü)",
-      "Empfohlenes BIOS: scph5501.bin (oder scph1001.bin) in Bios; ohne nutzt der Core sein eigenes nachgebautes BIOS",
-      "Menu: Mosaik-Menü (Zustände, Optionen, Steuerung, Disc-Wechsel)"
+      "@folder Roms/PS (.chd .cue .pbp, .m3u für mehrere Discs)",
+      "@chip Bios (scph5501.bin, optional)"
     ],
     "pt": [
-      "Jogos em Roms/PS: .chd, .cue, .pbp; vários discos com um .m3u (só o .m3u aparece, o disco muda-se no menu)",
-      "BIOS recomendada: scph5501.bin (ou scph1001.bin) em Bios; sem ela o núcleo usa a sua BIOS reconstruída",
-      "Menu: menu do Mosaik (estados, opções, controlos, troca de disco)"
+      "@folder Roms/PS (.chd .cue .pbp, .m3u para vários discos)",
+      "@chip Bios (scph5501.bin, opcional)"
     ]
   },
   "guide_pad": [

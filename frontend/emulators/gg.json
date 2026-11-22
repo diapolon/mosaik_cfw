@@ -10,5 +10,32 @@
   "art": "handheld-wide",
   "short": "Game Gear",
   "thumbnails": "Sega - Game Gear",
-  "order": 42
+  "order": 42,
+  "guide": {
+    "it": [
+      "@folder Roms/GG (.gg .zip)"
+    ],
+    "en": [
+      "@folder Roms/GG (.gg .zip)"
+    ],
+    "es": [
+      "@folder Roms/GG (.gg .zip)"
+    ],
+    "fr": [
+      "@folder Roms/GG (.gg .zip)"
+    ],
+    "de": [
+      "@folder Roms/GG (.gg .zip)"
+    ],
+    "pt": [
+      "@folder Roms/GG (.gg .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["1", "B"],
+    ["2", "A"],
+    ["@dpad", "@dpad"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

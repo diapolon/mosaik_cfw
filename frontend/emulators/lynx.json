@@ -14,5 +14,40 @@
   "bios": [
     "lynxboot.img"
   ],
-  "order": 54
+  "order": 54,
+  "guide": {
+    "it": [
+      "@folder Roms/LYNX (.lnx .o)",
+      "@chip Bios (lynxboot.img, obbligatorio)"
+    ],
+    "en": [
+      "@folder Roms/LYNX (.lnx .o)",
+      "@chip Bios (lynxboot.img, required)"
+    ],
+    "es": [
+      "@folder Roms/LYNX (.lnx .o)",
+      "@chip Bios (lynxboot.img, obligatoria)"
+    ],
+    "fr": [
+      "@folder Roms/LYNX (.lnx .o)",
+      "@chip Bios (lynxboot.img, obligatoire)"
+    ],
+    "de": [
+      "@folder Roms/LYNX (.lnx .o)",
+      "@chip Bios (lynxboot.img, nötig)"
+    ],
+    "pt": [
+      "@folder Roms/LYNX (.lnx .o)",
+      "@chip Bios (lynxboot.img, obrigatória)"
+    ]
+  },
+  "guide_pad": [
+    ["A", "A"],
+    ["B", "B"],
+    ["Option 1", "L1"],
+    ["Option 2", "R1"],
+    ["@dpad", "@dpad"],
+    [{"it": "Pausa", "en": "Pause", "es": "Pausa", "fr": "Pause", "de": "Pause", "pt": "Pausa"}, "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

@@ -7,5 +7,33 @@
   "art": "handheld",
   "short": "GB Color",
   "thumbnails": "Nintendo - Game Boy Color",
-  "order": 51
+  "order": 51,
+  "guide": {
+    "it": [
+      "@folder Roms/GBC (.gbc .gb .zip)"
+    ],
+    "en": [
+      "@folder Roms/GBC (.gbc .gb .zip)"
+    ],
+    "es": [
+      "@folder Roms/GBC (.gbc .gb .zip)"
+    ],
+    "fr": [
+      "@folder Roms/GBC (.gbc .gb .zip)"
+    ],
+    "de": [
+      "@folder Roms/GBC (.gbc .gb .zip)"
+    ],
+    "pt": [
+      "@folder Roms/GBC (.gbc .gb .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["A", "A"],
+    ["B", "B"],
+    ["@dpad", "@dpad"],
+    ["Select", "SELECT"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

@@ -10,5 +10,32 @@
   "kind": "console",
   "short": "SG-1000",
   "thumbnails": "Sega - SG-1000",
-  "order": 40
+  "order": 40,
+  "guide": {
+    "it": [
+      "@folder Roms/SG1000 (.sg .sc .zip)"
+    ],
+    "en": [
+      "@folder Roms/SG1000 (.sg .sc .zip)"
+    ],
+    "es": [
+      "@folder Roms/SG1000 (.sg .sc .zip)"
+    ],
+    "fr": [
+      "@folder Roms/SG1000 (.sg .sc .zip)"
+    ],
+    "de": [
+      "@folder Roms/SG1000 (.sg .sc .zip)"
+    ],
+    "pt": [
+      "@folder Roms/SG1000 (.sg .sc .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["1", "B"],
+    ["2", "A"],
+    ["@dpad", "@dpad"],
+    [{"it": "Pausa", "en": "Pause", "es": "Pausa", "fr": "Pause", "de": "Pause", "pt": "Pausa"}, "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

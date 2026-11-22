@@ -4,5 +4,43 @@
   "roms": "Roms/FBNEO",
   "extensions": ["zip", "7z"],
   "index": "Dats/fbneo.tsv",
-  "order": 10
+  "order": 10,
+  "guide": {
+    "it": [
+      "@folder Roms/FBNEO (.zip .7z, set di FinalBurn Neo)",
+      "@chip Roms/FBNEO (neogeo.zip, per i giochi Neo Geo)"
+    ],
+    "en": [
+      "@folder Roms/FBNEO (.zip .7z, FinalBurn Neo sets)",
+      "@chip Roms/FBNEO (neogeo.zip, for Neo Geo games)"
+    ],
+    "es": [
+      "@folder Roms/FBNEO (.zip .7z, sets de FinalBurn Neo)",
+      "@chip Roms/FBNEO (neogeo.zip, para los juegos Neo Geo)"
+    ],
+    "fr": [
+      "@folder Roms/FBNEO (.zip .7z, sets FinalBurn Neo)",
+      "@chip Roms/FBNEO (neogeo.zip, pour les jeux Neo Geo)"
+    ],
+    "de": [
+      "@folder Roms/FBNEO (.zip .7z, FinalBurn-Neo-Sets)",
+      "@chip Roms/FBNEO (neogeo.zip, für Neo-Geo-Spiele)"
+    ],
+    "pt": [
+      "@folder Roms/FBNEO (.zip .7z, sets do FinalBurn Neo)",
+      "@chip Roms/FBNEO (neogeo.zip, para os jogos Neo Geo)"
+    ]
+  },
+  "guide_pad": [
+    ["1", "B"],
+    ["2", "A"],
+    ["3", "Y"],
+    ["4", "X"],
+    ["5", "L1"],
+    ["6", "R1"],
+    ["@dpad", "@dpad"],
+    [{"it": "Gettone", "en": "Coin", "es": "Moneda", "fr": "Pièce", "de": "Münze", "pt": "Moeda"}, "SELECT"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

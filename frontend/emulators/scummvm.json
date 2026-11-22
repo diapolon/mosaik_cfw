@@ -13,34 +13,25 @@
   "order": 75,
   "guide": {
     "it": [
-      "Un gioco per cartella in Roms/SCUMMVM: la cartella con tutti i file del gioco è il gioco",
-      "I nomi delle cartelle sono i titoli in elenco: si possono rinominare",
-      "Menu: menu di Mosaik; il menu di ScummVM ha le opzioni del gioco e i salvataggi"
+      "@folder Roms/SCUMMVM (una cartella per gioco)"
     ],
     "en": [
-      "One game per folder in Roms/SCUMMVM: the folder with all the game files is the game",
-      "Folder names are the titles in the list: you can rename them",
-      "Menu: Mosaik menu; ScummVM's own menu has the game options and saves"
+      "@folder Roms/SCUMMVM (one folder per game)"
     ],
     "es": [
-      "Un juego por carpeta en Roms/SCUMMVM: la carpeta con todos los archivos del juego es el juego",
-      "Los nombres de las carpetas son los títulos de la lista: se pueden renombrar",
-      "Menu: menú de Mosaik; el menú de ScummVM tiene las opciones del juego y las partidas"
+      "@folder Roms/SCUMMVM (una carpeta por juego)"
     ],
     "fr": [
-      "Un jeu par dossier dans Roms/SCUMMVM : le dossier avec tous les fichiers du jeu est le jeu",
-      "Les noms des dossiers sont les titres de la liste : on peut les renommer",
-      "Menu : menu de Mosaik ; le menu de ScummVM a les options du jeu et les sauvegardes"
+      "@folder Roms/SCUMMVM (un dossier par jeu)"
     ],
     "de": [
-      "Ein Spiel pro Ordner in Roms/SCUMMVM: der Ordner mit allen Spieldateien ist das Spiel",
-      "Die Ordnernamen sind die Titel in der Liste: sie lassen sich umbenennen",
-      "Menu: Mosaik-Menü; ScummVMs eigenes Menü hat die Spieloptionen und Spielstände"
+      "@folder Roms/SCUMMVM (ein Ordner pro Spiel)"
     ],
     "pt": [
-      "Um jogo por pasta em Roms/SCUMMVM: a pasta com todos os ficheiros do jogo é o jogo",
-      "Os nomes das pastas são os títulos da lista: podem ser renomeados",
-      "Menu: menu do Mosaik; o menu do ScummVM tem as opções do jogo e as gravações"
+      "@folder Roms/SCUMMVM (uma pasta por jogo)"
     ]
-  }
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

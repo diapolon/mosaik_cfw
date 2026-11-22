@@ -9,5 +9,28 @@
   "kind": "console",
   "short": "VB",
   "thumbnails": "Nintendo - Virtual Boy",
-  "order": 58
+  "order": 58,
+  "guide": {
+    "it": [
+      "@folder Roms/VB (.vb .vboy)"
+    ],
+    "en": [
+      "@folder Roms/VB (.vb .vboy)"
+    ],
+    "es": [
+      "@folder Roms/VB (.vb .vboy)"
+    ],
+    "fr": [
+      "@folder Roms/VB (.vb .vboy)"
+    ],
+    "de": [
+      "@folder Roms/VB (.vb .vboy)"
+    ],
+    "pt": [
+      "@folder Roms/VB (.vb .vboy)"
+    ]
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

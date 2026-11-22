@@ -16,5 +16,28 @@
   "art": "pc",
   "short": "C64",
   "thumbnails": "Commodore - 64",
-  "order": 78
+  "order": 78,
+  "guide": {
+    "it": [
+      "@folder Roms/C64 (.d64 .t64 .tap .prg .crt .zip)"
+    ],
+    "en": [
+      "@folder Roms/C64 (.d64 .t64 .tap .prg .crt .zip)"
+    ],
+    "es": [
+      "@folder Roms/C64 (.d64 .t64 .tap .prg .crt .zip)"
+    ],
+    "fr": [
+      "@folder Roms/C64 (.d64 .t64 .tap .prg .crt .zip)"
+    ],
+    "de": [
+      "@folder Roms/C64 (.d64 .t64 .tap .prg .crt .zip)"
+    ],
+    "pt": [
+      "@folder Roms/C64 (.d64 .t64 .tap .prg .crt .zip)"
+    ]
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

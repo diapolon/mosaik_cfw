@@ -9,5 +9,34 @@
   "kind": "console",
   "short": "7800",
   "thumbnails": "Atari - 7800",
-  "order": 27
+  "order": 27,
+  "guide": {
+    "it": [
+      "@folder Roms/A7800 (.a78 .bin)",
+      "@chip Bios (7800 BIOS (U).rom, facoltativo)"
+    ],
+    "en": [
+      "@folder Roms/A7800 (.a78 .bin)",
+      "@chip Bios (7800 BIOS (U).rom, optional)"
+    ],
+    "es": [
+      "@folder Roms/A7800 (.a78 .bin)",
+      "@chip Bios (7800 BIOS (U).rom, opcional)"
+    ],
+    "fr": [
+      "@folder Roms/A7800 (.a78 .bin)",
+      "@chip Bios (7800 BIOS (U).rom, facultatif)"
+    ],
+    "de": [
+      "@folder Roms/A7800 (.a78 .bin)",
+      "@chip Bios (7800 BIOS (U).rom, optional)"
+    ],
+    "pt": [
+      "@folder Roms/A7800 (.a78 .bin)",
+      "@chip Bios (7800 BIOS (U).rom, opcional)"
+    ]
+  },
+  "guide_pad": [
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

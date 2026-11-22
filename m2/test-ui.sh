@@ -221,8 +221,8 @@ guide_root() {
     echo x > $R/Roms/FINTO/gioco.iso
     cat > $R/Emulators/finto.json <<'J'
 { "name": "Finto", "kind": "console", "launch": "Cores/finto/launch.sh", "roms": "Roms/FINTO", "extensions": ["iso"],
-  "guide": { "it": ["Menu breve: menu dell'emulatore", "Menu tenuto: menu di Mosaik"],
-             "en": ["Short Menu: emulator menu", "Held Menu: Mosaik menu"] } }
+  "guide": { "it": ["@folder Roms/FINTO (.iso)", "Menu tenuto: menu di Mosaik"],
+             "en": ["@folder Roms/FINTO (.iso)", "Held Menu: Mosaik menu"] } }
 J
     printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json
 }
@@ -250,9 +250,13 @@ json.dump(d, open(sys.argv[1], "w"))
 X
 printf '{ "language": "it", "setup_done": true }\n' > $R/System/settings.json; rm -f $R/Logs/Arcade.log
 ./build/launcher --root $R --auto "wait:40,b,wait:20,a,wait:30,right,wait:10,right,wait:20,select,wait:20,shot:/tmp/guida3.png,quit" > /tmp/l.log 2>&1
-check "disegno dei comandi: 3 tasti (quello che non esiste no)" 'grep -q "guida di finto: 2 righe, 3 tasti (it)" $R/Logs/Arcade.log'
+check "disegno dei comandi: 3 tasti (quello che non esiste no), una riga con l'icona" 'grep -q "guida di finto: 2 righe, 3 tasti, 1 icone (it)" $R/Logs/Arcade.log'
 n=$(python3 /tmp/area.py /tmp/guida2.png /tmp/guida3.png)
 check "il disegno si vede ($n pixel diversi dalla guida senza)" '[ "$n" -gt 3000 ]'
+# 22 novembre: il disegno della console in uso, Brick Pro verticale e Smart Pro orizzontale
+ARCADE_TEST_MODEL=brickpro ./build/launcher --root $R --auto "wait:40,b,wait:20,a,wait:30,right,wait:10,right,wait:20,select,wait:20,shot:/tmp/guida4.png,quit" > /tmp/l.log 2>&1
+n=$(python3 /tmp/area.py /tmp/guida3.png /tmp/guida4.png)
+check "Brick Pro: un altro disegno ($n pixel diversi dalla Smart Pro)" '[ "$n" -gt 3000 ]'
 rm -rf $R/Emulators/finto.json $R/Roms/FINTO $R/Cores/finto $R/System/avvio-gioco.txt $R/System/next.txt $R/System/guide-viste.txt
 
 # audit 0.9.72, LAU-12 (ripreso da LAU-20 del 0.9.88): mancavano ~ e ` nella tastiera, e una password

@@ -691,6 +691,18 @@ static void sw_write_list(const game_t *g);
 static bool guide_open, guide_first, guide_skip;
 static int guide_sel, guide_scroll, guide_n;
 static char guide_title[96], guide_lines[GUIDE_LINES][320];
+/* icona della riga al posto del pallino: "@folder Roms/PSP (...)" (dalla 0.9.107) */
+enum { GI_NONE, GI_FOLDER, GI_CHIP, GI_SAVE };
+static int guide_icon[GUIDE_LINES];
+static int guide_line_icon(char *line) {   /* toglie "@icona " dall'inizio e dice quale */
+    static const struct { const char *tag; int icon; } tags[] = { { "@folder ", GI_FOLDER }, { "@chip ", GI_CHIP }, { "@save ", GI_SAVE } };
+    for (size_t i = 0; i < sizeof tags / sizeof tags[0]; i++) {
+        size_t n = strlen(tags[i].tag);
+        if (!strncmp(line, tags[i].tag, n)) { memmove(line, line + n, strlen(line + n) + 1); return tags[i].icon; }
+    }
+    return GI_NONE;
+}
+static int guide_icons(void) { int n = 0; for (int k = 0; k < guide_n; k++) n += guide_icon[k] != GI_NONE; return n; }
 static game_t *guide_game;   /* primo avvio: il gioco che parte dopo A */
 /* disegno dei comandi: "guide_pad" (o "controls") del JSON, [etichetta, tasti della console];
    l'etichetta è un testo, "@chiave" della sezione controls delle lingue, o {"it": ..., "en": ...} */
@@ -706,7 +718,11 @@ static int guide_from_json(jval *gd, char *used, size_t un) {
     guide_n = 0;
     snprintf(used, un, "%s", gl ? gl->key : "-");
     for (jval *l = gl ? gl->child : NULL; l && guide_n < GUIDE_LINES; l = l->next)
-        if (l->t == J_STR && l->s[0]) snprintf(guide_lines[guide_n++], sizeof guide_lines[0], "%s", l->s);
+        if (l->t == J_STR && l->s[0]) {
+            snprintf(guide_lines[guide_n], sizeof guide_lines[0], "%s", l->s);
+            guide_icon[guide_n] = guide_line_icon(guide_lines[guide_n]);
+            guide_n++;
+        }
     return guide_n;
 }
 
@@ -750,7 +766,7 @@ static bool guide_load_emu(const emulator_t *e) {
     else guide_npad = 0;
     json_free(j);
     snprintf(guide_title, sizeof guide_title, "%s", e->name);
-    if (n) ui_log("guida di %s: %d righe, %d tasti (%s)", e->id, n, guide_npad, used);
+    if (n) ui_log("guida di %s: %d righe, %d tasti, %d icone (%s)", e->id, n, guide_npad, guide_icons(), used);
     return n > 0;
 }
 
@@ -776,7 +792,11 @@ static bool guide_load_text(const char *title, const char *text, const char *pad
     for (const char *c = text; *c && guide_n < GUIDE_LINES;) {
         const char *e = strchr(c, '\n');
         size_t l = e ? (size_t)(e - c) : strlen(c);
-        if (l) snprintf(guide_lines[guide_n++], sizeof guide_lines[0], "%.*s", (int)l, c);
+        if (l) {
+            snprintf(guide_lines[guide_n], sizeof guide_lines[0], "%.*s", (int)l, c);
+            guide_icon[guide_n] = guide_line_icon(guide_lines[guide_n]);
+            guide_n++;
+        }
         c += l + (e ? 1 : 0);
     }
     snprintf(guide_title, sizeof guide_title, "%s", title);
@@ -827,7 +847,7 @@ static void guide_input(void) {
 }
 
 /* ---- disegno della console per la guida: tasti, posizioni e etichette */
-enum { PB_DPAD, PB_A, PB_B, PB_X, PB_Y, PB_L1, PB_R1, PB_L2, PB_R2, PB_SELECT, PB_START, PB_MENU, PB_LSTICK, PB_RSTICK, PB_N };
+enum { PB_DPAD, PB_A, PB_B, PB_X, PB_Y, PB_L1, PB_R1, PB_L2, PB_R2, PB_SELECT, PB_START, PB_MENU, PB_LSTICK, PB_RSTICK, PB_F1, PB_F2, PB_N };
 static int pad_token(const char *t) {
     while (*t == ' ') t++;
     char k[16];
@@ -837,7 +857,7 @@ static int pad_token(const char *t) {
     static const struct { const char *name; int b; } map[] = {
         { "@dpad", PB_DPAD }, { "a", PB_A }, { "b", PB_B }, { "x", PB_X }, { "y", PB_Y }, { "l1", PB_L1 }, { "l", PB_L1 },
         { "r1", PB_R1 }, { "r", PB_R1 }, { "l2", PB_L2 }, { "r2", PB_R2 }, { "select", PB_SELECT }, { "start", PB_START },
-        { "menu", PB_MENU }, { "@lstick", PB_LSTICK }, { "@stick", PB_LSTICK }, { "@rstick", PB_RSTICK } };
+        { "menu", PB_MENU }, { "@lstick", PB_LSTICK }, { "@stick", PB_LSTICK }, { "@rstick", PB_RSTICK }, { "f1", PB_F1 }, { "f2", PB_F2 } };
     for (size_t i = 0; i < sizeof map / sizeof map[0]; i++) if (!strcmp(k, map[i].name)) return map[i].b;
     return -1;
 }
@@ -847,60 +867,95 @@ static bool pad_token_any(const char *s, size_t len) {
     for (char *tk = strtok_r(tmp, "·/,", &save); tk; tk = strtok_r(NULL, "·/,", &save)) if (pad_token(tk) >= 0) return true;
     return false;
 }
-static bool pad_sticks(void) { const char *m = plat_model(); return !(m && strstr(m, "brick")); }   /* la Brick Pro non ha levette */
-/* centro del tasto nella console disegnata (bx, by, bw, bh: il corpo) */
-static void pad_anchor(int b, int bx, int by, int bw, int bh, int *ax, int *ay) {
-    static const float pos[PB_N][2] = {
-        [PB_DPAD] = { 0.14f, 0.34f }, [PB_A] = { 0.925f, 0.34f }, [PB_B] = { 0.86f, 0.46f }, [PB_X] = { 0.86f, 0.22f },
-        [PB_Y] = { 0.795f, 0.34f }, [PB_L1] = { 0.20f, -0.03f }, [PB_R1] = { 0.80f, -0.03f }, [PB_L2] = { 0.08f, -0.07f },
-        [PB_R2] = { 0.92f, -0.07f }, [PB_SELECT] = { 0.42f, 0.89f }, [PB_START] = { 0.58f, 0.89f }, [PB_MENU] = { 0.14f, 0.89f },
-        [PB_LSTICK] = { 0.14f, 0.66f }, [PB_RSTICK] = { 0.86f, 0.66f } };
-    *ax = bx + (int)(pos[b][0] * (float)bw);
-    *ay = by + (int)(pos[b][1] * (float)bh);
+/* Le due console, come nelle foto del produttore: posizioni dei tasti relative al corpo (0..1; i dorsali
+   sopra il bordo, y < 0). Smart Pro orizzontale con le estremità tonde: croce e levetta a sinistra,
+   MENU sotto; A B X Y e levetta a destra, SELECT e START sotto; L e L2 uno sopra l'altro. Brick Pro
+   verticale: schermo in alto, F1 e F2 sotto lo schermo, croce e A B X Y, le due levette, in fondo tre
+   tasti tondi (SELECT, MENU, START). Un tasto che il modello non ha (F1 e F2 sulla Smart Pro) ha x < 0. */
+typedef struct {
+    float aspect;       /* larghezza / altezza del corpo */
+    float radius;       /* raggio degli angoli, in parti dell'altezza */
+    float screen[4];    /* x, y, w, h dello schermo */
+    float pos[PB_N][2];
+} pad_layout_t;
+static const pad_layout_t PAD_SMART = { 2.36f, 0.48f, { 0.175f, 0.04f, 0.65f, 0.89f }, {
+    [PB_DPAD] = { 0.077f, 0.30f }, [PB_X] = { 0.908f, 0.225f }, [PB_Y] = { 0.868f, 0.32f }, [PB_A] = { 0.951f, 0.32f },
+    [PB_B] = { 0.908f, 0.415f }, [PB_LSTICK] = { 0.11f, 0.65f }, [PB_RSTICK] = { 0.892f, 0.645f }, [PB_MENU] = { 0.135f, 0.86f },
+    [PB_SELECT] = { 0.86f, 0.86f }, [PB_START] = { 0.906f, 0.86f }, [PB_L1] = { 0.13f, -0.04f }, [PB_L2] = { 0.11f, -0.13f },
+    [PB_R1] = { 0.87f, -0.04f }, [PB_R2] = { 0.89f, -0.13f }, [PB_F1] = { -1, 0 }, [PB_F2] = { -1, 0 } } };
+static const pad_layout_t PAD_BRICK = { 0.68f, 0.07f, { 0.06f, 0.035f, 0.88f, 0.49f }, {
+    [PB_DPAD] = { 0.18f, 0.625f }, [PB_X] = { 0.80f, 0.57f }, [PB_Y] = { 0.70f, 0.625f }, [PB_A] = { 0.895f, 0.625f },
+    [PB_B] = { 0.80f, 0.685f }, [PB_LSTICK] = { 0.31f, 0.81f }, [PB_RSTICK] = { 0.69f, 0.81f }, [PB_SELECT] = { 0.40f, 0.94f },
+    [PB_MENU] = { 0.50f, 0.94f }, [PB_START] = { 0.60f, 0.94f }, [PB_F1] = { 0.44f, 0.565f }, [PB_F2] = { 0.56f, 0.565f },
+    [PB_L1] = { 0.22f, -0.02f }, [PB_L2] = { 0.18f, -0.055f }, [PB_R1] = { 0.78f, -0.02f }, [PB_R2] = { 0.82f, -0.055f } } };
+/* modello: quello della console; nelle prove sul Mac ARCADE_TEST_MODEL */
+static const pad_layout_t *pad_layout(void) {
+    const char *m = plat_model();
+    if (!m) m = getenv("ARCADE_TEST_MODEL");
+    return m && strstr(m, "brick") ? &PAD_BRICK : &PAD_SMART;
+}
+static bool pad_has(const pad_layout_t *L, int b) { return L->pos[b][0] >= 0; }
+static void pad_anchor(const pad_layout_t *L, int b, int bx, int by, int bw, int bh, int *ax, int *ay) {
+    *ax = bx + (int)(L->pos[b][0] * (float)bw);
+    *ay = by + (int)(L->pos[b][1] * (float)bh);
 }
 static void thick_line(int x1, int y1, int x2, int y2, int th, color_t c);
 static void pad_draw(int x, int y, int w, int h) {
     theme_t *t = &UI.th;
     TTF_Font *fs = UI.f_small;
     int fsh = TTF_FontHeight(fs);
-    /* corpo largo come una console orizzontale, al centro; le etichette nelle due colonne ai lati */
-    int bw = w * 40 / 100, bh = bw * 50 / 100;
-    if (bh > h * 80 / 100) { bh = h * 80 / 100; bw = bh * 2; }
-    int bx = x + (w - bw) / 2, by = y + (h - bh) / 2 + bh * 6 / 100;
+    const pad_layout_t *L = pad_layout();
+    bool brick = L == &PAD_BRICK;
+    /* corpo al centro, alto quanto si può lasciando spazio ai dorsali; le etichette ai lati */
+    int bh = h * 86 / 100, bw = (int)((float)bh * L->aspect);
+    if (bw > w * 46 / 100) { bw = w * 46 / 100; bh = (int)((float)bw / L->aspect); }
+    int bx = x + (w - bw) / 2, by = y + h - bh - (h - bh) / 4;
     color_t body = mix(t->popup, t->text, 0.10f), dark = mix(t->popup, t->text, 0.75f), line = with_alpha(t->text_dim, 200);
-    bool sticks = pad_sticks();
-    /* dorsali, poi il corpo sopra */
-    for (int b = PB_L1; b <= PB_R2; b++) {
-        int ax, ay;
-        pad_anchor(b, bx, by, bw, bh, &ax, &ay);
-        int tw = bw * 11 / 100, th = bh * 16 / 100;
-        ui_rrect(ax - tw / 2, ay - th / 3, tw, th, th / 3, mix(body, t->text, b == PB_L2 || b == PB_R2 ? 0.25f : 0.12f));
-    }
-    ui_rrect(bx, by, bw, bh, bh / 5, body);
-    ui_rborder(bx, by, bw, bh, bh / 5, M(0.003f) + 1, with_alpha(t->text_dim, 120));
-    int sx = bx + bw * 27 / 100, sw = bw * 46 / 100, sy = by + bh * 10 / 100, sh = bh * 68 / 100;
-    ui_rrect(sx, sy, sw, sh, bh / 20, dark);
+    int ax, ay, unit = (brick ? bw : bh) * (brick ? 9 : 16) / 100;   /* misura dei tasti */
+    /* dorsali, dietro il corpo: L2 e R2 più in alto */
+    for (int b = PB_L2; b >= PB_L1; b--)
+        for (int side = 0; side < 2; side++) {
+            int pb = side ? (b == PB_L2 ? PB_R2 : PB_R1) : b;
+            pad_anchor(L, pb, bx, by, bw, bh, &ax, &ay);
+            int tw = unit * 2, th = unit * 9 / 10;
+            ui_rrect(ax - tw / 2, ay - th / 2, tw, th + unit / 2, th / 3, mix(body, t->text, b == PB_L2 ? 0.25f : 0.12f));
+        }
+    int rad = (int)(L->radius * (float)bh);
+    ui_rrect(bx, by, bw, bh, rad, body);
+    ui_rborder(bx, by, bw, bh, rad, M(0.003f) + 1, with_alpha(t->text_dim, 120));
+    ui_rrect(bx + (int)(L->screen[0] * bw), by + (int)(L->screen[1] * bh), (int)(L->screen[2] * bw), (int)(L->screen[3] * bh), unit / 4 + 1, dark);
     /* croce */
-    int ax, ay, arm = bw * 4 / 100;
-    pad_anchor(PB_DPAD, bx, by, bw, bh, &ax, &ay);
+    int arm = unit * 2 / 3;
+    pad_anchor(L, PB_DPAD, bx, by, bw, bh, &ax, &ay);
     ui_rrect(ax - arm * 3 / 2, ay - arm / 2, arm * 3, arm, arm / 4, dark);
     ui_rrect(ax - arm / 2, ay - arm * 3 / 2, arm, arm * 3, arm / 4, dark);
-    /* A B X Y, con la lettera */
+    /* A B X Y, con la lettera; grandi quanto lo spazio fra X e Y lascia */
     static const int face[4] = { PB_A, PB_B, PB_X, PB_Y };
     static const char *flab[4] = { "A", "B", "X", "Y" };
+    int x1, y1, x2, y2;
+    pad_anchor(L, PB_X, bx, by, bw, bh, &x1, &y1);
+    pad_anchor(L, PB_Y, bx, by, bw, bh, &x2, &y2);
+    int fr = (int)(sqrtf((float)((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))) * 0.42f);
     for (int k = 0; k < 4; k++) {
-        pad_anchor(face[k], bx, by, bw, bh, &ax, &ay);
-        ui_circle(ax, ay, arm * 7 / 10, dark);
-        ui_text(fs, flab[k], ax, ay - fsh / 2, body, ALIGN_CENTER);
+        pad_anchor(L, face[k], bx, by, bw, bh, &ax, &ay);
+        ui_circle(ax, ay, fr, dark);
+        if (fr * 2 >= fsh) ui_text(fs, flab[k], ax, ay - fsh / 2, body, ALIGN_CENTER);
     }
-    if (sticks) for (int b = PB_LSTICK; b <= PB_RSTICK; b++) {
-        pad_anchor(b, bx, by, bw, bh, &ax, &ay);
-        ui_circle(ax, ay, arm, mix(body, t->text, 0.30f));
-        ui_ring(ax, ay, arm, M(0.003f) + 1, with_alpha(t->text_dim, 160));
+    for (int b = PB_LSTICK; b <= PB_RSTICK; b++) {   /* levette: le hanno tutte e due */
+        pad_anchor(L, b, bx, by, bw, bh, &ax, &ay);
+        ui_circle(ax, ay, unit, mix(body, t->text, 0.18f));
+        ui_circle(ax, ay, unit * 2 / 3, mix(body, t->text, 0.35f));
     }
-    for (int b = PB_SELECT; b <= PB_MENU; b++) {
-        pad_anchor(b, bx, by, bw, bh, &ax, &ay);
-        ui_rrect(ax - arm, ay - arm / 4, arm * 2, arm / 2, arm / 4, dark);
+    pad_anchor(L, PB_SELECT, bx, by, bw, bh, &x1, &y1);
+    pad_anchor(L, PB_START, bx, by, bw, bh, &x2, &y2);
+    int sr = abs(x1 - x2) * 2 / 5 < arm / 2 ? abs(x1 - x2) * 2 / 5 : arm / 2;
+    for (int b = PB_SELECT; b <= PB_MENU; b++) {   /* tasti tondi piccoli */
+        pad_anchor(L, b, bx, by, bw, bh, &ax, &ay);
+        ui_circle(ax, ay, sr, dark);
+    }
+    for (int b = PB_F1; b <= PB_F2; b++) if (pad_has(L, b)) {   /* barrette F1 e F2 (Brick Pro) */
+        pad_anchor(L, b, bx, by, bw, bh, &ax, &ay);
+        ui_rrect(ax - arm * 2 / 3, ay - arm / 5, arm * 4 / 3, arm * 2 / 5, arm / 5, mix(body, t->text, 0.30f));
     }
     /* etichette: a sinistra per i tasti della metà sinistra, a destra per gli altri, in ordine dall'alto;
        una linea sottile dall'etichetta al tasto */
@@ -912,8 +967,8 @@ static void pad_draw(int x, int y, int w, int h) {
         bool side_used[2] = { false, false };
         for (char *tk = strtok_r(tmp, "·/,", &save); tk; tk = strtok_r(NULL, "·/,", &save)) {
             int b = pad_token(tk);
-            if (b < 0 || (!sticks && (b == PB_LSTICK || b == PB_RSTICK))) continue;
-            pad_anchor(b, bx, by, bw, bh, &ax, &ay);
+            if (b < 0 || !pad_has(L, b)) continue;
+            pad_anchor(L, b, bx, by, bw, bh, &ax, &ay);
             int side = ax < bx + bw / 2 ? 0 : 1;
             if (side_used[side] || nc[side] >= GUIDE_PAD * 2) continue;
             side_used[side] = true;
@@ -922,14 +977,16 @@ static void pad_draw(int x, int y, int w, int h) {
             nc[side]++;
         }
     }
-    int lh = fsh + M(0.008f), gap = M(0.015f);
+    int lh = fsh + M(0.008f), gap = M(0.02f);
     for (int sd = 0; sd < 2; sd++) {
-        for (int a = 1; a < nc[sd]; a++)   /* in ordine dall'alto */
-            for (int b2 = a; b2 > 0 && col[sd][b2].ay < col[sd][b2 - 1].ay; b2--) { __typeof__(col[0][0]) tmpc = col[sd][b2]; col[sd][b2] = col[sd][b2 - 1]; col[sd][b2 - 1] = tmpc; }
+        for (int a1 = 1; a1 < nc[sd]; a1++)   /* in ordine dall'alto */
+            for (int b2 = a1; b2 > 0 && col[sd][b2].ay < col[sd][b2 - 1].ay; b2--) { __typeof__(col[0][0]) tmpc = col[sd][b2]; col[sd][b2] = col[sd][b2 - 1]; col[sd][b2 - 1] = tmpc; }
         int ys[GUIDE_PAD * 2], prev = y - lh;
         for (int k = 0; k < nc[sd]; k++) { ys[k] = col[sd][k].ay - lh / 2; if (ys[k] < prev + lh) ys[k] = prev + lh; prev = ys[k]; }
         int over = nc[sd] ? ys[nc[sd] - 1] + lh - (y + h) : 0;   /* troppo in basso: tutto più su */
         for (int k = 0; k < nc[sd] && over > 0; k++) ys[k] -= over;
+        int under = nc[sd] ? y - ys[0] : 0;   /* e mai sopra l'area del disegno */
+        for (int k = 0; k < nc[sd] && under > 0; k++) ys[k] += under;
         int cx0 = sd == 0 ? x : bx + bw + gap, cw = (sd == 0 ? bx - gap : x + w) - cx0;
         for (int k = 0; k < nc[sd]; k++) {
             int i = col[sd][k].idx, tyc = ys[k] + lh / 2;
@@ -937,18 +994,41 @@ static void pad_draw(int x, int y, int w, int h) {
             ui_text_fit(fs, guide_pad_label[i], cw - M(0.02f), fit, sizeof fit);
             int tw = ui_text_w(fs, fit), tx = sd == 0 ? bx - gap - tw : bx + bw + gap;
             ui_text(fs, fit, tx, ys[k] + (lh - fsh) / 2, t->text, ALIGN_LEFT);
-            /* linea fino a ogni tasto di questa etichetta da questo lato */
             char tmp[48], *save = NULL;
             snprintf(tmp, sizeof tmp, "%s", guide_pad_keys[i]);
             for (char *tk = strtok_r(tmp, "·/,", &save); tk; tk = strtok_r(NULL, "·/,", &save)) {
                 int b = pad_token(tk);
-                if (b < 0 || (!sticks && (b == PB_LSTICK || b == PB_RSTICK))) continue;
-                pad_anchor(b, bx, by, bw, bh, &ax, &ay);
+                if (b < 0 || !pad_has(L, b)) continue;
+                pad_anchor(L, b, bx, by, bw, bh, &ax, &ay);
                 if ((ax < bx + bw / 2 ? 0 : 1) != sd) continue;
                 int lx0 = sd == 0 ? bx - gap / 2 : bx + bw + gap / 2;
                 thick_line(lx0, tyc, ax, ay, M(0.002f) + 1, line);
+                ui_circle(ax, ay, M(0.004f) + 1, line);
             }
         }
+    }
+}
+
+/* icone delle righe, disegnate (il font non ne ha): cartella, chip del BIOS, dischetto */
+static void guide_draw_icon(int icon, int x, int y, int sz, color_t c, color_t bg) {
+    int u = sz / 8 > 0 ? sz / 8 : 1;
+    if (icon == GI_FOLDER) {
+        ui_rrect(x, y + sz / 5, sz * 2 / 5, sz / 4, u, c);                 /* linguetta */
+        ui_rrect(x, y + sz * 3 / 10, sz, sz * 3 / 5, u * 2, c);           /* cartella */
+    } else if (icon == GI_CHIP) {
+        int m = sz / 5;
+        for (int k = 0; k < 3; k++) {                                       /* piedini */
+            int o = m + k * (sz - 2 * m) / 2 - u / 2;
+            ui_rect(x + o, y, u, sz, c);
+            ui_rect(x, y + o, sz, u, c);
+        }
+        ui_rrect(x + m - u, y + m - u, sz - 2 * m + 2 * u, sz - 2 * m + 2 * u, u, c);
+        ui_rrect(x + m + u, y + m + u, sz - 2 * m - 2 * u, sz - 2 * m - 2 * u, u, bg);
+    } else if (icon == GI_SAVE) {
+        ui_rrect(x, y, sz, sz, u * 2, c);                                   /* dischetto */
+        ui_rect(x + sz / 4, y + u, sz / 2, sz * 3 / 10, bg);               /* finestrella */
+        ui_rect(x + sz / 2, y + u * 2, sz / 8 > 0 ? sz / 8 : 1, sz / 5, c);
+        ui_rrect(x + sz / 6, y + sz / 2, sz * 2 / 3, sz * 2 / 5, u, bg);   /* etichetta */
     }
 }
 
@@ -961,16 +1041,22 @@ static void guide_draw(void) {
     /* righe con il pallino, a capo dentro la finestra */
     static char wrapped[GUIDE_LINES * 4][160];
     static bool cont[GUIDE_LINES * 4];
+    static int wicon[GUIDE_LINES * 4];
     int nw = 0;
     for (int k = 0; k < guide_n && nw < GUIDE_LINES * 4; k++) {
         char tmp[8][160];
-        int n = ui_wrap(fn, guide_lines[k], tw, tmp, 8);
-        for (int q = 0; q < n && nw < GUIDE_LINES * 4; q++) { snprintf(wrapped[nw], sizeof wrapped[0], "%s", tmp[q]); cont[nw++] = q > 0; }
+        int n = ui_wrap(fn, guide_lines[k], guide_icon[k] ? tw - M(0.02f) : tw, tmp, 8);
+        for (int q = 0; q < n && nw < GUIDE_LINES * 4; q++) {
+            snprintf(wrapped[nw], sizeof wrapped[0], "%s", tmp[q]);
+            wicon[nw] = guide_icon[k];
+            cont[nw++] = q > 0;
+        }
     }
     /* alta quanto il testo, al massimo lo schermo; se non ci sta, su e giù scorrono */
     /* disegno alto il 40% dello schermo, meno se le note non ci starebbero (non meno del 28%) */
     int hmax = UI.h - 2 * M(0.05f), rest = pad + fth + M(0.03f) + nw * fnh + M(0.02f) + ui_popup_buttons_h();
-    int padh = !guide_npad ? 0 : hmax - rest < UI.h * 28 / 100 ? UI.h * 28 / 100 : hmax - rest > UI.h * 40 / 100 ? UI.h * 40 / 100 : hmax - rest;
+    int pmax = UI.h * (pad_layout() == &PAD_BRICK ? 56 : 40) / 100;   /* la Brick Pro è verticale: più alta */
+    int padh = !guide_npad ? 0 : hmax - rest < UI.h * 28 / 100 ? UI.h * 28 / 100 : hmax - rest > pmax ? pmax : hmax - rest;
     int h = pad + fth + M(0.02f) + padh + nw * fnh + M(0.02f) + ui_popup_buttons_h();
     if (h > hmax) h = hmax;
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2, lx = x + pad;
@@ -985,8 +1071,10 @@ static void guide_draw(void) {
     int fit_rows = (bot - top) / fnh, maxs = nw > fit_rows ? nw - fit_rows : 0;
     if (guide_scroll > maxs) guide_scroll = maxs;
     for (int k = guide_scroll, cy = top; k < nw && cy + fnh <= bot; k++, cy += fnh) {
-        if (!cont[k]) ui_text(fn, "•", lx, cy, t->accent, ALIGN_LEFT);
-        ui_text(fn, wrapped[k], lx + M(0.03f), cy, t->text, ALIGN_LEFT);
+        int ind = wicon[k] ? M(0.05f) : M(0.03f), isz = fnh * 7 / 10;
+        if (!cont[k] && wicon[k]) guide_draw_icon(wicon[k], lx, cy + (fnh - isz) / 2, isz, t->accent, t->popup);
+        else if (!cont[k]) ui_text(fn, "•", lx, cy, t->accent, ALIGN_LEFT);
+        ui_text(fn, wrapped[k], lx + ind, cy, t->text, ALIGN_LEFT);
     }
     if (maxs) {   /* c'è altro sotto (o sopra): un triangolino disegnato, il font non ha le frecce */
         int tx = x + w - pad, ty = bot - fsh / 2, ts = fsh / 3;

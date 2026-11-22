@@ -7,5 +7,41 @@
   "art": "handheld-wide",
   "short": "GBA",
   "thumbnails": "Nintendo - Game Boy Advance",
-  "order": 52
+  "order": 52,
+  "guide": {
+    "it": [
+      "@folder Roms/GBA (.gba .zip)",
+      "@chip Bios (gba_bios.bin, facoltativo)"
+    ],
+    "en": [
+      "@folder Roms/GBA (.gba .zip)",
+      "@chip Bios (gba_bios.bin, optional)"
+    ],
+    "es": [
+      "@folder Roms/GBA (.gba .zip)",
+      "@chip Bios (gba_bios.bin, opcional)"
+    ],
+    "fr": [
+      "@folder Roms/GBA (.gba .zip)",
+      "@chip Bios (gba_bios.bin, facultatif)"
+    ],
+    "de": [
+      "@folder Roms/GBA (.gba .zip)",
+      "@chip Bios (gba_bios.bin, optional)"
+    ],
+    "pt": [
+      "@folder Roms/GBA (.gba .zip)",
+      "@chip Bios (gba_bios.bin, opcional)"
+    ]
+  },
+  "guide_pad": [
+    ["A", "A"],
+    ["B", "B"],
+    ["L", "L1"],
+    ["R", "R1"],
+    ["@dpad", "@dpad"],
+    ["Select", "SELECT"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

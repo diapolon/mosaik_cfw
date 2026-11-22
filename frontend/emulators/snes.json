@@ -14,5 +14,37 @@
   "art": "snes",
   "short": "SNES",
   "thumbnails": "Nintendo - Super Nintendo Entertainment System",
-  "order": 35
+  "order": 35,
+  "guide": {
+    "it": [
+      "@folder Roms/SNES (.sfc .smc .zip)"
+    ],
+    "en": [
+      "@folder Roms/SNES (.sfc .smc .zip)"
+    ],
+    "es": [
+      "@folder Roms/SNES (.sfc .smc .zip)"
+    ],
+    "fr": [
+      "@folder Roms/SNES (.sfc .smc .zip)"
+    ],
+    "de": [
+      "@folder Roms/SNES (.sfc .smc .zip)"
+    ],
+    "pt": [
+      "@folder Roms/SNES (.sfc .smc .zip)"
+    ]
+  },
+  "guide_pad": [
+    ["A", "A"],
+    ["B", "B"],
+    ["X", "X"],
+    ["Y", "Y"],
+    ["L", "L1"],
+    ["R", "R1"],
+    ["@dpad", "@dpad"],
+    ["Select", "SELECT"],
+    ["Start", "START"],
+    [{"it": "Menu di Mosaik", "en": "Mosaik menu", "es": "Menú de Mosaik", "fr": "Menu de Mosaik", "de": "Mosaik-Menü", "pt": "Menu do Mosaik"}, "MENU"]
+  ]
 }

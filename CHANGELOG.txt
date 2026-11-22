@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.107
+it Guida degli emulatori: il disegno è quello della tua console, Smart Pro o Brick Pro, e c'è per tutti gli emulatori
+en Emulator guide: the drawing is your console, Smart Pro or Brick Pro, and every emulator has one
+it Guida più grafica: icone per cartelle, BIOS e salvataggi, il tasto Menu nel disegno, meno testo
+en A more graphic guide: icons for folders, BIOS and saves, the Menu key in the drawing, less text
+
 0.9.106
 it Guida degli emulatori con il disegno dei comandi: cosa fa ogni tasto della console
 en Emulator guide with a drawing of the controls: what each button of the console does

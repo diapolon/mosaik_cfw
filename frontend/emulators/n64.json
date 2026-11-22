@@ -28,46 +28,41 @@
   ],
   "guide": {
     "it": [
-      "Menu tenuto: menu di Mosaik con Salva stato, Carica stato, Comandi ed Esci",
-      "Esci dal menu di Mosaik: così il gioco scrive i suoi salvataggi",
-      "Giochi in Roms/N64: .z64, .n64, .v64, non zippati",
-      "Salvataggi, stati e impostazioni in Saves/n64",
-      "Grafica più fedele ma più lenta: scrivi glide64mk2 nel file Saves/n64/video.txt"
+      "@folder Roms/N64 (.z64 .n64 .v64)",
+      "@save Saves/n64 (si scrivono uscendo dal menu di Mosaik)"
     ],
     "en": [
-      "Menu held: Mosaik menu with Save state, Load state, Controls and Exit",
-      "Exit from the Mosaik menu: that is when the game writes its saves",
-      "Games in Roms/N64: .z64, .n64, .v64, not zipped",
-      "Saves, states and settings in Saves/n64",
-      "More accurate but slower graphics: write glide64mk2 in the file Saves/n64/video.txt"
+      "@folder Roms/N64 (.z64 .n64 .v64)",
+      "@save Saves/n64 (written when you exit from the Mosaik menu)"
     ],
     "es": [
-      "Manteniendo pulsado Menu: menú de Mosaik con Guardar estado, Cargar estado, Controles y Salir",
-      "Sal desde el menú de Mosaik: así el juego escribe sus partidas",
-      "Juegos en Roms/N64: .z64, .n64, .v64, sin comprimir",
-      "Partidas, estados y ajustes en Saves/n64",
-      "Gráficos más fieles pero más lentos: escribe glide64mk2 en el archivo Saves/n64/video.txt"
+      "@folder Roms/N64 (.z64 .n64 .v64)",
+      "@save Saves/n64 (se escriben al salir desde el menú de Mosaik)"
     ],
     "fr": [
-      "Menu maintenu : menu de Mosaik avec Sauver l'état, Charger l'état, Commandes et Quitter",
-      "Quittez depuis le menu de Mosaik : c'est là que le jeu écrit ses sauvegardes",
-      "Jeux dans Roms/N64 : .z64, .n64, .v64, non compressés",
-      "Sauvegardes, états et réglages dans Saves/n64",
-      "Graphismes plus fidèles mais plus lents : écrivez glide64mk2 dans le fichier Saves/n64/video.txt"
+      "@folder Roms/N64 (.z64 .n64 .v64)",
+      "@save Saves/n64 (écrites en quittant depuis le menu de Mosaik)"
     ],
     "de": [
-      "Menu gedrückt halten: Mosaik-Menü mit Zustand speichern, Zustand laden, Steuerung und Beenden",
-      "Über das Mosaik-Menü beenden: dann schreibt das Spiel seine Spielstände",
-      "Spiele in Roms/N64: .z64, .n64, .v64, nicht gezippt",
-      "Spielstände, Zustände und Einstellungen in Saves/n64",
-      "Genauere, aber langsamere Grafik: glide64mk2 in die Datei Saves/n64/video.txt schreiben"
+      "@folder Roms/N64 (.z64 .n64 .v64)",
+      "@save Saves/n64 (beim Beenden über das Mosaik-Menü geschrieben)"
     ],
     "pt": [
-      "Menu premido: menu do Mosaik com Gravar estado, Carregar estado, Controlos e Sair",
-      "Sai pelo menu do Mosaik: é aí que o jogo escreve as gravações",
-      "Jogos em Roms/N64: .z64, .n64, .v64, não comprimidos",
-      "Gravações, estados e definições em Saves/n64",
-      "Gráficos mais fiéis mas mais lentos: escreve glide64mk2 no ficheiro Saves/n64/video.txt"
+      "@folder Roms/N64 (.z64 .n64 .v64)",
+      "@save Saves/n64 (escrevem-se ao sair pelo menu do Mosaik)"
     ]
-  }
+  },
+  "guide_pad": [
+    ["A", "A"],
+    ["B", "B"],
+    ["Z", "L2 · R2"],
+    ["L", "L1"],
+    ["R", "R1"],
+    ["Start", "Start"],
+    ["@stick", "@lstick"],
+    ["@dpad", "@dpad"],
+    ["@c_buttons", "@rstick"],
+    ["@c_left_up", "Y · X"],
+    [{"it": "Tenuto: menu di Mosaik", "en": "Held: Mosaik menu", "es": "Mantenido: menú de Mosaik", "fr": "Maintenu : menu de Mosaik", "de": "Gehalten: Mosaik-Menü", "pt": "Premido: menu do Mosaik"}, "MENU"]
+  ]
 }
