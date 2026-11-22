@@ -435,6 +435,11 @@ MODELLO=brickpro ./t $R install ppsspp > /dev/null 2>&1
 mkdir -p sd/Roms/DC sd/Saves/dc && echo gioco > sd/Roms/DC/gioco.chd && echo sav > sd/Saves/dc/gioco.srm
 printf 'archived\nlabel x\n' > sd/System/pacchetti/pcsx.txt
 check "pacchetto dell'altro modello archiviato, emulatore usato da un pacchetto installato: assente" "pcsx:0 ppsspp:1" "$(MODELLO=brickpro ./t $R list 2>/dev/null | grep -oE '(ppsspp|pcsx):[0-9]' | sort | tr '\n' ' ' | sed 's/ $//')"
+# revisione della 0.9.110, rilievo 1: togliendo poi l'emulatore giusto e tenendo i giochi, tutti e due
+# archiviati: quello dell'altro modello non deve ricomparire
+MODELLO=brickpro ./t $R emu ppsspp > /dev/null 2>&1
+check "tolto anche l'emulatore del modello giusto tenendo i giochi: quello dell'altro modello resta nascosto" "pcsx:0 ppsspp:4" "$(MODELLO=brickpro ./t $R list 2>/dev/null | grep -oE '(ppsspp|pcsx):[0-9]' | sort | tr '\n' ' ' | sed 's/ $//')"
+MODELLO=brickpro ./t $R install ppsspp > /dev/null 2>&1
 MODELLO=brickpro ./t $R delete pcsx > /dev/null 2>&1
 check "toglierlo non cancella file, giochi e salvataggi dell'emulatore dell'altro pacchetto" "si si si" "$([ -f sd/Emulators/dc.json ] && echo si || echo no) $([ -f sd/Roms/DC/gioco.chd ] && echo si || echo no) $([ -f sd/Saves/dc/gioco.srm ] && echo si || echo no)"
 # e sulla scheda dell'utente Deadcast era rimasto installato senza il suo Emulators/dc.json: il

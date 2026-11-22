@@ -450,7 +450,10 @@ static void compute_states(entry_t *e, int n) {
         /* archiviato, ma il suo emulatore ora è di un altro pacchetto installato: giochi e salvataggi
            sono dell'altro, e qui non c'è più niente da togliere (Flycast archiviato sulla Brick Pro
            con Deadcast installato: segnalato dall'utente il 22 novembre sulla 0.9.109) */
-        if (archived(e[i].p.id)) { e[i].p.state = emu_shared(e, n, i, false) ? PKG_ABSENT : PKG_ARCHIVED; continue; }
+        /* archiviato dell'altro modello: assente anche quando l'altro pacchetto è a sua volta solo
+           archiviato (revisione della 0.9.110, rilievo 1: togliendo Deadcast e tenendo i giochi,
+           Flycast archiviato ricompariva sulla Brick Pro) */
+        if (archived(e[i].p.id)) { e[i].p.state = emu_shared(e, n, i, e[i].p.other_model) ? PKG_ABSENT : PKG_ARCHIVED; continue; }
         char lab[32];
         installed_version(e[i].p.id, v, sizeof v, lab, sizeof lab);
         snprintf(e[i].p.inst_label, sizeof e[i].p.inst_label, "%s", lab[0] ? lab : v);
@@ -1414,7 +1417,7 @@ static void *remove_worker(void *arg) {
        i giochi e i salvataggi quelli di Deadcast; 22 novembre) */
     char **others = NULL;
     int nothers = 0;
-    bool shared_emu[16] = { false };
+    bool shared_emu[16] = { false }, keep_all = false;
     pthread_mutex_lock(&lock);
     for (int o = 0; o < ncat; o++) {
         if (!strcmp(cat[o].p.id, e.p.id)) continue;
@@ -1426,6 +1429,7 @@ static void *remove_worker(void *arg) {
                 if (!strcmp(e.emus[k], cat[o].emus[m])) shared_emu[k] = true;
         char **na = realloc(others, sizeof(char *) * (size_t)(nothers + 1));
         if (na) { others = na; others[nothers++] = strdup(cat[o].p.id); }
+        else keep_all = true;   /* senza memoria per l'elenco: meglio lasciare un file in più */
     }
     pthread_mutex_unlock(&lock);
     if (parts & (STORE_RM_GAMES | STORE_RM_SAVES)) {
@@ -1442,11 +1446,14 @@ static void *remove_worker(void *arg) {
         char **list = n ? files : e.files;
         int ln = n ? n : e.nfiles;
         for (int i = 0; i < ln; i++) {
-            bool theirs = false;   /* lo elenca il registro di un altro pacchetto installato */
+            /* lo elenca il registro di un altro pacchetto installato; se quel registro non si legge
+               (scheda, memoria) il file resta: potrebbe essere suo (revisione 0.9.110, rilievo 2) */
+            bool theirs = keep_all;
             for (int o = 0; o < nothers && !theirs; o++) {
                 int on = 0;
                 bool ofail = false;
                 char **of = others[o] ? record_files(others[o], &on, &ofail) : NULL;
+                if (!others[o] || ofail) theirs = true;
                 for (int q = 0; q < on && !theirs; q++) theirs = !strcmp(of[q], list[i]);
                 free_list(of, on);
             }
