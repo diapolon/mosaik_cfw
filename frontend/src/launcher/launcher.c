@@ -307,6 +307,7 @@ static int hmenu[8], nhmenu;                  /* menu: la prima voce è il gioco
 typedef struct { char name[64], title[96], desc[240], author[64], path[1100], icon[1100]; bool has_guide; } app_t;
 static app_t *apps;
 static int napps, app_sel;
+#define APP_COLS 4   /* colonne della griglia delle App */
 static float app_scroll;
 static int hsel, hrow;                        /* scelta nel carosello o nel menu; riga (Tessera) */
 static int hbtn;                              /* pulsante scelto nella fila (Tessera) */
@@ -9666,9 +9667,12 @@ static void apps_launch(const app_t *a) {
 
 static void apps_input(void) {
     input_t *in = &UI.in;
-    int old = app_sel;
-    if (in->pressed[BTN_UP] && app_sel > 0) app_sel--;
-    if (in->pressed[BTN_DOWN] && app_sel < napps - 1) app_sel++;
+    int old = app_sel;   /* griglia di APP_COLS colonne, come lo Store */
+    if (in->pressed[BTN_LEFT] && app_sel > 0) app_sel--;
+    if (in->pressed[BTN_RIGHT] && app_sel < napps - 1) app_sel++;
+    if (in->pressed[BTN_UP] && app_sel >= APP_COLS) app_sel -= APP_COLS;
+    if (in->pressed[BTN_DOWN] && app_sel + APP_COLS < napps) app_sel += APP_COLS;
+    else if (in->pressed[BTN_DOWN] && app_sel / APP_COLS < (napps - 1) / APP_COLS) app_sel = napps - 1;   /* riga sotto più corta */
     if (app_sel != old) ui_sound(SND_MOVE);
     if (in->pressed[BTN_A] && napps) { apps_launch(&apps[app_sel]); return; }
     if (in->pressed[BTN_SELECT] && napps && apps[app_sel].has_guide) {
@@ -9680,45 +9684,53 @@ static void apps_input(void) {
     if (in->pressed[BTN_START]) { settings_open(-1, 0); go(SCR_SETTINGS); ui_sound(SND_OK); }
 }
 
+/* colore del riquadro di un'app: quello del suo pacchetto nello Store (sto_pkg_art), viola per le altre */
+static color_t app_color(const char *name) {
+    return !strcmp(name, "files") ? hexc(0x1F6E8C) : !strcmp(name, "viewer") ? hexc(0x8C4A1F)
+         : !strcmp(name, "music") ? hexc(0x7A2E6E) : !strcmp(name, "sdtest") ? hexc(0x2E6B3E) : hexc(0x4B3C86);
+}
+
+/* App a griglia come lo Store (23 novembre: prima un elenco, nato quando le app erano una o due):
+   riquadri con l'icona e il nome, quattro per riga; autore e descrizione dell'app scelta in basso */
 static void apps_draw(void) {
     theme_t *t = &UI.th;
     topbar_theme();
+    TTF_Font *fs = UI.f_small;
+    int fsh = TTF_FontHeight(fs);
     int mx = M(t->margin), W = UI.w - 2 * mx, y = M(t->topbar_h) + M(0.025f), bottom = UI.h - ui_keybar_h() - M(0.03f);
     home_title(T("apps.title"), y, t->text);
     y += TTF_FontHeight(UI.f_title) + M(0.03f);
     if (!napps) {
         empty_panel(mx, y, W, bottom - y, T("apps.empty_title"), T("apps.empty_text"), NULL, NULL);
     } else {
-        TTF_Font *fn = UI.f_normal, *fs = UI.f_small;
-        int fnh = TTF_FontHeight(fn), fsh = TTF_FontHeight(fs), pad = M(0.016f), gap = M(0.014f);
-        int rh = fnh + fsh + 2 * pad + M(0.01f), is = rh - 2 * pad, r = M(t->tile_radius);
-        int vis = (bottom - y + gap) / (rh + gap);
-        if (vis < 1) vis = 1;
-        float target = app_sel < vis ? 0 : (float)(app_sel - vis + 1);
-        app_scroll = ui_approach(app_scroll, target);
-        ui_clip_push(mx - M(0.01f), y - M(0.01f), W + M(0.02f), bottom - y + M(0.02f));
+        int dy = bottom - fsh;   /* riga della descrizione */
+        int grid_bottom = dy - M(0.02f);
+        int cols = APP_COLS, gap = M(0.022f), tw = (W - (cols - 1) * gap) / cols, area = grid_bottom - y;
+        int th = tw * 112 / 100;
+        if (th > (area - gap) / 2) th = (area - gap) / 2;   /* due righe intere anche sullo schermo largo della Smart Pro */
+        float target = (float)((app_sel / cols) * (th + gap));
+        float scroll = app_scroll * (float)(th + gap);
+        if (target + th > scroll + area) scroll = target + th - area;
+        else if (target < scroll) scroll = target;
+        app_scroll = ui_approach(app_scroll, scroll / (float)(th + gap));
+        int off = (int)(app_scroll * (float)(th + gap));
+        ui_clip_push(mx - M(0.02f), y - M(0.01f), W + M(0.04f), area + M(0.02f));
         for (int i = 0; i < napps; i++) {
-            int ry = y + (int)((i - app_scroll) * (rh + gap));
-            if (ry + rh < y || ry > bottom) continue;
+            int x = mx + (i % cols) * (tw + gap), yy = y + (i / cols) * (th + gap) - off;
+            if (yy > grid_bottom || yy + th < y - M(0.02f)) continue;
             const app_t *a = &apps[i];
-            ui_rrect(mx, ry, W, rh, r, t->surface);
-            if (i == app_sel) selection_ring(mx, ry, W, rh, r);
-            int ix = mx + pad, iy = ry + pad;
+            emulator_t em;
+            memset(&em, 0, sizeof em);
+            snprintf(em.art, sizeof em.art, "@app:%s", a->name);
             SDL_Texture *ic = a->icon[0] ? ui_image(a->icon) : NULL;
-            if (ic) ui_image_fill(ic, ix, iy, is, is, r / 2);
-            else {
-                ui_rrect(ix, iy, is, is, r / 2, t->tile);
-                draw_icon_glyph(IC_APPS, ix + is / 2, iy + is / 2, is * 2 / 3, t->accent, t->tile);
-            }
-            int tx = ix + is + M(0.022f), tw = mx + W - pad - tx;
-            char fit[300], sub[400];
-            ui_text_fit(fn, a->title, tw, fit, sizeof fit);
-            ui_text(fn, fit, tx, ry + pad, t->text, ALIGN_LEFT);
-            snprintf(sub, sizeof sub, "%s%s%s", a->author, a->author[0] && a->desc[0] ? " · " : "", a->desc);
-            ui_text_fit(fs, sub, tw, fit, sizeof fit);
-            ui_text(fs, fit, tx, ry + pad + fnh + M(0.006f), t->text_dim, ALIGN_LEFT);
+            sto_tile(x, yy, tw, th, app_color(a->name), &em, a->title, a->title, a->author, 0, 0, i == app_sel, false, ic);
         }
         ui_clip_pop();
+        const app_t *a = &apps[app_sel];
+        char sub[400], fit[400];
+        snprintf(sub, sizeof sub, "%s", a->desc);   /* l'autore è già nel riquadro */
+        ui_text_fit(fs, sub, W, fit, sizeof fit);
+        ui_text(fs, fit, mx, dy, t->text_dim, ALIGN_LEFT);
     }
     bool gd = napps && apps[app_sel].has_guide;
     const char *h[] = { "A", T("common.open"), NULL, "B", T("common.back"), NULL, "SELECT", T("guide.title"), NULL };

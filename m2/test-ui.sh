@@ -296,8 +296,9 @@ check "SELECT nella schermata App apre la guida senza avviare l'app" '[ ! -f $R/
 n=$(python3 /tmp/area.py /tmp/appguida2.png /tmp/appguida1.png)
 check "stessa guida dal SELECT e dal primo avvio (al massimo i pulsanti diversi: $n pixel)" '[ "$n" -lt 20000 ]'
 app_root; rm -f $R/Logs/Arcade.log
-./build/launcher --root $R --auto "$TO_APPS,down,wait:5,a,wait:20,quit" > /tmp/l.log 2>&1
-check "app senza guida: parte subito" '[ -s $R/System/next.txt ] && ! grep -q "guida di app:senza" $R/Logs/Arcade.log'
+# 23 novembre: la schermata App è una griglia come lo Store; la seconda app è a destra della prima
+./build/launcher --root $R --auto "$TO_APPS,right,wait:5,a,wait:20,quit" > /tmp/l.log 2>&1
+check "griglia: destra sceglie la seconda app; app senza guida: parte subito" '[ -s $R/System/next.txt ] && grep -q "senza" $R/System/next.txt && ! grep -q "guida di app:senza" $R/Logs/Arcade.log'
 # revisione indipendente della 0.9.109, rilievo 3: guide-viste.txt si leggeva a righe di 64 byte e
 # l'id «app:<cartella>» di una cartella lunga non si riconosceva: la guida tornava a ogni avvio
 LUNGA=app-con-un-nome-di-cartella-davvero-molto-lungo-per-la-prova-xyz

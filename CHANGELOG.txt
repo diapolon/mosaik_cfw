@@ -8,6 +8,8 @@ it Rete locale 127.0.0.1 accesa all'avvio: funzionano le app che la usano, come 
 en Local network 127.0.0.1 turned on at start: apps that use it, like TubeHero, now work
 it Giochi Linux e app possono chiedere il display opaco ("opaque"): niente più schermo nero con il solo audio
 en Linux games and apps can ask for an opaque display ("opaque"): no more black screen with sound only
+it La schermata App è una griglia come lo Store, con l'icona di ogni app
+en The Apps screen is a grid like the Store, with each app's icon
 
 0.9.110
 it Guida degli emulatori: SELECT in Piattaforme e nella scheda dello Store, con il disegno della tua console e cosa fa ogni tasto
