@@ -184,7 +184,9 @@ if [ -z "$ARCADE_KEEP_MUTE" ]; then sleep 0.4; unmute; fi
 # sottofondo, al massimo 5 s: con la scheda bloccata sync non tornerebbe più. Se non risponde,
 # lo si scrive nei messaggi del kernel e in /run (in memoria) e il launcher propone di riavviare.
 rm -f /run/sd-ok
-( echo ok > "$ROOT/System/.prova-sd" && sync && [ "$(cat "$ROOT/System/.prova-sd")" = ok ] \
+# scheda tolta (m2/guardia-sd.c): la guardia la aspetta e la rimonta, la prova non ha senso
+[ -f /run/scheda-tolta ] && : > /run/sd-ok
+[ -f /run/sd-ok ] || ( echo ok > "$ROOT/System/.prova-sd" && sync && [ "$(cat "$ROOT/System/.prova-sd")" = ok ] \
     && rm -f "$ROOT/System/.prova-sd" && : > /run/sd-ok ) 2> /dev/null &
 i=0
 while [ $i -lt 25 ] && [ ! -f /run/sd-ok ]; do sleep 0.2; i=$((i + 1)); done

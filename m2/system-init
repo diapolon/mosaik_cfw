@@ -365,14 +365,15 @@ if [ -f "$ROOT/System/prova-scheda.txt" ]; then
     else
         step "prova della scheda: non avviata (disco $SDDISK, partizione $PSDEV)"
     fi
-# guardia della SD (m2/guardia-sd.c, 23 novembre): scheda tolta a console accesa = LED rossi, poi
-# riavvio quando torna o spegnimento dopo 60 s, invece dello schermo fermo. In memoria con fbmsg e
-# axpctl, senza file aperti sulla scheda; non durante la prova qui sopra
+# guardia della SD (m2/guardia-sd.c, 23 novembre): scheda tolta a console accesa = LED rossi e
+# finestra del launcher con il conto alla rovescia; rimessa = riparata e rimontata, e si riprende.
+# In memoria con fbmsg e axpctl, senza file aperti sulla scheda; non durante la prova qui sopra
 elif [ -n "$SDDISK" ]; then
     mkdir -p /run/guardia
+    SDPART=$(awk '$2 == "/mnt/SDCARD" { print $1; exit }' /proc/mounts)
     if cp "$BIN/guardia-sd" "$BIN/fbmsg" "$BIN/axpctl" /run/guardia/ 2> /dev/null; then
-        ( cd / && exec /run/guardia/guardia-sd "$SDDISK" 60 ) < /dev/null > /dev/null 2>&1 8>&- 9>&- &
-        step "guardia della SD: avviata ($SDDISK)"
+        ( cd / && exec /run/guardia/guardia-sd "$SDDISK" "$SDPART" 60 ) < /dev/null > /dev/null 2>&1 8>&- 9>&- &
+        step "guardia della SD: avviata ($SDDISK, $SDPART)"
     else
         step "guardia della SD: non copiata in memoria"
     fi

@@ -193,7 +193,7 @@ int ui_confirm_input(int *sel) {
 
 /* riga del log scritta subito sulla SD: dopo un riavvio forzato quelle ancora in memoria si perdono */
 static void log_durable(const char *msg) {
-    if (UI.sd_failed) return;
+    if (UI.sd_failed || UI.sd_out) return;
     ui_log("%s", msg);
     if (logf_) fsync(fileno(logf_));
 }
@@ -287,6 +287,7 @@ void ui_mark(const char *what) {
 
 void ui_log(const char *fmt, ...) {
     if (!log_on() || UI.sd_failed) return;   /* SD guasta: una scrittura non tornerebbe più */
+    if (UI.sd_out) return;                     /* scheda tolta (ui_sd_poll) */
     if (!logf_ && log_path[0]) logf_ = fopen(log_path, "a");
     char msg[1024];
     va_list ap;
@@ -707,6 +708,34 @@ static const char *fallback_font(void) {
     return p;
 }
 
+/* File dei caratteri tenuti in memoria (23 novembre): FreeType legge i glifi dal file man mano che
+   servono, e con la scheda tolta a console accesa (m2/guardia-sd.c) i testi nuovi sparivano. Pochi
+   file (quelli del tema e Nunito), letti una volta e mai liberati; oltre 16 MB o 8 file si legge
+   dalla scheda come prima. */
+static const void *font_mem(const char *file, size_t *len) {
+    static struct { char *file; void *buf; size_t len; } mem[8];
+    static int nmem;
+    for (int i = 0; i < nmem; i++)
+        if (!strcmp(mem[i].file, file)) { *len = mem[i].len; return mem[i].buf; }
+    if (nmem == 8) return NULL;
+    FILE *f = fopen(file, "rb");
+    if (!f) return NULL;
+    void *buf = NULL;
+    long n = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
+    if (n > 0 && n <= 16L << 20 && fseek(f, 0, SEEK_SET) == 0 && (buf = malloc((size_t)n)) && fread(buf, 1, (size_t)n, f) != (size_t)n) {
+        free(buf);
+        buf = NULL;
+    }
+    fclose(f);
+    char *name = buf ? strdup(file) : NULL;
+    if (!name) { free(buf); return NULL; }
+    mem[nmem].file = name;
+    mem[nmem].buf = buf;
+    mem[nmem].len = *len = (size_t)n;
+    nmem++;
+    return buf;
+}
+
 /* "file.ttf:N" sceglie l'istanza N di un font variabile (es. Nunito: 3 Regular, 6 Bold).
    FreeType codifica l'istanza nei 16 bit alti dell'indice del font. */
 TTF_Font *ui_font(const char *path, int px) {
@@ -721,7 +750,10 @@ TTF_Font *ui_font(const char *path, int px) {
         instance = strtol(colon + 1, NULL, 10);
         *colon = 0;
     }
-    TTF_Font *f = TTF_OpenFontIndex(file, px, instance << 16);
+    size_t len = 0;
+    const void *mem = font_mem(file, &len);
+    SDL_RWops *rw = mem ? SDL_RWFromConstMem(mem, (int)len) : NULL;
+    TTF_Font *f = rw ? TTF_OpenFontIndexRW(rw, 1, px, instance << 16) : TTF_OpenFontIndex(file, px, instance << 16);
     if (!f) {
         ui_log("font non trovato: %s (%s)", path, TTF_GetError());
         if (strcmp(path, fallback_font())) return ui_font(fallback_font(), px);
@@ -1893,6 +1925,133 @@ void ui_draw_toast(void) {
     if (iw) ui_volume_icon(x + pad, y + (h - ih) / 2, ih, with_alpha(UI.th.bg, (int)(255 * a)));
     for (int i = 0; i < n; i++)
         ui_text(f, lines[i], x + pad + iw, y + (h - fh * n) / 2 + fh * i, with_alpha(UI.th.bg, (int)(255 * a)), ALIGN_LEFT);
+}
+
+/* ------------------------------------------------ scheda tolta a console accesa */
+
+/* m2/guardia-sd.c scrive /run/scheda-tolta («SCADENZA AZIONE», SCADENZA in secondi di
+   CLOCK_MONOTONIC, AZIONE spegni, sospendi o rimonto) finché la scheda è fuori, e fa crescere
+   /run/scheda-rimessa quando l'ha rimontata. I file si guardano quattro volte al secondo.
+   ARCADE_SD_RUN: un'altra cartella al posto di /run, per le prove (test-ui.sh). */
+static int sd_state;          /* SD_IN, SD_OUT, SD_REMOUNT */
+static double sd_deadline;    /* secondi di CLOCK_MONOTONIC */
+static bool sd_suspend_act;
+static double sd_acted = -1;  /* scadenza per cui si è già sospeso: dopo il risveglio aspetta la nuova */
+static int sd_count = -1;
+
+static const char *sd_dir(void) {
+    const char *d = getenv("ARCADE_SD_RUN");
+    if (d && d[0]) return d;
+    return plat_standalone() ? "/run" : NULL;
+}
+
+static double mono_now(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+void ui_sd_publish(int secs, bool suspend) {
+    const char *d = sd_dir();
+    if (!d) return;
+    char p[256], tmp[260];
+    snprintf(p, sizeof p, "%s/scheda-impostazioni", d);
+    snprintf(tmp, sizeof tmp, "%s.n", p);
+    FILE *f = fopen(tmp, "w");
+    if (!f) return;
+    fprintf(f, "%d %s\n", secs, suspend ? "sospendi" : "spegni");
+    fclose(f);
+    rename(tmp, p);
+}
+
+int ui_sd_poll(void) {
+    static double next = -1;
+    const char *d = sd_dir();
+    if (!d || (UI.t < next && UI.t > next - 1)) return SD_EV_NONE;
+    next = UI.t + 0.25;
+    char p[256];
+    int ev = SD_EV_NONE, was = sd_state;
+    snprintf(p, sizeof p, "%s/scheda-tolta", d);
+    FILE *f = fopen(p, "r");
+    sd_state = SD_IN;
+    if (f) {
+        double dl;
+        char act[16];
+        if (fscanf(f, "%lf %15s", &dl, act) == 2) {
+            sd_deadline = dl;
+            sd_state = !strcmp(act, "rimonto") ? SD_REMOUNT : SD_OUT;
+            if (sd_state == SD_OUT) sd_suspend_act = !strcmp(act, "sospendi");
+        } else sd_state = was ? was : SD_OUT;   /* letto a metà: resta com'era */
+        fclose(f);
+    }
+    if (sd_state != SD_IN && was == SD_IN) {
+        ui_log("scheda tolta: da qui niente scritture sulla scheda");   /* prima di UI.sd_out: l'ultima riga */
+        ev = SD_EV_OUT;
+    }
+    UI.sd_out = sd_state != SD_IN;
+    snprintf(p, sizeof p, "%s/scheda-rimessa", d);
+    int count = 0;
+    if ((f = fopen(p, "r"))) { if (fscanf(f, "%d", &count) != 1) count = 0; fclose(f); }
+    if (sd_count >= 0 && count != sd_count && sd_state == SD_IN) {
+        /* la scheda rimontata è un'altra cosa per il kernel: il registro si riapre, le immagini
+           non trovate mentre era fuori si cercano di nuovo */
+        if (logf_) { fclose(logf_); logf_ = NULL; }
+        ui_image_forget_missing();
+        ui_log("scheda rimessa e rimontata: si riprende");
+        ev = SD_EV_BACK;
+    }
+    if (sd_state == SD_IN || count != sd_count) sd_count = count;
+    if (sd_state == SD_OUT && sd_suspend_act && mono_now() >= sd_deadline && sd_acted != sd_deadline) {
+        sd_acted = sd_deadline;
+        ev = SD_EV_SUSPEND;
+    }
+    return ev;
+}
+
+/* "0:42" */
+static void sd_left(char *buf, size_t n) {
+    double left = sd_deadline - mono_now();
+    int s = left > 0 ? (int)ceil(left) : 0;
+    snprintf(buf, n, "%d:%02d", s / 60, s % 60);
+}
+
+void ui_sd_draw(int sel) {
+    theme_t *t = &UI.th;
+    char lines[4][160], line2[160], left[16];
+    int w = M(0.85f), pad = M(0.05f), sh = TTF_FontHeight(UI.f_small), nh = TTF_FontHeight(UI.f_normal);
+    int nl = ui_wrap(UI.f_small, T("sdout.body"), w - 2 * pad, lines, 4);
+    sd_left(left, sizeof left);
+    if (sd_state == SD_REMOUNT) snprintf(line2, sizeof line2, "%s", T("sdout.checking"));
+    else snprintf(line2, sizeof line2, T(sd_suspend_act ? "sdout.suspend_in" : "sdout.off_in"), left);
+    bool buttons = sd_state == SD_OUT;
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + M(0.03f) + nh + (buttons ? ui_popup_buttons_h() : pad);
+    int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 170));
+    ui_rrect(x, y, w, h, r, t->popup);
+    ui_text(UI.f_title, T("sdout.title"), x + pad, y + pad, rgba(230, 130, 20, 255), ALIGN_LEFT);
+    int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
+    ui_text(UI.f_normal, line2, x + pad, ty + nl * sh + M(0.03f), t->accent, ALIGN_LEFT);
+    if (buttons) {
+        const char *label[2] = { T("sdout.suspend_now"), T("sdout.off_now") };
+        ui_popup_buttons(x, y, w, h, label, 2, sel, 1);
+    }
+}
+
+int ui_sd_input(int *sel) {
+    if (sd_state != SD_OUT) return SD_ACT_NONE;
+    if (UI.in.power) return SD_ACT_SUSPEND;   /* tasto di accensione: sospende, come altrove */
+    int r = ui_popup_input(sel, 2);
+    if (r == 0) return SD_ACT_SUSPEND;
+    if (r == 1) {
+        const char *d = sd_dir();
+        char p[256];
+        snprintf(p, sizeof p, "%s/scheda-spegni-ora", d ? d : "/run");
+        FILE *f = fopen(p, "w");
+        if (f) fclose(f);
+        return SD_ACT_OFF;
+    }
+    return SD_ACT_NONE;
 }
 
 /* ------------------------------------------------ barra stato e tasti */

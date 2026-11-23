@@ -21,6 +21,8 @@ typedef struct {
     int cpu_profile;
     int autosleep_min;   /* 0 = mai */
     int autosuspend_min; /* sospensione nel launcher, 0 = mai */
+    int sdout_secs;      /* scheda tolta a console accesa: secondi prima di spegnere o sospendere */
+    bool sdout_suspend;  /* ... sospendere invece di spegnere (m2/guardia-sd.c) */
     int update_channel;  /* aggiornamenti: 0 stabile, 1 sviluppo */
     bool update_notify;  /* controllo automatico una volta al giorno, con avviso in home */
     bool auto_time;      /* ora presa da internet quando il Wi-Fi si collega (0.9.64) */

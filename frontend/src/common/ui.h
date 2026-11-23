@@ -77,6 +77,7 @@ typedef struct {
     bool vol_bar;        /* chi disegna una barra del volume sua (runner): niente avviso a schermo */
     bool gray;           /* forme e testi in toni di grigio (Store: pacchetti non installati) */
     bool sd_failed;      /* SD che non risponde dopo un risveglio: niente più scritture (audit BUG-006) */
+    bool sd_out;         /* scheda tolta a console accesa (m2/guardia-sd.c): niente scritture finché non torna */
     bool amp_auto;       /* app: altoparlante spento dopo 4 s di silenzio, come nel launcher (issue #4) */
     bool amp_keep;       /* ... ma acceso finché c'è musica */
     bool rest_auto;      /* app: sospensione e spegnimento automatici chiesti a gamewatch */
@@ -217,6 +218,17 @@ void ui_toast(const char *msg);
 /* salva il prossimo frame del canvas in un PNG */
 void ui_screenshot(const char *path);
 void ui_draw_toast(void);
+/* scheda tolta a console accesa (m2/guardia-sd.c). ui_sd_poll si chiama a ogni giro: tiene
+   aggiornato UI.sd_out e dice cosa è appena successo. ui_sd_publish passa alla guardia secondi e
+   azione scelti nelle impostazioni (la scheda tolta non si legge più). ui_sd_draw e ui_sd_input:
+   la finestra con il conto alla rovescia, Sospendi ora e Spegni ora (questo lo fa la guardia). */
+enum { SD_IN, SD_OUT, SD_REMOUNT };
+enum { SD_EV_NONE, SD_EV_OUT, SD_EV_BACK, SD_EV_SUSPEND };
+enum { SD_ACT_NONE, SD_ACT_SUSPEND, SD_ACT_OFF };
+int ui_sd_poll(void);
+void ui_sd_publish(int secs, bool suspend);
+void ui_sd_draw(int sel);
+int ui_sd_input(int *sel);
 bool ui_toast_active(void);   /* un avviso è a schermo (serve ridisegnare) */
 
 /* temi */

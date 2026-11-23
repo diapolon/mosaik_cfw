@@ -268,7 +268,8 @@
     "reset_settings": "Reset settings",
     "erase_all": "Erase everything",
     "store": "Store",
-    "support": "Support Mosaik"
+    "support": "Support Mosaik",
+    "sd_removed": "Card removed"
   },
   "settings_desc": {
     "file_server": "Manage the card's files from a computer or phone on the same Wi-Fi network.",
@@ -330,7 +331,8 @@
     "reset_settings": "Settings, lists and Wi-Fi networks go back to new. Games and saves stay.",
     "erase_all": "Erases games, saves, BIOS files, images and settings: the card goes back to freshly written.",
     "store": "Download, update and remove emulators.",
-    "support": "A PayPal donation to help development."
+    "support": "A PayPal donation to help development.",
+    "sd_removed": "What the console does if you remove the SD card while it is on: it turns off or sleeps after the chosen time. Put the card back before then and you pick up where you were."
   },
   "aspect": {
     "original": "Original",
@@ -942,6 +944,19 @@
   "sdbad": {
     "title": "The SD card does not respond",
     "body": "After waking, the console can no longer read the card. Restart it: games and saves are kept."
+  },
+  "sdout": {
+    "title": "Card removed",
+    "body": "Put it back: Mosaik picks up where you were. Nothing is written while it is out.",
+    "off_in": "Turning off in %s",
+    "suspend_in": "Sleeping in %s",
+    "checking": "Card back: checking and remounting…",
+    "suspend_now": "Sleep now",
+    "off_now": "Turn off now",
+    "off_after": "Turn off after %s",
+    "suspend_after": "Sleep after %s",
+    "back": "Card back: resuming",
+    "bye": "Turning off…"
   },
   "speaker": {
     "always": "Always on",

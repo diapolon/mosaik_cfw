@@ -60,6 +60,8 @@ void settings_defaults(settings_t *s) {
     s->cpu_profile = CPU_BALANCED;
     s->autosleep_min = 0;
     s->autosuspend_min = 5;
+    s->sdout_secs = 60;
+    s->sdout_suspend = false;
     s->update_notify = true;
     s->auto_time = true;
     s->key_f1 = XK_SAVE;
@@ -106,6 +108,8 @@ bool settings_load(settings_t *s, const char *root) {
     s->cpu_profile = json_int(j, "cpu_profile", s->cpu_profile);
     s->autosleep_min = json_int(j, "autosleep_min", s->autosleep_min);
     s->autosuspend_min = json_int(j, "autosuspend_min", s->autosuspend_min);
+    s->sdout_secs = json_int(j, "sd_removed_secs", s->sdout_secs);
+    s->sdout_suspend = json_bool(j, "sd_removed_suspend", s->sdout_suspend);
     s->update_channel = json_int(j, "update_channel", 0) ? 1 : 0;
     s->update_notify = json_bool(j, "update_notify", s->update_notify);
     s->auto_time = json_bool(j, "auto_time", s->auto_time);
@@ -169,6 +173,7 @@ bool settings_load(settings_t *s, const char *root) {
     IN_RANGE(dup_mode, 0, 32, 1);
     IN_RANGE(autosleep_min, 0, 1000, 0);
     IN_RANGE(autosuspend_min, 0, 1000, 5);
+    IN_RANGE(sdout_secs, 5, 3600, 60);
     IN_RANGE(speaker_rest, 0, 2, 0);
     json_free(j);
     return true;
@@ -196,6 +201,8 @@ bool settings_save(const settings_t *s, const char *root) {
             "  \"cpu_profile\": %d,\n"
             "  \"autosleep_min\": %d,\n"
             "  \"autosuspend_min\": %d,\n"
+            "  \"sd_removed_secs\": %d,\n"
+            "  \"sd_removed_suspend\": %s,\n"
             "  \"update_channel\": %d,\n"
             "  \"update_notify\": %s,\n"
             "  \"auto_time\": %s,\n"
@@ -230,7 +237,7 @@ bool settings_save(const settings_t *s, const char *root) {
             "}\n",
             json_esc(s->theme, e_theme, sizeof e_theme), json_esc(s->variant, e_var, sizeof e_var),
             json_esc(s->device, e_dev, sizeof e_dev), json_esc(s->lang, e_lang, sizeof e_lang), s->brightness, s->bt_route ? s->vol_speaker : s->volume, s->bt_route ? s->volume : s->bt_volume, s->cpu_profile,
-            s->autosleep_min, s->autosuspend_min, s->update_channel, s->update_notify ? "true" : "false", s->auto_time ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, json_esc(s->filter, e_filter, sizeof e_filter), s->bezel ? "true" : "false", s->dup_mode, json_esc(s->dup_emu, e_dup, sizeof e_dup), s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
+            s->autosleep_min, s->autosuspend_min, s->sdout_secs, s->sdout_suspend ? "true" : "false", s->update_channel, s->update_notify ? "true" : "false", s->auto_time ? "true" : "false", s->setup_done ? "true" : "false", s->key_f1, s->key_f2, s->key_home, s->saver, s->aspect, json_esc(s->filter, e_filter, sizeof e_filter), s->bezel ? "true" : "false", s->dup_mode, json_esc(s->dup_emu, e_dup, sizeof e_dup), s->sort_mode, s->show_missing ? "true" : "false", s->resume_last ? "true" : "false",
             s->autosave_exit ? "true" : "false",
             s->box_covers ? "true" : "false", s->speaker_rest,
             s->wifi ? "true" : "false", s->bluetooth ? "true" : "false", s->ext_p1 ? "true" : "false", s->music_vol > 0 ? "true" : "false", s->music_vol, json_esc(s->tz, e_tz, sizeof e_tz), s->led_mode, s->led_color, s->led_bright, s->grid_columns, s->home_size, s->log_level);

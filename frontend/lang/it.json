@@ -268,7 +268,8 @@
     "reset_settings": "Reimposta impostazioni",
     "erase_all": "Cancella tutto",
     "store": "Store",
-    "support": "Sostieni Mosaik"
+    "support": "Sostieni Mosaik",
+    "sd_removed": "Scheda tolta"
   },
   "settings_desc": {
     "file_server": "Gestisci i file della scheda da un computer o da un telefono sulla stessa rete Wi-Fi.",
@@ -330,7 +331,8 @@
     "reset_settings": "Impostazioni, liste e reti Wi-Fi tornano come nuove. Giochi e salvataggi restano.",
     "erase_all": "Cancella giochi, salvataggi, BIOS, immagini e impostazioni: la scheda torna come appena scritta.",
     "store": "Scarica, aggiorna e togli gli emulatori.",
-    "support": "Una donazione con PayPal per aiutare lo sviluppo."
+    "support": "Una donazione con PayPal per aiutare lo sviluppo.",
+    "sd_removed": "Cosa fa la console se togli la scheda SD mentre è accesa: si spegne o si sospende dopo il tempo scelto. Rimettendola prima, si riprende da dove eri."
   },
   "aspect": {
     "original": "Originale",
@@ -942,6 +944,19 @@
   "sdbad": {
     "title": "La scheda SD non risponde",
     "body": "Dopo il risveglio la console non legge più la scheda. Riavviala: giochi e salvataggi restano."
+  },
+  "sdout": {
+    "title": "Scheda tolta",
+    "body": "Rimettila: Mosaik riprende da dove eri. Finché è fuori non si scrive niente.",
+    "off_in": "Spegnimento fra %s",
+    "suspend_in": "Sospensione fra %s",
+    "checking": "Scheda rimessa: controllo e riaggancio…",
+    "suspend_now": "Sospendi ora",
+    "off_now": "Spegni ora",
+    "off_after": "Spegni dopo %s",
+    "suspend_after": "Sospendi dopo %s",
+    "back": "Scheda rimessa: si riprende",
+    "bye": "Spegnimento…"
   },
   "speaker": {
     "always": "Sempre acceso",

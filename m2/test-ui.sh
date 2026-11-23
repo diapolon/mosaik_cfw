@@ -470,5 +470,39 @@ fi
 c=$(python3 /tmp/contrasto.py themes/tessera/theme.json)
 check "testo sull'azzurro leggibile ($c:1, almeno 4,5)" 'python3 -c "import sys; sys.exit(0 if float(\"$c\") >= 4.5 else 1)"'
 
+echo "--- scheda tolta a console accesa (m2/guardia-sd.c)"
+# la guardia scrive in /run (qui ARCADE_SD_RUN) la scadenza in secondi di CLOCK_MONOTONIC, che nel
+# container è /proc/uptime; il launcher mostra la finestra, la toglie quando la scheda è rimontata
+cat > /tmp/centro.py <<'X'
+import sys
+from PIL import Image
+a, b = Image.open(sys.argv[1]).convert("RGB"), Image.open(sys.argv[2]).convert("RGB")
+w, h = a.size
+print(sum(1 for x in range(w) if a.getpixel((x, h // 2)) != b.getpixel((x, h // 2))))
+X
+S=/tmp/sdrun; rm -rf $S; mkdir -p $S
+export ARCADE_SD_RUN=$S
+printf '{ "language": "it", "sd_removed_secs": 300, "sd_removed_suspend": true }\n' > $R/System/settings.json
+rm -f /tmp/base.png; ./build/launcher --root $R --auto "wait:40,shot:/tmp/base.png,quit" > /tmp/l.log 2>&1
+check "impostazioni passate alla guardia: $(cat $S/scheda-impostazioni 2> /dev/null)" '[ "$(cat $S/scheda-impostazioni 2> /dev/null)" = "300 sospendi" ]'
+echo "$(( $(cut -d. -f1 /proc/uptime) + 600 )) spegni" > $S/scheda-tolta
+rm -f /tmp/fuori.png $R/Logs/Arcade.log
+./build/launcher --root $R --auto "wait:40,shot:/tmp/fuori.png,start,wait:10,right,a,wait:10,quit" > /tmp/l.log 2>&1
+c=$(python3 /tmp/centro.py /tmp/base.png /tmp/fuori.png)
+check "scheda tolta: la finestra copre il centro ($c punti cambiati)" '[ "$c" -gt 100 ]'
+check "Spegni ora: chiesto alla guardia" '[ -f $S/scheda-spegni-ora ]'
+check "registro: l'ultima riga dice scheda tolta, poi niente" '[ "$(tail -1 $R/Logs/Arcade.log | cut -c10-)" = "scheda tolta: da qui niente scritture sulla scheda" ]'
+rm -f $S/scheda-spegni-ora /tmp/dentro.png /tmp/fuori2.png $R/Logs/Arcade.log
+echo "$(( $(cut -d. -f1 /proc/uptime) + 600 )) spegni" > $S/scheda-tolta
+./build/launcher --root $R --auto "wait:40,shot:/tmp/fuori2.png,wait:600,shot:/tmp/dentro.png,quit" > /tmp/l.log 2>&1 &
+lp=$!
+i=0; while [ ! -s /tmp/fuori2.png ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+rm -f $S/scheda-tolta; echo 1 > $S/scheda-rimessa   # la guardia ha rimontato la scheda
+wait $lp
+c=$(python3 /tmp/centro.py /tmp/base.png /tmp/dentro.png)
+check "rimessa: la finestra se ne va e si riprende ($c punti diversi dalla home)" '[ -s /tmp/dentro.png ] && [ "$c" -lt 100 ]'
+check "rimessa: il registro riprende" 'grep -q "scheda rimessa e rimontata: si riprende" $R/Logs/Arcade.log'
+unset ARCADE_SD_RUN; rm -f $R/System/settings.json
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

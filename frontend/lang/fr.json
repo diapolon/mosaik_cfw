@@ -268,7 +268,8 @@
     "reset_settings": "Réinitialiser les réglages",
     "erase_all": "Tout effacer",
     "store": "Boutique",
-    "support": "Soutenir Mosaik"
+    "support": "Soutenir Mosaik",
+    "sd_removed": "Carte retirée"
   },
   "settings_desc": {
     "file_server": "Gère les fichiers de la carte depuis un ordinateur ou un téléphone sur le même réseau Wi-Fi.",
@@ -330,7 +331,8 @@
     "reset_settings": "Réglages, listes et réseaux Wi-Fi reviennent à neuf. Jeux et sauvegardes restent.",
     "erase_all": "Efface jeux, sauvegardes, BIOS, images et réglages : la carte redevient comme juste écrite.",
     "store": "Télécharger, mettre à jour et retirer des émulateurs.",
-    "support": "Un don PayPal pour aider le développement."
+    "support": "Un don PayPal pour aider le développement.",
+    "sd_removed": "Ce que fait la console si tu retires la carte SD quand elle est allumée : elle s'éteint ou se met en veille après le délai choisi. Remets la carte avant et tu reprends où tu en étais."
   },
   "aspect": {
     "original": "Original",
@@ -942,6 +944,19 @@
   "sdbad": {
     "title": "La carte SD ne répond pas",
     "body": "Après le réveil, la console ne lit plus la carte. Redémarrez-la : les jeux et les sauvegardes sont conservés."
+  },
+  "sdout": {
+    "title": "Carte retirée",
+    "body": "Remets-la : Mosaik reprend où tu en étais. Rien n'est écrit tant qu'elle est absente.",
+    "off_in": "Extinction dans %s",
+    "suspend_in": "Mise en veille dans %s",
+    "checking": "Carte remise : vérification et remontage…",
+    "suspend_now": "Veille maintenant",
+    "off_now": "Éteindre maintenant",
+    "off_after": "Éteindre après %s",
+    "suspend_after": "Veille après %s",
+    "back": "Carte remise : on reprend",
+    "bye": "Extinction…"
   },
   "speaker": {
     "always": "Toujours allumé",

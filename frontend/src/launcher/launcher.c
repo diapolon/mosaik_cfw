@@ -4337,22 +4337,22 @@ static void library_input(void) {
 
 /* ----------------------------------------------------- impostazioni */
 
-enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_AUTOBOOT, S_AUTOTIME, S_BATTERY, S_CHANTEST, S_BT, S_BTDEVS, S_COUNT };
+enum { S_BRIGHT, S_VOLUME, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, S_WIFI, S_WIFINETS, S_SAVER, S_SLEEP, S_SUSPEND, S_RESUME, S_AUTOSAVE, S_CLOCK, S_TZ, S_DEVICE, S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUSPENDNOW, S_RESTART, S_POWER, S_BOXCOVER, S_SPEAKER, S_FILESERVER, S_RESETSET, S_ERASE, S_STORE, S_SUPPORT, S_THEMERESET, S_AUTOBOOT, S_AUTOTIME, S_BATTERY, S_CHANTEST, S_BT, S_BTDEVS, S_SDOUT, S_COUNT };
 
 /* chiavi "settings.<voce>" e "settings_desc.<voce>" nei file di lingua */
 static const char *set_key[S_COUNT] = {
     "brightness", "volume", "music", "led", "led_color", "led_brightness", "theme", "variant", "language", "grid_columns", "home_size", "aspect", "filter", "bezel", "duplicates", "missing", "genres",
-    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset", "autoboot", "auto_time", "battery", "channel_test", "bluetooth", "bluetooth_devs",
+    "collections", "cpu", "pads", "pad_test", "stick_cal", "key_f1", "key_f2", "key_home", "wifi", "wifi_nets", "screensaver", "sleep", "suspend", "resume", "autosave_exit", "clock", "timezone", "device", "romcheck", "scrape", "clean_media", "update", "channel", "update_notify", "log_level", "info", "suspend_now", "restart", "power", "box_covers", "speaker_rest", "file_server", "reset_settings", "erase_all", "store", "support", "theme_reset", "autoboot", "auto_time", "battery", "channel_test", "bluetooth", "bluetooth_devs", "sd_removed",
 };
 
 /* Categorie delle impostazioni; l'ultima ("power": sospendi, riavvia, spegni) ha voci fisse */
 static const char *cat_key[SC_COUNT + 1] = { "display", "look", "games", "controls", "system", "tools", "card", "updates", "power" };
-static const int cat_items[SC_COUNT][12] = {
+static const int cat_items[SC_COUNT][16] = {
     { S_BRIGHT, S_VOLUME, S_SPEAKER, S_CHANTEST, S_MUSIC, S_LED, S_LEDCOLOR, S_LEDBRIGHT, -1 },
     { S_THEME, S_VARIANT, S_LANG, S_GRIDCOLS, S_HOMESIZE, S_THEMERESET, S_BOXCOVER, S_SAVER, -1 },
     { S_ASPECT, S_FILTER, S_BEZEL, S_DUP, S_MISSING, S_GENRES, S_COLLS, S_CPU, S_RESUME, S_AUTOBOOT, S_AUTOSAVE, -1 },
     { S_PADS, S_PADTEST, S_STICKCAL, S_KEYF1, S_KEYF2, S_KEYHOME, -1 },
-    { S_BATTERY, S_WIFI, S_WIFINETS, S_BT, S_BTDEVS, S_AUTOTIME, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_DEVICE, -1 },
+    { S_BATTERY, S_WIFI, S_WIFINETS, S_BT, S_BTDEVS, S_AUTOTIME, S_CLOCK, S_TZ, S_SUSPEND, S_SLEEP, S_SDOUT, S_DEVICE, -1 },
     { S_ROMCHECK, S_SCRAPE, S_CLEANMEDIA, -1 },          /* ROM e immagini */
     { S_FILESERVER, S_RESETSET, S_ERASE, -1 },  /* scheda e dati (lo Store sta nella home dalla 0.9.49) */
     { S_UPDATE, S_CHANNEL, S_UPDNOTIFY, S_LOGLEVEL, S_INFO, S_SUPPORT, -1 },
@@ -4391,9 +4391,10 @@ static int page_rows_of(int page, int *rows) {
         rows[n++] = S_POWER;
         return n;
     }
-    for (int k = 0; k < 12 && cat_items[page][k] >= 0; k++) {
+    for (int k = 0; k < 16 && cat_items[page][k] >= 0; k++) {
         int it = cat_items[page][k];
         if (it == S_DEVICE && plat_is_device()) continue;   /* misura dello schermo: solo nel prototipo */
+        if (it == S_SDOUT && plat_is_device() && !plat_standalone()) continue;   /* la guardia c'è solo nel sistema su SD */
         if (it == S_WIFINETS && !wifi_supported()) continue;
         if ((it == S_BT || it == S_BTDEVS) && !bt_supported()) continue;
         if (it == S_STICKCAL && !sc_available()) continue;
@@ -4459,6 +4460,8 @@ static int lang_index(void) {
 }
 static const int sleep_vals[] = { 0, 5, 10, 30 };
 static const int suspend_vals[] = { 0, 2, 5, 10, 30 };
+/* scheda tolta: spegni o sospendi dopo 30 s, 1 min o 5 min (m2/guardia-sd.c) */
+static const int sdout_vals[] = { 30, 60, 300 };
 
 /* Scelte di ogni tema (variante, miniature per riga, copertine in home) in System/temi.txt, una
    riga "tema<TAB>variante<TAB>colonne<TAB>copertine": cambiando tema tornano quelle che aveva.
@@ -4634,6 +4637,13 @@ static void set_value(int item, char *buf, size_t n) {
         if (s->autosuspend_min) snprintf(buf, n, T("common.minutes"), s->autosuspend_min);
         else snprintf(buf, n, "%s", T("common.never"));
         break;
+    case S_SDOUT: {
+        char t[32];
+        if (s->sdout_secs < 60) snprintf(t, sizeof t, "%d s", s->sdout_secs);
+        else snprintf(t, sizeof t, T("common.minutes"), s->sdout_secs / 60);
+        snprintf(buf, n, T(s->sdout_suspend ? "sdout.suspend_after" : "sdout.off_after"), t);
+        break;
+    }
     case S_RESUME: snprintf(buf, n, "%s", T(s->resume_last ? "common.yes" : "common.no")); break;
     case S_AUTOTIME: snprintf(buf, n, "%s", T(s->auto_time ? "common.yes" : "common.no")); break;
     case S_AUTOBOOT: {
@@ -4753,6 +4763,15 @@ static void set_change(int item, int dir) {
         int i = 0;
         while (i < 4 && suspend_vals[i] != s->autosuspend_min) i++;
         s->autosuspend_min = suspend_vals[(i + dir + 5) % 5];
+        break;
+    }
+    case S_SDOUT: {   /* sei scelte: spegni 30 s, 1 min, 5 min, poi sospendi 30 s, 1 min, 5 min */
+        int i = 0;
+        while (i < 2 && sdout_vals[i] != s->sdout_secs) i++;
+        i = (i + (s->sdout_suspend ? 3 : 0) + dir + 6) % 6;
+        s->sdout_secs = sdout_vals[i % 3];
+        s->sdout_suspend = i >= 3;
+        ui_sd_publish(s->sdout_secs, s->sdout_suspend);
         break;
     }
     case S_UPDNOTIFY: s->update_notify = !s->update_notify; break;
@@ -7222,6 +7241,29 @@ static bool resume_checked(void) {
 /* SD che non risponde più dopo un risveglio (arcade-suspend scrive /run/sd-guasta): l'unica
    cosa da fare è riavviare. Nessuna scrittura sulla scheda: non tornerebbe più. */
 static bool sdbad_open;
+/* scheda tolta a console accesa (m2/guardia-sd.c, ui_sd_poll): la finestra sta sopra tutto finché
+   la guardia non l'ha rimontata; Sospendi ora sospende qui, Spegni ora lo fa la guardia */
+static int sdout_sel;
+static void sdout_tick(void) {
+    int ev = ui_sd_poll();
+    if (ev == SD_EV_OUT) {
+        sdout_sel = 0;
+        music_before_sleep();   /* i brani sono sulla scheda: il mixer si chiude come per la sospensione */
+    } else if (ev == SD_EV_BACK) {
+        plat_apply(&UI.set);    /* LED come nelle impostazioni, al posto del rosso della guardia */
+        music_after_sleep();
+        if (screen == SCR_HOME) reload_games();   /* giochi cambiati sul computer mentre era fuori */
+        ui_toast(T("sdout.back"));
+    } else if (ev == SD_EV_SUSPEND) {
+        launcher_suspend();
+    }
+    if (UI.sd_out) last_input = UI.t;   /* niente sospensione o spegnimento automatici: decide la guardia */
+}
+static void sdout_input(void) {
+    int a = ui_sd_input(&sdout_sel);
+    if (a == SD_ACT_SUSPEND) launcher_suspend();
+    else if (a == SD_ACT_OFF) ui_toast(T("sdout.bye"));
+}
 static void sdbad_input(void) {
     if (UI.in.pressed[BTN_A]) {
         ui_log("SD che non risponde: riavvio");
@@ -10583,6 +10625,7 @@ int main(int argc, char **argv) {
     rec_fs_bad = !fs_restore_recover(root);   /* un ripristino del backup interrotto: prima di leggere impostazioni e giochi */
     if (!ui_init("Arcade", root, auto_script, 48000, true)) return 1;
     plat_cpu_fixed(CPU_ACTIVE_KHZ);
+    ui_sd_publish(UI.set.sdout_secs, UI.set.sdout_suspend);   /* per la guardia della scheda */
 #ifndef TRIMUI_DEVICE
     if (!UI.set.wifi) wifi_enable(false);   /* Mac: il Wi-Fi simulato segue l'impostazione (sulla console lo fa system-init) */
 #endif
@@ -10689,6 +10732,7 @@ int main(int argc, char **argv) {
         if (!notify_started && UI.set.update_notify && update_supported() && !upd_open && wifi_status(false)->state == WIFI_CONNECTED) {
             notify_started = update_notify_start(UI.root, UI.set.update_channel);   /* falso: si riprova */
         }
+        sdout_tick();
         /* SD bloccata dopo un risveglio: prima di tutto il resto */
         static double sdbad_t;
         if (!sdbad_open && UI.sd_failed) sdbad_open = true;   /* visto da ui_suspend: subito (A62-001) */
@@ -10696,7 +10740,8 @@ int main(int argc, char **argv) {
             sdbad_t = UI.t;
             sdbad_open = access("/run/sd-guasta", F_OK) == 0 || getenv("ARCADE_TEST_SDBAD");
         }
-        if (sdbad_open) sdbad_input();
+        if (UI.sd_out) sdout_input();
+        else if (sdbad_open) sdbad_input();
         else if (rec_open) rec_input();
         else if (dlg_open && dlg_suspend) {
             int r = ui_power_input(&dlg_sel);
@@ -10832,6 +10877,7 @@ int main(int argc, char **argv) {
         if (rec_open) rec_draw();
         if (sdbad_open) sdbad_draw();
         if (dlg_open && dlg_suspend) ui_power_draw(dlg_sel);
+        if (UI.sd_out) ui_sd_draw(sdout_sel);
         battery_check();
         if (first_frame) {
             first_frame = false;
