@@ -365,6 +365,17 @@ if [ -f "$ROOT/System/prova-scheda.txt" ]; then
     else
         step "prova della scheda: non avviata (disco $SDDISK, partizione $PSDEV)"
     fi
+# guardia della SD (m2/guardia-sd.c, 23 novembre): scheda tolta a console accesa = LED rossi, poi
+# riavvio quando torna o spegnimento dopo 60 s, invece dello schermo fermo. In memoria con fbmsg e
+# axpctl, senza file aperti sulla scheda; non durante la prova qui sopra
+elif [ -n "$SDDISK" ]; then
+    mkdir -p /run/guardia
+    if cp "$BIN/guardia-sd" "$BIN/fbmsg" "$BIN/axpctl" /run/guardia/ 2> /dev/null; then
+        ( cd / && exec /run/guardia/guardia-sd "$SDDISK" 60 ) < /dev/null > /dev/null 2>&1 8>&- 9>&- &
+        step "guardia della SD: avviata ($SDDISK)"
+    else
+        step "guardia della SD: non copiata in memoria"
+    fi
 fi
 
 # prova a ripetizione del Wi-Fi (m2/prova-wifi), solo con System/prova-wifi.txt: il file si
