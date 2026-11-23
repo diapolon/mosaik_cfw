@@ -689,6 +689,16 @@ sync
 [ "$DEBUG" -ge 2 ] && ROOT="$ROOT" consumi > /dev/null 2>&1 &
 # storia della batteria per Impostazioni → Sistema → Batteria (m2/batteria): sempre, in /run
 batteria > /dev/null 2>&1 &
+# sistema in memoria (m2/ramroot.c, 23 novembre): copia in /run lo squashfs da cui gira il sistema e
+# fa leggere da lì il loop della radice, così il sistema non legge più la scheda. In sottofondo e con
+# priorità bassa mentre parte il launcher; non riuscito (memoria scarsa, kernel che rifiuta) = tutto
+# resta come prima e la copia si toglie
+RLOOP=$(awk '$2 == "/" && $3 == "squashfs" { print $1; exit }' /proc/mounts)
+if [ -n "$RLOOP" ] && [ -x "$BIN/ramroot" ]; then
+    ( r=$(nice -n 10 "$BIN/ramroot" "$RLOOP" /run/sistema.sqfs 2>&1); step "${r:-sistema in memoria: ramroot senza risposta}" ) < /dev/null > /dev/null 2>&1 8>&- 9>&- &
+else
+    step "sistema in memoria: radice non su un loop squashfs (${RLOOP:-nessuna})"
+fi
 fails=0
 while :; do
     step "10 AVVIO DEL LAUNCHER"
