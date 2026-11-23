@@ -209,6 +209,12 @@ linux_game '{ "title": "Gioco", "min_system": "0.9.58", "cpu": 9 }'
 check "valore fuori da 1-4: ignorato" '! grep -q ARCADE_CPU_KHZ $R/System/next.env 2>/dev/null'
 linux_game '{ "title": "Gioco", "min_system": "0.9.58" }'
 check "senza cpu: niente (profilo generale)" '! grep -q ARCADE_CPU_KHZ $R/System/next.env 2>/dev/null'
+# 23 novembre: "opaque": true (TubeHero, video trasparente col PowerVR): ARCADE_OPAQUE in next.env,
+# system-init rende opaco il display (opaco on) per quel gioco o app
+linux_game '{ "title": "Gioco", "min_system": "0.9.58", "opaque": true }'
+check "opaque: ARCADE_OPAQUE=1 in next.env" 'grep -qx "export ARCADE_OPAQUE=1" $R/System/next.env'
+linux_game '{ "title": "Gioco", "min_system": "0.9.58", "opaque": false, "cpu": 3 }'
+check "opaque false: niente ARCADE_OPAQUE" '! grep -q ARCADE_OPAQUE $R/System/next.env 2>/dev/null'
 rm -rf $R/Linux $R/System/avvio-gioco.txt $R/System/next.txt $R/System/next.env
 
 # 21 novembre: guida degli emulatori ("guide" nel loro JSON): SELECT in Piattaforme e, per gli

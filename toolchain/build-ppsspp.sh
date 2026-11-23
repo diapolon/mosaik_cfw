@@ -48,7 +48,7 @@ echo "== PPSSPP (ci vuole un po')"
 cmake --build "$B" --target PPSSPPSDL -j"$(nproc)" >> "$OUT/build.log" 2>&1 || { tail -40 "$OUT/build.log"; exit 1; }
 strip -o "$OUT/PPSSPPSDL" "$B/PPSSPPSDL"
 # opaco: livello del display opaco, senza il quale il PowerVR mostra il gioco trasparente
-gcc -O2 -Wall -Wextra -o "$OUT/opaco" /trimui/frontend/package/ppsspp/opaco.c && strip "$OUT/opaco"
+gcc -O2 -Wall -Wextra -o "$OUT/opaco" /trimui/frontend/src/tools/opaco.c && strip "$OUT/opaco"
 rm -rf "$OUT/assets"
 cp -a "$B/assets" "$OUT/assets" 2>/dev/null || cp -a "$SRC/assets" "$OUT/assets"
 printf 'PPSSPPSDL: %s, glibc fino a %s, GLIBCXX fino a %s\n' "$(du -h "$OUT/PPSSPPSDL" | cut -f1)" \

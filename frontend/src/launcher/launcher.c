@@ -612,8 +612,13 @@ static void write_linux_env(const game_t *g) {
     static const int khz[5] = { 0, 816000, 1200000, 1608000, 2000000 };
     int cpu = json_int(j, "cpu", 0);
     linux_cpu_khz = cpu >= 1 && cpu <= 4 ? khz[cpu] : 0;
-    FILE *f = has_env || has_keys || linux_cpu_khz ? fopen(envp, "w") : NULL;
+    /* "opaque": true (23 novembre): system-init rende opaco il livello del display (opaco on), se no
+       col PowerVR la finestra di alcuni programmi esce trasparente e si vede nero (TubeHero) */
+    jval *op = json_get(j, "opaque");
+    bool opaque = op && op->t == J_BOOL && op->n != 0;
+    FILE *f = has_env || has_keys || linux_cpu_khz || opaque ? fopen(envp, "w") : NULL;
     if (f && linux_cpu_khz) fprintf(f, "export ARCADE_CPU_KHZ=%d\n", linux_cpu_khz);
+    if (f && opaque) fputs("export ARCADE_OPAQUE=1\n", f);
     if (f && has_keys) {
         /* solo lettere, cifre e _: il valore va nello script senza bisogno di apici */
         fputs("export GAMEWATCH_KEYS='", f);

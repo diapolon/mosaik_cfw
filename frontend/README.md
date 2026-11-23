@@ -126,7 +126,7 @@ con 0 per tornare al menu e con 20 per spegnere. Sulla console lo stesso ciclo l
 | `Media/<tipo>/<rom>.png` | Immagini scaricate dallo scraper: `snap`, `title`, `marquee`, `flyer`, `box` (scatole, solo console). Si possono mettere anche a mano in `Media/<core>/<rom>.png`; senza immagini il launcher genera una copertina |
 | `Dats` | Indici dei titoli: `<id>.tsv` arcade (con `<id>.roms`) dai DAT; `<id>.tsv` delle console, `arcadedb.tsv` (genere, giocatori), `history/` e `libretro/` scritti dallo scraper sulla console |
 | `Linux/<gioco>/launch.sh` | Giochi Linux: `game.json` (titolo, anno, autore, `env`, `keys`, `cpu`) e `cover.png` facoltativi |
-| `Apps/<app>/launch.sh` | App (cartella App della home, pacchetti dello Store): `app.json` con `title`, `description`, `texts` per lingua, `version`, `min_system` (obbligatorio), `env`, `cpu`; dal sistema 0.9.109 anche `guide` e `guide_pad`, come negli emulatori (vedi sotto): la guida compare al primo avvio dell'app, con SELECT nella schermata App e nella scheda dello Store. Ce l'hanno il Lettore musicale e Video |
+| `Apps/<app>/launch.sh` | App (cartella App della home, pacchetti dello Store): `app.json` con `title`, `description`, `texts` per lingua, `version`, `min_system` (obbligatorio), `env`, `cpu`, `opaque` (dal sistema 0.9.111, vedi «Display opaco»); dal sistema 0.9.109 anche `guide` e `guide_pad`, come negli emulatori (vedi sotto): la guida compare al primo avvio dell'app, con SELECT nella schermata App e nella scheda dello Store. Ce l'hanno il Lettore musicale e Video |
 | `Music/` | `Music/Menu`: musica del menu (spenta di partenza); il resto è del Lettore musicale |
 | `Filters/<id>/filter.json` | Filtri video (vedi sotto) |
 | `Bezels/` | Cornici: `<core>/<rom>.png`, `<rom>.png`, `_default.png`, `_default_vertical.png` |
@@ -332,8 +332,8 @@ lo schermo 16:9 della Smart Pro; sul 4:3 della Brick Pro conviene lasciarle spen
 Ogni gioco è una cartella `Linux/<gioco>/` con:
 - `launch.sh`;
 - `game.json`, facoltativo: `title`, `year`, `author`, `env` (variabili d'ambiente, per
-  esempio `SDL_GAMECONTROLLERCONFIG`), `keys` (vedi sotto) e `cpu` (frequenza, vedi sotto;
-  dal sistema 0.9.104, quelli prima la ignorano);
+  esempio `SDL_GAMECONTROLLERCONFIG`), `keys` (vedi sotto), `cpu` (frequenza, vedi sotto;
+  dal sistema 0.9.104, quelli prima la ignorano) e `opaque` (vedi sotto, dal sistema 0.9.111);
 - `cover.png`, facoltativa.
 
 Per i giochi che usano solo la tastiera, `keys` dice quale tasto premere per ogni tasto
@@ -359,6 +359,15 @@ avvia `launch.sh` tramite `gamewatch`. `gamewatch` mette il gioco in un proprio 
 processi e, sulla console, lo chiude con tutti i suoi figli se si tiene premuto Menu per
 1,5 secondi (`--hold`, `--key` per cambiare tempo e tasti). Sul Mac si limita ad avviare e
 attendere il gioco.
+
+### Display opaco
+
+Con la grafica PowerVR alcuni programmi aprono una finestra trasparente: si sente l'audio ma lo
+schermo resta nero (è successo con PPSSPP e con il video di TubeHero). Con `"opaque": true` in
+`game.json` (o in `app.json` per le app), `system-init` rende opaco il livello del display
+(`/usr/arcade/bin/opaco on`) prima di avviare il gioco. Dopo ogni gioco Linux, anche senza
+`opaque`, lo rimette com'era (`opaco off`), così un programma chiuso a forza non lascia il
+launcher senza trasparenze. Dal sistema 0.9.111; i sistemi prima ignorano il campo.
 
 ### Frequenza della CPU
 

@@ -695,9 +695,14 @@ while :; do
             [ -f "$ROOT/System/next.env" ] && . "$ROOT/System/next.env"
             # titolo per il menu sopra il gioco (gamemenu)
             export ARCADE_TITLE="$title"
+            # "opaque": true in game.json/app.json: livello del display opaco, se no col PowerVR la
+            # finestra di alcuni programmi esce trasparente e si vede nero (TubeHero, 23 novembre)
+            [ "${ARCADE_OPAQUE:-}" = 1 ] && "$BIN/opaco" on
             exec "$BIN/gamewatch" -- sh "./$(basename "$rom")"
         ) >> "$LINUXLOG" 2>&1
         grc=$?
+        # display com'era, anche dopo un programma chiuso a forza che l'aveva reso opaco da sé (PPSSPP)
+        "$BIN/opaco" off >> "$LINUXLOG" 2>&1
         sd_check
         zombie_note "gioco linux"
         rm -f "$ROOT/System/next.env"
