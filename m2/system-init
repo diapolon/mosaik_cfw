@@ -351,6 +351,22 @@ if grep -q ' twi3$' /proc/interrupts; then
     step "interruzioni separate: $(irq_cpu twi3 8) · $(irq_cpu sunxi-mmc1 2) · $(irq_cpu ledcirq 4)"
 fi
 
+# prova della scheda tolta a console accesa (m2/prova-scheda, 23 novembre), solo con
+# System/prova-scheda.txt, una volta: il programma e fbmsg vanno in memoria (/run/prova-scheda) e
+# partono da lì, senza file aperti sulla scheda, così continuano anche con la SD tolta
+if [ -f "$ROOT/System/prova-scheda.txt" ]; then
+    rm -f "$ROOT/System/prova-scheda.txt"
+    PSDEV=$(awk '$2 == "/mnt/SDCARD" { print $1; exit }' /proc/mounts)
+    mkdir -p /run/prova-scheda
+    cp "$BIN/prova-scheda" "$BIN/fbmsg" /run/prova-scheda/ 2> /dev/null
+    if [ -x /run/prova-scheda/prova-scheda ] && [ -n "$SDDISK" ] && [ -n "$PSDEV" ]; then
+        ( cd / && exec /run/prova-scheda/prova-scheda "$SDDISK" "$PSDEV" ) < /dev/null > /dev/null 2>&1 8>&- 9>&- &
+        step "prova della scheda: avviata ($SDDISK $PSDEV), togli la SD quando vuoi"
+    else
+        step "prova della scheda: non avviata (disco $SDDISK, partizione $PSDEV)"
+    fi
+fi
+
 # prova a ripetizione del Wi-Fi (m2/prova-wifi), solo con System/prova-wifi.txt: il file si
 # rinomina prima di cominciare, così se la console si blocca non si riparte da capo al riavvio
 if [ -f "$ROOT/System/prova-wifi.txt" ]; then

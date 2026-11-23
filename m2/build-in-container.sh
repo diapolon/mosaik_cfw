@@ -31,7 +31,7 @@ cp /bin/busybox.static $R/bin/busybox
 for a in $($R/bin/busybox --list-full); do [ -e $R/$a ] || ln -s /bin/busybox $R/$a; done
 rm -f $R/sbin/init
 cp $T/m2/system-init $R/sbin/init
-cp /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch /build/out/bin/gamemenu /build/out/bin/opaco $W/fbmsg $W/envtool $W/fatnomi $W/axpctl $W/sdgrow $R/usr/arcade/bin/
+cp /build/out/bin/launcher /build/out/bin/runner /build/out/bin/gamewatch /build/out/bin/gamemenu /build/out/bin/opaco $W/fbmsg $W/envtool $W/fatnomi $W/axpctl $W/sdgrow $W/prova-scheda $R/usr/arcade/bin/
 # SDL2_image, SDL2_mixer e SDL2_ttf condivise (toolchain/build-deps.sh) per i giochi Linux compilati
 # da altri: /usr/lib è nel loro LD_LIBRARY_PATH (system-init), dopo lo strato del firmware, che non
 # le ha. I nostri programmi le hanno dentro (statiche) e non le usano.
