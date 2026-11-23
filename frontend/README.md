@@ -360,6 +360,17 @@ processi e, sulla console, lo chiude con tutti i suoi figli se si tiene premuto 
 1,5 secondi (`--hold`, `--key` per cambiare tempo e tasti). Sul Mac si limita ad avviare e
 attendere il gioco.
 
+### Standby automatico
+
+Dal sistema 0.9.113 anche i giochi Linux vanno in standby da soli: `gamewatch` conta il tempo
+senza tasti (pulsanti, croce, grilletti, levette oltre metà corsa) e allo scadere di
+**Sospensione automatica** sospende il gioco come il tasto di accensione; con **Spegnimento
+automatico** chiude il gioco e spegne. Il launcher gli passa i minuti in `next.env`
+(`ARCADE_AUTOSUSPEND_MIN`, `ARCADE_AUTOSLEEP_MIN`), solo per i giochi: le app di Mosaik lo
+chiedono da sé, e un'app come un lettore video non va sospesa mentre riproduce. Un gioco che deve
+restare sveglio (per esempio durante uno scaricamento) crea `/tmp/stay_awake`, come sul firmware
+TrimUI, e lo toglie quando ha finito. Il tempo passato nel menu di Mosaik sopra il gioco non conta.
+
 ### Display opaco
 
 Con la grafica PowerVR alcuni programmi aprono una finestra trasparente: si sente l'audio ma lo

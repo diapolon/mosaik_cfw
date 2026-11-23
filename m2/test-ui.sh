@@ -215,6 +215,18 @@ linux_game '{ "title": "Gioco", "min_system": "0.9.58", "opaque": true }'
 check "opaque: ARCADE_OPAQUE=1 in next.env" 'grep -qx "export ARCADE_OPAQUE=1" $R/System/next.env'
 linux_game '{ "title": "Gioco", "min_system": "0.9.58", "opaque": false, "cpu": 3 }'
 check "opaque false: niente ARCADE_OPAQUE" '! grep -q ARCADE_OPAQUE $R/System/next.env 2>/dev/null'
+# 23 novembre: standby automatico anche nei giochi Linux: il launcher passa a gamewatch i minuti di
+# Sospensione e Spegnimento automatici (solo sul sistema su SD: nelle prove ARCADE_STANDALONE=1)
+linux_game_std() { rm -rf $R/Linux $R/System/next.txt $R/System/next.env /tmp/mosaik-avvio-launcher
+    mkdir -p $R/Linux/Gioco; printf '#!/bin/sh\nexit 0\n' > $R/Linux/Gioco/launch.sh; chmod +x $R/Linux/Gioco/launch.sh
+    printf '{ "title": "Gioco", "min_system": "0.9.58" }\n' > $R/Linux/Gioco/game.json
+    printf 'linux\tGioco\n' > $R/System/avvio-gioco.txt
+    printf '{ "language": "it", "setup_done": true, "autosuspend_min": 5, "autosleep_min": %s }\n' "$1" > $R/System/settings.json
+    ARCADE_STANDALONE=1 ARCADE_TEST_AUTOBOOT=1 ./build/launcher --root $R --auto "wait:40,quit" > /tmp/l.log 2>&1; }
+linux_game_std 0
+check "standby automatico: ARCADE_AUTOSUSPEND_MIN=5 in next.env ($(tr '\n' ' ' < $R/System/next.env 2>/dev/null))" 'grep -qx "export ARCADE_AUTOSUSPEND_MIN=5" $R/System/next.env && ! grep -q ARCADE_AUTOSLEEP_MIN $R/System/next.env'
+linux_game_std 30
+check "spegnimento automatico: ARCADE_AUTOSLEEP_MIN=30" 'grep -qx "export ARCADE_AUTOSLEEP_MIN=30" $R/System/next.env'
 rm -rf $R/Linux $R/System/avvio-gioco.txt $R/System/next.txt $R/System/next.env
 
 # 21 novembre: guida degli emulatori ("guide" nel loro JSON): SELECT in Piattaforme e, per gli

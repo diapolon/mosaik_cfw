@@ -617,6 +617,29 @@ C
 gcc -std=c11 -O0 -o batt batt.c
 check "batteria al 3% letta due volte" ./batt
 
+# 23 novembre: i giochi Linux non andavano mai in standby da soli (solo launcher e app di Mosaik).
+# gamewatch conta il tempo senza tasti e usa Sospensione e Spegnimento automatici; /tmp/stay_awake
+# (la regola del firmware TrimUI) lo impedisce
+echo "--- gamewatch: standby automatico dei giochi Linux"
+{ printf '#include <stdbool.h>\n#include <stdio.h>\n'
+  fn /trimui/frontend/src/tools/gamewatch.c '^static int idle_action'
+  cat <<'C'
+int main(void) {
+    int fail = 0;
+#define T(cond, msg) do { if (cond) printf("  ok: %s\n", msg); else { printf("  ERRORE: %s\n", msg); fail = 1; } } while (0)
+    T(idle_action(4 * 60, 5, 0, false) == 0, "4 minuti senza tasti con la sospensione a 5: niente");
+    T(idle_action(5 * 60 + 1, 5, 0, false) == 1, "oltre 5 minuti: sospende");
+    T(idle_action(60 * 60, 0, 0, false) == 0, "sospensione e spegnimento automatici spenti: mai");
+    T(idle_action(16 * 60, 5, 15, false) == 2, "oltre lo spegnimento automatico: spegne");
+    T(idle_action(6 * 60, 5, 15, false) == 1, "fra sospensione e spegnimento: sospende");
+    T(idle_action(60 * 60, 5, 15, true) == 0, "con /tmp/stay_awake: mai");
+    return fail;
+}
+C
+} > idle.c
+gcc -std=c11 -O0 -o idle idle.c
+check "standby automatico dei giochi Linux" ./idle
+
 # audit 0.9.88, DEV-05: build-deps.sh scaricava gli archivi delle librerie senza controllarne
 # l'impronta: un archivio cambiato o rovinato finiva nei programmi
 echo "--- scaricamenti della costruzione con l'impronta"

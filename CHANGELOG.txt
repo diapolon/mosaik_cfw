@@ -3,6 +3,10 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.113
+it Giochi Linux in standby da soli dopo i minuti di Sospensione automatica senza tasti, anche in pausa
+en Linux games go to sleep by themselves after the Auto sleep minutes without input, also when paused
+
 0.9.112
 it Rete locale 127.0.0.1 accesa all'avvio: funzionano le app che la usano, come TubeHero
 en Local network 127.0.0.1 turned on at start: apps that use it, like TubeHero, now work

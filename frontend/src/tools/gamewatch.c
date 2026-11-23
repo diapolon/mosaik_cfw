@@ -110,6 +110,17 @@ static bool batt_empty(int pct, bool usb) {
     low = pct >= 0 && pct <= 3 && !usb ? low + 1 : 0;
     return low >= 2;
 }
+
+/* standby automatico dei giochi Linux (23 novembre: fino alla 0.9.112 valeva solo nel launcher e
+   nelle app di Mosaik): secondi senza tasti, minuti di Sospensione e Spegnimento automatici (0 =
+   spenti) e /tmp/stay_awake, che lo impedisce come sul firmware TrimUI. 0 niente, 1 sospendi,
+   2 spegni; prima lo spegnimento, come nelle app (rest_check in ui.c) */
+static int idle_action(double idle_s, int suspend_min, int sleep_min, bool stay_awake) {
+    if (stay_awake) return 0;
+    if (sleep_min > 0 && idle_s > sleep_min * 60.0) return 2;
+    if (suspend_min > 0 && idle_s > suspend_min * 60.0) return 1;
+    return 0;
+}
 #endif
 
 static double now(void) {
@@ -276,6 +287,11 @@ int main(int argc, char **argv) {
     double power_block_until = 0;   /* dopo un risveglio il tasto non vale per un momento */
     double pressed_at = 0;
     bool open_menu = false;
+    /* standby automatico: i minuti li passa il launcher in next.env, solo per i giochi Linux (le app
+       di Mosaik lo chiedono da sé, e un'app come un lettore video non si tocca mentre riproduce) */
+    int idle_suspend_min = getenv("ARCADE_AUTOSUSPEND_MIN") ? atoi(getenv("ARCADE_AUTOSUSPEND_MIN")) : 0;
+    int idle_sleep_min = getenv("ARCADE_AUTOSLEEP_MIN") ? atoi(getenv("ARCADE_AUTOSLEEP_MIN")) : 0;
+    double last_input = now();
     pid_t osd_pid = 0;   /* barra del volume in corso */
     for (;;) {
         int status;
@@ -328,6 +344,20 @@ int main(int argc, char **argv) {
                 if (fds[i].fd < 0) continue;
                 struct input_event ev;
                 while (read(fds[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
+                    /* qualcuno sta giocando: tasti, croce, grilletti, levette oltre metà corsa (il
+                       tremolio delle levette a riposo non conta) */
+                    if (ev.type == EV_KEY) last_input = now();
+                    else if (ev.type == EV_ABS) {
+                        if (ev.code == ABS_HAT0X || ev.code == ABS_HAT0Y) { if (ev.value) last_input = now(); }
+                        else if (ev.code == ABS_Z || ev.code == ABS_RZ) { if (ev.value > 64) last_input = now(); }
+                        else if (ev.code == ABS_X || ev.code == ABS_Y || ev.code == ABS_RX || ev.code == ABS_RY) {
+                            struct input_absinfo ai;
+                            if (ioctl(fds[i].fd, EVIOCGABS(ev.code), &ai) == 0) {
+                                int mid = (ai.minimum + ai.maximum) / 2, range = (ai.maximum - ai.minimum) / 2;
+                                if (range > 0 && (ev.value > mid + range / 2 || ev.value < mid - range / 2)) last_input = now();
+                            }
+                        }
+                    }
                     /* tasti del volume: barra sopra il gioco, che non si ferma */
                     if (standalone && ev.type == EV_KEY && ev.value == 1 && (ev.code == KEY_VOLUMEUP || ev.code == KEY_VOLUMEDOWN)) {
                         if (osd_pid > 0 && waitpid(osd_pid, NULL, WNOHANG) == osd_pid) osd_pid = 0;
@@ -348,6 +378,7 @@ int main(int argc, char **argv) {
                             kill(-pid, SIGSTOP);
                             /* chiede conferma: senza un sì non si sospende */
                             int ask = nooverlay ? 30 : run_menu("--ask-suspend");
+                            last_input = now();
                             fprintf(stderr, "gamewatch: conferma della sospensione: %d\n", ask);
                             if (ask == 20 || ask == 21) {   /* Spegni o Riavvia dalla finestra */
                                 kill(-pid, SIGCONT);
@@ -425,6 +456,7 @@ int main(int argc, char **argv) {
             if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }   /* un livello alla volta */
             kill(-pid, SIGSTOP);
             int m = run_menu(states ? "--states" : NULL);
+            last_input = now();   /* il tempo passato nel menu non conta per lo standby automatico */
             fprintf(stderr, "gamewatch: menu chiuso (%d)\n", m);
             kill(-pid, SIGCONT);
             if (states && (m == 40 || m == 41)) {
@@ -453,6 +485,26 @@ int main(int argc, char **argv) {
                 stop_group(pid);
                 if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
                 return 120;
+            }
+        }
+        if (standalone && (idle_suspend_min > 0 || idle_sleep_min > 0)) {
+            int act = idle_action(now() - last_input, idle_suspend_min, idle_sleep_min, access("/tmp/stay_awake", F_OK) == 0);
+            if (act == 2) {
+                fprintf(stderr, "gamewatch: %d minuti senza tasti, chiudo il gioco e spengo\n", idle_sleep_min);
+                stop_group(pid);
+                if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+                return 120;
+            }
+            if (act == 1) {
+                fprintf(stderr, "gamewatch: %d minuti senza tasti, sospendo\n", idle_suspend_min);
+                if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }
+                kill(-pid, SIGSTOP);
+                group_sleep(pid, ui, &power_block_until);
+                kill(-pid, SIGCONT);
+                struct input_event skip;
+                for (int j = 0; j < nfds; j++) while (fds[j].fd >= 0 && read(fds[j].fd, &skip, sizeof skip) == (ssize_t)sizeof skip) {}
+                pressed_at = power_at = 0;
+                last_input = now();
             }
         }
         if (power_at && now() - power_at >= 1.2) {

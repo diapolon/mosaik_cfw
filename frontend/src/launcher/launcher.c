@@ -617,8 +617,15 @@ static void write_linux_env(const game_t *g) {
        col PowerVR la finestra di alcuni programmi esce trasparente e si vede nero (TubeHero) */
     jval *op = json_get(j, "opaque");
     bool opaque = op && op->t == J_BOOL && op->n != 0;
-    FILE *f = has_env || has_keys || linux_cpu_khz || opaque ? fopen(envp, "w") : NULL;
+    /* standby automatico (23 novembre): gamewatch conta i minuti senza tasti con le stesse
+       impostazioni del launcher; solo per i giochi, perché le app di Mosaik lo chiedono da sé e
+       un'app come un lettore video non va sospesa mentre riproduce */
+    bool game = strcmp(g->core, "app") != 0 && plat_standalone();
+    int idle_susp = game ? UI.set.autosuspend_min : 0, idle_sleep = game ? UI.set.autosleep_min : 0;
+    FILE *f = has_env || has_keys || linux_cpu_khz || opaque || idle_susp || idle_sleep ? fopen(envp, "w") : NULL;
     if (f && linux_cpu_khz) fprintf(f, "export ARCADE_CPU_KHZ=%d\n", linux_cpu_khz);
+    if (f && idle_susp > 0) fprintf(f, "export ARCADE_AUTOSUSPEND_MIN=%d\n", idle_susp);
+    if (f && idle_sleep > 0) fprintf(f, "export ARCADE_AUTOSLEEP_MIN=%d\n", idle_sleep);
     if (f && opaque) fputs("export ARCADE_OPAQUE=1\n", f);
     if (f && has_keys) {
         /* solo lettere, cifre e _: il valore va nello script senza bisogno di apici */
