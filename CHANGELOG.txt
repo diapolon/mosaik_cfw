@@ -3,7 +3,7 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
-0.9.111
+0.9.112
 it Rete locale 127.0.0.1 accesa all'avvio: funzionano le app che la usano, come TubeHero
 en Local network 127.0.0.1 turned on at start: apps that use it, like TubeHero, now work
 it Giochi Linux e app possono chiedere il display opaco ("opaque"): niente più schermo nero con il solo audio

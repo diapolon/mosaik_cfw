@@ -5,7 +5,7 @@
  * video, con l'alfa per pixel, mostra il gioco trasparente: schermo nero con l'audio (prova sulla
  * Brick Pro del 20 novembre). Stessa soluzione di spruceOS ("setalpha 0"), scritta per Mosaik con
  * le strutture di frontend/src/tools/gamemenu.c (include/video/sunxi_display2.h del kernel 4.9).
- * Dalla 0.9.111 è nel sistema (Makefile.tg5040, /usr/arcade/bin/opaco): system-init lo accende per i giochi
+ * Dalla 0.9.112 è nel sistema (Makefile.tg5040, /usr/arcade/bin/opaco): system-init lo accende per i giochi
  * Linux e le app con "opaque": true e lo spegne dopo ogni gioco Linux. toolchain/build-ppsspp.sh ne mette
  * una copia anche nel pacchetto PPSSPP (Cores/ppsspp/opaco), per i sistemi più vecchi. */
 #include <fcntl.h>
