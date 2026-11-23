@@ -172,6 +172,14 @@ udevadm trigger --type=devices --action=add
 udevadm settle --timeout=10 || step "udevadm settle: tempo scaduto"
 step "5b UDEV AVVIATO"
 
+# rete locale 127.0.0.1: il firmware la accende, Mosaik fino alla 0.9.110 no. Senza, un'app che passa
+# i dati a un suo lettore attraverso 127.0.0.1 non funziona (TubeHero: «Could not open local media
+# transport», 23 novembre). Nel registro com'era prima e com'è dopo.
+lo_before=$(ip addr show lo 2> /dev/null | grep -c "inet 127.0.0.1")
+ip link set lo up 2> /dev/null
+ip addr show lo 2> /dev/null | grep -q "inet 127.0.0.1" || ip addr add 127.0.0.1/8 dev lo 2> /dev/null
+step "rete locale: lo $([ "$lo_before" -gt 0 ] && echo "già accesa" || echo spenta), ora $(ip addr show lo 2> /dev/null | grep -q "inet 127.0.0.1" && echo "127.0.0.1 attivo" || echo "NON attiva")"
+
 # tasti e levette: il demone di TrimUI crea il gamepad "TRIMUI Player1" (già provato in M1)
 [ -f "$ROOT/System/joypad.config" ] && cp "$ROOT/System/joypad.config" /mnt/UDISK/
 [ -f "$ROOT/System/joypad_right.config" ] && cp "$ROOT/System/joypad_right.config" /mnt/UDISK/
