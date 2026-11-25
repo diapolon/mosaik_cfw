@@ -292,10 +292,14 @@ void ui_mark(const char *what) {
     ui_log("tempi: %s a %.2f s", what, ts.tv_sec + ts.tv_nsec / 1e9);
 }
 
+/* righe scritte a scheda tolta: restano in memoria e vanno nel registro della scheda rimessa
+   (sulla scheda tolta andrebbero perse, come nella prova del 25 novembre) */
+static char sd_out_log[8192];
+static size_t sd_out_len;
+static int sd_out_lost;
+
 void ui_log(const char *fmt, ...) {
     if (!log_on() || UI.sd_failed) return;   /* SD guasta: una scrittura non tornerebbe più */
-    if (UI.sd_out) return;                     /* scheda tolta (ui_sd_poll) */
-    if (!logf_ && log_path[0]) logf_ = fopen(log_path, "a");
     char msg[1024];
     va_list ap;
     va_start(ap, fmt);
@@ -305,10 +309,31 @@ void ui_log(const char *fmt, ...) {
     struct tm tmv;
     localtime_r(&now, &tmv);
     fprintf(stderr, "%s\n", msg);
+    if (UI.sd_out) {   /* scheda tolta (ui_sd_poll) */
+        int n = snprintf(sd_out_log + sd_out_len, sizeof sd_out_log - sd_out_len, "%02d:%02d:%02d %s\n",
+                         tmv.tm_hour, tmv.tm_min, tmv.tm_sec, msg);
+        if (n > 0 && sd_out_len + n < sizeof sd_out_log) sd_out_len += n;
+        else { sd_out_log[sd_out_len] = 0; sd_out_lost++; }
+        return;
+    }
+    if (!logf_ && log_path[0]) logf_ = fopen(log_path, "a");
     if (logf_) {
         fprintf(logf_, "%02d:%02d:%02d %s\n", tmv.tm_hour, tmv.tm_min, tmv.tm_sec, msg);
         fflush(logf_);
     }
+}
+
+/* scheda rimessa: le righe tenute in memoria finiscono nel registro */
+static void sd_out_flush(void) {
+    if (!sd_out_len && !sd_out_lost) return;
+    if (!logf_ && log_path[0] && log_on()) logf_ = fopen(log_path, "a");
+    if (logf_) {
+        fwrite(sd_out_log, 1, sd_out_len, logf_);
+        if (sd_out_lost) fprintf(logf_, "(%d righe perse: memoria del registro piena)\n", sd_out_lost);
+        fflush(logf_);
+    }
+    sd_out_len = 0;
+    sd_out_lost = 0;
 }
 
 /* ------------------------------------------------------------- colori */
@@ -2012,12 +2037,12 @@ int ui_sd_poll(void) {
         } else sd_state = was ? was : SD_OUT;   /* letto a metà: resta com'era */
         fclose(f);
     }
+    UI.sd_out = sd_state != SD_IN;
     if (sd_state != SD_IN && was == SD_IN) {
-        ui_log("scheda tolta: da qui niente scritture sulla scheda");   /* prima di UI.sd_out: l'ultima riga */
+        ui_log("scheda tolta: da qui il registro resta in memoria");
         sd_old_mnt = mount_id_of(UI.root);
         ev = SD_EV_OUT;
     }
-    UI.sd_out = sd_state != SD_IN;
     snprintf(p, sizeof p, "%s/scheda-rimessa", d);
     int count = 0;
     if ((f = fopen(p, "r"))) { if (fscanf(f, "%d", &count) != 1) count = 0; fclose(f); }
@@ -2027,6 +2052,7 @@ int ui_sd_poll(void) {
         if (logf_) { fclose(logf_); logf_ = NULL; }
         crash_fd_reopen();
         ui_image_forget_missing();
+        sd_out_flush();
         ui_log("scheda rimessa e rimontata: si riprende");
         ev = SD_EV_BACK;
     }

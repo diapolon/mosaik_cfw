@@ -64,6 +64,20 @@ dd if=/dev/zero of=/tmp/altra.img bs=1M count=40 2> /dev/null; mkfs.vfat -F 32 -
 rimetti /tmp/altra.img; sleep 3
 [ "$(azione)" = riavvio ] && ok "scheda diversa: riavvio" || ko "scheda diversa: $(azione)"
 fine
+echo "--- stessa scheda, passo non riuscito: registro salvato prima del riavvio"
+printf '#!/bin/sh\nexit 4\n' > /tmp/fsck-rotto; chmod +x /tmp/fsck-rotto
+export GUARDIA_FSCK=/tmp/fsck-rotto; nuova_sd 1234ABCD; parti "30 spegni"; unset GUARDIA_FSCK; togli; sleep 2; rimetti; sleep 3
+[ "$(azione)" = riavvio ] && ok "fsck non riuscito: riavvio" || ko "fsck non riuscito: $(azione)"
+kill $pid 2> /dev/null; wait $pid 2> /dev/null; umount /tmp/mnt 2> /dev/null; mount -t vfat -o ro "$LOOP" /tmp/mnt
+R=/tmp/mnt/Arcade/Logs/scheda-tolta.txt
+grep -q "fsck.fat -a: non riuscito" $R 2> /dev/null && grep -q "passo non riuscito" $R && ok "registro sulla scheda anche col passo non riuscito" || ko "registro perso: $(cat $R 2> /dev/null)"
+grep -q "messaggi del kernel" $R 2> /dev/null && ok "con i messaggi del kernel" || ko "senza i messaggi del kernel"
+grep -q guardia-registro /proc/mounts && ko "aggancio di servizio rimasto" || ok "aggancio di servizio tolto"
+fine
+nuova_sd 1234ABCD; parti "30 spegni"; togli; sleep 2; rimetti /tmp/altra.img; sleep 3
+umount /tmp/mnt 2> /dev/null; mount -t vfat -o ro "$LOOP" /tmp/mnt
+[ -e /tmp/mnt/Arcade ] && ko "scritto sulla scheda diversa" || ok "sulla scheda diversa non si scrive"
+fine
 echo 1 > /tmp/usb
 nuova_sd 1234ABCD; parti "30 spegni"; togli; sleep 2; rimetti /tmp/altra.img; sleep 3
 [ "$(azione)" = spegnimento ] && ok "col caricatore: spegnimento invece del riavvio" || ko "col caricatore: $(azione)"

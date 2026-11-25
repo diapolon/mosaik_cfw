@@ -21,7 +21,8 @@
  *   flush). Poi /run/scheda-tolta sparisce e il contatore /run/scheda-rimessa cresce: il launcher
  *   riapre i suoi file e riprende da dov'era. Una scheda diversa o un passo non riuscito: riavvio
  *   (col caricatore collegato spegnimento, perché dopo un riavvio U-Boot resterebbe a schermo nero,
- *   issue #2). Com'è andata finisce in Arcade/Logs/scheda-tolta.txt.
+ *   issue #2). Com'è andata finisce in Arcade/Logs/scheda-tolta.txt: dopo un passo non riuscito
+ *   con la stessa scheda la si aggancia da parte un momento e si aggiungono i messaggi del kernel.
  * Nelle prove: GUARDIA_TEST=file scrive «riavvio» o «spegnimento» invece di farlo, GUARDIA_RUN e
  * GUARDIA_MNT al posto di /run e /mnt/SDCARD, GUARDIA_USB il file del caricatore, GUARDIA_LED la
  * cartella dei LED, GUARDIA_RISERVA i secondi di riserva (m2/test-guardia-sd.sh). */
@@ -35,7 +36,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <sys/klog.h>
 #include <sys/reboot.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -45,6 +48,7 @@
 static const char *run_dir, *mnt;
 static char log_buf[4096];
 static size_t log_len;
+static bool same_card;   /* la scheda rimessa ha il numero di serie di quella tolta */
 
 static double clock_s(clockid_t c) {
     struct timespec t;
@@ -188,6 +192,7 @@ static bool remount(const char *part, bool have_serial, uint32_t serial) {
     for (int i = 0; i < 60 && !(got = fat_serial(part, &now)); i++) usleep(250000);   /* la partizione arriva poco dopo il disco */
     if (!got) { note("partizione %s non leggibile", part); return false; }
     if (now != serial) { note("scheda diversa (FAT %08X, all'avvio %08X)", now, serial); return false; }
+    same_card = true;
     const char *fsck = getenv("GUARDIA_FSCK") ? getenv("GUARDIA_FSCK") : "fsck.fat";
     char *fa[] = { (char *)fsck, "-a", (char *)part, NULL };
     int r = run(fsck, fa, 120);
@@ -198,14 +203,54 @@ static bool remount(const char *part, bool have_serial, uint32_t serial) {
     return true;
 }
 
-static void save_log(void) {
+/* ultime righe dei messaggi del kernel, per capire un rimontaggio non riuscito */
+static void kernel_tail(FILE *f, int lines) {
+    int size = klogctl(10, NULL, 0);   /* SYSLOG_ACTION_SIZE_BUFFER */
+    if (size <= 0) size = 1 << 17;
+    char *b = malloc(size + 1);
+    if (!b) return;
+    int n = klogctl(3, b, size);       /* SYSLOG_ACTION_READ_ALL */
+    if (n > 0) {
+        b[n] = 0;
+        char *s = b + n;
+        for (int k = 0; s > b && k <= lines; ) if (*--s == '\n') k++;
+        if (*s == '\n') s++;
+        fprintf(f, "messaggi del kernel (ultime %d righe):\n%s", lines, s);
+        if (b[n - 1] != '\n') fputc('\n', f);
+    }
+    free(b);
+}
+
+/* registro in DIR/Arcade/Logs/scheda-tolta.txt; con il kernel dopo un rimontaggio non riuscito */
+static bool save_log_in(const char *dir, bool kernel) {
     char p[512];
-    snprintf(p, sizeof p, "%s/Arcade/Logs", mnt);
-    if (access(p, F_OK) != 0) return;
-    snprintf(p, sizeof p, "%s/Arcade/Logs/scheda-tolta.txt", mnt);
+    snprintf(p, sizeof p, "%s/Arcade/Logs", dir);
+    if (access(p, F_OK) != 0) return false;
+    snprintf(p, sizeof p, "%s/Arcade/Logs/scheda-tolta.txt", dir);
     FILE *f = fopen(p, "a");
-    if (f) { fwrite(log_buf, 1, log_len, f); fflush(f); fsync(fileno(f)); fclose(f); }
+    if (!f) return false;
+    fwrite(log_buf, 1, log_len, f);
+    if (kernel) kernel_tail(f, 60);
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
     log_len = 0;
+    return true;
+}
+static void save_log(void) { save_log_in(mnt, false); }
+
+/* rimontaggio non riuscito con la stessa scheda: prima del riavvio il registro va comunque sulla
+   scheda, agganciata da parte un momento (senza, la prova del 25 novembre non ha lasciato niente) */
+static void save_log_aside(const char *part) {
+    if (!same_card) return;   /* su un'altra scheda non si scrive */
+    char d[256];
+    run_path(d, sizeof d, "guardia-registro");
+    mkdir(d, 0700);
+    if (mount(part, d, "vfat", MS_NOATIME, "flush") != 0) { rmdir(d); return; }
+    save_log_in(d, true);
+    sync();
+    umount2(d, MNT_DETACH);
+    rmdir(d);
 }
 
 int main(int argc, char **argv) {
@@ -265,7 +310,10 @@ int main(int argc, char **argv) {
                 snprintf(line, sizeof line, "%.0f rimonto\n", deadline);
                 put_state("scheda-tolta", line);
                 note("scheda rimessa");
+                same_card = false;
                 if (!remount(part, have_serial, serial)) {
+                    note("passo non riuscito: riavvio");
+                    save_log_aside(part);
                     unlink(p_state);
                     finish(true, "SCHEDA RIMESSA: RIPARTO");
                 }

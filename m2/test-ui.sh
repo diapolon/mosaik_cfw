@@ -491,14 +491,20 @@ rm -f /tmp/fuori.png $R/Logs/Arcade.log
 c=$(python3 /tmp/centro.py /tmp/base.png /tmp/fuori.png)
 check "scheda tolta: la finestra copre il centro ($c punti cambiati)" '[ "$c" -gt 100 ]'
 check "Spegni ora: chiesto alla guardia" '[ -f $S/scheda-spegni-ora ]'
-check "registro: l'ultima riga dice scheda tolta, poi niente" '[ "$(tail -1 $R/Logs/Arcade.log | cut -c10-)" = "scheda tolta: da qui niente scritture sulla scheda" ]'
+check "registro: a scheda tolta niente sul file (la scheda non c'è)" '[ -f $R/Logs/Arcade.log ] && ! grep -q "scheda tolta" $R/Logs/Arcade.log'
 rm -f $S/scheda-spegni-ora /tmp/dentro.png /tmp/fuori2.png $R/Logs/Arcade.log
 echo "$(( $(cut -d. -f1 /proc/uptime) + 600 )) spegni" > $S/scheda-tolta
 ./build/launcher --root $R --auto "wait:40,shot:/tmp/fuori2.png,wait:600,shot:/tmp/dentro.png,quit" > /tmp/l.log 2>&1 &
 lp=$!
 i=0; while [ ! -s /tmp/fuori2.png ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+# la scheda tolta si porta via il registro aperto; la rimessa ha la sua cartella Logs
+mv $R/Logs $R/Logs.tolta; mkdir $R/Logs
 rm -f $S/scheda-tolta; echo 1 > $S/scheda-rimessa   # la guardia ha rimontato la scheda
 wait $lp
+check "rimessa: le righe di quando era fuori arrivano sulla scheda rimessa" 'awk "/scheda tolta: da qui il registro resta in memoria/ { t = NR } /scheda rimessa e rimontata/ && t { ok = 1 } END { exit !ok }" $R/Logs/Arcade.log'
+sed -n '/scheda tolta: da qui/,/scheda rimessa e/p' $R/Logs/Arcade.log | sed 's/^/    /'
+check "rimessa: niente scritto sulla scheda tolta" '! grep -q "scheda tolta" $R/Logs.tolta/Arcade.log'
+rm -rf $R/Logs.tolta
 c=$(python3 /tmp/centro.py /tmp/base.png /tmp/dentro.png)
 check "rimessa: la finestra se ne va e si riprende ($c punti diversi dalla home)" '[ -s /tmp/dentro.png ] && [ "$c" -lt 100 ]'
 check "rimessa: il registro riprende" 'grep -q "scheda rimessa e rimontata: si riprende" $R/Logs/Arcade.log'
