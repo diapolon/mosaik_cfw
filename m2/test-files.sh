@@ -34,7 +34,7 @@ static void test_sync(void) { syncs++; }
 enum { BTN_COUNT = 20, ROT_NONE = 0 };
 static const int default_map[16] = { 0 };
 static int emu_map[16];   /* tasti di partenza dell'emulatore (runner.c): nulli come default_map */
-static struct { struct { int aspect, bezel; char filter[32]; } set; double t; } UI;
+static struct { struct { int aspect, bezel; char filter[32]; } set; double t; bool sd_out; } UI;
 static const char *filter_legacy_id(int n) { (void)n; return "nitido"; }
 static void ui_log(const char *f, ...) { (void)f; }
 static void game_file(char *out, size_t n, const char *ext) { snprintf(out, n, "%s/g.%s", dir, ext); }

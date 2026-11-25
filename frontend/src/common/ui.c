@@ -14,6 +14,7 @@
    evdev che coprirebbero i tasti di ui.h (è successo: ogni tasto scriveva fuori dagli
    array e il launcher andava in crash). Le letture evdev stanno in platform.c. */
 #include <dirent.h>
+#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -66,9 +67,15 @@ static void crash_fd_open(void) {
     if (crash_fd < 0 && log_path[0] && (UI.set.log_level > 0 || !plat_is_device() || getenv("ARCADE_LOG")))
         crash_fd = open(log_path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
 }
+/* scheda rimessa e rimontata: il descrittore aperto prima puntava alla scheda tolta */
+static void crash_fd_reopen(void) {
+    if (crash_fd >= 0) { close(crash_fd); crash_fd = -1; }
+    crash_fd_open();
+}
 #else
 static void crash_handlers(void) {}
 static void crash_fd_open(void) {}
+static void crash_fd_reopen(void) {}
 #endif
 static Uint32 frame_no;
 
@@ -1938,6 +1945,27 @@ static double sd_deadline;    /* secondi di CLOCK_MONOTONIC */
 static bool sd_suspend_act;
 static double sd_acted = -1;  /* scadenza per cui si è già sospeso: dopo il risveglio aspetta la nuova */
 static int sd_count = -1;
+static int sd_old_mnt = -1;   /* il mount della scheda tolta: i file rimasti aperti lì non tornano più */
+
+/* numero del mount (mountinfo) che contiene path; il rimontaggio ne crea uno nuovo, anche se la
+   scheda rimessa ha lo stesso dispositivo (mmcblk0p4) e quindi lo stesso st_dev */
+static int mount_id_of(const char *path) {
+    char real[PATH_MAX], line[1400];
+    if (!realpath(path, real)) return -1;
+    FILE *f = fopen("/proc/self/mountinfo", "r");
+    int best = -1;
+    size_t best_len = 0;
+    while (f && fgets(line, sizeof line, f)) {
+        int id;
+        char mp[1024];
+        if (sscanf(line, "%d %*d %*s %*s %1023s", &id, mp) != 2) continue;
+        size_t n = strlen(mp);
+        bool inside = !strcmp(mp, "/") || (!strncmp(real, mp, n) && (real[n] == '/' || real[n] == 0));
+        if (inside && (best < 0 || n >= best_len)) { best = id; best_len = n; }
+    }
+    if (f) fclose(f);
+    return best;
+}
 
 static const char *sd_dir(void) {
     const char *d = getenv("ARCADE_SD_RUN");
@@ -1986,6 +2014,7 @@ int ui_sd_poll(void) {
     }
     if (sd_state != SD_IN && was == SD_IN) {
         ui_log("scheda tolta: da qui niente scritture sulla scheda");   /* prima di UI.sd_out: l'ultima riga */
+        sd_old_mnt = mount_id_of(UI.root);
         ev = SD_EV_OUT;
     }
     UI.sd_out = sd_state != SD_IN;
@@ -1996,6 +2025,7 @@ int ui_sd_poll(void) {
         /* la scheda rimontata è un'altra cosa per il kernel: il registro si riapre, le immagini
            non trovate mentre era fuori si cercano di nuovo */
         if (logf_) { fclose(logf_); logf_ = NULL; }
+        crash_fd_reopen();
         ui_image_forget_missing();
         ui_log("scheda rimessa e rimontata: si riprende");
         ev = SD_EV_BACK;
@@ -2038,19 +2068,45 @@ void ui_sd_draw(int sel) {
     }
 }
 
+void ui_sd_off_now(void) {
+    const char *d = sd_dir();
+    char p[256];
+    snprintf(p, sizeof p, "%s/scheda-spegni-ora", d ? d : "/run");
+    FILE *f = fopen(p, "w");
+    if (f) fclose(f);
+}
+
+/* file di questo programma ancora aperti sul FAT della scheda tolta (per esempio l'immagine di un
+   disco che il core legge mentre si gioca): dopo il rimontaggio non si leggono più. Solo Linux. */
+int ui_sd_stale_files(void) {
+    int n = 0;
+    DIR *d = sd_old_mnt >= 0 ? opendir("/proc/self/fd") : NULL;
+    struct dirent *e;
+    while (d && (e = readdir(d))) {
+        char p[64], target[600], line[128];
+        struct stat st;
+        int mnt = -1;
+        snprintf(p, sizeof p, "/proc/self/fdinfo/%s", e->d_name);
+        FILE *fi = e->d_name[0] != '.' ? fopen(p, "r") : NULL;
+        while (fi && fgets(line, sizeof line, fi)) if (sscanf(line, "mnt_id: %d", &mnt) == 1) break;
+        if (fi) fclose(fi);
+        snprintf(p, sizeof p, "/proc/self/fd/%s", e->d_name);
+        if (mnt != sd_old_mnt || stat(p, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+        ssize_t l = readlink(p, target, sizeof target - 1);
+        target[l > 0 ? l : 0] = 0;
+        ui_log("scheda rimessa: resta aperto sulla scheda tolta %s", target);
+        n++;
+    }
+    if (d) closedir(d);
+    return n;
+}
+
 int ui_sd_input(int *sel) {
     if (sd_state != SD_OUT) return SD_ACT_NONE;
     if (UI.in.power) return SD_ACT_SUSPEND;   /* tasto di accensione: sospende, come altrove */
     int r = ui_popup_input(sel, 2);
     if (r == 0) return SD_ACT_SUSPEND;
-    if (r == 1) {
-        const char *d = sd_dir();
-        char p[256];
-        snprintf(p, sizeof p, "%s/scheda-spegni-ora", d ? d : "/run");
-        FILE *f = fopen(p, "w");
-        if (f) fclose(f);
-        return SD_ACT_OFF;
-    }
+    if (r == 1) { ui_sd_off_now(); return SD_ACT_OFF; }
     return SD_ACT_NONE;
 }
 

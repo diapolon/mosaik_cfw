@@ -956,7 +956,8 @@
     "off_after": "Spegni dopo %s",
     "suspend_after": "Sospendi dopo %s",
     "back": "Scheda rimessa: si riprende",
-    "bye": "Spegnimento…"
+    "bye": "Spegnimento…",
+    "game_closed": "Gioco chiuso: la scheda era stata tolta"
   },
   "speaker": {
     "always": "Sempre acceso",

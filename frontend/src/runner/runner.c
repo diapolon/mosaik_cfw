@@ -20,6 +20,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <errno.h>
+#include <sys/mman.h>
+#include <limits.h>
 #include <time.h>
 
 enum { EXIT_MENU = 0, EXIT_POWEROFF = 20, EXIT_REBOOT = 21 };   /* 21: system-init riavvia (16 novembre) */
@@ -263,6 +266,7 @@ static bool same_file(const char *a, const char *b) {
 }
 
 static void sram_save(void) {
+    if (UI.sd_out) return;   /* scheda tolta: si salva quando torna (sram_tick) */
     for (int b = 0; b < NBATT; b++) {
         if (!batt[b].len) continue;
         unsigned char *m = mem_data(batt[b].id);
@@ -965,6 +969,41 @@ static int16_t input_state(unsigned port, unsigned device, unsigned index, unsig
 
 /* ----------------------------------------------------- caricamento */
 
+/* Core bloccato in memoria (sistema su SD, 25 novembre): il core è un file sulla scheda e il kernel
+   ne rilegge le pagine quando servono o dopo averle tolte per fare spazio. Con la scheda tolta a
+   console accesa (m2/guardia-sd.c) quella lettura non riesce e il gioco cade (SIGBUS). mlock legge
+   tutto il core una volta e lo tiene in memoria finché si gioca. */
+static char core_lock_msg[96];   /* il registro si apre dopo il core: la riga si scrive dopo ui_init */
+static void core_lock(void) {
+#ifdef __linux__
+    char real[PATH_MAX], line[PATH_MAX + 128];
+    if (!plat_standalone() || !realpath(core_path, real)) return;
+    FILE *m = fopen("/proc/self/maps", "r");
+    unsigned long long locked = 0;
+    bool fail = false;
+    char why[64] = "";
+    struct stat cst;
+    long long size = stat(real, &cst) == 0 ? (long long)cst.st_size : 0;
+    unsigned long long page = (unsigned long long)sysconf(_SC_PAGESIZE);
+    while (m && fgets(line, sizeof line, m)) {
+        unsigned long a, b;
+        unsigned long long off;
+        char perm[8], file[PATH_MAX];
+        if (sscanf(line, "%lx-%lx %7s %llx %*s %*s %4095s", &a, &b, perm, &off, file) != 5 || strcmp(file, real)) continue;
+        if (!strncmp(perm, "---", 3)) continue;   /* zone di guardia fra le sezioni: nessuna pagina da leggere */
+        /* le sezioni sono allineate a 64 KB e l'ultima va oltre la fine del file: quelle pagine non
+           si leggono e mlock le rifiuterebbe (ENOMEM) */
+        if ((unsigned long long)size <= off) continue;
+        unsigned long long in_file = (unsigned long long)size - off;
+        if (b - a > in_file) b = a + (unsigned long)((in_file + page - 1) / page * page);
+        if (mlock((void *)a, b - a) == 0) locked += b - a;
+        else if (!fail) { fail = true; snprintf(why, sizeof why, "%s %s", perm, strerror(errno)); }
+    }
+    if (m) fclose(m);
+    snprintf(core_lock_msg, sizeof core_lock_msg, "core in memoria: %llu KB%s%s%s", locked >> 10, fail ? " (in parte non bloccato: " : "", why, fail ? ")" : "");
+#endif
+}
+
 static bool load_core(void) {
     core.h = dlopen(core_path, RTLD_LAZY | RTLD_LOCAL);
     if (!core.h) {
@@ -973,6 +1012,7 @@ static bool load_core(void) {
         note_error(e ? e : "");
         return false;
     }
+    core_lock();
 #define SYM(field, name) if (!(*(void **)&core.field = dlsym(core.h, name))) { ui_log("simbolo mancante: %s", name); return false; }
     SYM(init, "retro_init"); SYM(deinit, "retro_deinit");
     SYM(get_system_info, "retro_get_system_info"); SYM(get_system_av_info, "retro_get_system_av_info");
@@ -1088,6 +1128,7 @@ static void auto_keep_previous(void) {
 }
 
 static bool state_save(bool autosave) {
+    if (UI.sd_out) return false;   /* scheda tolta */
     size_t n = core.serialize_size();
     if (!n) return false;
     void *buf = malloc(n);
@@ -1630,6 +1671,30 @@ static void swr_go(void) {
     switching = true;
     exit_code = EXIT_MENU;
     ui_sound(SND_OK);
+}
+
+/* Scheda rimessa e rimontata (m2/guardia-sd.c). Se il core tiene ancora aperto un file sulla scheda
+   tolta (l'immagine di un disco che legge mentre si gioca), quel file non si legge più: la partita va
+   nel salvataggio automatico e il launcher riapre subito lo stesso gioco da lì, come con Cambia
+   gioco. Altrimenti si riprende dove si era. */
+static int sd_sel;
+static void sd_back(void) {
+    ui_toast(T("sdout.back"));
+    if (ui_sd_stale_files() == 0) return;
+    swr_load();
+    int cur = -1;
+    for (int i = 0; i < nswr; i++) if (swr[i].current) { cur = i; break; }
+    sram_save();
+    bool saved = state_save(true);
+    ui_log("scheda rimessa: il gioco si riapre (stato %s, %s)", saved ? "salvato" : "non salvato", cur >= 0 ? "dal launcher" : "gioco non trovato fra gli ultimi");
+    if (saved && cur >= 0) {
+        swr_sel = cur;
+        switch_saved = true;
+        swr_go();
+    } else {
+        if (saved) write_resume();
+        exit_code = EXIT_MENU;
+    }
 }
 
 static void swr_image(int k, int x, int y, int w, int h, int r) {
@@ -2544,6 +2609,7 @@ int main(int argc, char **argv) {
     /* Il core va caricato prima della finestra: la frequenza audio la decide lui. */
     bool core_ok = load_core(), ok = core_ok && load_game() && !core_refused_game();
     if (!ui_init("Arcade", root, auto_script, ok ? (int)lround(av.timing.sample_rate) : 48000, false)) return 1;
+    if (core_lock_msg[0]) ui_log("%s", core_lock_msg);
     ui_log("gioco: %s (%s)", title, rom_path);
     if (!ok) {
         ui_log("gioco non avviato: %s", core_last_error);
@@ -2588,15 +2654,41 @@ int main(int argc, char **argv) {
     Uint64 freq = SDL_GetPerformanceFrequency(), next = SDL_GetPerformanceCounter();
     while (exit_code < 0) {
         ui_poll();
+        /* scheda tolta a console accesa: il gioco si ferma sotto la finestra con il conto alla
+           rovescia; tasti solo per la finestra (Sospendi ora, Spegni ora, accensione) */
+        int sdev = ui_sd_poll();
+        if (sdev == SD_EV_OUT) {
+            sd_sel = 0;
+            suspend_ask = false;
+            ask_kind = 0;
+            if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
+        } else if (sdev == SD_EV_BACK) {
+            sd_back();
+            if (exit_code >= 0) break;
+            next = SDL_GetPerformanceCounter();
+        }
+        if (UI.sd_out) {
+            int a = sdev == SD_EV_SUSPEND ? SD_ACT_SUSPEND : ui_sd_input(&sd_sel);
+            if (UI.in.power_long) ui_sd_off_now();
+            if (a == SD_ACT_SUSPEND) {
+                ui_suspend();
+                after_wake();
+                next = SDL_GetPerformanceCounter();
+                continue;
+            }
+            if (a == SD_ACT_OFF) ui_toast(T("sdout.bye"));
+        }
         if (UI.in.vol_changed) { osd_kind = OSD_VOLUME; osd_until = UI.t + 1.4; }
         if (UI.in.quit) { power_off_from_game(); break; }   /* chiusura finestra = tasto di accensione */
         /* tasti extra della Brick Pro: HOME torna al launcher, F1 salva, F2 carica */
-        if (UI.in.home && UI.set.key_home == XH_LAUNCHER) { exit_code = EXIT_MENU; break; }
+        if (UI.in.home && UI.set.key_home == XH_LAUNCHER && !UI.sd_out) { exit_code = EXIT_MENU; break; }
         if (core_shutdown) { exit_code = EXIT_MENU; break; }
         /* tasto di accensione (sistema su SD): breve chiede Sospendi (il gioco riprende da dove era),
            Riavvia o Spegni (salvano la partita); tenuto premuto salva la partita e spegne */
-        if (UI.in.power_long) { power_off_from_game(); break; }
-        if (suspend_ask) {
+        if (UI.in.power_long && !UI.sd_out) { power_off_from_game(); break; }
+        if (UI.sd_out) {
+            /* tutto nella finestra della scheda tolta, qui sopra */
+        } else if (suspend_ask) {
             int r = ui_power_input(&ask_sel);
             if (r >= 0) suspend_ask = false;
             if (r == UI_PW_RESTART) { restart_from_game(); break; }
@@ -2620,9 +2712,9 @@ int main(int argc, char **argv) {
             if (UI.audio) SDL_ClearQueuedAudio(UI.audio);
             ui_sound(SND_OK);
         }
-        if (UI.in.f1 && !menu_open && !suspend_ask) extra_key(UI.set.key_f1);
-        if (UI.in.f2 && !menu_open && !suspend_ask) extra_key(UI.set.key_f2);
-        if (suspend_ask) {
+        if (UI.in.f1 && !menu_open && !suspend_ask && !UI.sd_out) extra_key(UI.set.key_f1);
+        if (UI.in.f2 && !menu_open && !suspend_ask && !UI.sd_out) extra_key(UI.set.key_f2);
+        if (suspend_ask || UI.sd_out) {
             /* il gioco resta fermo finché non si risponde */
         } else if (ask_kind) {
             int r = ui_confirm_input(&ask_kind_sel);
@@ -2643,7 +2735,7 @@ int main(int argc, char **argv) {
         battery_watch();
         sram_tick();
         Uint64 pf0 = SDL_GetPerformanceCounter();
-        if (!menu_open && !suspend_ask) {
+        if (!menu_open && !suspend_ask && !UI.sd_out) {
             for (int k = 0; k < (fast_forward ? 3 : 1); k++) { core.run(); played_frames++; }
             played += UI.dt;
             /* diagnosi (sistema su SD): dopo 5 s di gioco si salva ciò che è stato disegnato */
@@ -2672,16 +2764,17 @@ int main(int argc, char **argv) {
             ui_confirm_draw(T(cfg_target ? "layer.ask_console_title" : "layer.ask_game_title"), body, T("common.cancel"), T("layer.clear"), ask_kind_sel);
         }
         if (suspend_ask) ui_power_draw(ask_sel);
+        if (UI.sd_out) ui_sd_draw(sd_sel);
         osd_draw();
         ui_end();
-        if (!menu_open && !suspend_ask && !fast_forward) perf_frame(pf0, pf1, SDL_GetPerformanceCounter(), audio_on ? SDL_GetQueuedAudioSize(UI.audio) : 0, frame_bytes, fps);
+        if (!menu_open && !suspend_ask && !UI.sd_out && !fast_forward) perf_frame(pf0, pf1, SDL_GetPerformanceCounter(), audio_on ? SDL_GetQueuedAudioSize(UI.audio) : 0, frame_bytes, fps);
 
         /* ritmo: l'audio in coda fa da orologio; senza audio si usa il timer */
         if (UI.automation) continue;
         bool was_on = audio_on;
         audio_follow();
         if (was_on != audio_on) next = SDL_GetPerformanceCounter();
-        if (audio_on && !menu_open && !suspend_ask && !fast_forward) {
+        if (audio_on && !menu_open && !suspend_ask && !UI.sd_out && !fast_forward) {
             /* se la scheda audio non consuma (driver bloccato), dopo 250 ms si continua
                senza audio con il timer: meglio un gioco muto che un gioco fermo */
             Uint32 t0 = SDL_GetTicks();

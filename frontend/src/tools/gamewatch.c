@@ -176,6 +176,74 @@ static void group_sleep(pid_t pid, int ui, double *block_until) {
     fprintf(stderr, "gamewatch: risveglio (%s)\n", rc == 0 ? "riuscita" : "non riuscita");
     *block_until = now() + 1.5;
 }
+
+/* Scheda tolta a console accesa (m2/guardia-sd.c scrive /run/scheda-tolta, «SCADENZA AZIONE»;
+   ARCADE_SD_RUN al posto di /run nelle prove). Il programma gira dalla scheda e scrive lì: si ferma
+   (SIGSTOP) e resta fermo finché la scheda non torna. La finestra del launcher qui non c'è (gamemenu
+   legge dalla scheda caratteri e lingua): il messaggio lo scrive fbmsg, che è in memoria, e i LED
+   rossi li accende la guardia. Accensione breve = sospendi, tenuta = spegni (lo fa la guardia); alla
+   scadenza con «sospendi» si sospende. Rimessa la scheda il programma si chiude: riprenderlo
+   leggerebbe pagine e file della scheda tolta (cadrebbe, o salverebbe dove non resta niente). */
+static void sd_path(char *out, size_t n, const char *name) {
+    const char *d = getenv("ARCADE_SD_RUN");
+    snprintf(out, n, "%s/%s", d && *d ? d : "/run", name);
+}
+static bool sd_out_now(void) {
+    char p[256];
+    sd_path(p, sizeof p, "scheda-tolta");
+    return access(p, F_OK) == 0;
+}
+static void sd_msg(void) {
+    pid_t m = fork();
+    if (m == 0) {
+        int nul = open("/dev/null", O_RDWR);
+        if (nul >= 0) { dup2(nul, 1); dup2(nul, 2); }
+        execlp("fbmsg", "fbmsg", "show", "rosso", "0", "SCHEDA TOLTA", "RIMETTILA: IL GIOCO SI CHIUDE E TORNI AL MENU", (char *)NULL);
+        _exit(127);
+    }
+    if (m > 0) waitpid(m, NULL, 0);
+}
+/* gioco già fermo; torna quando la scheda è di nuovo al suo posto */
+static void sd_wait(pid_t pid, int ui, struct pollfd *fds, int nfds, double *block_until) {
+    fprintf(stderr, "gamewatch: scheda tolta, gioco fermo\n");
+    sd_msg();
+    double power_at = 0, acted = -1;
+    while (sd_out_now()) {
+        if (poll(fds, (nfds_t)nfds, 200) > 0) {
+            for (int i = 0; i < nfds; i++) {
+                struct input_event ev;
+                while (fds[i].fd >= 0 && read(fds[i].fd, &ev, sizeof ev) == (ssize_t)sizeof ev) {
+                    if (ev.type != EV_KEY || ev.code != KEY_POWER || now() < *block_until) continue;
+                    if (ev.value == 1) power_at = now();
+                    else if (ev.value == 0 && power_at) {
+                        power_at = 0;
+                        group_sleep(pid, ui, block_until);
+                        sd_msg();
+                    }
+                }
+            }
+        }
+        if (power_at && now() - power_at >= 1.2) {
+            char p[256];
+            sd_path(p, sizeof p, "scheda-spegni-ora");
+            FILE *f = fopen(p, "w");
+            if (f) fclose(f);
+            power_at = 0;
+            fprintf(stderr, "gamewatch: scheda tolta, spegnimento chiesto alla guardia\n");
+        }
+        char p[256], act[16] = "";
+        double dl = 0;
+        sd_path(p, sizeof p, "scheda-tolta");
+        FILE *f = fopen(p, "r");
+        if (f) { if (fscanf(f, "%lf %15s", &dl, act) != 2) act[0] = 0; fclose(f); }
+        if (!strcmp(act, "sospendi") && now() >= dl && dl != acted) {
+            acted = dl;
+            fprintf(stderr, "gamewatch: scheda tolta, sospensione alla scadenza\n");
+            group_sleep(pid, ui, block_until);
+            sd_msg();
+        }
+    }
+}
 #endif
 
 int main(int argc, char **argv) {
@@ -296,6 +364,20 @@ int main(int argc, char **argv) {
     for (;;) {
         int status;
         pid_t r = waitpid(pid, &status, WNOHANG);
+        if (standalone && r != pid && sd_out_now()) {
+            if (osd_pid > 0) { kill(osd_pid, SIGTERM); waitpid(osd_pid, NULL, 0); osd_pid = 0; }
+            kill(-pid, SIGSTOP);
+            sd_wait(pid, ui, fds, nfds, &power_block_until);
+            /* scheda rimessa (o la guardia sta riavviando): il gioco si chiude, il launcher lo dice */
+            char mark[256];
+            sd_path(mark, sizeof mark, "gioco-chiuso-scheda");
+            FILE *mf = fopen(mark, "w");
+            if (mf) fclose(mf);
+            fprintf(stderr, "gamewatch: scheda rimessa, chiudo il gioco\n");
+            stop_group(pid);
+            if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
+            return 0;
+        }
         if (r == pid) {
             stop_group(pid);   /* il programma principale è finito: restano i processi che ha lanciato */
             if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }

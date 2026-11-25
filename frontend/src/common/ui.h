@@ -229,6 +229,8 @@ int ui_sd_poll(void);
 void ui_sd_publish(int secs, bool suspend);
 void ui_sd_draw(int sel);
 int ui_sd_input(int *sel);
+void ui_sd_off_now(void);        /* chiede alla guardia di spegnere (tasto tenuto premuto) */
+int ui_sd_stale_files(void);     /* dopo il rimontaggio: file ancora aperti sulla scheda tolta */
 bool ui_toast_active(void);   /* un avviso è a schermo (serve ridisegnare) */
 
 /* temi */

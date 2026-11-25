@@ -502,6 +502,11 @@ wait $lp
 c=$(python3 /tmp/centro.py /tmp/base.png /tmp/dentro.png)
 check "rimessa: la finestra se ne va e si riprende ($c punti diversi dalla home)" '[ -s /tmp/dentro.png ] && [ "$c" -lt 100 ]'
 check "rimessa: il registro riprende" 'grep -q "scheda rimessa e rimontata: si riprende" $R/Logs/Arcade.log'
+rm -f $S/scheda-tolta $S/scheda-rimessa; : > $S/gioco-chiuso-scheda   # gamewatch ha chiuso un gioco Linux
+rm -f /tmp/chiuso.png; ./build/launcher --root $R --auto "wait:40,shot:/tmp/chiuso.png,quit" > /tmp/l.log 2>&1
+c=$(python3 /tmp/diff.py /tmp/base.png /tmp/chiuso.png 500)
+check "gioco Linux chiuso per la scheda: l'avviso c'è ($c righe in alto)" '[ "$c" -gt 10 ]'
+check "gioco Linux chiuso per la scheda: l'avviso si dà una volta" '[ ! -e $S/gioco-chiuso-scheda ]'
 unset ARCADE_SD_RUN; rm -f $R/System/settings.json
 
 echo

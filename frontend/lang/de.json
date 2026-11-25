@@ -956,7 +956,8 @@
     "off_after": "Ausschalten nach %s",
     "suspend_after": "Ruhezustand nach %s",
     "back": "Karte wieder da: es geht weiter",
-    "bye": "Wird ausgeschaltet…"
+    "bye": "Wird ausgeschaltet…",
+    "game_closed": "Spiel beendet: Die Karte wurde entfernt"
   },
   "speaker": {
     "always": "Immer an",

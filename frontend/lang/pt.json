@@ -956,7 +956,8 @@
     "off_after": "Desligar após %s",
     "suspend_after": "Suspender após %s",
     "back": "Cartão de volta: a continuar",
-    "bye": "A desligar…"
+    "bye": "A desligar…",
+    "game_closed": "Jogo fechado: o cartão foi retirado"
   },
   "speaker": {
     "always": "Sempre ligado",

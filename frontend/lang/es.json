@@ -956,7 +956,8 @@
     "off_after": "Apagar tras %s",
     "suspend_after": "Suspender tras %s",
     "back": "Tarjeta de vuelta: seguimos",
-    "bye": "Apagando…"
+    "bye": "Apagando…",
+    "game_closed": "Juego cerrado: se quitó la tarjeta"
   },
   "speaker": {
     "always": "Siempre encendido",

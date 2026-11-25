@@ -956,7 +956,8 @@
     "off_after": "Éteindre après %s",
     "suspend_after": "Veille après %s",
     "back": "Carte remise : on reprend",
-    "bye": "Extinction…"
+    "bye": "Extinction…",
+    "game_closed": "Jeu fermé : la carte avait été retirée"
   },
   "speaker": {
     "always": "Toujours allumé",

@@ -956,7 +956,8 @@
     "off_after": "Turn off after %s",
     "suspend_after": "Sleep after %s",
     "back": "Card back: resuming",
-    "bye": "Turning off…"
+    "bye": "Turning off…",
+    "game_closed": "Game closed: the card was removed"
   },
   "speaker": {
     "always": "Always on",

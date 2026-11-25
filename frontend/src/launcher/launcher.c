@@ -10626,6 +10626,12 @@ int main(int argc, char **argv) {
     if (!ui_init("Arcade", root, auto_script, 48000, true)) return 1;
     plat_cpu_fixed(CPU_ACTIVE_KHZ);
     ui_sd_publish(UI.set.sdout_secs, UI.set.sdout_suspend);   /* per la guardia della scheda */
+    {   /* gioco Linux o app chiusi da gamewatch perché la scheda era stata tolta: lo si dice */
+        const char *d = getenv("ARCADE_SD_RUN");
+        char gm[300];
+        snprintf(gm, sizeof gm, "%s/gioco-chiuso-scheda", d && *d ? d : "/run");
+        if ((plat_standalone() || (d && *d)) && unlink(gm) == 0) ui_toast(T("sdout.game_closed"));
+    }
 #ifndef TRIMUI_DEVICE
     if (!UI.set.wifi) wifi_enable(false);   /* Mac: il Wi-Fi simulato segue l'impostazione (sulla console lo fa system-init) */
 #endif
