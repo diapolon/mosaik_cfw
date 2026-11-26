@@ -83,6 +83,10 @@ static void show(const char *color, int secs, const char *l1, const char *l2) {
     text(title, (W - text_w(title, sc)) / 2, H / 4, sc, 0xffffff);
     if (l1) text(l1, (W - text_w(l1, sc / 2)) / 2, H / 2, sc / 2, 0xffffff);
     if (l2) text(l2, (W - text_w(l2, sc / 2)) / 2, H / 2 + 12 * sc / 2, sc / 2, 0xffffff);
+    /* la pagina dove si è disegnato diventa quella mostrata: il driver della GPU cambia pagina
+       senza aggiornare yoffset, e sopra un gioco Linux fermo (gamewatch, scheda tolta) il
+       messaggio restava in una pagina nascosta (prova del 26 novembre) */
+    ioctl(fbfd, FBIOPAN_DISPLAY, &var);
     if (secs <= 0) return;
     /* barra del tempo che si svuota */
     for (int t = secs * 10; t >= 0; t--) {

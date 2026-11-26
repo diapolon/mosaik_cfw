@@ -198,6 +198,8 @@ static void sd_msg(void) {
     if (m == 0) {
         int nul = open("/dev/null", O_RDWR);
         if (nul >= 0) { dup2(nul, 1); dup2(nul, 2); }
+        /* percorso intero prima: il gioco può aver cambiato PATH */
+        execl("/usr/arcade/bin/fbmsg", "fbmsg", "show", "rosso", "0", "SCHEDA TOLTA", "RIMETTILA: IL GIOCO SI CHIUDE E TORNI AL MENU", (char *)NULL);
         execlp("fbmsg", "fbmsg", "show", "rosso", "0", "SCHEDA TOLTA", "RIMETTILA: IL GIOCO SI CHIUDE E TORNI AL MENU", (char *)NULL);
         _exit(127);
     }
