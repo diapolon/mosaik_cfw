@@ -1974,7 +1974,7 @@ static int sd_old_mnt = -1;   /* il mount della scheda tolta: i file rimasti ape
 
 /* numero del mount (mountinfo) che contiene path; il rimontaggio ne crea uno nuovo, anche se la
    scheda rimessa ha lo stesso dispositivo (mmcblk0p4) e quindi lo stesso st_dev */
-static int mount_id_of(const char *path) {
+static int mount_id_of_at(const char *path, char *point, size_t point_n) {
     char real[PATH_MAX], line[1400];
     if (!realpath(path, real)) return -1;
     FILE *f = fopen("/proc/self/mountinfo", "r");
@@ -1986,10 +1986,48 @@ static int mount_id_of(const char *path) {
         if (sscanf(line, "%d %*d %*s %*s %1023s", &id, mp) != 2) continue;
         size_t n = strlen(mp);
         bool inside = !strcmp(mp, "/") || (!strncmp(real, mp, n) && (real[n] == '/' || real[n] == 0));
-        if (inside && (best < 0 || n >= best_len)) { best = id; best_len = n; }
+        if (inside && (best < 0 || n >= best_len)) {
+            best = id;
+            best_len = n;
+            if (point) snprintf(point, point_n, "%s", mp);
+        }
     }
     if (f) fclose(f);
     return best;
+}
+static int mount_id_of(const char *path) { return mount_id_of_at(path, NULL, 0); }
+
+/* mnt_id del file aperto fd (fdinfo), -1 se non si sa */
+static int fd_mount_id(int fd) {
+    char p[64], line[128];
+    int mnt = -1;
+    snprintf(p, sizeof p, "/proc/self/fdinfo/%d", fd);
+    FILE *f = fopen(p, "r");
+    while (f && fgets(line, sizeof line, f)) if (sscanf(line, "mnt_id: %d", &mnt) == 1) break;
+    if (f) fclose(f);
+    return mnt;
+}
+
+/* uscita ed errori (1 e 2) che system-init manda in Logs/avvio.log sulla scheda: dopo il
+   rimontaggio puntano ancora alla scheda tolta e il runner li contava fra i file rimasti aperti,
+   chiudendo ogni gioco (prova del 25 novembre). Si riaprono, in aggiunta, sulla scheda rimessa. */
+static void sd_reopen_std(void) {
+    char point[1024] = "";
+    if (sd_old_mnt < 0 || mount_id_of_at(UI.root, point, sizeof point) < 0 || !point[0]) return;
+    for (int fd = 1; fd <= 2; fd++) {
+        if (fd_mount_id(fd) != sd_old_mnt) continue;
+        char p[64], rel[600], path[1700];
+        snprintf(p, sizeof p, "/proc/self/fd/%d", fd);
+        ssize_t l = readlink(p, rel, sizeof rel - 1);
+        if (l <= 0 || rel[0] != '/') continue;
+        rel[l] = 0;
+        if (strstr(rel, " (deleted)")) continue;
+        snprintf(path, sizeof path, "%s%s", strcmp(point, "/") ? point : "", rel);
+        int nfd = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644);
+        if (nfd < 0) continue;
+        dup2(nfd, fd);   /* dup2 toglie O_CLOEXEC alla copia: i programmi avviati la ereditano */
+        close(nfd);
+    }
 }
 
 static const char *sd_dir(void) {
@@ -2051,6 +2089,7 @@ int ui_sd_poll(void) {
            non trovate mentre era fuori si cercano di nuovo */
         if (logf_) { fclose(logf_); logf_ = NULL; }
         crash_fd_reopen();
+        sd_reopen_std();
         ui_image_forget_missing();
         sd_out_flush();
         ui_log("scheda rimessa e rimontata: si riprende");
@@ -2109,13 +2148,9 @@ int ui_sd_stale_files(void) {
     DIR *d = sd_old_mnt >= 0 ? opendir("/proc/self/fd") : NULL;
     struct dirent *e;
     while (d && (e = readdir(d))) {
-        char p[64], target[600], line[128];
+        char p[64], target[600];
         struct stat st;
-        int mnt = -1;
-        snprintf(p, sizeof p, "/proc/self/fdinfo/%s", e->d_name);
-        FILE *fi = e->d_name[0] != '.' ? fopen(p, "r") : NULL;
-        while (fi && fgets(line, sizeof line, fi)) if (sscanf(line, "mnt_id: %d", &mnt) == 1) break;
-        if (fi) fclose(fi);
+        int mnt = e->d_name[0] != '.' ? fd_mount_id(atoi(e->d_name)) : -1;
         snprintf(p, sizeof p, "/proc/self/fd/%s", e->d_name);
         if (mnt != sd_old_mnt || stat(p, &st) != 0 || !S_ISREG(st.st_mode)) continue;
         ssize_t l = readlink(p, target, sizeof target - 1);

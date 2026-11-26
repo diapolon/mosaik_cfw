@@ -114,8 +114,9 @@ prepara() {   # SD con Arcade, il core e il gioco $1 (gioco.bin o gioco.cue), gu
     sync
     rm -rf /tmp/run/* /tmp/azione /tmp/frames
     /tmp/guardia "${LOOP#/dev/}" "$LOOP" 60 & gpid=$!
-    ( cd /w/frontend && exec ./build/runner --root $R --core $R/Cores/prova_libretro.so --rom $R/Roms/PROVA/$1 ) > /tmp/runner.out 2>&1 & rpid=$!
-    aspetta 20 '[ "$(frames)" -gt 60 ]' || ko "il gioco non parte: $(tail -5 /tmp/runner.out)"
+    # uscita e errori nel registro di system-init sulla scheda, come sulla console (Logs/avvio.log)
+    ( cd /w/frontend && exec ./build/runner --root $R --core $R/Cores/prova_libretro.so --rom $R/Roms/PROVA/$1 ) >> $R/Logs/avvio.log 2>&1 & rpid=$!
+    aspetta 20 '[ "$(frames)" -gt 60 ]' || ko "il gioco non parte: $(tail -5 $R/Logs/avvio.log)"
 }
 togli() { sync; cp /tmp/sd.img /tmp/sd.bak; truncate -s 0 /tmp/sd.img; losetup -c "$LOOP"; echo 3 > /proc/sys/vm/drop_caches; }
 rimetti() { cat /tmp/sd.bak > /tmp/sd.img; losetup -c "$LOOP"; }
