@@ -153,6 +153,14 @@ print(sum(1 for y in range(h * 92 // 100, h) for x in range(0, w * 80 // 100) if
 X
 n=$(python3 /tmp/barra.py /tmp/c-lungo.png /tmp/c-corto.png)
 check "10 comandi su 8 righe: la barra dice che si scorre ($n pixel diversi da quella con 2 comandi)" '[ "$n" -gt 50 ]'
+# 26 novembre: intorno al pannello si vede il gioco fermo, scurito (come sotto il volume e la finestra
+# della scheda tolta); il pannello resta pieno
+SDL_VIDEODRIVER=dummy ./build/gamemenu --root $R --shot /tmp/menu-gioco.png > /tmp/g.log 2>&1
+v=$(python3 -c "
+from PIL import Image
+i = Image.open('/tmp/menu-gioco.png').convert('RGBA'); w, h = i.size
+print(i.getpixel((w - 10, h // 3))[3], i.getpixel((w // 6, h // 2))[3])")
+check "menu sopra un gioco Linux: fuori dal pannello il gioco si vede, il pannello è pieno (alfa $v)" '[ "${v% *}" -ge 120 ] && [ "${v% *}" -le 200 ] && [ "${v#* }" = 255 ]'
 
 # audit 0.9.88, LAU-19: senza emulatori Piattaforme mostrava «Tutti, 0 giochi» senza invitare allo
 # Store; A apriva la libreria vuota. Ora invita, e A apre lo Store

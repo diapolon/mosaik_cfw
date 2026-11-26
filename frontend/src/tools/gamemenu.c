@@ -112,9 +112,10 @@ static void row_text(int i, char *label, size_t ln, char *value, size_t vn) {
 static void draw_base(int px, int py, int pw, int ph) {
     theme_t *t = &UI.th;
     int r = M(t->panel_radius) * 2;
-    /* tutto lo schermo coperto, senza trasparenza: i pulsanti del gioco visti sotto il velo si
-       confondevano con le voci del menu (Smart Pro, 14 novembre) */
-    ui_rect(0, 0, UI.w, UI.h, with_alpha(t->bg, 255));
+    /* intorno al pannello il gioco fermo, scurito come sotto la barra del volume e la finestra della
+       scheda tolta (26 novembre). Dal 14 novembre era tutto coperto, perché i pulsanti del gioco
+       visti sotto il velo si confondevano con le voci; ora il pannello è pieno e li copre lui. */
+    ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 170));
     ui_shadow(px, py + M(0.01f), pw, ph, r, M(0.04f), rgba(0, 0, 0, 110));
     /* fondo pieno: sotto il gioco Linux continua a muoversi e con una superficie semitrasparente
        (tema Copertina) il menu si leggeva male, come per le finestre delle app (app_panel) */
@@ -145,7 +146,7 @@ static void draw_static(const char *title) {
     ui_text(UI.f_small, buf, px + pad, py + ph - pad / 2 - note_h + M(0.01f), t->text_dim, ALIGN_LEFT);
     g_px = px; g_py = py; g_pw = pw; g_ph = ph; g_rows_y = y; g_rh = M(t->list_row_h);
     g_area_h = py + ph - pad / 2 - note_h - y - M(0.01f);
-    ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, 255));
+    ui_rect(0, UI.h - hb, UI.w, hb, with_alpha(t->bg, 235));   /* come nel menu degli arcade */
     if (ctl_page) {
         /* comandi che non stanno tutti (N64: 8 righe su 10): su e giù scorrono, e la barra lo dice
            (audit 0.9.88, GIO-16) */
