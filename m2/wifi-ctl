@@ -103,6 +103,7 @@ resume)
     inputd_resume "$2"
     ;;
 on)
+    sd_attesa   # scheda tolta: si aspetta, prima di tutto (driver, registro, reti)
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
     tok=$$.$(cut -d' ' -f1 /proc/uptime)
     # il timer prima della pausa: anche se qualcosa va storto qui sotto, i tasti tornano
@@ -112,7 +113,9 @@ on)
     # (WIFI_MODULES: un'altra compilazione dello stesso driver, solo per m2/prova-wifi)
     for m in xradio_mac xradio_core xradio_wlan; do
         grep -q "^$m " /proc/modules && continue
-        insmod "${WIFI_MODULES:-/run/fw/modules}/$m.ko" >> "$LOG" 2>&1 || logs "insmod $m: errore"
+        # l'uscita non va diretta in wifi.log: se il file non si apre (scheda appena tolta) la shell
+        # non esegue nemmeno insmod, e wlan0 non compare (Brick Pro, 26 novembre)
+        out=$(insmod "${WIFI_MODULES:-/run/fw/modules}/$m.ko" 2>&1) || logs "insmod $m: errore${out:+: $out}"
     done
     for i in $(seq 50); do [ -e /sys/class/net/wlan0 ] && break; sleep 0.2; done
     if [ ! -e /sys/class/net/wlan0 ]; then
@@ -124,7 +127,6 @@ on)
     done
     # anche se è vuoto: il controllo della SD svuota un file rimasto a metà dopo uno spegnimento
     # brusco, e senza update_config=1 wpa_supplicant non salverebbe più nessuna rete
-    sd_attesa
     if conf_vuoto; then
         printf 'ctrl_interface=%s\nupdate_config=1\n' "$CTRL" > "$CONF"
     fi

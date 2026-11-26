@@ -351,8 +351,14 @@ stop_scan() {
 valid() { echo "$1" | grep -q -E '^([0-9A-F]{2}:){5}[0-9A-F]{2}$' || { echo "indirizzo non valido: $1" >&2; exit 2; }; }
 connected_line() { timeout 5 bluetoothctl paired-devices 2> /dev/null | describe | awk -F'\t' '$4 == 1 { print; exit }'; }
 
+# Scheda tolta (m2/guardia-sd.c): i demoni partono con l'uscita in bluetooth.log sulla scheda, e se
+# il file non si apre la shell non li avvia nemmeno (Wi-Fi sulla Brick Pro, 26 novembre: «wlan0 non
+# comparsa»). Si aspetta che la guardia la rimonti (o spenga). BT_SD_RUN al posto di /run nelle prove.
+sd_attesa() { while [ -e "${BT_SD_RUN:-/run}/scheda-tolta" ]; do sleep 0.5; done; }
+
 case "$1" in
 on)
+    sd_attesa
     lock on
     # il launcher mostra "in accensione" finché c'è questo file
     : > "$RUN/avvio"; trap 'keys_go; rm -f "$RUN/avvio"' EXIT; trap 'exit 1' INT TERM

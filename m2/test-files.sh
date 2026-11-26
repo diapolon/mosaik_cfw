@@ -439,7 +439,18 @@ check "cartella che non c'è più: niente file nuovo" [ "$(cv $W/cf/via/wifi.con
 check "scheda tolta: il Wi-Fi aspetta" [ ! -e $W/atteso ]
 rm -f $W/sdrun/scheda-tolta; sleep 1
 check "scheda rimontata: il Wi-Fi va avanti" [ -e $W/atteso ]
-awk '/sd_attesa$/{a=NR} /if conf_vuoto; then/{c=NR} /wpa_supplicant -B/{w=NR} END{exit !(a&&a<c&&c<w)}' $CTL && ok "si aspetta la scheda prima di leggere le reti" || ko "ordine di attesa e lettura"
+awk '/sd_attesa  *#/{a=NR} /insmod "/{i=NR} /if conf_vuoto; then/{c=NR} END{exit !(a&&a<i&&i<c)}' $CTL && ok "si aspetta la scheda prima del driver e delle reti" || ko "ordine di attesa, driver e reti"
+# Brick Pro, 26 novembre: Wi-Fi acceso con la scheda fuori, «wlan0 non comparsa». insmod scriveva in
+# wifi.log sulla scheda (>> "$LOG"): il file non si apriva e la shell non eseguiva insmod.
+mkdir -p $W/fakebin; rm -rf $W/tolta $W/insmod.log
+printf '#!/bin/sh\necho "${1##*/}" >> %s/insmod.log\n' $W > $W/fakebin/insmod; chmod +x $W/fakebin/insmod
+: > $W/sdrun/scheda-tolta
+( PATH=$W/fakebin:$PATH ROOT=$W/tolta ARCADE_LOG_DIR=$W/tolta/Logs WIFI_SD_RUN=$W/sdrun WIFI_LOCK=$W/lock-on \
+  WIFI_MODULES=$W/mod WIFI_I2C=$W/nessun-i2c sh $CTL on ) > /dev/null 2>&1 & won=$!
+sleep 1.5; mkdir -p $W/tolta/Logs $W/tolta/System; rm -f $W/sdrun/scheda-tolta   # la scheda torna
+sleep 1.5
+check "Wi-Fi acceso a scheda tolta: il driver si carica quando torna ($(cat $W/insmod.log 2> /dev/null | tr '\n' ' '))" [ "$(cat $W/insmod.log 2> /dev/null | tr '\n' ' ')" = "xradio_mac.ko xradio_core.ko xradio_wlan.ko " ]
+kill $won 2> /dev/null; wait $won 2> /dev/null || true
 check "impostazione scritta nel file aggiuntivo" grep -q 'disable_scan_offload=1 > /run/wpa-overlay.conf' $CTL
 check "attesa prima di wpa_supplicant" grep -q '^    sleep 0.5' $CTL
 

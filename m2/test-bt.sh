@@ -645,5 +645,17 @@ check "ricollegate dal menu: volume 35% rimesso" 'grep -qxF "volume Wireless Ear
 $CTL off > /dev/null 2>&1
 reset
 
+# Brick Pro, 26 novembre: col Wi-Fi acceso a scheda tolta il driver non si caricava (l'uscita andava
+# nel registro sulla scheda e la shell non eseguiva il comando); bt-ctl avvia i demoni allo stesso modo
+echo "--- acceso a scheda tolta: si aspetta che torni"
+reset; mkdir -p /tmp/sdbt; : > /tmp/sdbt/scheda-tolta; mv $ROOT/Logs $ROOT/Logs.via
+BT_SD_RUN=/tmp/sdbt $CTL on > /dev/null 2>&1 & bp=$!; sleep 8   # più di quanto dura l'accensione
+check "scheda fuori: il chip non si accende ancora" '! grep -q hciattach $F/calls 2> /dev/null'
+mv $ROOT/Logs.via $ROOT/Logs; rm -f /tmp/sdbt/scheda-tolta   # la scheda torna
+i=0; while kill -0 $bp 2> /dev/null && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+check "scheda tornata: acceso, bluetoothd e bluealsa avviati" '[ -f /tmp/runbt/bluetoothd.pid ] && [ -f /tmp/runbt/bluealsa.pid ]'
+$CTL off > /dev/null 2>&1
+reset
+
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }
