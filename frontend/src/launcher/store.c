@@ -96,7 +96,20 @@ static size_t to_mem(char *p, size_t s, size_t n, void *u) {
     return k;
 }
 
+/* scheda tolta a console accesa (m2/guardia-sd.c scrive /run/scheda-tolta; ARCADE_SD_RUN nelle
+   prove): lo scaricamento si ferma subito. Con la scheda appena tolta il kernel accetta ancora le
+   scritture in memoria: si scaricava tutto il pacchetto in memoria e l'errore arrivava solo alla
+   fine, senza una riga nel registro (prova del 26 novembre) */
+static bool dl_card_out;
+static bool card_out(void) {
+    const char *d = getenv("ARCADE_SD_RUN");
+    char p[600];
+    snprintf(p, sizeof p, "%s/scheda-tolta", d && d[0] ? d : "/run");
+    return access(p, F_OK) == 0;
+}
+
 static size_t to_file(char *p, size_t s, size_t n, void *u) {
+    if (card_out()) { dl_card_out = true; return 0; }
     size_t w = fwrite(p, s, n, u);
     if (w == n) st.done += (long long)(s * n);
     return w * s;
@@ -1185,17 +1198,19 @@ static int install_job(void) {
         curl_easy_setopt(c, CURLOPT_WRITEDATA, f);
         if (have_b) { curl_easy_setopt(c, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)have_b); st.done = have_b; }
         curl_easy_setopt(c, CURLOPT_MAXFILESIZE_LARGE, (curl_off_t)(e.p.size - have_b));
+        dl_card_out = false;
         CURLcode rc = curl_easy_perform(c);
         curl_easy_cleanup(c);
         bool flushed = fflush(f) == 0 && fsync(fileno(f)) == 0;
         fclose(f);
         if (st.cancel) { return SE_CANCEL; }
+        if (dl_card_out) { ui_log("store: %s: scheda tolta, scaricamento fermato", e.p.file); return SE_WRITE; }
         if (rc == CURLE_RANGE_ERROR || rc == CURLE_FILESIZE_EXCEEDED) unlink(part);
         /* più grande del pacchetto del catalogo: non è quello */
         if (rc == CURLE_FILESIZE_EXCEEDED) { ui_log("store: %s più grande del catalogo", e.p.file); return SE_VERIFY; }
         if (rc == CURLE_WRITE_ERROR) { ui_log("store: %s: scrittura sulla scheda non riuscita", e.p.file); return SE_SPACE; }   /* AGG-07 */
         if (rc != CURLE_OK) { ui_log("store: %s: %s", e.p.file, curl_easy_strerror(rc)); return SE_NETWORK; }
-        if (!flushed) { return SE_WRITE; }
+        if (!flushed) { ui_log("store: %s: scrittura sulla scheda non riuscita (scheda tolta?)", e.p.file); return SE_WRITE; }
         if (stat(part, &sb) != 0 || sb.st_size != e.p.size || !sha256_file(part, sha) || strcmp(sha, e.p.sha)) {
             unlink(part);
             ui_log("store: %s non corrisponde al catalogo", e.p.file);

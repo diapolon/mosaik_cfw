@@ -186,6 +186,12 @@ check "registro con i percorsi lunghi interi" "2" "$(grep -c -e "^file $L1\$" -e
 check "registro: una riga per file" "$(find pkgsrc/files -type f | wc -l | tr -d ' ')" "$(grep -c '^file ' sd/System/pacchetti/files.txt)"
 check "app eliminata" "4 0 0" "$(./t $R delete files 2>/dev/null)"
 check "cartella dell'app tolta" "no" "$([ -d sd/Apps/files ] && echo si || echo no)"
+# scheda tolta a console accesa (m2/guardia-sd.c scrive scheda-tolta): con la scheda appena tolta il
+# kernel accetta ancora le scritture in memoria, e lo Store scaricava tutto per fallire solo alla fine
+mkdir -p $W/run-sd; : > $W/run-sd/scheda-tolta
+r=$(ARCADE_SD_RUN=$W/run-sd ./t $R install fbneo 2> $W/err-sd.txt)
+check "scheda tolta: lo Store si ferma e lo scrive nel registro" "5 6 0 si" "$r $(grep -q 'scheda tolta' $W/err-sd.txt && echo si || echo no)"
+rm -rf $W/run-sd
 check "installazione" "4 0 1" "$(./t $R install fbneo 2>/dev/null)"
 check "file del pacchetto sulla scheda" "indice 1" "$(cat sd/Dats/fbneo.tsv)"
 check "registro con la versione" "si" "$(grep -q '^version ' sd/System/pacchetti/fbneo.txt && echo si || echo no)"

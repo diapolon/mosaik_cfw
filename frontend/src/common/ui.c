@@ -6,6 +6,7 @@
 #endif
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include "platform.h"
 #include "json.h"
 #include "lang.h"
@@ -297,6 +298,7 @@ void ui_mark(const char *what) {
 static char sd_out_log[8192];
 static size_t sd_out_len;
 static int sd_out_lost;
+static pthread_mutex_t sd_out_lock = PTHREAD_MUTEX_INITIALIZER;   /* ui_log arriva anche dai thread (Store, aggiornamento, Wi-Fi) */
 
 void ui_log(const char *fmt, ...) {
     if (!log_on() || UI.sd_failed) return;   /* SD guasta: una scrittura non tornerebbe più */
@@ -310,10 +312,12 @@ void ui_log(const char *fmt, ...) {
     localtime_r(&now, &tmv);
     fprintf(stderr, "%s\n", msg);
     if (UI.sd_out) {   /* scheda tolta (ui_sd_poll) */
+        pthread_mutex_lock(&sd_out_lock);
         int n = snprintf(sd_out_log + sd_out_len, sizeof sd_out_log - sd_out_len, "%02d:%02d:%02d %s\n",
                          tmv.tm_hour, tmv.tm_min, tmv.tm_sec, msg);
         if (n > 0 && sd_out_len + n < sizeof sd_out_log) sd_out_len += n;
         else { sd_out_log[sd_out_len] = 0; sd_out_lost++; }
+        pthread_mutex_unlock(&sd_out_lock);
         return;
     }
     if (!logf_ && log_path[0]) logf_ = fopen(log_path, "a");
@@ -325,7 +329,8 @@ void ui_log(const char *fmt, ...) {
 
 /* scheda rimessa: le righe tenute in memoria finiscono nel registro */
 static void sd_out_flush(void) {
-    if (!sd_out_len && !sd_out_lost) return;
+    pthread_mutex_lock(&sd_out_lock);
+    if (!sd_out_len && !sd_out_lost) { pthread_mutex_unlock(&sd_out_lock); return; }
     if (!logf_ && log_path[0] && log_on()) logf_ = fopen(log_path, "a");
     if (logf_) {
         fwrite(sd_out_log, 1, sd_out_len, logf_);
@@ -334,6 +339,7 @@ static void sd_out_flush(void) {
     }
     sd_out_len = 0;
     sd_out_lost = 0;
+    pthread_mutex_unlock(&sd_out_lock);
 }
 
 /* ------------------------------------------------------------- colori */
@@ -2084,7 +2090,8 @@ int ui_sd_poll(void) {
     snprintf(p, sizeof p, "%s/scheda-rimessa", d);
     int count = 0;
     if ((f = fopen(p, "r"))) { if (fscanf(f, "%d", &count) != 1) count = 0; fclose(f); }
-    if (sd_count >= 0 && count != sd_count && sd_state == SD_IN) {
+    if (sd_count < 0) sd_count = count;
+    if (count != sd_count && sd_state == SD_IN) {
         /* la scheda rimontata è un'altra cosa per il kernel: il registro si riapre, le immagini
            non trovate mentre era fuori si cercano di nuovo */
         if (logf_) { fclose(logf_); logf_ = NULL; }
@@ -2096,7 +2103,8 @@ int ui_sd_poll(void) {
         ui_log("scheda rimessa e rimontata: si riprende");
         ev = SD_EV_BACK;
     }
-    if (sd_state == SD_IN || count != sd_count) sd_count = count;
+    /* la guardia fa crescere il contatore prima di togliere il segno: si conta solo a scheda dentro */
+    if (sd_state == SD_IN) sd_count = count;
     if (sd_state == SD_OUT && sd_suspend_act && mono_now() >= sd_deadline && sd_acted != sd_deadline) {
         sd_acted = sd_deadline;
         ev = SD_EV_SUSPEND;

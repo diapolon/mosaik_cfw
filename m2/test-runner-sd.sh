@@ -159,9 +159,10 @@ fine
 
 echo "--- gioco Linux sotto gamewatch: fermo a scheda fuori, chiuso alla scheda rimessa"
 gcc -std=c11 -O2 -D_DEFAULT_SOURCE -o /tmp/gw /trimui/frontend/src/tools/gamewatch.c || ko "gamewatch non compila"
-rm -rf /tmp/run/* /tmp/tick /tmp/gioco-chiuso
+rm -rf /tmp/run/* /tmp/tick /tmp/gioco-chiuso; echo "salvato prima" > /tmp/salvataggio
 cat > /tmp/gioco.sh <<'X'
-trap 'echo chiuso > /tmp/gioco-chiuso; exit 0' TERM
+# in uscita il gioco salva: con la scheda appena rimessa il salvataggio potrebbe restare a metà
+trap 'echo mezzo > /tmp/salvataggio; echo chiuso > /tmp/gioco-chiuso; exit 0' TERM
 i=0; while :; do i=$((i + 1)); echo $i > /tmp/tick; sleep 0.1; done
 X
 /tmp/gw -- sh /tmp/gioco.sh 2> /tmp/gw.log & gw=$!
@@ -173,7 +174,10 @@ check "scheda fuori: gamewatch aspetta" 'kill -0 $gw 2> /dev/null'
 rm -f /tmp/run/scheda-tolta   # rimontata
 aspetta 10 '! kill -0 $gw 2> /dev/null'
 wait $gw; rc=$?
-check "scheda rimessa: il gioco si chiude in ordine e si torna al launcher (uscita $rc)" '[ $rc = 0 ] && [ -f /tmp/gioco-chiuso ]'
+t3=$(cat /tmp/tick)
+check "scheda rimessa: si torna al launcher (uscita $rc)" '[ $rc = 0 ]'
+check "scheda rimessa: il gioco non riparte ($t2, poi $t3) e non scrive il salvataggio in uscita" '[ "$t3" = "$t2" ] && [ "$(cat /tmp/salvataggio)" = "salvato prima" ] && [ ! -f /tmp/gioco-chiuso ]'
+check "scheda rimessa: del gioco non resta niente" '! pgrep -f gioco.sh > /dev/null'
 check "segno per il launcher: gioco chiuso per la scheda" '[ -f /tmp/run/gioco-chiuso-scheda ]'
 
 echo

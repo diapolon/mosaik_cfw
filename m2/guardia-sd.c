@@ -4,28 +4,36 @@
  *
  * Il sistema gira in memoria (m2/ramroot.c): togliendo la scheda launcher e impostazioni restano
  * vivi, ma la cartella Arcade (/mnt/SDCARD) è agganciata alla scheda tolta. system-init copia questo
- * programma in memoria (/run/guardia, con fbmsg e axpctl, statici) e lo avvia da lì. Ogni mezzo
- * secondo guarda se il disco c'è (dimensione maggiore di zero: la prova del 23 novembre ha mostrato
- * che il kernel vede la scheda sparire e tornare con lo stesso nome).
- * - Scheda sparita per più di un secondo: LED rossi lampeggianti e /run/scheda-tolta, una riga
- *   «SCADENZA AZIONE» (SCADENZA in secondi di CLOCK_MONOTONIC, AZIONE spegni o sospendi): il
- *   launcher mostra la finestra con il conto alla rovescia. Secondi e azione sono quelli che il
- *   launcher ha scritto in /run/scheda-impostazioni (la scheda non si può più leggere), altrimenti
- *   SECONDI (60) e spegni.
+ * programma in memoria (/run/guardia, con fbmsg e axpctl, statici) e lo avvia da lì. Dieci volte al
+ * secondo guarda se il disco c'è (dimensione maggiore di zero: il kernel vede la scheda sparire e
+ * tornare con lo stesso nome) e il numero del dispositivo della partizione (sparita e tornata fra
+ * due controlli = disco nuovo).
+ * - Scheda sparita (basta un controllo: il vecchio aggancio è morto): LED rossi lampeggianti e
+ *   /run/scheda-tolta, una riga «SCADENZA AZIONE» (SCADENZA in secondi di CLOCK_MONOTONIC, AZIONE
+ *   spegni o sospendi): il launcher mostra la finestra con il conto alla rovescia. Secondi e azione
+ *   sono quelli che il launcher ha scritto in /run/scheda-impostazioni (la scheda non si può più
+ *   leggere), altrimenti SECONDI (60) e spegni.
  * - Alla scadenza: spegni = spegnimento con axpctl; sospendi = la sospende il launcher, e se dopo
  *   RISERVA secondi (30) nessuno l'ha fatto si spegne. Dopo un risveglio con la scheda ancora fuori
- *   il conto riparte. /run/scheda-spegni-ora (pulsante della finestra) spegne subito.
- * - Rimessa: AZIONE diventa «rimonto»; se è la stessa scheda (numero di serie del FAT letto
- *   all'avvio) fsck.fat -a la ripara, il vecchio aggancio si stacca (MNT_DETACH: i file rimasti
- *   aperti restano sulla scheda tolta) e la partizione si rimonta come nell'initramfs (noatime,
- *   flush). Poi /run/scheda-tolta sparisce e il contatore /run/scheda-rimessa cresce: il launcher
- *   riapre i suoi file e riprende da dov'era. Una scheda diversa o un passo non riuscito: riavvio
- *   (col caricatore collegato spegnimento, perché dopo un riavvio U-Boot resterebbe a schermo nero,
- *   issue #2). Com'è andata finisce in Arcade/Logs/scheda-tolta.txt: dopo un passo non riuscito
- *   con la stessa scheda la si aggancia da parte un momento e si aggiungono i messaggi del kernel.
- * Nelle prove: GUARDIA_TEST=file scrive «riavvio» o «spegnimento» invece di farlo, GUARDIA_RUN e
- * GUARDIA_MNT al posto di /run e /mnt/SDCARD, GUARDIA_USB il file del caricatore, GUARDIA_LED la
- * cartella dei LED, GUARDIA_RISERVA i secondi di riserva (m2/test-guardia-sd.sh). */
+ *   il conto riparte. /run/scheda-spegni-ora (pulsante della finestra) spegne subito; una richiesta
+ *   rimasta da prima si cancella a ogni estrazione.
+ * - Rimessa: AZIONE diventa «rimonto»; se è la stessa scheda (numero di serie del FAT e CID della
+ *   scheda letti all'avvio: il numero del FAT è lo stesso per tutte le schede scritte con la stessa
+ *   immagine) e il sistema gira davvero in memoria, fsck.fat -a la ripara, il vecchio aggancio si
+ *   stacca (MNT_DETACH: i file rimasti aperti restano sulla scheda tolta) e la partizione si
+ *   rimonta come nell'initramfs (noatime, flush). Poi cresce il contatore /run/scheda-rimessa e
+ *   sparisce /run/scheda-tolta: il launcher riapre i suoi file e riprende da dov'era. Tolta di
+ *   nuovo durante il controllo: di nuovo il conto alla rovescia. Una scheda diversa o un passo non
+ *   riuscito: riavvio (col caricatore collegato spegnimento, perché dopo un riavvio U-Boot
+ *   resterebbe a schermo nero, issue #2), con il segno lasciato perché nessuno riparta. Com'è
+ *   andata finisce in Arcade/Logs/scheda-tolta.txt: dopo un passo non riuscito con la stessa
+ *   scheda, riparata da fsck, la si aggancia da parte un momento e si aggiungono i messaggi del
+ *   kernel.
+ * Nelle prove (m2/test-guardia-sd.sh): GUARDIA_TEST=file scrive «riavvio» o «spegnimento» invece di
+ * farlo, GUARDIA_RUN, GUARDIA_MNT e GUARDIA_SYS al posto di /run, /mnt/SDCARD e /sys/block,
+ * GUARDIA_USB il file del caricatore, GUARDIA_LED la cartella dei LED, GUARDIA_RISERVA i secondi di
+ * riserva, GUARDIA_FSCK il programma di controllo, GUARDIA_OPZIONI le opzioni del rimontaggio,
+ * GUARDIA_RADICE il file con il percorso che legge il loop della radice. */
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -45,10 +53,11 @@
 
 #define DIR_RAM "/run/guardia"
 
-static const char *run_dir, *mnt;
+static const char *run_dir, *mnt, *sysb;
 static char log_buf[4096];
 static size_t log_len;
-static bool same_card;   /* la scheda rimessa ha il numero di serie di quella tolta */
+static bool same_card;   /* la scheda rimessa ha numero di serie e CID di quella tolta */
+static bool fsck_ok;     /* fsck.fat è passato: sulla scheda rimessa si può scrivere il registro */
 
 static double clock_s(clockid_t c) {
     struct timespec t;
@@ -73,12 +82,64 @@ static void note(const char *fmt, ...) {
 }
 
 static bool disk_present(const char *disk) {
-    char p[128];
-    snprintf(p, sizeof p, "/sys/block/%s/size", disk);
+    char p[300];
+    snprintf(p, sizeof p, "%s/%s/size", sysb, disk);
     FILE *f = fopen(p, "r");
     long long size = 0;
     if (f) { if (fscanf(f, "%lld", &size) != 1) size = 0; fclose(f); }
     return size > 0;
+}
+
+/* numero del dispositivo della partizione («179:4»), vuoto se non c'è ancora: una scheda sparita e
+   tornata fra due controlli è per il kernel un disco nuovo, e il vecchio aggancio è morto comunque */
+static void part_dev(const char *disk, const char *part, char *out, size_t n) {
+    char p[400];
+    const char *b = strrchr(part, '/');
+    snprintf(p, sizeof p, "%s/%s/%s/dev", sysb, disk, b ? b + 1 : part);
+    out[0] = 0;
+    FILE *f = fopen(p, "r");
+    if (!f) return;
+    if (!fgets(out, (int)n, f)) out[0] = 0;
+    fclose(f);
+    out[strcspn(out, "\r\n")] = 0;
+}
+
+/* CID della scheda (registro del produttore, diverso per ogni scheda): il numero di serie del FAT
+   è lo stesso per tutte le schede scritte con la stessa immagine. Vuoto se non si legge. */
+static void card_cid(const char *disk, char *out, size_t n) {
+    char p[300];
+    snprintf(p, sizeof p, "%s/%s/device/cid", sysb, disk);
+    out[0] = 0;
+    FILE *f = fopen(p, "r");
+    if (!f) return;
+    if (!fgets(out, (int)n, f)) out[0] = 0;
+    fclose(f);
+    out[strcspn(out, "\r\n")] = 0;
+}
+
+/* radice in memoria (m2/ramroot.c): se il loop della radice legge ancora il file sulla scheda
+   tolta, rimontare non serve, il sistema cade alla prima pagina da rileggere. Vero anche quando
+   la radice non è un loop squashfs (nelle prove). GUARDIA_RADICE: file con il percorso al posto
+   di backing_file. */
+static bool root_in_ram(char *why, size_t n) {
+    char back[512] = "", p[300];
+    const char *test = getenv("GUARDIA_RADICE");
+    if (!test) {
+        FILE *m = fopen("/proc/mounts", "r");
+        char dev[128], mp[256], type[32], line[600];
+        bool loop = false;
+        while (m && fgets(line, sizeof line, m))
+            if (sscanf(line, "%127s %255s %31s", dev, mp, type) == 3 && !strcmp(mp, "/") && !strcmp(type, "squashfs")) { loop = !strncmp(dev, "/dev/loop", 9); break; }
+        if (m) fclose(m);
+        if (!loop) return true;
+        snprintf(p, sizeof p, "%s/%s/loop/backing_file", sysb, dev + 5);
+        test = p;
+    }
+    FILE *f = fopen(test, "r");
+    if (f) { if (!fgets(back, sizeof back, f)) back[0] = 0; fclose(f); }
+    back[strcspn(back, "\r\n")] = 0;
+    snprintf(why, n, "%s", back[0] ? back : "loop della radice illeggibile");
+    return !strncmp(back, "/run/", 5);
 }
 
 static int read_int(const char *path) {
@@ -185,21 +246,31 @@ static bool fat_serial(const char *dev, uint32_t *serial) {
 }
 
 /* scheda rimessa: stessa scheda, riparata e rimontata; falso = va riavviato */
-static bool remount(const char *part, bool have_serial, uint32_t serial) {
+static bool remount(const char *disk, const char *part, bool have_serial, uint32_t serial, const char *cid0) {
+    fsck_ok = false;
     if (!have_serial) { note("numero di serie della scheda sconosciuto dall'avvio"); return false; }
     uint32_t now = 0;
     bool got = false;
     for (int i = 0; i < 60 && !(got = fat_serial(part, &now)); i++) usleep(250000);   /* la partizione arriva poco dopo il disco */
     if (!got) { note("partizione %s non leggibile", part); return false; }
     if (now != serial) { note("scheda diversa (FAT %08X, all'avvio %08X)", now, serial); return false; }
+    if (cid0[0]) {
+        char cid[64];
+        card_cid(disk, cid, sizeof cid);
+        if (strcmp(cid, cid0)) { note("scheda diversa: stesso FAT %08X, CID %s (all'avvio %s)", now, cid[0] ? cid : "illeggibile", cid0); return false; }
+    }
     same_card = true;
+    char why[512];
+    if (!root_in_ram(why, sizeof why)) { note("il sistema legge ancora dalla scheda tolta (%s)", why); return false; }
     const char *fsck = getenv("GUARDIA_FSCK") ? getenv("GUARDIA_FSCK") : "fsck.fat";
     char *fa[] = { (char *)fsck, "-a", (char *)part, NULL };
     int r = run(fsck, fa, 120);
     note("fsck.fat -a: %s", r == 0 ? "nessun errore" : r == 1 ? "errori corretti" : r == 127 ? "non trovato" : "non riuscito");
     if (r != 0 && r != 1 && r != 127) return false;
+    fsck_ok = true;
+    const char *opts = getenv("GUARDIA_OPZIONI") ? getenv("GUARDIA_OPZIONI") : "flush";   /* nelle prove: un rimontaggio che non riesce */
     if (umount2(mnt, MNT_DETACH) != 0) note("vecchio aggancio non staccato: %s", strerror(errno));
-    if (mount(part, mnt, "vfat", MS_NOATIME, "flush") != 0) { note("rimontaggio non riuscito: %s", strerror(errno)); return false; }
+    if (mount(part, mnt, "vfat", MS_NOATIME, opts) != 0) { note("rimontaggio non riuscito: %s", strerror(errno)); return false; }
     return true;
 }
 
@@ -239,10 +310,11 @@ static bool save_log_in(const char *dir, bool kernel) {
 }
 static void save_log(void) { save_log_in(mnt, false); }
 
-/* rimontaggio non riuscito con la stessa scheda: prima del riavvio il registro va comunque sulla
-   scheda, agganciata da parte un momento (senza, la prova del 25 novembre non ha lasciato niente) */
+/* rimontaggio non riuscito con la stessa scheda, riparata da fsck: prima del riavvio il registro va
+   comunque sulla scheda, agganciata da parte un momento (senza, la prova del 25 novembre non ha
+   lasciato niente) */
 static void save_log_aside(const char *part) {
-    if (!same_card) return;   /* su un'altra scheda non si scrive */
+    if (!same_card || !fsck_ok) return;   /* su un'altra scheda o su un FAT non riparato non si scrive */
     char d[256];
     run_path(d, sizeof d, "guardia-registro");
     mkdir(d, 0700);
@@ -259,10 +331,15 @@ int main(int argc, char **argv) {
     int default_s = argc > 3 ? atoi(argv[3]) : 60;
     run_dir = getenv("GUARDIA_RUN") ? getenv("GUARDIA_RUN") : "/run";
     mnt = getenv("GUARDIA_MNT") ? getenv("GUARDIA_MNT") : "/mnt/SDCARD";
+    sysb = getenv("GUARDIA_SYS") ? getenv("GUARDIA_SYS") : "/sys/block";
     int reserve = getenv("GUARDIA_RISERVA") ? atoi(getenv("GUARDIA_RISERVA")) : 30;
     if (chdir("/") != 0) return 1;
     uint32_t serial = 0;
     bool have_serial = fat_serial(part, &serial);
+    char cid[64];
+    card_cid(disk, cid, sizeof cid);
+    char dev[32], dev_now[32];
+    part_dev(disk, part, dev, sizeof dev);
     char p_state[256], p_now[256], p_set[256];
     run_path(p_state, sizeof p_state, "scheda-tolta");
     run_path(p_now, sizeof p_now, "scheda-spegni-ora");
@@ -274,26 +351,34 @@ int main(int argc, char **argv) {
     double deadline = 0, last_slept = slept();
     for (;;) {
         bool present = disk_present(disk);
-        if (!present) {
-            absent++;
-            if (absent == 2) {   /* un secondo intero senza disco: tolta davvero */
-                secs = default_s;
-                snprintf(action, sizeof action, "spegni");
-                FILE *f = fopen(p_set, "r");
-                if (f) {
-                    char a[16];
-                    int s;
-                    if (fscanf(f, "%d %15s", &s, a) == 2) { secs = s; snprintf(action, sizeof action, "%s", strcmp(a, "sospendi") ? "spegni" : "sospendi"); }
-                    fclose(f);
-                }
-                if (secs < 5) secs = 5;
-                deadline = mono() + secs;
-                snprintf(line, sizeof line, "%.0f %s\n", deadline, action);
-                put_state("scheda-tolta", line);
-                leds("FF0000", 6);
-                note("scheda tolta: %s fra %d s", action, secs);
+        /* sparita e tornata fra due controlli: per il kernel è un disco nuovo */
+        bool blip = false;
+        if (present && !absent) {
+            part_dev(disk, part, dev_now, sizeof dev_now);
+            if (!dev[0]) snprintf(dev, sizeof dev, "%s", dev_now);
+            blip = dev[0] && dev_now[0] && strcmp(dev, dev_now);
+        }
+        /* il disco sparisce solo se è stato tolto (un controllo basta): il vecchio aggancio è morto */
+        if ((!present && ++absent == 1) || blip) {
+            unlink(p_now);   /* una richiesta rimasta da prima non spegne questa volta */
+            secs = default_s;
+            snprintf(action, sizeof action, "spegni");
+            FILE *f = fopen(p_set, "r");
+            if (f) {
+                char a[16];
+                int s;
+                if (fscanf(f, "%d %15s", &s, a) == 2) { secs = s; snprintf(action, sizeof action, "%s", strcmp(a, "sospendi") ? "spegni" : "sospendi"); }
+                fclose(f);
             }
-            if (absent >= 2) {
+            if (secs < 5) secs = 5;
+            deadline = mono() + secs;
+            snprintf(line, sizeof line, "%.0f %s\n", deadline, action);
+            put_state("scheda-tolta", line);
+            leds("FF0000", 6);
+            note(blip ? "scheda sparita e tornata in un attimo" : "scheda tolta: %s fra %d s", action, secs);
+        }
+        if (!present) {
+            if (absent >= 1) {
                 if (slept() - last_slept > 2) {   /* risveglio con la scheda ancora fuori: il conto riparte */
                     deadline = mono() + secs;
                     snprintf(line, sizeof line, "%.0f %s\n", deadline, action);
@@ -306,26 +391,39 @@ int main(int argc, char **argv) {
                 if (now >= deadline + reserve) finish(false, "LA SCHEDA NON E' STATA RIMESSA");
             }
         } else {
-            if (absent >= 2) {   /* rimessa */
+            if (absent >= 1 || blip) {   /* rimessa */
                 snprintf(line, sizeof line, "%.0f rimonto\n", deadline);
                 put_state("scheda-tolta", line);
                 note("scheda rimessa");
                 same_card = false;
-                if (!remount(part, have_serial, serial)) {
+                if (!remount(disk, part, have_serial, serial, cid)) {
+                    if (!disk_present(disk)) {   /* tolta di nuovo durante il controllo: si torna al conto */
+                        note("tolta di nuovo durante il controllo");
+                        deadline = mono() + secs;
+                        snprintf(line, sizeof line, "%.0f %s\n", deadline, action);
+                        put_state("scheda-tolta", line);
+                        absent = 1;
+                        last_slept = slept();
+                        usleep(100000);
+                        continue;
+                    }
                     note("passo non riuscito: riavvio");
                     save_log_aside(part);
-                    unlink(p_state);
-                    finish(true, "SCHEDA RIMESSA: RIPARTO");
+                    finish(true, "SCHEDA RIMESSA: RIPARTO");   /* il segno resta: nessuno riparte sulla scheda morta */
                 }
                 note("rimontata in %s: si riprende", mnt);
                 save_log();
-                unlink(p_state);
+                /* prima il contatore, poi via il segno: chi vede la scheda di nuovo dentro vede anche
+                   il contatore nuovo, e non riprende un momento sul vecchio aggancio */
                 snprintf(line, sizeof line, "%d\n", ++count);
                 put_state("scheda-rimessa", line);
+                unlink(p_state);
+                unlink(p_now);
+                part_dev(disk, part, dev, sizeof dev);
             }
             absent = 0;
         }
         last_slept = slept();
-        usleep(500000);
+        usleep(100000);   /* dieci volte al secondo: anche una scheda fuori per un attimo si vede */
     }
 }

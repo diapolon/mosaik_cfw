@@ -499,7 +499,7 @@ lp=$!
 i=0; while [ ! -s /tmp/fuori2.png ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
 # la scheda tolta si porta via il registro aperto; la rimessa ha la sua cartella Logs
 mv $R/Logs $R/Logs.tolta; mkdir $R/Logs
-rm -f $S/scheda-tolta; echo 1 > $S/scheda-rimessa   # la guardia ha rimontato la scheda
+echo 1 > $S/scheda-rimessa; sleep 1; rm -f $S/scheda-tolta   # la guardia ha rimontato: prima il contatore, poi via il segno
 wait $lp
 check "rimessa: le righe di quando era fuori arrivano sulla scheda rimessa" 'awk "/scheda tolta: da qui il registro resta in memoria/ { t = NR } /scheda rimessa e rimontata/ && t { ok = 1 } END { exit !ok }" $R/Logs/Arcade.log'
 sed -n '/scheda tolta: da qui/,/scheda rimessa e/p' $R/Logs/Arcade.log | sed 's/^/    /'

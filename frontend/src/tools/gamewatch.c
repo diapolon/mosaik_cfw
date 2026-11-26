@@ -376,7 +376,11 @@ int main(int argc, char **argv) {
             FILE *mf = fopen(mark, "w");
             if (mf) fclose(mf);
             fprintf(stderr, "gamewatch: scheda rimessa, chiudo il gioco\n");
-            stop_group(pid);
+            /* chiuso da fermo, senza farlo ripartire: codice, cartella e file aperti sono sulla scheda
+               tolta, e un salvataggio scritto in uscita sulla scheda rimessa potrebbe restare a metà
+               (revisione del 26 novembre). Si perde solo quello che il gioco non aveva salvato. */
+            kill(-pid, SIGKILL);
+            waitpid(pid, NULL, 0);
             if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
             return 0;
         }
