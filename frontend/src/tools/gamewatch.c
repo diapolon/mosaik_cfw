@@ -193,17 +193,44 @@ static bool sd_out_now(void) {
     sd_path(p, sizeof p, "scheda-tolta");
     return access(p, F_OK) == 0;
 }
+/* messaggio sopra il gioco fermo: la finestra del launcher (ui_sd_prerender, in /run prima del
+   gioco) stesa da «fbmsg finestra», che resta a contare finché c'è il segno; se manca, o non è per
+   questo schermo, la scritta di «fbmsg show» */
+static pid_t sd_win;
 static void sd_msg(void) {
-    pid_t m = fork();
-    if (m == 0) {
-        int nul = open("/dev/null", O_RDWR);
-        if (nul >= 0) { dup2(nul, 1); dup2(nul, 2); }
-        /* percorso intero prima: il gioco può aver cambiato PATH */
-        execl("/usr/arcade/bin/fbmsg", "fbmsg", "show", "rosso", "0", "SCHEDA TOLTA", "RIMETTILA: IL GIOCO SI CHIUDE E TORNI AL MENU", (char *)NULL);
-        execlp("fbmsg", "fbmsg", "show", "rosso", "0", "SCHEDA TOLTA", "RIMETTILA: IL GIOCO SI CHIUDE E TORNI AL MENU", (char *)NULL);
-        _exit(127);
+    if (sd_win > 0 && waitpid(sd_win, NULL, WNOHANG) == 0) return;   /* già sullo schermo */
+    sd_win = 0;
+    char img[256], st[256];
+    sd_path(img, sizeof img, "scheda-tolta-gioco.img");
+    sd_path(st, sizeof st, "scheda-tolta");
+    for (int tries = 0; tries < 2; tries++) {
+        bool win = tries == 0 && access(img, R_OK) == 0;
+        if (tries == 0 && !win) continue;
+        pid_t m = fork();
+        if (m == 0) {
+            int nul = open("/dev/null", O_RDWR);
+            if (nul >= 0) { dup2(nul, 1); dup2(nul, 2); }
+            /* percorso intero prima: il gioco può aver cambiato PATH */
+            if (win) {
+                execl("/usr/arcade/bin/fbmsg", "fbmsg", "finestra", img, st, (char *)NULL);
+                execlp("fbmsg", "fbmsg", "finestra", img, st, (char *)NULL);
+            } else {
+                execl("/usr/arcade/bin/fbmsg", "fbmsg", "show", "rosso", "0", "SCHEDA TOLTA", "RIMETTILA: IL GIOCO SI CHIUDE E TORNI AL MENU", (char *)NULL);
+                execlp("fbmsg", "fbmsg", "show", "rosso", "0", "SCHEDA TOLTA", "RIMETTILA: IL GIOCO SI CHIUDE E TORNI AL MENU", (char *)NULL);
+            }
+            _exit(127);
+        }
+        if (m <= 0) return;
+        if (!win) { waitpid(m, NULL, 0); return; }
+        /* finestra: resta; se esce subito (immagine non per questo schermo), la scritta */
+        usleep(300 * 1000);
+        int stt;
+        if (waitpid(m, &stt, WNOHANG) == 0 || (WIFEXITED(stt) && WEXITSTATUS(stt) == 0)) { sd_win = m; return; }
     }
-    if (m > 0) waitpid(m, NULL, 0);
+}
+static void sd_msg_stop(void) {
+    if (sd_win > 0) { kill(sd_win, SIGTERM); waitpid(sd_win, NULL, 0); }
+    sd_win = 0;
 }
 /* gioco già fermo; torna quando la scheda è di nuovo al suo posto */
 static void sd_wait(pid_t pid, int ui, struct pollfd *fds, int nfds, double *block_until) {
@@ -245,6 +272,7 @@ static void sd_wait(pid_t pid, int ui, struct pollfd *fds, int nfds, double *blo
             sd_msg();
         }
     }
+    sd_msg_stop();
 }
 #endif
 

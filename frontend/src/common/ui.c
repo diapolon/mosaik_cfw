@@ -2119,27 +2119,114 @@ static void sd_left(char *buf, size_t n) {
     snprintf(buf, n, "%d:%02d", s / 60, s % 60);
 }
 
-void ui_sd_draw(int sel) {
+/* la finestra; linux_game: la versione sopra un gioco Linux, disegnata prima del gioco e stesa sul
+   gioco fermo da fbmsg (ui_sd_prerender), con i tasti scritti al posto dei pulsanti e il conto alla
+   rovescia lasciato a fbmsg: in *cd il posto delle cifre, in *suffix il testo dopo */
+static void sd_panel(int sel, bool linux_game, SDL_Rect *cd, char *suffix, size_t suffix_n) {
     theme_t *t = &UI.th;
     char lines[4][160], line2[160], left[16];
     int w = M(0.85f), pad = M(0.05f), sh = TTF_FontHeight(UI.f_small), nh = TTF_FontHeight(UI.f_normal);
-    int nl = ui_wrap(UI.f_small, T("sdout.body"), w - 2 * pad, lines, 4);
-    sd_left(left, sizeof left);
-    if (sd_state == SD_REMOUNT) snprintf(line2, sizeof line2, "%s", T("sdout.checking"));
-    else snprintf(line2, sizeof line2, T(sd_suspend_act ? "sdout.suspend_in" : "sdout.off_in"), left);
-    bool buttons = sd_state == SD_OUT;
-    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + M(0.03f) + nh + (buttons ? ui_popup_buttons_h() : pad);
+    int nl = ui_wrap(UI.f_small, T(linux_game ? "sdout.body_linux" : "sdout.body"), w - 2 * pad, lines, 4);
+    const char *fmt = T((linux_game ? UI.set.sdout_suspend : sd_suspend_act) ? "sdout.suspend_in" : "sdout.off_in");
+    if (linux_game) {   /* il testo prima di %s; quello dopo lo scrive fbmsg dopo le cifre */
+        const char *m = strstr(fmt, "%s");
+        int n = m ? (int)(m - fmt) : (int)strlen(fmt);
+        snprintf(line2, sizeof line2, "%.*s", n, fmt);
+        if (suffix) snprintf(suffix, suffix_n, "%s", m ? m + 2 : "");
+    } else if (sd_state == SD_REMOUNT) snprintf(line2, sizeof line2, "%s", T("sdout.checking"));
+    else { sd_left(left, sizeof left); snprintf(line2, sizeof line2, fmt, left); }
+    bool buttons = !linux_game && sd_state == SD_OUT;
+    int h = pad + TTF_FontHeight(UI.f_title) + M(0.02f) + nl * sh + M(0.03f) + nh
+            + (buttons ? ui_popup_buttons_h() : linux_game ? M(0.03f) + sh + pad : pad);
     int x = (UI.w - w) / 2, y = (UI.h - h) / 2, r = M(t->panel_radius) * 2;
     ui_rect(0, 0, UI.w, UI.h, rgba(0, 0, 0, 170));
     ui_rrect(x, y, w, h, r, t->popup);
     ui_text(UI.f_title, T("sdout.title"), x + pad, y + pad, rgba(230, 130, 20, 255), ALIGN_LEFT);
-    int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f);
+    int ty = y + pad + TTF_FontHeight(UI.f_title) + M(0.02f), y2 = ty + nl * sh + M(0.03f);
     for (int i = 0; i < nl; i++) ui_text(UI.f_small, lines[i], x + pad, ty + i * sh, t->text, ALIGN_LEFT);
-    ui_text(UI.f_normal, line2, x + pad, ty + nl * sh + M(0.03f), t->accent, ALIGN_LEFT);
+    int lw = line2[0] ? ui_text(UI.f_normal, line2, x + pad, y2, t->accent, ALIGN_LEFT) : 0;
+    if (cd) *cd = (SDL_Rect){ x + pad + lw, y2, x + w - pad - (x + pad + lw), nh };
+    if (linux_game) ui_text(UI.f_small, T("sdout.keys_linux"), x + pad, y2 + nh + M(0.03f), t->text_dim, ALIGN_LEFT);
     if (buttons) {
         const char *label[2] = { T("sdout.suspend_now"), T("sdout.off_now") };
         ui_popup_buttons(x, y, w, h, label, 2, sel, 1);
     }
+}
+
+void ui_sd_draw(int sel) { sd_panel(sel, false, NULL, NULL, 0); }
+
+/* pixel premoltiplicati 0xAARRGGBB di un testo nel colore c (TTF dà l'alfa a parte) */
+static uint32_t *sd_glyph(const char *s, color_t c, int *w, int *h) {
+    *w = *h = 0;
+    if (!s[0]) return NULL;
+    SDL_Surface *g = TTF_RenderUTF8_Blended(UI.f_normal, s, (SDL_Color){ 255, 255, 255, 255 });
+    SDL_Surface *a = g ? SDL_ConvertSurfaceFormat(g, SDL_PIXELFORMAT_ARGB8888, 0) : NULL;
+    if (g) SDL_FreeSurface(g);
+    if (!a) return NULL;
+    uint32_t *out = malloc((size_t)a->w * a->h * 4);
+    if (out) {
+        for (int yy = 0; yy < a->h; yy++)
+            for (int xx = 0; xx < a->w; xx++) {
+                uint32_t v = ((uint32_t *)((uint8_t *)a->pixels + yy * a->pitch))[xx];
+                uint32_t al = (v >> 24) * c.a / 255;
+                out[yy * a->w + xx] = al << 24 | (c.r * al / 255) << 16 | (c.g * al / 255) << 8 | (c.b * al / 255);
+            }
+        *w = a->w;
+        *h = a->h;
+    }
+    SDL_FreeSurface(a);
+    return out;
+}
+
+/* Prima di un gioco Linux (o di un'app): la finestra della scheda tolta, nel tema e nella lingua di
+   adesso, in /run/scheda-tolta-gioco.img. A scheda tolta gamewatch la fa stendere da fbmsg sopra
+   il gioco fermo (m1/m1test.c, «finestra»), che ci scrive il conto alla rovescia con le cifre
+   disegnate qui: senza, c'era solo la scritta a quadretti di fbmsg (prova del 26 novembre).
+   Formato: "MSK1", w h, posto delle cifre (x y w h), 12 immagini (0-9, ':', il testo dopo le
+   cifre) come «w h pixel», poi i w*h pixel della finestra; pixel 0xAARRGGBB premoltiplicati. */
+bool ui_sd_prerender(void) {
+    const char *d = sd_dir();
+    if (!d || !UI.ren) return false;
+    char p[300], tmp[310], suffix[64] = "";
+    snprintf(p, sizeof p, "%s/scheda-tolta-gioco.img", d);
+    snprintf(tmp, sizeof tmp, "%s.n", p);
+    SDL_Texture *old = SDL_GetRenderTarget(UI.ren);
+    SDL_Texture *tx = SDL_CreateTexture(UI.ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, UI.w, UI.h);
+    uint32_t *px = tx ? malloc((size_t)UI.w * UI.h * 4) : NULL;
+    bool ok = px != NULL;
+    SDL_Rect cd = { 0, 0, 0, 0 };
+    if (ok) {
+        SDL_SetRenderTarget(UI.ren, tx);
+        SDL_SetRenderDrawColor(UI.ren, 0, 0, 0, 0);
+        SDL_RenderClear(UI.ren);
+        sd_panel(0, true, &cd, suffix, sizeof suffix);
+        ok = SDL_RenderReadPixels(UI.ren, NULL, SDL_PIXELFORMAT_ARGB8888, px, UI.w * 4) == 0;
+        SDL_SetRenderTarget(UI.ren, old);
+    }
+    if (tx) SDL_DestroyTexture(tx);
+    FILE *f = ok ? fopen(tmp, "wb") : NULL;
+    if (f) {
+        int32_t hd[8] = { UI.w, UI.h, cd.x, cd.y, cd.w, cd.h, 12, 0 };
+        ok = fwrite("MSK1", 1, 4, f) == 4 && fwrite(hd, 4, 7, f) == 7;
+        color_t c = ui_shade(UI.th.accent);
+        for (int i = 0; i < 12 && ok; i++) {
+            char s[64];
+            if (i < 10) snprintf(s, sizeof s, "%c", '0' + i);
+            else snprintf(s, sizeof s, "%s", i == 10 ? ":" : suffix);
+            int gw, gh;
+            uint32_t *g = sd_glyph(s, c, &gw, &gh);
+            int32_t wh[2] = { g ? gw : 0, g ? gh : 0 };
+            ok = fwrite(wh, 4, 2, f) == 2 && (!g || fwrite(g, 4, (size_t)gw * gh, f) == (size_t)gw * gh);
+            free(g);
+        }
+        ok = ok && fwrite(px, 4, (size_t)UI.w * UI.h, f) == (size_t)UI.w * UI.h;
+        if (fclose(f) != 0) ok = false;
+        if (ok) ok = rename(tmp, p) == 0;
+        if (!ok) unlink(tmp);
+    }
+    free(px);
+    if (!ok) ui_log("scheda tolta: finestra per i giochi Linux non preparata");
+    return ok;
 }
 
 void ui_sd_off_now(void) {

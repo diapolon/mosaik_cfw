@@ -948,6 +948,8 @@
   "sdout": {
     "title": "Tarjeta extraída",
     "body": "Vuelve a ponerla: Mosaik sigue donde estabas. Mientras esté fuera no se escribe nada.",
+    "body_linux": "Vuelve a ponerla: el juego se cierra y vuelves al menú. Mientras esté fuera no se escribe nada.",
+    "keys_linux": "Encendido: suspender · mantener pulsado: apagar ya",
     "off_in": "Apagado en %s",
     "suspend_in": "Suspensión en %s",
     "checking": "Tarjeta de vuelta: comprobando y montando…",

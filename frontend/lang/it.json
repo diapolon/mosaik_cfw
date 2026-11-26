@@ -948,6 +948,8 @@
   "sdout": {
     "title": "Scheda tolta",
     "body": "Rimettila: Mosaik riprende da dove eri. Finché è fuori non si scrive niente.",
+    "body_linux": "Rimettila: il gioco si chiude e torni al menu. Finché è fuori non si scrive niente.",
+    "keys_linux": "Accensione: sospendi · tenuto premuto: spegni ora",
     "off_in": "Spegnimento fra %s",
     "suspend_in": "Sospensione fra %s",
     "checking": "Scheda rimessa: controllo e riaggancio…",

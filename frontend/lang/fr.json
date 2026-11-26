@@ -948,6 +948,8 @@
   "sdout": {
     "title": "Carte retirée",
     "body": "Remets-la : Mosaik reprend où tu en étais. Rien n'est écrit tant qu'elle est absente.",
+    "body_linux": "Remets-la : le jeu se ferme et tu reviens au menu. Rien n'est écrit tant qu'elle est absente.",
+    "keys_linux": "Marche : veille · maintenir : éteindre maintenant",
     "off_in": "Extinction dans %s",
     "suspend_in": "Mise en veille dans %s",
     "checking": "Carte remise : vérification et remontage…",

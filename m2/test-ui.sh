@@ -3,7 +3,7 @@
 # pixel. Avvisi lunghi dentro lo schermo (LAU-18), chiusura della musica che non torna (BT-09),
 # preferenza dei doppi (LAU-15) e home con i doppi (LAU-16), audit 0.9.88.
 #   docker run --rm --platform linux/arm64 -v "$PWD":/trimui:ro alpine:3.20 sh /trimui/m2/test-ui.sh
-apk add -q build-base pkgconf sdl2-dev sdl2_ttf-dev sdl2_image-dev sdl2_mixer-dev curl-dev zlib-dev openssl-dev py3-pillow font-dejavu > /dev/null 2>&1
+apk add -q build-base pkgconf sdl2-dev sdl2_ttf-dev sdl2_image-dev sdl2_mixer-dev curl-dev zlib-dev openssl-dev py3-pillow font-dejavu linux-headers > /dev/null 2>&1
 errors=0
 ok() { echo "  ok: $*"; }
 ko() { echo "  ERRORE: $*"; errors=$((errors + 1)); }
@@ -513,6 +513,41 @@ rm -f /tmp/chiuso.png; ./build/launcher --root $R --auto "wait:40,shot:/tmp/chiu
 c=$(python3 /tmp/diff.py /tmp/base.png /tmp/chiuso.png 500)
 check "gioco Linux chiuso per la scheda: l'avviso c'è ($c righe in alto)" '[ "$c" -gt 10 ]'
 check "gioco Linux chiuso per la scheda: l'avviso si dà una volta" '[ ! -e $S/gioco-chiuso-scheda ]'
+# gioco Linux: la finestra del launcher preparata in /run, che fbmsg stende sul gioco fermo
+# (m1/m1test.c «finestra»), su un framebuffer finto che fa da gioco
+rm -f $S/scheda-tolta-gioco.img; linux_game '{ "title": "Gioco", "min_system": "0.9.58" }'
+check "gioco Linux: finestra della scheda tolta preparata" '[ "$(head -c 4 $S/scheda-tolta-gioco.img 2> /dev/null)" = MSK1 ]'
+gcc -O2 -o /tmp/fbmsg /trimui/m1/m1test.c || ko "fbmsg non compila"
+cat > /tmp/finestra.py <<'X'
+import struct, sys
+img, fb, mode = sys.argv[1], sys.argv[2], sys.argv[3]
+d = open(img, "rb").read()
+W, H, cx, cy, cw, ch, n = struct.unpack_from("<7i", d, 4)
+o = 32
+for i in range(n):
+    gw, gh = struct.unpack_from("<2i", d, o); o += 8 + gw * gh * 4
+panel = struct.unpack_from("<%dI" % (W * H), d, o)
+game = 0xFF30A050
+if mode == "geom": print("%dx%d" % (W, H)); sys.exit()
+if mode == "fill": open(fb, "wb").write(struct.pack("<I", game) * (W * H)); sys.exit()
+f = struct.unpack("<%dI" % (W * H), open(fb, "rb").read(W * H * 4))
+def over(c, g):
+    a = c >> 24; return tuple(min(255, (c >> s & 255) + (g >> s & 255) * (255 - a) // 255) for s in (16, 8, 0))
+rgb = lambda v: (v >> 16 & 255, v >> 8 & 255, v & 255)
+near = lambda a, b: all(abs(x - y) <= 2 for x, y in zip(a, b))
+corner = near(rgb(f[5 * W + 5]), over(panel[5 * W + 5], game)) and rgb(f[5 * W + 5]) != rgb(game)
+centre = near(rgb(f[(H // 2) * W + W // 2]), over(panel[(H // 2) * W + W // 2], game))
+digits = sum(1 for y in range(cy, cy + ch) for x in range(cx, cx + cw) if not near(rgb(f[y * W + x]), over(panel[y * W + x], game)))
+print("%s %s %d" % ("scurito" if corner else "no", "finestra" if centre else "no", digits))
+X
+G=$(python3 /tmp/finestra.py $S/scheda-tolta-gioco.img - geom); python3 /tmp/finestra.py $S/scheda-tolta-gioco.img /tmp/fb.raw fill
+echo "$(( $(cut -d. -f1 /proc/uptime) + 42 )) spegni" > $S/scheda-tolta
+FBMSG_FB=/tmp/fb.raw FBMSG_GEOM=$G /tmp/fbmsg finestra $S/scheda-tolta-gioco.img $S/scheda-tolta & fp=$!; sleep 1
+v=$(python3 /tmp/finestra.py $S/scheda-tolta-gioco.img /tmp/fb.raw check)
+check "sopra il gioco: gioco scurito ai bordi, finestra al centro, conto alla rovescia scritto ($v)" '[ "${v% *}" = "scurito finestra" ] && [ "${v##* }" -gt 30 ]'
+rm -f $S/scheda-tolta; sleep 0.6
+check "scheda rimessa: fbmsg se ne va" '! kill -0 $fp 2> /dev/null'
+kill $fp 2> /dev/null
 unset ARCADE_SD_RUN; rm -f $R/System/settings.json
 
 echo

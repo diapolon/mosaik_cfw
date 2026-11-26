@@ -1334,6 +1334,7 @@ static void launch_ex(game_t *g, bool resume) {
             fclose(ef);
         }
     }
+    if (sh || xscript[0]) ui_sd_prerender();   /* scheda tolta durante il gioco: la finestra la stende fbmsg */
     if (sh || xscript[0]) snprintf(core, sizeof core, "-");
     else if (lcore[0]) snprintf(core, sizeof core, "%s", lcore);
     else {

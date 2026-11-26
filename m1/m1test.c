@@ -3,6 +3,10 @@
      m1test show COLORE SEC RIGA1 [RIGA2]   schermata con barre di colore e messaggio
      m1test keys SEC            registra per SEC secondi i tasti premuti (tutti i /dev/input/event*)
      m1test logo FILE.bmp       schermo nero con il logo al centro (bootlogo.bmp di U-Boot, 24/32 bit)
+     m1test finestra IMG STATO  finestra della scheda tolta sopra un gioco Linux fermo, disegnata dal
+                                launcher (ui_sd_prerender), col conto alla rovescia letto da STATO
+                                (/run/scheda-tolta) finché STATO c'è
+   FBMSG_FB=file e FBMSG_GEOM=LxA: un framebuffer finto a 32 bit (le prove, m2/test-ui.sh).
    COLORE: blu (in corso), verde (riuscito), rosso (fallito). Compilato statico: gira con
    il solo kernel, senza librerie. */
 #include <dirent.h>
@@ -17,6 +21,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 #include "font5x7.h"
@@ -27,6 +32,21 @@ static uint8_t *fbmem;
 static int fbfd = -1;
 
 static int fb_open(void) {
+    const char *fake = getenv("FBMSG_FB");
+    if (fake) {   /* framebuffer finto: un file di L*A pixel 0xAARRGGBB */
+        unsigned w = 0, h = 0;
+        struct stat st;
+        if (!getenv("FBMSG_GEOM") || sscanf(getenv("FBMSG_GEOM"), "%ux%u", &w, &h) != 2) return 0;
+        fbfd = open(fake, O_RDWR);
+        if (fbfd < 0 || fstat(fbfd, &st) || (size_t)st.st_size < (size_t)w * h * 4) return 0;
+        var.xres = var.xres_virtual = w; var.yres = var.yres_virtual = h; var.bits_per_pixel = 32;
+        var.red.offset = 16; var.green.offset = 8; var.blue.offset = 0; var.transp.offset = 24;
+        var.red.length = var.green.length = var.blue.length = var.transp.length = 8;
+        fix.line_length = w * 4; fix.smem_len = w * h * 4;
+        fbmem = mmap(NULL, fix.smem_len, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
+        if (fbmem == MAP_FAILED) { fbmem = NULL; return 0; }
+        return 1;
+    }
     fbfd = open("/dev/fb0", O_RDWR);
     if (fbfd < 0) { perror("/dev/fb0"); return 0; }
     if (ioctl(fbfd, FBIOGET_VSCREENINFO, &var) || ioctl(fbfd, FBIOGET_FSCREENINFO, &fix)) { perror("ioctl fb"); return 0; }
@@ -69,6 +89,95 @@ static void text(const char *s, int x, int y, int scale, uint32_t c) {
 }
 
 static int text_w(const char *s, int scale) { return (int)strlen(s) * 6 * scale; }
+
+/* colore 0x00RRGGBB del pixel x,y della pagina mostrata */
+static uint32_t px_get(int x, int y) {
+    uint8_t *p = fbmem + (size_t)(y + var.yoffset) * fix.line_length + (size_t)(x + var.xoffset) * (var.bits_per_pixel / 8);
+    uint32_t v = var.bits_per_pixel == 32 ? *(uint32_t *)p : var.bits_per_pixel == 16 ? *(uint16_t *)p : (uint32_t)(p[0] | p[1] << 8 | p[2] << 16);
+    uint32_t r = (v >> var.red.offset & ((1u << var.red.length) - 1)) << (8 - var.red.length);
+    uint32_t g = (v >> var.green.offset & ((1u << var.green.length) - 1)) << (8 - var.green.length);
+    uint32_t b = (v >> var.blue.offset & ((1u << var.blue.length) - 1)) << (8 - var.blue.length);
+    return r << 16 | g << 8 | b;
+}
+
+/* c (0xAARRGGBB premoltiplicato) sopra f (0x00RRGGBB) */
+static uint32_t over(uint32_t c, uint32_t f) {
+    uint32_t a = c >> 24, k = 255 - a, out = 0;
+    for (int s = 0; s <= 16; s += 8) {
+        uint32_t v = (c >> s & 255) + (f >> s & 255) * k / 255;
+        out |= (v > 255 ? 255 : v) << s;
+    }
+    return out;
+}
+
+static double mono(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+typedef struct { int32_t w, h; uint32_t *px; } img_t;
+
+/* la finestra della scheda tolta del launcher sopra il gioco fermo, col conto alla rovescia;
+   0 se l'immagine manca o non è per questo schermo (allora gamewatch usa «show») */
+static int window(const char *path, const char *state) {
+    FILE *f = fopen(path, "rb");
+    char magic[4];
+    int32_t hd[7];
+    if (!f || fread(magic, 1, 4, f) != 4 || memcmp(magic, "MSK1", 4) || fread(hd, 4, 7, f) != 7) { if (f) fclose(f); return 0; }
+    int W = hd[0], H = hd[1], cx = hd[2], cy = hd[3], cw = hd[4], ch = hd[5];
+    if (W != (int)var.xres || H != (int)var.yres || hd[6] != 12) { fclose(f); return 0; }
+    img_t g[12] = { { 0, 0, NULL } };
+    uint32_t *panel = malloc((size_t)W * H * 4), *base = malloc((size_t)W * H * 4);
+    int ok = panel && base;
+    for (int i = 0; i < 12 && ok; i++) {
+        ok = fread(&g[i].w, 4, 1, f) == 1 && fread(&g[i].h, 4, 1, f) == 1 && g[i].w >= 0 && g[i].h >= 0 && g[i].w < 4096 && g[i].h < 4096;
+        size_t n = ok ? (size_t)g[i].w * g[i].h : 0;
+        if (ok && n) ok = (g[i].px = malloc(n * 4)) && fread(g[i].px, 4, n, f) == n;
+    }
+    ok = ok && fread(panel, 4, (size_t)W * H, f) == (size_t)W * H;
+    fclose(f);
+    if (ok) {
+        /* il gioco fermo, scurito dalla finestra */
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++) base[(size_t)y * W + x] = over(panel[(size_t)y * W + x], px_get(x, y));
+        char last[32] = "";
+        for (;;) {
+            FILE *s = fopen(state, "r");
+            double dl = 0;
+            char act[16] = "";
+            if (!s) break;   /* scheda rimessa (o gamewatch ha finito) */
+            if (fscanf(s, "%lf %15s", &dl, act) != 2) act[0] = 0;
+            fclose(s);
+            char t[32];
+            int left = (int)(dl - mono() + 0.999);
+            if (left < 0) left = 0;
+            if (!strcmp(act, "rimonto")) snprintf(t, sizeof t, "%s", last);   /* la guardia controlla: il conto resta */
+            else snprintf(t, sizeof t, "%d:%02d", left / 60, left % 60);
+            if (strcmp(t, last) || !last[0]) {
+                snprintf(last, sizeof last, "%s", t);
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++) px(x, y, base[(size_t)y * W + x]);
+                int x0 = cx;
+                for (const char *c = t; ; c++) {
+                    int k = !*c ? 11 : *c == ':' ? 10 : *c - '0';
+                    if (k < 0 || k > 11) continue;
+                    for (int y = 0; y < g[k].h && y < ch; y++)
+                        for (int x = 0; x < g[k].w && x0 + x < cx + cw; x++)
+                            px(x0 + x, cy + y, over(g[k].px[(size_t)y * g[k].w + x], base[(size_t)(cy + y) * W + x0 + x]));
+                    x0 += g[k].w;
+                    if (!*c) break;
+                }
+                ioctl(fbfd, FBIOPAN_DISPLAY, &var);   /* la pagina dove si è disegnato è quella mostrata */
+            }
+            usleep(200 * 1000);
+        }
+    }
+    for (int i = 0; i < 12; i++) free(g[i].px);
+    free(panel);
+    free(base);
+    return ok;
+}
 
 static void show(const char *color, int secs, const char *l1, const char *l2) {
     int W = (int)var.xres, H = (int)var.yres;
@@ -222,6 +331,7 @@ int main(int argc, char **argv) {
         return ok ? 0 : 1;
     }
     if (!strcmp(argv[1], "logo") && argc >= 3) return ok && logo(argv[2]) ? 0 : 1;
+    if (!strcmp(argv[1], "finestra") && argc >= 4) return ok && window(argv[2], argv[3]) ? 0 : 1;
     if (!strcmp(argv[1], "keys") && argc >= 3) {
         if (ok) {
             int W = (int)var.xres, H = (int)var.yres;

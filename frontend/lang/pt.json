@@ -948,6 +948,8 @@
   "sdout": {
     "title": "Cartão removido",
     "body": "Volta a pô-lo: o Mosaik continua onde estavas. Enquanto estiver fora, nada é escrito.",
+    "body_linux": "Volta a pô-lo: o jogo fecha e voltas ao menu. Enquanto estiver fora, nada é escrito.",
+    "keys_linux": "Ligar: suspender · manter premido: desligar já",
     "off_in": "Desligar em %s",
     "suspend_in": "Suspensão em %s",
     "checking": "Cartão de volta: a verificar e a montar…",

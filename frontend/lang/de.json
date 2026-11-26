@@ -948,6 +948,8 @@
   "sdout": {
     "title": "Karte entfernt",
     "body": "Steck sie wieder ein: Mosaik macht dort weiter, wo du warst. Solange sie fehlt, wird nichts geschrieben.",
+    "body_linux": "Steck sie wieder ein: Das Spiel wird beendet und du kehrst zum Menü zurück. Solange sie fehlt, wird nichts geschrieben.",
+    "keys_linux": "Ein/Aus: Ruhezustand · gedrückt halten: jetzt ausschalten",
     "off_in": "Ausschalten in %s",
     "suspend_in": "Ruhezustand in %s",
     "checking": "Karte wieder da: wird geprüft und eingebunden…",

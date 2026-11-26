@@ -948,6 +948,8 @@
   "sdout": {
     "title": "Card removed",
     "body": "Put it back: Mosaik picks up where you were. Nothing is written while it is out.",
+    "body_linux": "Put it back: the game closes and you go back to the menu. Nothing is written while it is out.",
+    "keys_linux": "Power: sleep · hold: turn off now",
     "off_in": "Turning off in %s",
     "suspend_in": "Sleeping in %s",
     "checking": "Card back: checking and remounting…",
