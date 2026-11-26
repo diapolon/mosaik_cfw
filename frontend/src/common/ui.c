@@ -2090,6 +2090,7 @@ int ui_sd_poll(void) {
         if (logf_) { fclose(logf_); logf_ = NULL; }
         crash_fd_reopen();
         sd_reopen_std();
+        plat_reapply();   /* LED come nelle impostazioni, al posto del rosso della guardia */
         ui_image_forget_missing();
         sd_out_flush();
         ui_log("scheda rimessa e rimontata: si riprende");

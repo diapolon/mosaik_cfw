@@ -154,6 +154,7 @@ void plat_apply(const settings_t *s) {
     if (want != cpu) { cpu = want; set_cpu(cpu); }
 }
 
+void plat_reapply(void) { reapply = true; }
 void plat_cpu_fixed(int khz) { cpu_fixed = khz; }
 void plat_screen_off(bool off) { screen_off = off; }
 void plat_cpu_game(int khz) { cpu_game = khz; }

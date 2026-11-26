@@ -54,6 +54,9 @@ void plat_led_theme(unsigned rgb);
 /* sospende la console (m2/arcade-suspend) e torna al risveglio; poi plat_apply riapplica
    luminosità, volume, CPU e LED. false se la sospensione non è riuscita */
 bool plat_suspend(void);
+/* al prossimo plat_apply si riscrive tutto anche se le impostazioni non sono cambiate: dopo la
+   scheda rimessa i LED rossi della guardia (m2/guardia-sd.c) tornano quelli scelti */
+void plat_reapply(void);
 void plat_audio_release(void);  /* primo avvio: riattiva l'audio tenuto muto da system-init */
 void plat_audio_mute(void);     /* altoparlante spento: Wi-Fi e SD al massimo lo fanno ronzare */
 void plat_audio_unmute(void);   /* dopo il risveglio, a uscita audio riaperta */

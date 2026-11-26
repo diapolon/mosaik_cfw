@@ -457,6 +457,8 @@ void plat_poll(plat_keys_t *k) {
     k->fn = fn_state;
 }
 
+void plat_reapply(void) { reapply = true; }
+
 bool plat_suspend(void) {
     ui_log("sospensione");
     int r = system("ARCADE_KEEP_MUTE=1 arcade-suspend");
@@ -573,6 +575,7 @@ bool plat_battery_detail(int *ma, long *tte_s, long *full_mah) {
 bool plat_is_device(void) { return false; }
 const char *plat_model(void) { return NULL; }
 void plat_apply(const settings_t *s) { (void)s; }
+void plat_reapply(void) {}
 void plat_cpu_fixed(int khz) { (void)khz; }
 void plat_screen_off(bool off) { (void)off; }
 void plat_cpu_game(int khz) { (void)khz; }

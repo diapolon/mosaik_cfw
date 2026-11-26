@@ -7250,7 +7250,6 @@ static void sdout_tick(void) {
         sdout_sel = 0;
         music_before_sleep();   /* i brani sono sulla scheda: il mixer si chiude come per la sospensione */
     } else if (ev == SD_EV_BACK) {
-        plat_apply(&UI.set);    /* LED come nelle impostazioni, al posto del rosso della guardia */
         music_after_sleep();
         if (screen == SCR_HOME) reload_games();   /* giochi cambiati sul computer mentre era fuori */
         ui_toast(T("sdout.back"));
