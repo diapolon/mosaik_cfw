@@ -86,6 +86,18 @@ inputd_after_scan() {   # $1: gettone dell'accensione
     done
 }
 
+# Scheda tolta (m2/guardia-sd.c): wifi.conf non si legge. Al suo posto un file vuoto faceva partire
+# wpa_supplicant senza reti, mai più collegato dopo il rimontaggio (Brick Pro, 26 novembre: Wi-Fi
+# acceso 15 s dopo l'avvio con la scheda fuori), e a scheda appena rimessa le avrebbe cancellate.
+# Si aspetta che la guardia la rimonti (o spenga). WIFI_SD_RUN al posto di /run nelle prove.
+sd_attesa() { while [ -e "${WIFI_SD_RUN:-/run}/scheda-tolta" ]; do sleep 0.5; done; }
+# file delle reti da ricreare: assente in una cartella che c'è, o vuoto e leggibile; mai se non si
+# legge (scheda appena sparita, errore di lettura)
+conf_vuoto() {
+    if [ -e "$CONF" ]; then [ ! -s "$CONF" ] && cat "$CONF" > /dev/null 2>&1
+    else [ -d "${CONF%/*}" ]; fi
+}
+
 case "$1" in
 resume)
     inputd_resume "$2"
@@ -112,7 +124,8 @@ on)
     done
     # anche se è vuoto: il controllo della SD svuota un file rimasto a metà dopo uno spegnimento
     # brusco, e senza update_config=1 wpa_supplicant non salverebbe più nessuna rete
-    if [ ! -s "$CONF" ]; then
+    sd_attesa
+    if conf_vuoto; then
         printf 'ctrl_interface=%s\nupdate_config=1\n' "$CTRL" > "$CONF"
     fi
     ifconfig wlan0 up

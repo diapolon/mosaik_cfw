@@ -425,7 +425,21 @@ if sh $CTL off && grep -q 'Wi-Fi spento' $LOG; then ok "comando interrotto: il b
 [ "$(grep -c 'wpa_.*9>&-' $CTL)" = 2 ] && ok "i demoni non ereditano il blocco" || ko "i demoni ereditano il blocco"
 
 check "ricerca delle reti non affidata al driver" grep -q 'wpa_supplicant -B .*-I /run/wpa-overlay.conf' $CTL
-check "file delle reti vuoto: si ricrea" grep -q 'if \[ ! -s "$CONF" \]; then' $CTL
+# file delle reti: si ricrea vuoto solo se manca o è vuoto e si legge; a scheda tolta si aspetta
+sed -n '/^sd_attesa()/,/^}/p' $CTL > $W/conf.sh
+cv() { (CONF=$1 WIFI_SD_RUN=$W/sdrun; . $W/conf.sh; "$2") && echo si || echo no; }
+mkdir -p $W/cf $W/sdrun; : > $W/cf/vuoto; printf 'network={\n}\n' > $W/cf/reti; ln -sf /proc/self/mem $W/cf/illeggibile
+check "file delle reti assente: si ricrea" [ "$(cv $W/cf/manca conf_vuoto)" = si ]
+check "file delle reti vuoto: si ricrea" [ "$(cv $W/cf/vuoto conf_vuoto)" = si ]
+check "file con le reti: resta" [ "$(cv $W/cf/reti conf_vuoto)" = no ]
+check "file che non si legge (scheda appena tolta): resta" [ "$(cv $W/cf/illeggibile conf_vuoto)" = no ]
+check "cartella che non c'è più: niente file nuovo" [ "$(cv $W/cf/via/wifi.conf conf_vuoto)" = no ]
+: > $W/sdrun/scheda-tolta; rm -f $W/atteso
+(cv $W/cf/reti sd_attesa > /dev/null; : > $W/atteso) & sleep 1.2
+check "scheda tolta: il Wi-Fi aspetta" [ ! -e $W/atteso ]
+rm -f $W/sdrun/scheda-tolta; sleep 1
+check "scheda rimontata: il Wi-Fi va avanti" [ -e $W/atteso ]
+awk '/sd_attesa$/{a=NR} /if conf_vuoto; then/{c=NR} /wpa_supplicant -B/{w=NR} END{exit !(a&&a<c&&c<w)}' $CTL && ok "si aspetta la scheda prima di leggere le reti" || ko "ordine di attesa e lettura"
 check "impostazione scritta nel file aggiuntivo" grep -q 'disable_scan_offload=1 > /run/wpa-overlay.conf' $CTL
 check "attesa prima di wpa_supplicant" grep -q '^    sleep 0.5' $CTL
 
