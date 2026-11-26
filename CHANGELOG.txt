@@ -3,6 +3,12 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.115
+it Scheda tolta: una scheda avvicinata ma non infilata bene non fa più riavviare, il conto alla rovescia continua finché non entra
+en Card removed: a card brought near but not pushed in properly no longer restarts the console, the countdown goes on until it is in
+it Wi-Fi e Bluetooth accesi mentre la scheda è fuori: aspettano che torni e partono normalmente, con le reti salvate
+en Wi-Fi and Bluetooth turned on while the card is out: they wait for the card and start normally, with the saved networks
+
 0.9.114
 it La scheda si può togliere a console accesa: il sistema gira in memoria e una finestra conta fino allo spegnimento o alla sospensione (Impostazioni → Sistema → Scheda tolta)
 en The card can be removed with the console on: the system runs from memory and a window counts down to turning off or sleeping (Settings → System → Card removed)
