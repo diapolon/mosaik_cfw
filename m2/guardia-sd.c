@@ -23,7 +23,8 @@
  *   stacca (MNT_DETACH: i file rimasti aperti restano sulla scheda tolta) e la partizione si
  *   rimonta come nell'initramfs (noatime, flush). Poi cresce il contatore /run/scheda-rimessa e
  *   sparisce /run/scheda-tolta: il launcher riapre i suoi file e riprende da dov'era. Tolta di
- *   nuovo durante il controllo: di nuovo il conto alla rovescia. Una scheda diversa o un passo non
+ *   nuovo durante il controllo, o infilata male (c'è ma non si legge): è ancora fuori, il conto
+ *   alla rovescia continua e si riprova, mai un riavvio (senza scheda partirebbe il firmware interno). Una scheda diversa o un passo non
  *   riuscito: riavvio (col caricatore collegato spegnimento, perché dopo un riavvio U-Boot
  *   resterebbe a schermo nero, issue #2), con il segno lasciato perché nessuno riparta. Com'è
  *   andata finisce in Arcade/Logs/scheda-tolta.txt: dopo un passo non riuscito con la stessa
@@ -245,33 +246,35 @@ static bool fat_serial(const char *dev, uint32_t *serial) {
     return true;
 }
 
-/* scheda rimessa: stessa scheda, riparata e rimontata; falso = va riavviato */
-static bool remount(const char *disk, const char *part, bool have_serial, uint32_t serial, const char *cid0) {
+/* scheda rimessa: RM_OK stessa scheda, riparata e rimontata; RM_RIAVVIO va riavviato; RM_NON_LEGGE
+   c'è ma non si legge (infilata male: il contatto non regge), è come ancora fuori */
+enum { RM_OK, RM_RIAVVIO, RM_NON_LEGGE };
+static int remount(const char *disk, const char *part, bool have_serial, uint32_t serial, const char *cid0) {
     fsck_ok = false;
-    if (!have_serial) { note("numero di serie della scheda sconosciuto dall'avvio"); return false; }
+    if (!have_serial) { note("numero di serie della scheda sconosciuto dall'avvio"); return RM_RIAVVIO; }
     uint32_t now = 0;
     bool got = false;
-    for (int i = 0; i < 60 && !(got = fat_serial(part, &now)); i++) usleep(250000);   /* la partizione arriva poco dopo il disco */
-    if (!got) { note("partizione %s non leggibile", part); return false; }
-    if (now != serial) { note("scheda diversa (FAT %08X, all'avvio %08X)", now, serial); return false; }
+    for (int i = 0; i < 12 && !(got = fat_serial(part, &now)); i++) usleep(250000);   /* la partizione arriva poco dopo il disco */
+    if (!got) return RM_NON_LEGGE;
+    if (now != serial) { note("scheda diversa (FAT %08X, all'avvio %08X)", now, serial); return RM_RIAVVIO; }
     if (cid0[0]) {
         char cid[64];
         card_cid(disk, cid, sizeof cid);
-        if (strcmp(cid, cid0)) { note("scheda diversa: stesso FAT %08X, CID %s (all'avvio %s)", now, cid[0] ? cid : "illeggibile", cid0); return false; }
+        if (strcmp(cid, cid0)) { note("scheda diversa: stesso FAT %08X, CID %s (all'avvio %s)", now, cid[0] ? cid : "illeggibile", cid0); return RM_RIAVVIO; }
     }
     same_card = true;
     char why[512];
-    if (!root_in_ram(why, sizeof why)) { note("il sistema legge ancora dalla scheda tolta (%s)", why); return false; }
+    if (!root_in_ram(why, sizeof why)) { note("il sistema legge ancora dalla scheda tolta (%s)", why); return RM_RIAVVIO; }
     const char *fsck = getenv("GUARDIA_FSCK") ? getenv("GUARDIA_FSCK") : "fsck.fat";
     char *fa[] = { (char *)fsck, "-a", (char *)part, NULL };
     int r = run(fsck, fa, 120);
     note("fsck.fat -a: %s", r == 0 ? "nessun errore" : r == 1 ? "errori corretti" : r == 127 ? "non trovato" : "non riuscito");
-    if (r != 0 && r != 1 && r != 127) return false;
+    if (r != 0 && r != 1 && r != 127) return RM_RIAVVIO;
     fsck_ok = true;
     const char *opts = getenv("GUARDIA_OPZIONI") ? getenv("GUARDIA_OPZIONI") : "flush";   /* nelle prove: un rimontaggio che non riesce */
     if (umount2(mnt, MNT_DETACH) != 0) note("vecchio aggancio non staccato: %s", strerror(errno));
-    if (mount(part, mnt, "vfat", MS_NOATIME, opts) != 0) { note("rimontaggio non riuscito: %s", strerror(errno)); return false; }
-    return true;
+    if (mount(part, mnt, "vfat", MS_NOATIME, opts) != 0) { note("rimontaggio non riuscito: %s", strerror(errno)); return RM_RIAVVIO; }
+    return RM_OK;
 }
 
 /* ultime righe dei messaggi del kernel, per capire un rimontaggio non riuscito */
@@ -347,6 +350,7 @@ int main(int argc, char **argv) {
     unlink(p_state);
     unlink(p_now);
     int absent = 0, count = 0, secs = default_s;
+    bool unreadable = false;   /* già scritto che la scheda c'è ma non si legge */
     char action[16] = "spegni", line[64];
     double deadline = 0, last_slept = slept();
     for (;;) {
@@ -392,18 +396,29 @@ int main(int argc, char **argv) {
             }
         } else {
             if (absent >= 1 || blip) {   /* rimessa */
-                snprintf(line, sizeof line, "%.0f rimonto\n", deadline);
-                put_state("scheda-tolta", line);
-                note("scheda rimessa");
+                if (!unreadable) {   /* infilata male: si riprova in silenzio, la finestra resta sul conto */
+                    snprintf(line, sizeof line, "%.0f rimonto\n", deadline);
+                    put_state("scheda-tolta", line);
+                    note("scheda rimessa");
+                }
                 same_card = false;
-                if (!remount(disk, part, have_serial, serial, cid)) {
-                    if (!disk_present(disk)) {   /* tolta di nuovo durante il controllo: si torna al conto */
-                        note("tolta di nuovo durante il controllo");
-                        deadline = mono() + secs;
+                int rm = remount(disk, part, have_serial, serial, cid);
+                if (rm != RM_OK) {
+                    /* infilata male (c'è ma non si legge) o tolta di nuovo durante il controllo: per
+                       tutti è ancora fuori, il conto alla rovescia continua e si riprova. Mai un
+                       riavvio: senza scheda la console partirebbe dal firmware interno (Brick Pro,
+                       26 novembre: scheda avvicinata e non infilata, riavvio) */
+                    if (rm == RM_NON_LEGGE || !disk_present(disk)) {
+                        if (!unreadable) note(rm == RM_NON_LEGGE ? "scheda presente ma non leggibile: si aspetta" : "tolta di nuovo durante il controllo");
+                        unreadable = rm == RM_NON_LEGGE;
                         snprintf(line, sizeof line, "%.0f %s\n", deadline, action);
                         put_state("scheda-tolta", line);
                         absent = 1;
                         last_slept = slept();
+                        if (access(p_now, F_OK) == 0) { unlink(p_now); finish(false, "SPEGNIMENTO CHIESTO"); }
+                        double now = mono();
+                        if (!strcmp(action, "spegni") && now >= deadline) finish(false, "LA SCHEDA NON E' STATA RIMESSA");
+                        if (now >= deadline + reserve) finish(false, "LA SCHEDA NON E' STATA RIMESSA");
                         usleep(100000);
                         continue;
                     }
@@ -411,6 +426,7 @@ int main(int argc, char **argv) {
                     save_log_aside(part);
                     finish(true, "SCHEDA RIMESSA: RIPARTO");   /* il segno resta: nessuno riparte sulla scheda morta */
                 }
+                unreadable = false;
                 note("rimontata in %s: si riprende", mnt);
                 save_log();
                 /* prima il contatore, poi via il segno: chi vede la scheda di nuovo dentro vede anche

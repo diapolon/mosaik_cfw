@@ -136,6 +136,18 @@ nuova_sd 1234ABCD; parti "30 spegni"; unset GUARDIA_RADICE; togli; sleep 2; rime
 [ -z "$(cat /tmp/mnt/Arcade/a.txt 2> /dev/null)" ] && ok "la scheda non è stata rimontata" || ko "rimontata col sistema sulla scheda tolta"
 fine
 
+echo "--- scheda infilata male: c'è ma non si legge"
+dd if=/dev/zero of=/tmp/guasta.img bs=1M count=40 2> /dev/null   # niente FAT: il contatto che non regge
+nuova_sd 1234ABCD; parti "60 spegni"; togli; sleep 1; rimetti /tmp/guasta.img; sleep 17
+[ "$(azione)" = niente ] && ok "nessun riavvio (senza scheda la console partirebbe dal firmware interno)" || ko "infilata male: $(azione)"
+[ -e /tmp/run/scheda-tolta ] && ok "per il launcher è ancora fuori" || ko "segno della scheda tolta sparito"
+rimetti; sleep 5
+[ "$(cat /tmp/run/scheda-rimessa 2> /dev/null)" = 1 ] && [ "$(azione)" = niente ] && ok "infilata bene: rimontata" || ko "dopo: contatore $(cat /tmp/run/scheda-rimessa 2> /dev/null), $(azione)"
+fine
+nuova_sd 1234ABCD; parti "6 spegni"; togli; sleep 1; rimetti /tmp/guasta.img; sleep 9
+[ "$(azione)" = spegnimento ] && ok "infilata male e lasciata: alla scadenza si spegne, niente riavvio" || ko "lasciata: $(azione)"
+fine
+
 echo "--- tolta di nuovo durante il controllo"
 printf '#!/bin/sh\nsleep 3\nexit 0\n' > /tmp/fsck-lento; chmod +x /tmp/fsck-lento
 export GUARDIA_FSCK=/tmp/fsck-lento
