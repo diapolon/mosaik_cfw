@@ -3,6 +3,14 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
+0.9.114
+it La scheda si può togliere a console accesa: il sistema gira in memoria e una finestra conta fino allo spegnimento o alla sospensione (Impostazioni → Sistema → Scheda tolta)
+en The card can be removed with the console on: the system runs from memory and a window counts down to turning off or sleeping (Settings → System → Card removed)
+it Rimessa la stessa scheda si riprende da dov'eri, senza riavviare; i giochi su disco si riaprono dallo stesso punto, i giochi Linux si chiudono
+en Put the same card back and you carry on where you were, without restarting; disc games reopen at the same point, Linux games close
+it Menu sopra i giochi Linux e le app: intorno al pannello si vede il gioco
+en Menu over Linux games and apps: the game shows around the panel
+
 0.9.113
 it Giochi Linux in standby da soli dopo i minuti di Sospensione automatica senza tasti, anche in pausa
 en Linux games go to sleep by themselves after the Auto sleep minutes without input, also when paused
