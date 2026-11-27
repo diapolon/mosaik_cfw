@@ -128,6 +128,7 @@ fine() {
 echo "--- gioco su cartuccia: scheda tolta e rimessa"
 prepara gioco.bin
 check "core bloccato in memoria ($(grep -o 'core in memoria.*' $R/Logs/Arcade.log | head -1))" 'grep -q "core in memoria: [1-9][0-9]* KB$" $R/Logs/Arcade.log'
+check "memoria libera scritta nel registro ($(grep -o 'memoria libera dopo.*' $R/Logs/Arcade.log | head -1))" 'grep -q "memoria libera dopo il caricamento: [0-9]* MB" $R/Logs/Arcade.log'
 togli
 aspetta 5 '[ -f /tmp/run/scheda-tolta ]' || ko "guardia: scheda tolta non vista"
 sleep 1; f1=$(frames); sleep 1.5; f2=$(frames)
@@ -157,6 +158,37 @@ check "cambio.txt chiede di riaprire lo stesso gioco" '[ "$(cat $R/System/cambio
 check "stato automatico salvato sulla scheda rimessa" 'ls $R/Saves/prova/ 2> /dev/null | grep -q "^gioco\.auto"'
 fine
 
+echo "--- runner fermo mentre la scheda esce e rientra (risveglio lento): il disco si riapre lo stesso"
+prepara gioco.cue
+kill -STOP $rpid   # come bloccato in arcade-suspend: non vede mai la scheda fuori
+togli
+aspetta 5 '[ -f /tmp/run/scheda-tolta ]'; sleep 1
+rimetti
+aspetta 15 '[ ! -f /tmp/run/scheda-tolta ] && [ -f /tmp/run/scheda-rimessa ]' || ko "guardia: non rimontata"
+kill -CONT $rpid
+aspetta 15 '! kill -0 $rpid 2> /dev/null' || kill -9 $rpid   # rimasto in gioco: la prova non si blocca
+wait $rpid; rc=$?
+check "il runner torna al launcher (uscita $rc)" '[ $rc = 0 ]'
+check "il disco aperto sulla scheda tolta è stato visto" 'grep -q "resta aperto sulla scheda tolta" $R/Logs/Arcade.log'
+check "cambio.txt chiede di riaprire lo stesso gioco" '[ "$(cat $R/System/cambio.txt 2> /dev/null)" = "$(printf "prova\tgioco")" ]'
+fine
+
+echo "--- poca memoria: core non fissato, alla scheda rimessa si torna al menu senza toccarlo"
+export RUNNER_MEMORIA_MB=100
+prepara gioco.bin
+check "memoria libera scritta nel registro" 'grep -q "memoria libera dopo il caricamento: [0-9]* MB" $R/Logs/Arcade.log'
+check "core non fissato in memoria" 'grep -q "core non bloccato in memoria" $R/Logs/Arcade.log'
+togli
+aspetta 5 '[ -f /tmp/run/scheda-tolta ]'; sleep 1
+rimetti
+aspetta 15 '! kill -0 $rpid 2> /dev/null' || kill -9 $rpid
+wait $rpid; rc=$?
+check "il runner torna al menu (uscita $rc)" '[ $rc = 0 ]'
+check "registro: si torna al menu perché il core non è in memoria" 'grep -q "core non in memoria: si torna al menu" $R/Logs/Arcade.log'
+check "nessuna riapertura chiesta" '[ ! -e $R/System/cambio.txt ]'
+unset RUNNER_MEMORIA_MB
+fine
+
 echo "--- gioco Linux sotto gamewatch: fermo a scheda fuori, chiuso alla scheda rimessa"
 gcc -std=c11 -O2 -D_DEFAULT_SOURCE -o /tmp/gw /trimui/frontend/src/tools/gamewatch.c || ko "gamewatch non compila"
 rm -rf /tmp/run/* /tmp/tick /tmp/gioco-chiuso; echo "salvato prima" > /tmp/salvataggio
@@ -179,6 +211,63 @@ check "scheda rimessa: si torna al launcher (uscita $rc)" '[ $rc = 0 ]'
 check "scheda rimessa: il gioco non riparte ($t2, poi $t3) e non scrive il salvataggio in uscita" '[ "$t3" = "$t2" ] && [ "$(cat /tmp/salvataggio)" = "salvato prima" ] && [ ! -f /tmp/gioco-chiuso ]'
 check "scheda rimessa: del gioco non resta niente" '! pgrep -f gioco.sh > /dev/null'
 check "segno per il launcher: gioco chiuso per la scheda" '[ -f /tmp/run/gioco-chiuso-scheda ]'
+
+echo "--- standby automatico dei giochi Linux: un controller collegato dopo conta, e un tasto tenuto"
+# controller finto con uinput: «tocchi S» preme e lascia un tasto ogni mezzo secondo per S secondi,
+# «tieni S» lo preme una volta e lo tiene per S secondi
+cat > /tmp/pad.c <<'X'
+#include <fcntl.h>
+#include <linux/uinput.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+static void ev(int fd, int type, int code, int value) {
+    struct input_event e = { .type = type, .code = code, .value = value };
+    if (write(fd, &e, sizeof e) < 0) _exit(1);
+    struct input_event s = { .type = EV_SYN, .code = SYN_REPORT };
+    if (write(fd, &s, sizeof s) < 0) _exit(1);
+}
+int main(int argc, char **argv) {
+    int fd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+    if (fd < 0 || argc < 3) return 1;
+    ioctl(fd, UI_SET_EVBIT, EV_KEY);
+    ioctl(fd, UI_SET_KEYBIT, BTN_SOUTH);
+    struct uinput_setup us;
+    memset(&us, 0, sizeof us);
+    us.id.bustype = BUS_USB; us.id.vendor = 0x1234; us.id.product = 0x5678;
+    strcpy(us.name, "Pad di prova");
+    if (ioctl(fd, UI_DEV_SETUP, &us) || ioctl(fd, UI_DEV_CREATE)) return 1;
+    int secs = atoi(argv[2]);
+    sleep(1);
+    if (!strcmp(argv[1], "tieni")) { ev(fd, EV_KEY, BTN_SOUTH, 1); sleep(secs); ev(fd, EV_KEY, BTN_SOUTH, 0); }
+    else for (int i = 0; i < secs * 2; i++) { ev(fd, EV_KEY, BTN_SOUTH, 1); ev(fd, EV_KEY, BTN_SOUTH, 0); usleep(500000); }
+    sleep(1);
+    ioctl(fd, UI_DEV_DESTROY);
+    return 0;
+}
+X
+gcc -O2 -o /tmp/pad /tmp/pad.c || ko "pad di prova non compila"
+pad_nodo() {   # in Docker /dev non si aggiorna da solo: il nodo del pad si crea a mano
+    for d in /sys/class/input/event*; do
+        grep -q "Pad di prova" $d/device/name 2> /dev/null || continue
+        n=${d##*/}; [ -e /dev/input/$n ] || mknod /dev/input/$n c $(cut -d: -f1 $d/dev) $(cut -d: -f2 $d/dev)
+    done
+}
+for modo in tocchi tieni; do
+    rm -rf /tmp/run/*
+    ARCADE_AUTOSLEEP_MIN=1 GAMEWATCH_MINUTE_S=3 /tmp/gw -- sh /tmp/gioco.sh 2> /tmp/gw-$modo.log & gw=$!
+    sleep 1
+    /tmp/pad $modo 7 & pp=$!
+    sleep 0.5; pad_nodo
+    sleep 6
+    check "$modo: controller collegato dopo l'avvio, nessuno standby mentre si gioca" 'kill -0 $gw 2> /dev/null'
+    wait $pp 2> /dev/null
+    aspetta 10 '! kill -0 $gw 2> /dev/null' || kill $gw
+    wait $gw; rc=$?
+    check "$modo: senza tasti, dopo il tempo scelto si spegne lo stesso (uscita $rc)" '[ $rc = 120 ]'
+    rm -f /dev/input/event*
+done
 
 echo
 [ $errors = 0 ] && echo "tutte le prove passate" || { echo "$errors prove fallite"; exit 1; }

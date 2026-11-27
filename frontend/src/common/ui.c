@@ -28,6 +28,8 @@
 ui_t UI;
 
 static FILE *logf_;
+/* registro e righe tenute a scheda tolta: ui_log arriva anche dai thread (Store, aggiornamento, Wi-Fi) */
+static pthread_mutex_t sd_out_lock = PTHREAD_MUTEX_INITIALIZER;
 static char log_path[1200];
 
 #if defined(__linux__) && defined(__GLIBC__)
@@ -203,7 +205,9 @@ int ui_confirm_input(int *sel) {
 static void log_durable(const char *msg) {
     if (UI.sd_failed || UI.sd_out) return;
     ui_log("%s", msg);
+    pthread_mutex_lock(&sd_out_lock);
     if (logf_) fsync(fileno(logf_));
+    pthread_mutex_unlock(&sd_out_lock);
 }
 
 /* chiusura dell'uscita audio in un thread a parte. Con l'altoparlante in muto (il launcher lo
@@ -298,7 +302,6 @@ void ui_mark(const char *what) {
 static char sd_out_log[8192];
 static size_t sd_out_len;
 static int sd_out_lost;
-static pthread_mutex_t sd_out_lock = PTHREAD_MUTEX_INITIALIZER;   /* ui_log arriva anche dai thread (Store, aggiornamento, Wi-Fi) */
 
 void ui_log(const char *fmt, ...) {
     if (!log_on() || UI.sd_failed) return;   /* SD guasta: una scrittura non tornerebbe più */
@@ -320,11 +323,15 @@ void ui_log(const char *fmt, ...) {
         pthread_mutex_unlock(&sd_out_lock);
         return;
     }
+    /* sotto il lucchetto: alla scheda rimessa il thread principale chiude e riapre il registro, e
+       un thread (Store, aggiornamento, Wi-Fi, core) non deve scrivere su un FILE appena chiuso */
+    pthread_mutex_lock(&sd_out_lock);
     if (!logf_ && log_path[0]) logf_ = fopen(log_path, "a");
     if (logf_) {
         fprintf(logf_, "%02d:%02d:%02d %s\n", tmv.tm_hour, tmv.tm_min, tmv.tm_sec, msg);
         fflush(logf_);
     }
+    pthread_mutex_unlock(&sd_out_lock);
 }
 
 /* scheda rimessa: le righe tenute in memoria finiscono nel registro */
@@ -1977,6 +1984,7 @@ static bool sd_suspend_act;
 static double sd_acted = -1;  /* scadenza per cui si è già sospeso: dopo il risveglio aspetta la nuova */
 static int sd_count = -1;
 static int sd_old_mnt = -1;   /* il mount della scheda tolta: i file rimasti aperti lì non tornano più */
+static bool sd_mnt_fresh;      /* sd_old_mnt va preso (ancora) dalla scheda attuale */
 
 /* numero del mount (mountinfo) che contiene path; il rimontaggio ne crea uno nuovo, anche se la
    scheda rimessa ha lo stesso dispositivo (mmcblk0p4) e quindi lo stesso st_dev */
@@ -2082,9 +2090,12 @@ int ui_sd_poll(void) {
         fclose(f);
     }
     UI.sd_out = sd_state != SD_IN;
+    /* il mount della scheda si prende già a scheda dentro, all'avvio e dopo ogni rimontaggio: un
+       programma fermo (risveglio lento in arcade-suspend) che vede solo il contatore cambiato
+       ritrova lo stesso i file rimasti sulla scheda tolta (revisione della stabile) */
+    if (sd_state == SD_IN && !sd_mnt_fresh) { sd_old_mnt = mount_id_of(UI.root); sd_mnt_fresh = true; }
     if (sd_state != SD_IN && was == SD_IN) {
         ui_log("scheda tolta: da qui il registro resta in memoria");
-        sd_old_mnt = mount_id_of(UI.root);
         ev = SD_EV_OUT;
     }
     snprintf(p, sizeof p, "%s/scheda-rimessa", d);
@@ -2092,9 +2103,12 @@ int ui_sd_poll(void) {
     if ((f = fopen(p, "r"))) { if (fscanf(f, "%d", &count) != 1) count = 0; fclose(f); }
     if (sd_count < 0) sd_count = count;
     if (count != sd_count && sd_state == SD_IN) {
+        sd_mnt_fresh = false;   /* al prossimo giro: prima chi la usa guarda i file rimasti aperti */
         /* la scheda rimontata è un'altra cosa per il kernel: il registro si riapre, le immagini
            non trovate mentre era fuori si cercano di nuovo */
+        pthread_mutex_lock(&sd_out_lock);
         if (logf_) { fclose(logf_); logf_ = NULL; }
+        pthread_mutex_unlock(&sd_out_lock);
         crash_fd_reopen();
         sd_reopen_std();
         plat_reapply();   /* LED come nelle impostazioni, al posto del rosso della guardia */

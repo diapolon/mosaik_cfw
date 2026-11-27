@@ -123,6 +123,28 @@ static int idle_action(double idle_s, int suspend_min, int sleep_min, bool stay_
 }
 #endif
 
+#ifdef __linux__
+/* prima dello standby automatico: un tasto ancora premuto o una levetta lontana dal centro sono
+   gioco (un acceleratore tenuto non manda eventi; revisione della stabile, 27 novembre) */
+static bool still_active(const struct pollfd *fds, int nfds) {
+    static const int ax[] = { ABS_X, ABS_Y, ABS_RX, ABS_RY };
+    for (int i = 0; i < nfds; i++) {
+        if (fds[i].fd < 0) continue;
+        unsigned char keys[KEY_MAX / 8 + 1];
+        memset(keys, 0, sizeof keys);
+        if (ioctl(fds[i].fd, EVIOCGKEY(sizeof keys), keys) >= 0)
+            for (size_t k = 0; k < sizeof keys; k++) if (keys[k]) return true;
+        for (size_t j = 0; j < sizeof ax / sizeof *ax; j++) {
+            struct input_absinfo a;
+            if (ioctl(fds[i].fd, EVIOCGABS(ax[j]), &a) != 0) continue;
+            int range = a.maximum - a.minimum, mid = a.minimum + range / 2;
+            if (range > 0 && (a.value > mid + range / 4 || a.value < mid - range / 4)) return true;
+        }
+    }
+    return false;
+}
+#endif
+
 static double now(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -325,7 +347,8 @@ int main(int argc, char **argv) {
     }
     if (d) closedir(d);
     int lost = 0;          /* dispositivi spariti (trimui_inputd riavviato): si riaprono (audit R17) */
-    unsigned rescan = 0;
+    unsigned rescan = 0, scan_new = 0;
+    static char own_kbd[300];   /* la tastiera virtuale di gamewatch, da non aprire */
     fprintf(stderr, "gamewatch: %d dispositivi; Menu tenuto %.1f s o HOME per uscire\n", nfds, hold);
 
     /* tastiera virtuale, creata dopo aver aperto i dispositivi: così non legge sé stessa */
@@ -389,6 +412,8 @@ int main(int argc, char **argv) {
        di Mosaik lo chiedono da sé, e un'app come un lettore video non si tocca mentre riproduce) */
     int idle_suspend_min = getenv("ARCADE_AUTOSUSPEND_MIN") ? atoi(getenv("ARCADE_AUTOSUSPEND_MIN")) : 0;
     int idle_sleep_min = getenv("ARCADE_AUTOSLEEP_MIN") ? atoi(getenv("ARCADE_AUTOSLEEP_MIN")) : 0;
+    /* GAMEWATCH_MINUTE_S: secondi di un minuto, solo nelle prove (m2/test-runner-sd.sh) */
+    double minute_scale = getenv("GAMEWATCH_MINUTE_S") && atof(getenv("GAMEWATCH_MINUTE_S")) > 0 ? 60.0 / atof(getenv("GAMEWATCH_MINUTE_S")) : 1.0;
     double last_input = now();
     pid_t osd_pid = 0;   /* barra del volume in corso */
     for (;;) {
@@ -416,6 +441,33 @@ int main(int argc, char **argv) {
             stop_group(pid);   /* il programma principale è finito: restano i processi che ha lanciato */
             if (ui >= 0) { ioctl(ui, UI_DEV_DESTROY); close(ui); }
             return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+        }
+        if (++scan_new % 20 == 0 && nfds < 32) {
+            /* ogni 2 s circa: controller collegati dopo l'avvio del gioco (Bluetooth, USB). Senza,
+               per lo standby automatico si giocava senza tasti, e dopo i minuti di Spegnimento
+               automatico il gioco si chiudeva (revisione della stabile, 27 novembre) */
+            DIR *dd = opendir("/dev/input");
+            struct dirent *de;
+            while (dd && (de = readdir(dd)) && nfds < 32) {
+                if (strncmp(de->d_name, "event", 5)) continue;
+                char path[300];
+                snprintf(path, sizeof path, "/dev/input/%s", de->d_name);
+                bool known = !strcmp(path, own_kbd);
+                for (int i = 0; i < nfds && !known; i++) known = !strcmp(fpath[i], path);
+                if (known) continue;
+                int fd = open(path, O_RDONLY | O_NONBLOCK);
+                if (fd < 0) continue;
+                char name[128] = "";
+                ioctl(fd, EVIOCGNAME(sizeof name), name);
+                if (strstr(name, "gamewatch keyboard")) { close(fd); snprintf(own_kbd, sizeof own_kbd, "%s", path); continue; }   /* mai la propria tastiera */
+                snprintf(fpath[nfds], sizeof fpath[0], "%s", path);
+                memset(&axes[nfds], 0, sizeof axes[nfds]);
+                ioctl(fd, EVIOCGABS(ABS_X), &axes[nfds].ix);
+                ioctl(fd, EVIOCGABS(ABS_Y), &axes[nfds].iy);
+                fds[nfds++] = (struct pollfd){ fd, POLLIN, 0 };
+                fprintf(stderr, "gamewatch: %s \"%s\" collegato\n", path, name);
+            }
+            if (dd) closedir(dd);
         }
         if (lost && ++rescan % 20 == 0) {   /* ogni 2 s circa, finché manca qualcuno */
             for (int i = 0; i < nfds; i++) {
@@ -604,7 +656,8 @@ int main(int argc, char **argv) {
             }
         }
         if (standalone && (idle_suspend_min > 0 || idle_sleep_min > 0)) {
-            int act = idle_action(now() - last_input, idle_suspend_min, idle_sleep_min, access("/tmp/stay_awake", F_OK) == 0);
+            int act = idle_action((now() - last_input) * minute_scale, idle_suspend_min, idle_sleep_min, access("/tmp/stay_awake", F_OK) == 0);
+            if (act && still_active(fds, nfds)) { last_input = now(); act = 0; }
             if (act == 2) {
                 fprintf(stderr, "gamewatch: %d minuti senza tasti, chiudo il gioco e spengo\n", idle_sleep_min);
                 stop_group(pid);

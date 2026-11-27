@@ -973,17 +973,40 @@ static int16_t input_state(unsigned port, unsigned device, unsigned index, unsig
    ne rilegge le pagine quando servono o dopo averle tolte per fare spazio. Con la scheda tolta a
    console accesa (m2/guardia-sd.c) quella lettura non riesce e il gioco cade (SIGBUS). mlock legge
    tutto il core una volta e lo tiene in memoria finché si gioca. */
-static char core_lock_msg[96];   /* il registro si apre dopo il core: la riga si scrive dopo ui_init */
+static bool core_locked;   /* il core sta tutto in memoria: regge la scheda tolta (core_lock) */
+static bool core_gone;     /* scheda rimessa con il core non in memoria: il suo codice è sulla scheda tolta */
+
+/* MemAvailable in MB (RUNNER_MEMORIA_MB nelle prove), -1 se non si sa */
+static long long mem_free_mb(void) {
+    if (getenv("RUNNER_MEMORIA_MB")) return atoll(getenv("RUNNER_MEMORIA_MB"));
+    FILE *f = fopen("/proc/meminfo", "r");
+    char l[128];
+    long long kb = -1;
+    while (f && fgets(l, sizeof l, f)) if (sscanf(l, "MemAvailable: %lld kB", &kb) == 1) break;
+    if (f) fclose(f);
+    return kb < 0 ? -1 : kb >> 10;
+}
+
+/* Scheda tolta durante il gioco: il core è un file sulla scheda, e una pagina non ancora letta non
+   si legge più. Si fissa tutto in memoria, dopo il caricamento del gioco, ma solo se restano almeno
+   256 MB liberi: FBNeo sono circa 80 MB che il kernel non può più liberare (revisione della stabile,
+   27 novembre). Senza, la scheda tolta ferma il gioco come sempre, e rimessa si torna al menu. */
 static void core_lock(void) {
 #ifdef __linux__
     char real[PATH_MAX], line[PATH_MAX + 128];
+    long long avail = mem_free_mb();
+    ui_log("memoria libera dopo il caricamento: %lld MB", avail);
     if (!plat_standalone() || !realpath(core_path, real)) return;
+    struct stat cst;
+    long long size = stat(real, &cst) == 0 ? (long long)cst.st_size : 0;
+    if (avail >= 0 && avail - (size >> 20) < 256) {
+        ui_log("core non bloccato in memoria (%lld MB, ne resterebbero meno di 256 liberi): con la scheda tolta e rimessa si torna al menu", size >> 20);
+        return;
+    }
     FILE *m = fopen("/proc/self/maps", "r");
     unsigned long long locked = 0;
     bool fail = false;
     char why[64] = "";
-    struct stat cst;
-    long long size = stat(real, &cst) == 0 ? (long long)cst.st_size : 0;
     unsigned long long page = (unsigned long long)sysconf(_SC_PAGESIZE);
     while (m && fgets(line, sizeof line, m)) {
         unsigned long a, b;
@@ -1000,7 +1023,8 @@ static void core_lock(void) {
         else if (!fail) { fail = true; snprintf(why, sizeof why, "%s %s", perm, strerror(errno)); }
     }
     if (m) fclose(m);
-    snprintf(core_lock_msg, sizeof core_lock_msg, "core in memoria: %llu KB%s%s%s", locked >> 10, fail ? " (in parte non bloccato: " : "", why, fail ? ")" : "");
+    core_locked = locked > 0 && !fail;
+    ui_log("core in memoria: %llu KB%s%s%s", locked >> 10, fail ? " (in parte non bloccato: " : "", why, fail ? ")" : "");
 #endif
 }
 
@@ -1012,7 +1036,6 @@ static bool load_core(void) {
         note_error(e ? e : "");
         return false;
     }
-    core_lock();
 #define SYM(field, name) if (!(*(void **)&core.field = dlsym(core.h, name))) { ui_log("simbolo mancante: %s", name); return false; }
     SYM(init, "retro_init"); SYM(deinit, "retro_deinit");
     SYM(get_system_info, "retro_get_system_info"); SYM(get_system_av_info, "retro_get_system_av_info");
@@ -1680,6 +1703,13 @@ static void swr_go(void) {
 static int sd_sel;
 static void sd_back(void) {
     ui_toast(T("sdout.back"));
+    if (plat_standalone() && !core_locked) {
+        /* nessuna chiamata al core: una sua pagina non letta prima è sulla scheda tolta */
+        ui_log("scheda rimessa: core non in memoria: si torna al menu (si riprende dall'ultimo salvataggio automatico)");
+        core_gone = true;
+        exit_code = EXIT_MENU;
+        return;
+    }
     if (ui_sd_stale_files() == 0) return;
     swr_load();
     int cur = -1;
@@ -2609,8 +2639,8 @@ int main(int argc, char **argv) {
     /* Il core va caricato prima della finestra: la frequenza audio la decide lui. */
     bool core_ok = load_core(), ok = core_ok && load_game() && !core_refused_game();
     if (!ui_init("Arcade", root, auto_script, ok ? (int)lround(av.timing.sample_rate) : 48000, false)) return 1;
-    if (core_lock_msg[0]) ui_log("%s", core_lock_msg);
     ui_log("gioco: %s (%s)", title, rom_path);
+    if (ok) core_lock();
     if (!ok) {
         ui_log("gioco non avviato: %s", core_last_error);
         if (!write_failure(core_ok ? "game" : "core")) show_error(T("game.error_body"));
@@ -2799,7 +2829,7 @@ int main(int argc, char **argv) {
     /* uscendo al menu (menu in gioco o HOME) la partita va nel salvataggio automatico, se
        l'impostazione è accesa: in home la si riprende con "Riprendi" */
     /* cambio gioco: lo stato è già salvato (swr_input), un secondo giro ruoterebbe di nuovo i salvataggi */
-    if (exit_code == EXIT_MENU && !core_shutdown && (UI.set.autosave_exit || switching) && !switch_saved && state_save(true)) ui_log("salvataggio automatico all'uscita");
+    if (exit_code == EXIT_MENU && !core_shutdown && !core_gone && (UI.set.autosave_exit || switching) && !switch_saved && state_save(true)) ui_log("salvataggio automatico all'uscita");
     if (exit_code == EXIT_MENU) {   /* uscita normale: niente ripresa all'accensione di una partita vecchia (GIO-02) */
         char rp[1200];
         snprintf(rp, sizeof rp, "%s/System/resume.txt", root);
@@ -2808,9 +2838,11 @@ int main(int argc, char **argv) {
     ui_log("uscita (%d), giocato %.0f s", exit_code, played);
     ui_busy(T(exit_code == EXIT_POWEROFF ? "common.shutting_down" : exit_code == EXIT_REBOOT ? "common.restarting" : "common.leaving"), 0.35);
     stats_update();
-    sram_save();
-    core.unload_game();
-    core.deinit();
+    if (!core_gone) {   /* core rimasto sulla scheda tolta: niente chiamate, il processo finisce e basta */
+        sram_save();
+        core.unload_game();
+        core.deinit();
+    }
     free(rom_data);
     if (rom_tmp[0]) remove(rom_tmp);
     ui_shutdown_code(exit_code);
