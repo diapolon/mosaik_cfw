@@ -3,29 +3,17 @@
 # Una versione per blocco: la riga con il numero, poi una riga per novità che comincia con la
 # lingua (it, en, es, fr, de, pt). Le lingue che mancano mostrano l'inglese. Frasi brevi.
 
-0.9.115
-it Scheda tolta: una scheda avvicinata ma non infilata bene non fa più riavviare, il conto alla rovescia continua finché non entra
-en Card removed: a card brought near but not pushed in properly no longer restarts the console, the countdown goes on until it is in
-it Wi-Fi e Bluetooth accesi mentre la scheda è fuori: aspettano che torni e partono normalmente, con le reti salvate
-en Wi-Fi and Bluetooth turned on while the card is out: they wait for the card and start normally, with the saved networks
-
-0.9.114
+0.9.116
 it La scheda si può togliere a console accesa: il sistema gira in memoria e una finestra conta fino allo spegnimento o alla sospensione (Impostazioni → Sistema → Scheda tolta)
 en The card can be removed with the console on: the system runs from memory and a window counts down to turning off or sleeping (Settings → System → Card removed)
 it Rimessa la stessa scheda si riprende da dov'eri, senza riavviare; i giochi su disco si riaprono dallo stesso punto, i giochi Linux si chiudono
 en Put the same card back and you carry on where you were, without restarting; disc games reopen at the same point, Linux games close
 it Menu sopra i giochi Linux e le app: intorno al pannello si vede il gioco
 en Menu over Linux games and apps: the game shows around the panel
-
-0.9.113
-it Giochi Linux in standby da soli dopo i minuti di Sospensione automatica senza tasti, anche in pausa
-en Linux games go to sleep by themselves after the Auto sleep minutes without input, also when paused
-
-0.9.112
-it Rete locale 127.0.0.1 accesa all'avvio: funzionano le app che la usano, come TubeHero
-en Local network 127.0.0.1 turned on at start: apps that use it, like TubeHero, now work
-it Giochi Linux e app possono chiedere il display opaco ("opaque"): niente più schermo nero con il solo audio
-en Linux games and apps can ask for an opaque display ("opaque"): no more black screen with sound only
+it Giochi Linux in standby da soli dopo i minuti di Sospensione automatica senza tasti, anche in pausa; un controller collegato dopo conta come gioco
+en Linux games go to sleep by themselves after the Auto sleep minutes without input, also when paused; a controller connected later counts as play
+it Giochi Linux e app possono chiedere il display opaco ("opaque"), e la rete locale 127.0.0.1 è accesa: funzionano app come TubeHero
+en Linux games and apps can ask for an opaque display ("opaque"), and the local network 127.0.0.1 is on: apps like TubeHero work
 it La schermata App è una griglia come lo Store, con l'icona di ogni app
 en The Apps screen is a grid like the Store, with each app's icon
 
