@@ -97,6 +97,13 @@ for come in "0,3 s senza disco" "fra due controlli (solo il numero del dispositi
     fine
 done
 
+echo "--- errore di lettura della dimensione del disco: la scheda è dentro"
+nuova_sd 1234ABCD; parti "30 spegni"
+rm /tmp/sys/sd/size; mkdir /tmp/sys/sd/size; sleep 1; rmdir /tmp/sys/sd/size; echo 81920 > /tmp/sys/sd/size; sleep 3
+[ ! -e /tmp/run/scheda-rimessa ] && [ "$(azione)" = niente ] && ok "nessun controllo né rimontaggio della scheda in uso" || ko "scheda in uso presa per tolta: contatore $(cat /tmp/run/scheda-rimessa 2> /dev/null), $(azione)"
+grep -q " /tmp/mnt " /proc/mounts && [ "$(cat /tmp/mnt/Arcade/a.txt 2> /dev/null)" = prima ] && ok "aggancio di prima ancora al suo posto" || ko "aggancio cambiato"
+fine
+
 echo "--- rimessa una scheda diversa"
 nuova_sd 1234ABCD; parti "30 spegni"; togli; sleep 2
 dd if=/dev/zero of=/tmp/altra.img bs=1M count=40 2> /dev/null; mkfs.vfat -F 32 -i 5678CDEF /tmp/altra.img > /dev/null
@@ -135,6 +142,29 @@ nuova_sd 1234ABCD; parti "30 spegni"; unset GUARDIA_RADICE; togli; sleep 2; rime
 [ "$(azione)" = riavvio ] && ok "sistema non in memoria: riavvio invece del rimontaggio" || ko "sistema sulla scheda tolta: $(azione)"
 [ -z "$(cat /tmp/mnt/Arcade/a.txt 2> /dev/null)" ] && ok "la scheda non è stata rimontata" || ko "rimontata col sistema sulla scheda tolta"
 fine
+
+echo "--- controllo della scheda lungo o senza memoria: niente riavvio, lo rifà il prossimo avvio"
+printf '#!/bin/sh\n: > /tmp/fsck-chiamato\nsleep 5\nexit 0\n' > /tmp/fsck-lungo; chmod +x /tmp/fsck-lungo
+export GUARDIA_FSCK=/tmp/fsck-lungo GUARDIA_FSCK_SECS=1
+nuova_sd 1234ABCD; parti "30 spegni"; togli; sleep 1; rimetti; sleep 4
+[ "$(azione)" = niente ] && [ "$(cat /tmp/run/scheda-rimessa 2> /dev/null)" = 1 ] && ok "controllo oltre il tempo: rimontata senza riavvio" || ko "controllo lungo: contatore $(cat /tmp/run/scheda-rimessa 2> /dev/null), $(azione)"
+[ "$(cat /tmp/run/fat-da-controllare 2> /dev/null)" = /tmp/part ] && ok "segno per il controllo al prossimo avvio" || ko "nessun segno per il prossimo avvio"
+fine
+rm -f /tmp/fsck-chiamato; export GUARDIA_MEMORIA_MB=40
+nuova_sd 1234ABCD; parti "30 spegni"; togli; sleep 1; rimetti; sleep 3
+[ ! -e /tmp/fsck-chiamato ] && [ "$(cat /tmp/run/scheda-rimessa 2> /dev/null)" = 1 ] && [ "$(azione)" = niente ] && ok "poca memoria: niente controllo ora, rimontata" || ko "poca memoria: fsck $([ -e /tmp/fsck-chiamato ] && echo chiamato), contatore $(cat /tmp/run/scheda-rimessa 2> /dev/null), $(azione)"
+[ -e /tmp/run/fat-da-controllare ] && ok "poca memoria: controllo al prossimo avvio" || ko "poca memoria: nessun segno"
+fine; unset GUARDIA_FSCK GUARDIA_FSCK_SECS GUARDIA_MEMORIA_MB
+
+echo "--- system-init: il segno «in uso» rimesso allo spegnimento, il controllo lo fa l'initramfs"
+sed -n '/^# >>> segno per il controllo/,/^# <<< segno per il controllo/p' /trimui/m2/system-init > /tmp/segno.sh
+dd if=/dev/zero of=/tmp/s.img bs=1M count=40 2> /dev/null; mkfs.vfat -F 32 /tmp/s.img > /dev/null
+stato() { dd if=/tmp/s.img bs=1 skip=65 count=1 2> /dev/null | od -An -tu1 | tr -d ' '; }   # come initramfs-init
+[ $(( $(stato) & 1 )) = 0 ] && ok "FAT chiuso bene: nessun controllo" || ko "FAT nuovo già segnato"
+mkdir -p /tmp/srun2; echo /tmp/s.img > /tmp/srun2/fat-da-controllare
+( SD_RUN=/tmp/srun2; . /tmp/segno.sh; fat_segno_controllo )
+[ $(( $(stato) & 1 )) = 1 ] && ok "dopo lo spegnimento: segno «in uso», l'initramfs controlla" || ko "segno non rimesso ($(stato))"
+fsck.fat -n /tmp/s.img > /dev/null 2>&1; [ $? -le 1 ] && ok "FAT ancora valido" || ko "FAT rovinato"
 
 echo "--- scheda infilata male: c'è ma non si legge"
 dd if=/dev/zero of=/tmp/guasta.img bs=1M count=40 2> /dev/null   # niente FAT: il contatto che non regge

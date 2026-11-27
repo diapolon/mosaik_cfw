@@ -82,14 +82,20 @@ static void note(const char *fmt, ...) {
     if (n > 0 && log_len + n < sizeof log_buf) log_len += n;
 }
 
-static bool disk_present(const char *disk) {
+/* 1 il disco c'è, 0 tolto (la sua cartella in /sys è sparita, o dimensione zero), -1 non si sa: una
+   lettura non riuscita non è una scheda tolta, o si controllerebbe e rimonterebbe la scheda in uso
+   (revisione della stabile, 27 novembre) */
+static int disk_state(const char *disk) {
     char p[300];
     snprintf(p, sizeof p, "%s/%s/size", sysb, disk);
     FILE *f = fopen(p, "r");
-    long long size = 0;
-    if (f) { if (fscanf(f, "%lld", &size) != 1) size = 0; fclose(f); }
-    return size > 0;
+    if (!f) return errno == ENOENT || errno == ENOTDIR ? 0 : -1;
+    long long size = -1;
+    if (fscanf(f, "%lld", &size) != 1) size = -1;
+    fclose(f);
+    return size > 0 ? 1 : size == 0 ? 0 : -1;
 }
+static bool disk_present(const char *disk) { return disk_state(disk) == 1; }
 
 /* numero del dispositivo della partizione («179:4»), vuoto se non c'è ancora: una scheda sparita e
    tornata fra due controlli è per il kernel un disco nuovo, e il vecchio aggancio è morto comunque */
@@ -246,6 +252,42 @@ static bool fat_serial(const char *dev, uint32_t *serial) {
     return true;
 }
 
+/* memoria che fsck.fat chiederebbe (byte): la tabella e un puntatore per ogni cluster, più un margine;
+   0 se il settore di avvio non si legge. Su una scheda da 512 GB sono centinaia di MB, mentre il
+   gioco fermo tiene la sua (revisione della stabile, 27 novembre) */
+static long long fsck_memory(const char *part) {
+    unsigned char b[512];
+    int fd = open(part, O_RDONLY);
+    if (fd < 0) return 0;
+    ssize_t n = read(fd, b, sizeof b);
+    close(fd);
+    if (n != (ssize_t)sizeof b) return 0;
+    unsigned bps = b[11] | b[12] << 8, spc = b[13], res = b[14] | b[15] << 8, nfats = b[16];
+    unsigned long long tot = b[19] | b[20] << 8, fsz = b[22] | b[23] << 8;
+    if (!tot) tot = b[32] | b[33] << 8 | b[34] << 16 | (unsigned long long)b[35] << 24;
+    if (!fsz) fsz = b[36] | b[37] << 8 | b[38] << 16 | (unsigned long long)b[39] << 24;
+    if (!bps || !spc || tot <= res + nfats * fsz) return 0;
+    unsigned long long clusters = (tot - res - nfats * fsz) / spc;
+    return (long long)(clusters * 16 + (16ULL << 20));
+}
+/* MemAvailable in byte (GUARDIA_MEMORIA_MB nelle prove), -1 se non si sa */
+static long long mem_available(void) {
+    if (getenv("GUARDIA_MEMORIA_MB")) return atoll(getenv("GUARDIA_MEMORIA_MB")) << 20;
+    FILE *f = fopen("/proc/meminfo", "r");
+    char l[128];
+    long long kb = -1;
+    while (f && fgets(l, sizeof l, f)) if (sscanf(l, "MemAvailable: %lld kB", &kb) == 1) break;
+    if (f) fclose(f);
+    return kb < 0 ? -1 : kb << 10;
+}
+/* controllo non fatto ora: lo fa l'initramfs al prossimo avvio (system-init rimette il segno «in
+   uso» dopo aver chiuso la scheda, fat_segno_controllo) */
+static void check_later(const char *part) {
+    char line[300];
+    snprintf(line, sizeof line, "%s\n", part);
+    put_state("fat-da-controllare", line);
+}
+
 /* scheda rimessa: RM_OK stessa scheda, riparata e rimontata; RM_RIAVVIO va riavviato; RM_NON_LEGGE
    c'è ma non si legge (infilata male: il contatto non regge), è come ancora fuori */
 enum { RM_OK, RM_RIAVVIO, RM_NON_LEGGE };
@@ -267,10 +309,23 @@ static int remount(const char *disk, const char *part, bool have_serial, uint32_
     if (!root_in_ram(why, sizeof why)) { note("il sistema legge ancora dalla scheda tolta (%s)", why); return RM_RIAVVIO; }
     const char *fsck = getenv("GUARDIA_FSCK") ? getenv("GUARDIA_FSCK") : "fsck.fat";
     char *fa[] = { (char *)fsck, "-a", (char *)part, NULL };
-    int r = run(fsck, fa, 120);
-    note("fsck.fat -a: %s", r == 0 ? "nessun errore" : r == 1 ? "errori corretti" : r == 127 ? "non trovato" : "non riuscito");
-    if (r != 0 && r != 1 && r != 127) return RM_RIAVVIO;
-    fsck_ok = true;
+    long long need = fsck_memory(part), avail = mem_available();
+    if (need > 0 && avail >= 0 && need > avail - (128LL << 20)) {
+        note("controllo rimandato al prossimo avvio: servirebbero %lld MB, liberi %lld MB", need >> 20, avail >> 20);
+        check_later(part);
+    } else {
+        int secs = getenv("GUARDIA_FSCK_SECS") ? atoi(getenv("GUARDIA_FSCK_SECS")) : 120;
+        int r = run(fsck, fa, secs);
+        /* fsck.fat -a (senza -w) scrive le correzioni solo alla fine: fermato prima, il FAT è com'era */
+        if (r == -2 || r == -1) {
+            note("fsck.fat -a: %s, il controllo lo rifà il prossimo avvio", r == -2 ? "tempo scaduto" : "fermato");
+            check_later(part);
+        } else {
+            note("fsck.fat -a: %s", r == 0 ? "nessun errore" : r == 1 ? "errori corretti" : r == 127 ? "non trovato" : "non riuscito");
+            if (r != 0 && r != 1 && r != 127) return RM_RIAVVIO;
+            fsck_ok = true;
+        }
+    }
     const char *opts = getenv("GUARDIA_OPZIONI") ? getenv("GUARDIA_OPZIONI") : "flush";   /* nelle prove: un rimontaggio che non riesce */
     if (umount2(mnt, MNT_DETACH) != 0) note("vecchio aggancio non staccato: %s", strerror(errno));
     if (mount(part, mnt, "vfat", MS_NOATIME, opts) != 0) { note("rimontaggio non riuscito: %s", strerror(errno)); return RM_RIAVVIO; }
@@ -354,7 +409,9 @@ int main(int argc, char **argv) {
     char action[16] = "spegni", line[64];
     double deadline = 0, last_slept = slept();
     for (;;) {
-        bool present = disk_present(disk);
+        int ds = disk_state(disk);
+        if (ds < 0) { usleep(100000); continue; }   /* non si sa: si guarda di nuovo */
+        bool present = ds == 1;
         /* sparita e tornata fra due controlli: per il kernel è un disco nuovo */
         bool blip = false;
         if (present && !absent) {

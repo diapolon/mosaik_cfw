@@ -436,6 +436,22 @@ fi
 # carica e il sistema non parte (schermo nero, serve il reset forzato): allora si spegne, e si
 # riaccende con il tasto. Lo fa già il launcher; qui vale per ogni altra strada.
 charger_online() { [ "$(cat /sys/class/power_supply/axp2202-usb/online 2>/dev/null)" = 1 ]; }
+# >>> segno per il controllo (m2/test-guardia-sd.sh prova questo blocco)
+# La guardia della SD (m2/guardia-sd.c) ha rimontato la scheda senza finire il controllo del FAT
+# (poca memoria, tempo scaduto): il segno «in uso» nel settore di avvio, rimesso dopo averla chiusa,
+# fa fare il controllo all'initramfs al prossimo avvio (initramfs-init, blocco «controllo del FAT»).
+# SD_RUN al posto di /run nelle prove.
+fat_segno_controllo() {
+    _f=${SD_RUN:-/run}/fat-da-controllare
+    [ -f "$_f" ] || return 0
+    _p=$(cat "$_f")
+    [ -n "$_p" ] || return 0
+    _b=$(dd if="$_p" bs=1 skip=65 count=1 2> /dev/null | od -An -tu1 | tr -d ' ')
+    [ -n "$_b" ] || return 0
+    printf "\\$(printf %o $(( _b | 1 )))" | dd of="$_p" bs=1 seek=65 count=1 conv=notrunc 2> /dev/null
+    sync
+}
+# <<< segno per il controllo
 finish() {
     CHARGER=
     if charger_online; then
@@ -499,6 +515,7 @@ finish() {
           cat /tmp/fermati.txt; } >> "$STEPS"
         sync
     fi
+    fat_segno_controllo
     # Spegnimento dal chip di alimentazione, sempre (16 novembre: una Smart Pro a batteria è rimasta
     # accesa, calda e senza risposta dopo lo spegnimento del kernel; NextUI spegne sempre così):
     # interruzioni del chip spente e cancellate, poi il chip toglie la corrente. Col caricatore

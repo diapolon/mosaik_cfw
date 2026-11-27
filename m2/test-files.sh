@@ -426,7 +426,7 @@ if sh $CTL off && grep -q 'Wi-Fi spento' $LOG; then ok "comando interrotto: il b
 
 check "ricerca delle reti non affidata al driver" grep -q 'wpa_supplicant -B .*-I /run/wpa-overlay.conf' $CTL
 # file delle reti: si ricrea vuoto solo se manca o è vuoto e si legge; a scheda tolta si aspetta
-sed -n '/^sd_attesa()/,/^}/p' $CTL > $W/conf.sh
+sed -n '/^sd_attesa()/p; /^conf_vuoto()/,/^}/p' $CTL > $W/conf.sh
 cv() { (CONF=$1 WIFI_SD_RUN=$W/sdrun; . $W/conf.sh; "$2") && echo si || echo no; }
 mkdir -p $W/cf $W/sdrun; : > $W/cf/vuoto; printf 'network={\n}\n' > $W/cf/reti; ln -sf /proc/self/mem $W/cf/illeggibile
 check "file delle reti assente: si ricrea" [ "$(cv $W/cf/manca conf_vuoto)" = si ]
@@ -451,6 +451,15 @@ sleep 1.5; mkdir -p $W/tolta/Logs $W/tolta/System; rm -f $W/sdrun/scheda-tolta  
 sleep 1.5
 check "Wi-Fi acceso a scheda tolta: il driver si carica quando torna ($(cat $W/insmod.log 2> /dev/null | tr '\n' ' '))" [ "$(cat $W/insmod.log 2> /dev/null | tr '\n' ' ')" = "xradio_mac.ko xradio_core.ko xradio_wlan.ko " ]
 kill $won 2> /dev/null; wait $won 2> /dev/null || true
+# revisione della stabile: l'attesa della scheda non tiene il blocco, o uno spegnimento del Wi-Fi
+# (sospensione, spegnimento della console) rinuncia dopo 20 s
+rm -rf $W/tolta2; mkdir -p $W/tolta2/Logs; : > $W/sdrun/scheda-tolta
+( PATH=$W/fakebin:$PATH ROOT=$W/tolta2 ARCADE_LOG_DIR=$W/tolta2/Logs WIFI_SD_RUN=$W/sdrun WIFI_LOCK=$W/lock-att \
+  WIFI_MODULES=$W/mod WIFI_I2C=$W/nessun-i2c sh $CTL on ) > /dev/null 2>&1 & won=$!
+sleep 1
+(ROOT=$W/tolta2 ARCADE_LOG_DIR=$W/tolta2/Logs WIFI_LOCK=$W/lock-att WIFI_LOCK_TRIES=10 sh $CTL off) > /dev/null 2>&1 || true
+check "Wi-Fi in attesa della scheda: lo spegnimento non aspetta il blocco" grep -q 'Wi-Fi spento' $W/tolta2/Logs/wifi.log
+rm -f $W/sdrun/scheda-tolta; kill $won 2> /dev/null; wait $won 2> /dev/null || true
 check "impostazione scritta nel file aggiuntivo" grep -q 'disable_scan_offload=1 > /run/wpa-overlay.conf' $CTL
 check "attesa prima di wpa_supplicant" grep -q '^    sleep 0.5' $CTL
 

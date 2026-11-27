@@ -23,6 +23,14 @@ logs() { log "$@"; sync; }
 # "resume" (il timer dei 10 s e wifi-event) no: tocca solo la pausa dei tasti, che ha il suo blocco
 # qui sotto. Aspettando questo, mentre bt-ctl lo tiene per accendere il chip del Bluetooth, dopo 20 s
 # rinunciava e i tasti restavano fermi per sempre (revisione indipendente della 0.9.99)
+# Scheda tolta (m2/guardia-sd.c): wifi.conf non si legge. Al suo posto un file vuoto faceva partire
+# wpa_supplicant senza reti, mai più collegato dopo il rimontaggio (Brick Pro, 26 novembre: Wi-Fi
+# acceso 15 s dopo l'avvio con la scheda fuori), e a scheda appena rimessa le avrebbe cancellate.
+# Si aspetta che la guardia la rimonti (o spenga). WIFI_SD_RUN al posto di /run nelle prove.
+sd_attesa() { while [ -e "${WIFI_SD_RUN:-/run}/scheda-tolta" ]; do sleep 0.5; done; }
+# on: l'attesa della scheda prima del blocco, o uno spegnimento (sospensione, spegnimento della
+# console) aspetterebbe 20 s e rinuncerebbe (revisione della stabile, 27 novembre)
+[ "$1" = on ] && sd_attesa
 if [ "$1" != resume ]; then
     exec 9> "${WIFI_LOCK:-/run/wifi-ctl.lock}"
     i=0
@@ -86,11 +94,6 @@ inputd_after_scan() {   # $1: gettone dell'accensione
     done
 }
 
-# Scheda tolta (m2/guardia-sd.c): wifi.conf non si legge. Al suo posto un file vuoto faceva partire
-# wpa_supplicant senza reti, mai più collegato dopo il rimontaggio (Brick Pro, 26 novembre: Wi-Fi
-# acceso 15 s dopo l'avvio con la scheda fuori), e a scheda appena rimessa le avrebbe cancellate.
-# Si aspetta che la guardia la rimonti (o spenga). WIFI_SD_RUN al posto di /run nelle prove.
-sd_attesa() { while [ -e "${WIFI_SD_RUN:-/run}/scheda-tolta" ]; do sleep 0.5; done; }
 # file delle reti da ricreare: assente in una cartella che c'è, o vuoto e leggibile; mai se non si
 # legge (scheda appena sparita, errore di lettura)
 conf_vuoto() {
@@ -103,7 +106,7 @@ resume)
     inputd_resume "$2"
     ;;
 on)
-    sd_attesa   # scheda tolta: si aspetta, prima di tutto (driver, registro, reti)
+    sd_attesa   # di nuovo: la scheda può essere uscita mentre si aspettava il blocco
     [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && mv -f "$LOG" "$LOG.old"
     tok=$$.$(cut -d' ' -f1 /proc/uptime)
     # il timer prima della pausa: anche se qualcosa va storto qui sotto, i tasti tornano
